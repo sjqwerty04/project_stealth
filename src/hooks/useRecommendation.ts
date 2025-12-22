@@ -30,6 +30,8 @@ export type RecommendationResult = {
   runtime?: string;
   mediaType?: 'movie' | 'tv';
   reason: string;
+  director?: string;
+  genres?: string[];
 };
 
 // Configurable LLM prompt template
@@ -292,6 +294,10 @@ export function useRecommendation() {
       const reasonResponse = await callGemini(reasonPrompt);
       const reason = reasonResponse || "This one's got your name written all over it.";
 
+      // Extract director from credits
+      const director = movieDetails?.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
+      const genres = movieDetails?.genres?.slice(0, 2).map((g: any) => g.name) || [];
+
       const result: RecommendationResult = {
         movieId: tmdbResult.id,
         title: tmdbResult.title || title,
@@ -301,6 +307,8 @@ export function useRecommendation() {
         runtime: formatRuntime(movieDetails?.runtime),
         mediaType: 'movie',
         reason,
+        director,
+        genres,
       };
 
       // Increment the "recommendations seen" counter for all skipped movies
