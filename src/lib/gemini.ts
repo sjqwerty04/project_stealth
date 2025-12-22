@@ -1,6 +1,4 @@
-const GEMINI_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_GEMINI_API_KEY) ||
-  'REDACTED_GEMINI_KEY';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 // Persistent cache using localStorage for longer-term storage
 const CACHE_PREFIX = 'gemini_cache_';

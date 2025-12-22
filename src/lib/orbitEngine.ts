@@ -1,12 +1,7 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
 
-const TMDB_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  'REDACTED_TMDB_KEY';
-
-const GEMINI_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_GEMINI_API_KEY) ||
-  'REDACTED_GEMINI_KEY';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
