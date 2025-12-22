@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, type PanInfo, AnimatePresence } from 'framer-motion';
 import { useOrbitStore, type SwipeDirection } from '../../stores/orbitStore';
 import OrbitCard from './OrbitCard';
 
@@ -104,16 +104,17 @@ export default function OrbitCardStack({
       const exitX = direction === 'left' ? -window.innerWidth : direction === 'right' ? window.innerWidth : 0;
       const exitY = direction === 'up' ? -window.innerHeight : direction === 'down' ? window.innerHeight : 0;
       
-      animate(x, exitX, { duration: 0.3 });
-      animate(y, exitY, { duration: 0.3 });
+      // Animate exit
+      const exitAnimation = animate(x, exitX, { duration: 0.2 });
+      const exitAnimationY = animate(y, exitY, { duration: 0.2 });
       
-      // Trigger swipe action after animation starts
-      setTimeout(() => {
-        onSwipe(direction);
-        // Reset position for next card
+      // Wait for exit animation to complete, then trigger swipe
+      Promise.all([exitAnimation, exitAnimationY]).then(() => {
+        // Reset position BEFORE triggering swipe so new card starts at center
         x.set(0);
         y.set(0);
-      }, 150);
+        onSwipe(direction);
+      });
     } else {
       // Spring back to center
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
@@ -129,6 +130,14 @@ export default function OrbitCardStack({
       }
     };
   }, []);
+
+  // Reset position when movie changes (e.g., when going back)
+  useEffect(() => {
+    if (currentMovie) {
+      x.set(0);
+      y.set(0);
+    }
+  }, [currentMovie?.id, x, y]);
 
   if (!currentMovie) return null;
 
@@ -184,30 +193,37 @@ export default function OrbitCardStack({
       </motion.div>
 
       {/* Main card */}
-      <motion.div
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
-        style={{
-          x,
-          y,
-          rotateX,
-          rotateY,
-          transformPerspective: 1000,
-        }}
-        drag={!isTransitioning}
-        dragElastic={0.1}
-        dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-        onDragStart={handleDragStart}
-        onDrag={handleDrag}
-        onDragEnd={handleDragEnd}
-      >
-        <OrbitCard
-          movie={currentMovie}
-          isSaved={isSaved}
-          connectionReason={historyIndex > 0 ? undefined : undefined} // Could show connection reason here
-          onSaveToggle={() => {}}
-          isActive={!isTransitioning}
-        />
-      </motion.div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentMovie.id}
+          className="absolute inset-0 cursor-grab active:cursor-grabbing"
+          style={{
+            x,
+            y,
+            rotateX,
+            rotateY,
+            transformPerspective: 1000,
+          }}
+          drag={!isTransitioning}
+          dragElastic={0.1}
+          dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+          onDragStart={handleDragStart}
+          onDrag={handleDrag}
+          onDragEnd={handleDragEnd}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: 0.2 }}
+        >
+          <OrbitCard
+            movie={currentMovie}
+            isSaved={isSaved}
+            connectionReason={historyIndex > 0 ? undefined : undefined} // Could show connection reason here
+            onSaveToggle={() => {}}
+            isActive={!isTransitioning}
+          />
+        </motion.div>
+      </AnimatePresence>
 
       {/* Swipe direction indicator */}
       {swipeHint && (
