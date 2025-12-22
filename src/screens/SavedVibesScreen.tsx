@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Trash2, Loader2, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Sparkles, Trash2, Loader2, ChevronRight, X } from 'lucide-react';
 import { collection, getDocs, deleteDoc, doc, orderBy, query } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -18,9 +18,9 @@ type SavedVibe = {
   createdAt: any;
 };
 
-const buildImageUrl = (path: string | null) => {
+const buildImageUrl = (path: string | null, size: 'w200' | 'w500' = 'w200') => {
   if (!path) return null;
-  return `https://image.tmdb.org/t/p/w200${path}`;
+  return `https://image.tmdb.org/t/p/${size}${path}`;
 };
 
 export default function SavedVibesScreen() {
@@ -29,6 +29,7 @@ export default function SavedVibesScreen() {
   const [vibes, setVibes] = useState<SavedVibe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedVibe, setSelectedVibe] = useState<SavedVibe | null>(null);
 
   const fetchVibes = useCallback(async () => {
     if (!user) return;
@@ -71,12 +72,13 @@ export default function SavedVibesScreen() {
   };
 
   const handleVibeClick = (vibe: SavedVibe) => {
-    // Navigate to discover with the vibe pattern as context
-    // For now, we'll navigate to the first movie in the vibe
-    if (vibe.movies.length > 0) {
-      const firstMovie = vibe.movies[0];
-      navigate(`/movie/${firstMovie.id}?type=${firstMovie.mediaType}`);
-    }
+    // Show modal with all movies in the vibe
+    setSelectedVibe(vibe);
+  };
+
+  const handleMovieClick = (movie: SavedVibe['movies'][0]) => {
+    setSelectedVibe(null);
+    navigate(`/movie/${movie.id}?type=${movie.mediaType}`);
   };
 
   const formatDate = (timestamp: any) => {
@@ -216,6 +218,73 @@ export default function SavedVibesScreen() {
           </div>
         )}
       </div>
+
+      {/* Vibe Detail Modal */}
+      {selectedVibe && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            onClick={() => setSelectedVibe(null)} 
+          />
+          
+          <div className="relative bg-gradient-to-br from-gray-900 to-black w-full max-w-lg max-h-[85vh] rounded-t-3xl sm:rounded-3xl border border-gray-800 overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                    <span className="text-sm text-gray-400">
+                      {selectedVibe.movies.length} movies
+                    </span>
+                  </div>
+                  <p className="text-gray-100 leading-relaxed font-medium">
+                    {selectedVibe.pattern}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedVibe(null)}
+                  className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-full transition-colors flex-shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Movie Grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-3 gap-3">
+                {selectedVibe.movies.map((movie, index) => (
+                  <div
+                    key={`${movie.mediaType}-${movie.id}`}
+                    onClick={() => handleMovieClick(movie)}
+                    className="cursor-pointer transform transition-all duration-200 hover:scale-105 active:scale-95"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    {movie.posterPath ? (
+                      <img
+                        src={buildImageUrl(movie.posterPath)!}
+                        alt={movie.title}
+                        className="w-full aspect-[2/3] rounded-xl object-cover border border-gray-700 hover:border-purple-500 transition-colors"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[2/3] rounded-xl bg-gray-800 flex items-center justify-center border border-gray-700 hover:border-purple-500 transition-colors">
+                        <span className="text-xs text-gray-500">?</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2 truncate text-center">
+                      {movie.title}
+                    </p>
+                    <p className="text-[10px] text-gray-600 truncate text-center">
+                      {movie.year}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

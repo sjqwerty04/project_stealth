@@ -730,7 +730,8 @@ export default function MovieCalendarApp() {
     today.setHours(0, 0, 0, 0);
     const target = new Date(date);
     target.setHours(0, 0, 0, 0);
-    return target < today;
+    // Include today as "past" so rating buttons appear for movies watched today
+    return target <= today;
   };
 
   const days = getDaysInMonth(currentDate);

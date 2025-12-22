@@ -91,20 +91,10 @@ export default function WatchlistScreen() {
   };
 
   const handleMarkAsWatched = (item: WatchlistItem) => {
-    // Navigate to calendar with the movie pre-selected
-    // We'll pass the movie data via state
-    navigate('/app', { 
-      state: { 
-        addMovie: {
-          id: item.movieId,
-          title: item.title,
-          year: item.year,
-          poster: item.poster,
-          backdrop: item.backdrop,
-          runtime: item.runtime,
-        }
-      }
-    });
+    // Navigate to movie detail page where user can add to calendar
+    setShowActionModal(false);
+    setSelectedMovie(null);
+    navigate(`/movie/${item.movieId}?type=movie`);
   };
 
   const getImportTypeLabel = () => {
@@ -177,28 +167,29 @@ export default function WatchlistScreen() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {items.map((item) => (
+            {items.map((item, index) => (
               <div
                 key={item.id}
                 onClick={() => {
                   setSelectedMovie(item);
                   setShowActionModal(true);
                 }}
-                className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-800 group cursor-pointer"
+                className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-800 group cursor-pointer transform transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl active:scale-95"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <img
                   src={item.poster}
                   alt={item.title}
-                  className="w-full aspect-[2/3] object-cover"
+                  className="w-full aspect-[2/3] object-cover transition-transform duration-200 group-hover:brightness-110"
                 />
                 
                 {/* Bookmark Badge */}
-                <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg bg-blue-500 text-white">
+                <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg bg-blue-500 text-white transition-transform duration-200 group-hover:scale-110">
                   <Bookmark size={14} className="fill-current" />
                 </div>
 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-2">
                   <h4 className="text-xs font-bold text-white leading-tight truncate">
                     {item.title}
                   </h4>
@@ -235,6 +226,14 @@ export default function WatchlistScreen() {
             </div>
 
             <div className="space-y-3">
+              <button
+                onClick={() => navigate(`/movie/${selectedMovie.movieId}?type=movie`)}
+                className="w-full py-3 rounded-xl font-medium bg-white hover:bg-gray-200 text-black flex items-center justify-center gap-2 transition-colors"
+              >
+                <ArrowLeft size={18} className="rotate-180" />
+                View Details
+              </button>
+              
               <button
                 onClick={() => handleMarkAsWatched(selectedMovie)}
                 className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 text-white flex items-center justify-center gap-2 transition-colors"

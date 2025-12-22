@@ -237,20 +237,22 @@ export default function WatchedScreen() {
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {filteredMovies.map((movie) => (
+            {filteredMovies.map((movie, index) => (
               <div
                 key={movie.id}
-                className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-800 group"
+                onClick={() => navigate(`/movie/${movie.movieId}?type=${movie.mediaType || 'movie'}`)}
+                className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-800 group cursor-pointer transform transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl active:scale-95"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <img
                   src={movie.poster}
                   alt={movie.title}
-                  className="w-full aspect-[2/3] object-cover"
+                  className="w-full aspect-[2/3] object-cover transition-transform duration-200 group-hover:brightness-110"
                 />
                 
                 {/* Rating Badge */}
                 <div
-                  className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg ${
+                  className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 ${
                     movie.rating === 'up'
                       ? 'bg-green-500 text-white'
                       : 'bg-red-500 text-white'
@@ -264,7 +266,7 @@ export default function WatchedScreen() {
                 </div>
 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-2">
                   <h4 className="text-xs font-bold text-white leading-tight truncate">
                     {movie.title}
                   </h4>
