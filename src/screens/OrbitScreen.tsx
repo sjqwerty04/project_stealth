@@ -11,9 +11,7 @@ import OrbitControls from '../components/orbit/OrbitControls';
 import ParryTransition from '../components/orbit/ParryTransition';
 import ConstellationView from '../components/orbit/ConstellationView';
 
-const TMDB_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  '087e509f6f93e629488a550f1451bb76';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 export default function OrbitScreen() {
   const navigate = useNavigate();

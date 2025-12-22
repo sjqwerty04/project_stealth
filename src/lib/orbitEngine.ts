@@ -1,12 +1,7 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
 
-const TMDB_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  '087e509f6f93e629488a550f1451bb76';
-
-const GEMINI_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_GEMINI_API_KEY) ||
-  'AIzaSyBfGOJNCq4-Jj8bc0DiRfEwEOkjDwzgVDU';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 

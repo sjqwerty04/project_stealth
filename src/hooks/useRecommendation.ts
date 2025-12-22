@@ -74,9 +74,7 @@ CRITICAL RULES:
 
 In 1-2 punchy sentences, explain why this movie fits them. Be witty, slightly roast-y, but ultimately helpful. Reference specific movies they've watched to draw comparisons (without spoiling those either).`;
 
-const TMDB_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  '087e509f6f93e629488a550f1451bb76';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 

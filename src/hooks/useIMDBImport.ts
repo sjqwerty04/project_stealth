@@ -53,9 +53,7 @@ type CalendarLogEntry = {
 
 export type ImportType = 'imdb-ratings' | 'imdb-watchlist' | 'letterboxd' | 'unknown';
 
-const TMDB_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  '087e509f6f93e629488a550f1451bb76';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 

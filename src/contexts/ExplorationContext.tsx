@@ -30,9 +30,7 @@ type ExplorationContextType = {
 
 const ExplorationContext = createContext<ExplorationContextType | null>(null);
 
-const TMDB_API_KEY =
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  '087e509f6f93e629488a550f1451bb76';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const PATTERN_PROMPT = `You're a film-obsessed cinephile friend who's seen everything. The user has been browsing these movies/shows in their current session:
 

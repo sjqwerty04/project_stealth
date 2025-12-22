@@ -40,22 +40,12 @@ type Movie = {
   accentText?: string;
 };
 
-declare const __gemini_api_key: string | undefined;
-declare const __tmdb_api_key: string | undefined;
-
 const TRENDING_CACHE_KEY = 'movielove_trending_cache_v1';
 const TRENDING_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-// --- Gemini API Setup ---
-const DEFAULT_GEMINI_KEY = 'AIzaSyBV_BWOe45qANJvA9Ajie9kb07GziJNV8I';
-const GEMINI_API_KEY =
-  (typeof __gemini_api_key !== 'undefined' && __gemini_api_key) ||
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_GEMINI_API_KEY) ||
-  DEFAULT_GEMINI_KEY;
-const TMDB_API_KEY =
-  (typeof __tmdb_api_key !== 'undefined' && __tmdb_api_key) ||
-  (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_TMDB_API_KEY) ||
-  '087e509f6f93e629488a550f1451bb76';
+// --- API Setup ---
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_POSTER_PLACEHOLDER = 'https://placehold.co/200x300?text=Movie';
 const TMDB_BACKDROP_PLACEHOLDER = 'https://placehold.co/600x400?text=Backdrop';
