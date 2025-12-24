@@ -1569,6 +1569,15 @@ export default function MovieCalendarApp() {
           </div>
         </div>
       )}
+
+      {/* Fixed Search Button - Bottom Center */}
+      <button
+        onClick={() => navigate('/discover')}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full shadow-lg hover:bg-gray-100 active:scale-95 transition-all font-medium"
+      >
+        <Search size={20} />
+        <span>Search</span>
+      </button>
     </div>
   );
 }

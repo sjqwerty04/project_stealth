@@ -26,29 +26,32 @@ type ExplorationContextType = {
   saveVibe: () => Promise<boolean>;
   isSavingVibe: boolean;
   vibeSaved: boolean;
+  dismissPattern: () => void;
 };
 
 const ExplorationContext = createContext<ExplorationContextType | null>(null);
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
-const PATTERN_PROMPT = `You're a film-obsessed cinephile friend who's seen everything. The user has been browsing these movies/shows in their current session:
+const PATTERN_PROMPT = `Analyze these movies the user browsed:
 
 {movieList}
 
-Analyze the pattern in their exploration. What vibe, theme, director style, era, or mood connects these picks? 
+First, determine if there's a MEANINGFUL pattern (shared director, era, genre combo, thematic thread, or visual style). 
 
-Write 1-2 punchy sentences in a playful, slightly sarcastic Reddit/Letterboxd voice. Be witty and specific - reference actual film movements, directors, or cultural moments if relevant. Don't be generic.
+If YES (confidence > 50%): Write 1-2 punchy sentences in Letterboxd voice. Be specific - reference directors, movements, eras.
 
-Examples of good tone:
+If NO clear pattern: respond with exactly "NO_PATTERN"
+
+Examples of good patterns:
 - "Ah, the 'morally bankrupt men doing crimes with style' marathon. Guy Ritchie would be proud."
 - "Someone's got a thing for slow-burn existential dread. Very A24 of you."
-- "The 'I peaked in the 90s and I'm not sorry' starter pack. Respect."
 
-DO NOT:
-- Be generic ("you like action movies")
-- Spoil any plots
-- Be longer than 2 sentences`;
+Examples where you should return NO_PATTERN:
+- Random mix of unrelated genres with no thematic connection
+- Just 3 popular movies from different decades/styles
+
+DO NOT be generic ("you like action movies"). Be specific or return NO_PATTERN.`;
 
 const SHOW_MORE_PROMPT = `Based on this detected viewing pattern:
 
@@ -110,8 +113,12 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
       const prompt = PATTERN_PROMPT.replace('{movieList}', movieList);
       const insight = await callGemini(prompt);
       
-      if (insight) {
+      // Only set pattern if it's valid (not NO_PATTERN)
+      if (insight && !insight.trim().includes('NO_PATTERN')) {
         setPatternInsight(insight.trim());
+      } else {
+        // No valid pattern detected - don't show assistant
+        setPatternInsight(null);
       }
     } catch (error) {
       console.error('Pattern analysis failed:', error);
@@ -140,6 +147,13 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
 
   const resetSession = useCallback(() => {
     setClickedMovies([]);
+    setPatternInsight(null);
+    setShowMoreResults([]);
+    setVibeSaved(false);
+    lastAnalyzedCountRef.current = 0;
+  }, []);
+
+  const dismissPattern = useCallback(() => {
     setPatternInsight(null);
     setShowMoreResults([]);
   }, []);
@@ -234,6 +248,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         saveVibe,
         isSavingVibe,
         vibeSaved,
+        dismissPattern,
       }}
     >
       {children}

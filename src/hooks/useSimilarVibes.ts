@@ -90,24 +90,19 @@ export function useSimilarVibes() {
       const alreadyLoaded = Array.from(loadedIdsRef.current);
       const skipList = similarMovies.map(m => m.title).join(', ');
       
-      const prompt = `You're a film expert with encyclopedic knowledge. Given this movie:
-Title: ${movie.title}
-Year: ${movie.release_date?.slice(0, 4)}
+      const prompt = `Film recommendation expert. For "${movie.title}" (${movie.release_date?.slice(0, 4)}):
 Genres: ${movie.genres?.map((g: any) => g.name).join(', ')}
-Overview: ${movie.overview?.slice(0, 300)}
 
-Suggest ${currentPage === 0 ? 8 : 6} movies with a SIMILAR VIBE (tone, mood, style, themes).
-${skipList ? `SKIP these already suggested: ${skipList}` : ''}
+Suggest ${currentPage === 0 ? 8 : 6} films that fans would love. Focus on:
+- Same director or cinematographer's other acclaimed work
+- Films with similar narrative structure or themes
+- Critically acclaimed films (7.5+ rating) with similar tone
+- Mix of classics and modern films
+- Hidden gems cinephiles love
+${skipList ? `\nSKIP: ${skipList}` : ''}
 
-Focus on:
-- Similar emotional tone and atmosphere
-- Comparable directorial/visual style  
-- Related themes or subject matter
-- Mix of well-known classics and hidden gems
-- Different decades for variety
-
-Return ONLY a JSON array (no markdown, no explanation):
-[{"title": "Movie Title", "year": "YYYY"}, ...]`;
+Return ONLY valid JSON array:
+[{"title": "Movie Title", "year": "YYYY"}]`;
 
       const response = await callGemini(prompt);
       if (!response) {
@@ -170,28 +165,58 @@ Return ONLY a JSON array (no markdown, no explanation):
     }
   }, [id, similarMovies, isLoading]);
 
-  // TMDB fallback if AI fails
+  // TMDB fallback if AI fails - use recommendations endpoint (better quality than /similar)
   const loadFromTMDBFallback = async (movieId: number) => {
     try {
-      const response = await fetch(
-        `${TMDB_BASE}/movie/${movieId}/similar?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+      // Try recommendations first (better quality), fallback to similar
+      let response = await fetch(
+        `${TMDB_BASE}/movie/${movieId}/recommendations?api_key=${TMDB_API_KEY}&language=en-US&page=1`
       );
+      
+      if (!response.ok) {
+        response = await fetch(
+          `${TMDB_BASE}/movie/${movieId}/similar?api_key=${TMDB_API_KEY}&language=en-US&page=1`
+        );
+      }
+      
       if (!response.ok) {
         setHasMore(false);
         return;
       }
+      
       const data = await response.json();
-      const movies = (data.results || []).slice(0, 8).map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        year: m.release_date?.slice(0, 4) || '',
-        posterPath: m.poster_path,
-        backdropPath: m.backdrop_path,
-        genres: (m.genre_ids || []).map((gid: number) => GENRE_MAP[gid]).filter(Boolean),
-        overview: m.overview || '',
-        voteAverage: m.vote_average || 0,
-      }));
-      setSimilarMovies(movies);
+      // Filter for higher quality movies (rating > 6.5) and sort by rating
+      const movies = (data.results || [])
+        .filter((m: any) => m.vote_average >= 6.5 && m.vote_count > 100)
+        .sort((a: any, b: any) => b.vote_average - a.vote_average)
+        .slice(0, 8)
+        .map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          year: m.release_date?.slice(0, 4) || '',
+          posterPath: m.poster_path,
+          backdropPath: m.backdrop_path,
+          genres: (m.genre_ids || []).map((gid: number) => GENRE_MAP[gid]).filter(Boolean),
+          overview: m.overview || '',
+          voteAverage: m.vote_average || 0,
+        }));
+      
+      // If no high-quality results, take any results
+      if (movies.length === 0) {
+        const anyMovies = (data.results || []).slice(0, 8).map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          year: m.release_date?.slice(0, 4) || '',
+          posterPath: m.poster_path,
+          backdropPath: m.backdrop_path,
+          genres: (m.genre_ids || []).map((gid: number) => GENRE_MAP[gid]).filter(Boolean),
+          overview: m.overview || '',
+          voteAverage: m.vote_average || 0,
+        }));
+        setSimilarMovies(anyMovies);
+      } else {
+        setSimilarMovies(movies);
+      }
       setHasMore(false); // TMDB fallback doesn't support AI-powered "load more"
     } catch {
       setHasMore(false);

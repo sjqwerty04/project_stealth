@@ -119,8 +119,31 @@ export function useMovieSearch() {
         mediaType: 'tv' as const,
       }));
 
-      // Combine and sort by popularity
-      const combined = [...movies, ...tvShows].sort((a, b) => b.popularity - a.popularity);
+      // Combine and sort by relevance (title match) then popularity
+      const queryLower = trimmedQuery.toLowerCase();
+      const combined = [...movies, ...tvShows].sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        
+        // Exact match first
+        if (aTitle === queryLower && bTitle !== queryLower) return -1;
+        if (bTitle === queryLower && aTitle !== queryLower) return 1;
+        
+        // Starts with query second
+        const aStarts = aTitle.startsWith(queryLower);
+        const bStarts = bTitle.startsWith(queryLower);
+        if (aStarts && !bStarts) return -1;
+        if (bStarts && !aStarts) return 1;
+        
+        // Contains query third
+        const aContains = aTitle.includes(queryLower);
+        const bContains = bTitle.includes(queryLower);
+        if (aContains && !bContains) return -1;
+        if (bContains && !aContains) return 1;
+        
+        // Then by popularity
+        return b.popularity - a.popularity;
+      });
       
       setResults(combined);
       return combined;

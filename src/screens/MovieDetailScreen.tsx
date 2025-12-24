@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Star, Play, ChevronDown, ChevronUp, ExternalLink, Loader2, Orbit } from 'lucide-react';
+import { ArrowLeft, Star, Play, ChevronDown, ChevronUp, ExternalLink, Loader2, Orbit, X } from 'lucide-react';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useSimilarVibes } from '../hooks/useSimilarVibes';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -41,6 +41,7 @@ export default function MovieDetailScreen() {
     saveVibe,
     isSavingVibe,
     vibeSaved,
+    dismissPattern,
   } = useExploration();
   
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
@@ -193,7 +194,14 @@ export default function MovieDetailScreen() {
     <div className="min-h-screen bg-black text-white">
       {/* Pattern Assistant - sticky at top when triggered */}
       {showPatternAssistant && (
-        <div className="sticky top-0 z-30 bg-black">
+        <div className="sticky top-0 z-30 bg-black relative">
+          <button
+            onClick={dismissPattern}
+            className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-black/50 text-gray-400 hover:text-white hover:bg-black/70 transition-colors"
+            aria-label="Dismiss pattern"
+          >
+            <X size={16} />
+          </button>
           <PatternAssistant
             insight={patternInsight}
             isAnalyzing={isAnalyzing}
@@ -466,7 +474,7 @@ export default function MovieDetailScreen() {
 
         {/* Similar Vibes Section */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">More of this vibe</h3>
+          <h3 className="text-lg font-semibold mb-4">Similar Films</h3>
           {isLoadingSimilar && similarMovies.length === 0 ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />

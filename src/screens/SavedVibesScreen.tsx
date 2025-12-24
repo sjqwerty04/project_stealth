@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Trash2, Loader2, ChevronRight, X } from 'lucide-react';
-import { collection, getDocs, deleteDoc, doc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, orderBy, query, limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -23,21 +23,40 @@ const buildImageUrl = (path: string | null, size: 'w200' | 'w500' = 'w200') => {
   return `https://image.tmdb.org/t/p/${size}${path}`;
 };
 
+const PAGE_SIZE = 10;
+
 export default function SavedVibesScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [vibes, setVibes] = useState<SavedVibe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastDoc, setLastDoc] = useState<DocumentSnapshot | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedVibe, setSelectedVibe] = useState<SavedVibe | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchVibes = useCallback(async () => {
+  const fetchVibes = useCallback(async (isInitial = true) => {
     if (!user) return;
 
-    setIsLoading(true);
+    if (isInitial) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
+    
     try {
       const vibesRef = collection(db, 'users', user.uid, 'saved_vibes');
-      const q = query(vibesRef, orderBy('createdAt', 'desc'));
+      let q;
+      
+      if (isInitial || !lastDoc) {
+        q = query(vibesRef, orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
+      } else {
+        q = query(vibesRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(PAGE_SIZE));
+      }
+      
       const snapshot = await getDocs(q);
       
       const fetchedVibes = snapshot.docs.map((doc) => ({
@@ -45,17 +64,53 @@ export default function SavedVibesScreen() {
         ...doc.data(),
       })) as SavedVibe[];
       
-      setVibes(fetchedVibes);
+      if (isInitial) {
+        setVibes(fetchedVibes);
+      } else {
+        setVibes(prev => [...prev, ...fetchedVibes]);
+      }
+      
+      // Set the last document for pagination
+      if (snapshot.docs.length > 0) {
+        setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      }
+      
+      // Check if there are more results
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
     } catch (error) {
       console.error('Failed to fetch vibes:', error);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
+  }, [user, lastDoc]);
+
+  // Initial load
+  useEffect(() => {
+    fetchVibes(true);
   }, [user]);
 
+  // Infinite scroll observer
   useEffect(() => {
-    fetchVibes();
-  }, [fetchVibes]);
+    if (!loadMoreRef.current || !hasMore || isLoadingMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          fetchVibes(false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observerRef.current.observe(loadMoreRef.current);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasMore, isLoadingMore, fetchVibes]);
 
   const handleDelete = async (vibeId: string) => {
     if (!user) return;
@@ -215,6 +270,16 @@ export default function SavedVibesScreen() {
                 </div>
               </div>
             ))}
+            
+            {/* Load More / Infinite Scroll Trigger */}
+            <div ref={loadMoreRef} className="py-4 flex justify-center">
+              {isLoadingMore && (
+                <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+              )}
+              {!hasMore && vibes.length > 0 && (
+                <p className="text-sm text-gray-500">No more vibes</p>
+              )}
+            </div>
           </div>
         )}
       </div>

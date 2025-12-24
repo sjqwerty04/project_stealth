@@ -118,19 +118,23 @@ export function useMovieDetails() {
       const englishLogo = logos.find((l: any) => l.iso_639_1 === 'en') || logos[0];
       const logoPath = englishLogo?.file_path || null;
 
-      // Generate AI vibe description
-      const vibePrompt = `You're a witty film critic. Describe the VIBE of "${detailsData.title || detailsData.name}" (${detailsData.release_date?.slice(0, 4) || detailsData.first_air_date?.slice(0, 4)}) in 1-2 sentences.
+      // Generate AI vibe description - smirky synopsis style
+      const genreList = detailsData.genres?.map((g: any) => g.name).join(', ') || 'film';
+      const vibePrompt = `You're a snarky cinephile friend. For "${detailsData.title || detailsData.name}" (${detailsData.release_date?.slice(0, 4) || detailsData.first_air_date?.slice(0, 4)}):
 
-Genres: ${detailsData.genres?.map((g: any) => g.name).join(', ')}
-${director ? `Director: ${director}` : ''}
-Tagline: ${detailsData.tagline || 'N/A'}
+Give a smirky oversimplified plot synopsis in 1-2 SHORT sentences. Think Letterboxd energy.
+Genres: ${genreList}
 
-Focus on mood, style, and tone - NOT plot. Be playful and specific. Use film references if relevant.
 Examples:
-- "Peak 90s Tarantino energy - all swagger, sharp suits, and even sharper dialogue."
-- "Cozy autumn vibes meets existential crisis. Bring tissues and a warm blanket."
+- "Rich people problems get violent. Oscars ensue."
+- "Sad robot learns to feel. You will too."
+- "Heist goes wrong. Cool guys walk slow."
 
-DO NOT spoil anything. Keep it under 2 sentences.`;
+Rules:
+- Max 2 short sentences
+- Be witty, not generic
+- NO spoilers
+- Oversimplify the plot humorously`;
 
       // Start fetching vibe description in background (don't block page load)
       const vibePromise = callGemini(vibePrompt);
