@@ -16,8 +16,8 @@ const callOrbitGemini = async (prompt: string): Promise<string | null> => {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7, // Lower temp for more consistent JSON
-            maxOutputTokens: 200, // Small output - just JSON
+            temperature: 0.9, // Higher temp for more variety
+            maxOutputTokens: 150, // Small output - just JSON
           },
         }),
       }
@@ -46,18 +46,21 @@ export interface OrbitResponse {
   tmdb_id?: number;
 }
 
-// Compact prompts for faster Gemini Flash responses
+// Compact prompts for faster Gemini Flash responses - must return DIFFERENT movies each time
 const VIBE_PROMPT = `Movie: "{title}" ({year}), {genres}, dir: {director}
-Recommend 1 similar vibe movie. Output RAW JSON only:
-{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"max 8 words","similarity_score":85}`;
+Recommend 1 DIFFERENT movie with similar vibe/tone. Pick something unexpected but fitting - NOT the obvious choice.
+Output RAW JSON only:
+{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"max 6 words","similarity_score":85}`;
 
 const AESTHETIC_PROMPT = `Movie: "{title}" ({year}), cinematography by {cinematographer}
-Recommend 1 visually similar movie (same color palette/lighting). Output RAW JSON only:
-{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"visual connection","similarity_score":85}`;
+Recommend 1 DIFFERENT visually similar movie - same color palette, lighting, or visual style. Pick a unique choice.
+Output RAW JSON only:
+{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"visual link","similarity_score":85}`;
 
 const AUTEUR_PROMPT = `Movie: "{title}" ({year}), dir: {director}, writer: {writer}
-Recommend 1 movie by same director OR same narrative style. Output RAW JSON only:
-{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"auteur connection","similarity_score":85}`;
+Recommend 1 DIFFERENT movie - either by same director OR with similar narrative/storytelling style. Surprise me.
+Output RAW JSON only:
+{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"auteur link","similarity_score":85}`;
 
 // Build prompt based on direction
 const buildPrompt = (
@@ -204,88 +207,6 @@ const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie
   }
 };
 
-// TMDB fallback when Gemini fails
-const getTMDBFallback = async (
-  currentMovie: OrbitMovie,
-  direction: SwipeDirection
-): Promise<{ movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> => {
-  try {
-    // Use recommendations endpoint for better results
-    const response = await fetch(
-      `${TMDB_BASE}/movie/${currentMovie.id}/recommendations?api_key=${TMDB_API_KEY}&language=en-US&page=1`
-    );
-    
-    if (!response.ok) {
-      // Fallback to similar endpoint
-      const similarResponse = await fetch(
-        `${TMDB_BASE}/movie/${currentMovie.id}/similar?api_key=${TMDB_API_KEY}&language=en-US&page=1`
-      );
-      if (!similarResponse.ok) return null;
-      const data = await similarResponse.json();
-      const results = data.results || [];
-      if (results.length === 0) return null;
-      
-      // Pick a random movie from top results
-      const randomIndex = Math.floor(Math.random() * Math.min(results.length, 5));
-      const movie = results[randomIndex];
-      
-      const details = await getMovieDetails(movie.id);
-      const director = details?.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
-      
-      return {
-        movie: {
-          id: movie.id,
-          title: movie.title,
-          year: movie.release_date?.slice(0, 4) || '',
-          posterPath: movie.poster_path,
-          backdropPath: movie.backdrop_path,
-          dominantHex: '#1a1a2e',
-          mediaType: 'movie',
-          director,
-          genres: details?.genres?.map((g: any) => g.name) || [],
-        },
-        connectionReason: direction === 'left' ? 'Similar vibe' : direction === 'up' ? 'Same era' : 'Visual match',
-        similarityScore: 70,
-      };
-    }
-    
-    const data = await response.json();
-    const results = (data.results || []).filter((m: any) => m.vote_average >= 6.5);
-    
-    if (results.length === 0) return null;
-    
-    // Pick based on direction for variety
-    const sortedResults = direction === 'up' 
-      ? results.sort((a: any, b: any) => b.vote_average - a.vote_average) // Best rated for auteur
-      : direction === 'down'
-      ? results.sort((a: any, b: any) => (new Date(b.release_date).getTime() || 0) - (new Date(a.release_date).getTime() || 0)) // Newest for aesthetic
-      : results; // Random for vibe
-    
-    const movie = sortedResults[0];
-    const details = await getMovieDetails(movie.id);
-    const director = details?.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
-    
-    return {
-      movie: {
-        id: movie.id,
-        title: movie.title,
-        year: movie.release_date?.slice(0, 4) || '',
-        posterPath: movie.poster_path,
-        backdropPath: movie.backdrop_path,
-        dominantHex: '#1a1a2e',
-        mediaType: 'movie',
-        director,
-        genres: details?.genres?.map((g: any) => g.name) || [],
-      },
-      connectionReason: direction === 'left' ? 'Similar vibe' : direction === 'up' ? 'Director\'s pick' : 'Visual aesthetic',
-      similarityScore: 75,
-    };
-  } catch (error) {
-    console.error('TMDB fallback failed:', error);
-    return null;
-  }
-};
-
 // Main function to get next movie based on swipe direction
 export const getNextMovie = async (
   currentMovie: OrbitMovie,
@@ -298,23 +219,20 @@ export const getNextMovie = async (
   const prompt = buildPrompt(currentMovie, direction, extraContext);
   
   const response = await callOrbitGemini(prompt);
-  
-  // If Gemini fails, use TMDB fallback
   if (!response) {
-    console.warn('Gemini returned no response, using TMDB fallback');
-    return getTMDBFallback(currentMovie, direction);
+    console.error('Gemini returned no response');
+    return null;
   }
   
   const orbitResponse = parseOrbitResponse(response);
   if (!orbitResponse) {
-    console.warn('Failed to parse Gemini response, using TMDB fallback');
-    return getTMDBFallback(currentMovie, direction);
+    console.error('Failed to parse Gemini response');
+    return null;
   }
   
   const hydratedMovie = await hydrateWithTMDB(orbitResponse);
   if (!hydratedMovie) {
-    console.warn('Failed to hydrate movie, using TMDB fallback');
-    return getTMDBFallback(currentMovie, direction);
+    return null;
   }
   
   return {
