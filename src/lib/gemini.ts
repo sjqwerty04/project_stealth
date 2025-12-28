@@ -104,7 +104,12 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
   lastCallTime = Date.now();
 
   if (!GEMINI_API_KEY) {
-    console.error('Gemini API key is missing');
+    console.error('Gemini API key is missing. Check Vercel environment variables.');
+    console.error('Current env check:', {
+      hasKey: !!import.meta.env.VITE_GEMINI_API_KEY,
+      keyLength: import.meta.env.VITE_GEMINI_API_KEY?.length || 0,
+      keyPrefix: import.meta.env.VITE_GEMINI_API_KEY?.substring(0, 10) || 'none'
+    });
     return null;
   }
 
@@ -132,7 +137,12 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
       } catch {
         errorData = { message: errorText };
       }
-      console.error('Gemini API error:', response.status, errorData);
+      console.error('Gemini API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+        url: response.url
+      });
       return null;
     }
 

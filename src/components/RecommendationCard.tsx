@@ -28,7 +28,8 @@ export default function RecommendationCard({ onAddToCalendar }: RecommendationCa
     if (!recommendation && !isLoading && !error) {
       generateRecommendation();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const handleRate = async (rating: 'up' | 'down') => {
     if (!recommendation || isRating) return;
