@@ -114,18 +114,35 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
   }
 
   try {
+    // Validate prompt length (Gemini has token limits)
+    if (prompt.length > 1000000) { // Rough estimate: 1M chars ≈ 250k tokens
+      console.error('Prompt too long:', prompt.length);
+      throw new Error('Prompt exceeds maximum length');
+    }
+
+    const requestBody = { 
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.8,
+        maxOutputTokens: 500,
+      }
+    };
+
+    // Validate request body can be stringified
+    let requestBodyString;
+    try {
+      requestBodyString = JSON.stringify(requestBody);
+    } catch (e) {
+      console.error('Failed to stringify request body:', e);
+      throw new Error('Invalid request body');
+    }
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 500,
-          }
-        }),
+        body: requestBodyString,
       }
     );
 
@@ -137,13 +154,18 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
       } catch {
         errorData = { message: errorText };
       }
+      
+      // Log full error details for debugging
       console.error('Gemini API error:', {
         status: response.status,
         statusText: response.statusText,
         error: errorData,
-        url: response.url
+        promptLength: prompt.length,
+        promptPreview: prompt.substring(0, 200) + '...'
       });
-      return null;
+      
+      // Throw error with details so caller can handle it
+      throw new Error(`Gemini API ${response.status}: ${errorData.error?.message || errorData.message || errorText}`);
     }
 
     const data = await response.json();
