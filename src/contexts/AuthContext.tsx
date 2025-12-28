@@ -11,6 +11,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { logUserSignedIn, logUserSignedUp } from '../lib/analytics';
+import { logActivity, setupGlobalErrorLogging } from '../lib/activityLogger';
 
 type AuthState = {
   user: User | null;
@@ -40,6 +41,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         const whitelisted = await checkWhitelistInternal(user.email || '');
         setState({ user, loading: false, isWhitelisted: whitelisted });
+        
+        // Setup activity tracking for authenticated users
+        if (whitelisted && user.email) {
+          logActivity(user.uid, user.email, 'session_started', {});
+          setupGlobalErrorLogging(user.uid, user.email);
+        }
       } else {
         setState({ user: null, loading: false, isWhitelisted: null });
       }

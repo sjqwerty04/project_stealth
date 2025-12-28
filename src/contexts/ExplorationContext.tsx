@@ -3,6 +3,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { callGemini } from '../lib/gemini';
+import { logActivity } from '../lib/activityLogger';
 
 type ExploredMovie = {
   id: number;
@@ -225,6 +226,16 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
       });
       setVibeSaved(true);
+      
+      // Log activity
+      if (user.email) {
+        logActivity(user.uid, user.email, 'vibe_saved', {
+          pattern: patternInsight,
+          movieCount: clickedMovies.length,
+          movieTitles: clickedMovies.map(m => m.title),
+        });
+      }
+      
       return true;
     } catch (error) {
       console.error('Failed to save vibe:', error);

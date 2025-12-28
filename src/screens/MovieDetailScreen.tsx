@@ -12,6 +12,7 @@ import PatternAssistant from '../components/PatternAssistant';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
+import { logActivity } from '../lib/activityLogger';
 
 const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
   if (!path) return null;
@@ -57,6 +58,17 @@ export default function MovieDetailScreen() {
       fetchDetails(parseInt(id), mediaType);
     }
   }, [id, mediaType, fetchDetails]);
+
+  // Log movie view for activity tracking
+  useEffect(() => {
+    if (details && user?.uid && user?.email) {
+      logActivity(user.uid, user.email, 'movie_viewed', {
+        movieId: details.id,
+        movieTitle: details.title,
+        mediaType: details.mediaType,
+      });
+    }
+  }, [details?.id, user?.uid, user?.email]);
 
   // Track this movie view for pattern detection
   useEffect(() => {
