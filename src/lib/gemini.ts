@@ -76,7 +76,7 @@ const cleanupOldCache = (): void => {
 // Run cleanup on load
 cleanupOldCache();
 
-export const callGemini = async (prompt: string): Promise<string | null> => {
+export const callGemini = async (prompt: string, model: string = 'gemini-2.0-flash'): Promise<string | null> => {
   const cacheKey = hashPrompt(prompt);
   
   // Check memory cache first (fastest)
@@ -137,14 +137,13 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
       throw new Error('Invalid request body');
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBodyString,
-      }
-    );
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBodyString,
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -160,9 +159,16 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
         status: response.status,
         statusText: response.statusText,
         error: errorData,
+        model: model,
         promptLength: prompt.length,
         promptPreview: prompt.substring(0, 200) + '...'
       });
+      
+      // If 2.0-flash fails with 400, try 1.5-flash as fallback
+      if (response.status === 400 && model === 'gemini-2.0-flash') {
+        console.log('Retrying with gemini-1.5-flash as fallback...');
+        return callGemini(prompt, 'gemini-1.5-flash');
+      }
       
       // Throw error with details so caller can handle it
       throw new Error(`Gemini API ${response.status}: ${errorData.error?.message || errorData.message || errorText}`);

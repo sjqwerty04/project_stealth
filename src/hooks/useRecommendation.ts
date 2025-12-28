@@ -218,8 +218,10 @@ export function useRecommendation() {
       
       // 5. Build complete exclusion list (watched + skipped in cooldown)
       const allWatchedSet = new Set([...calendarTitles, ...watchedRecTitles, ...skippedInCooldown]);
-      const excludeList = allWatchedSet.size > 0 
-        ? Array.from(allWatchedSet).join('\n')
+      // Limit exclude list to prevent prompt from being too long (max ~1000 items)
+      const excludeArray = Array.from(allWatchedSet).slice(0, 1000);
+      const excludeList = excludeArray.length > 0 
+        ? excludeArray.join('\n')
         : 'None';
       
       // 6. Build watchlist text (excluding already watched)
