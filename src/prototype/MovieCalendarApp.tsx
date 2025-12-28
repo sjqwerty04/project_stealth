@@ -23,6 +23,7 @@ import { logMovieAdded } from '../lib/analytics';
 import RecommendationCard from '../components/RecommendationCard';
 import ProfileDropdown from '../components/ProfileDropdown';
 import type { RecommendationResult } from '../hooks/useRecommendation';
+import { callGemini } from '../lib/gemini';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -44,7 +45,6 @@ const TRENDING_CACHE_KEY = 'movielove_trending_cache_v1';
 const TRENDING_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 // --- API Setup ---
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_POSTER_PLACEHOLDER = 'https://placehold.co/200x300?text=Movie';
@@ -164,11 +164,6 @@ const generateFallbackAccent = (seed: string): AccentColors => {
 const fetchLLMColors = async (movieTitle: string, year?: string | number): Promise<AccentColors | null> => {
   const movieLabel = year ? `${movieTitle} (${year})` : movieTitle;
   console.log(`[fetchLLMColors] Starting for: "${movieLabel}"`);
-  
-  if (!GEMINI_API_KEY) {
-    console.warn('[fetchLLMColors] No GEMINI_API_KEY found');
-    return null;
-  }
 
   const prompt = `Reference the official theatrical release poster for the movie "${movieLabel}".
 
@@ -184,29 +179,14 @@ Return ONLY a JSON object with this exact format (no markdown, no backticks):
 
   try {
     console.log(`[fetchLLMColors] Calling Gemini API...`);
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      },
-    );
-
-    if (!response.ok) {
-      console.error(`[fetchLLMColors] API Error: ${response.status} ${response.statusText}`);
-      const errText = await response.text();
-      console.error(`[fetchLLMColors] Error details:`, errText);
-      throw new Error('Gemini API failed');
+    const text = await callGemini(prompt);
+    
+    if (!text) {
+      console.warn('[fetchLLMColors] No response from Gemini');
+      return null;
     }
-
-    const data = await response.json();
-    console.log('[fetchLLMColors] Raw API Response:', data);
     
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     console.log('[fetchLLMColors] Extracted text:', text);
-    
-    if (!text) return null;
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -403,11 +383,6 @@ const normalizeDetailResult = (data: any, mediaType: 'movie' | 'tv'): Movie => {
 };
 
 const generateMovieInsight = async (movieTitle: string, otherMovies: Array<{ title: string }>, rating?: RatingValue) => {
-  if (!GEMINI_API_KEY) {
-    console.warn('Missing Gemini API key');
-    return 'Add a Gemini key to unlock Vibe Check.';
-  }
-
   try {
     const historyContext =
       otherMovies && otherMovies.length > 0 ? ` Recently watched: ${otherMovies.map((m) => m.title).join(', ')}.` : '';
@@ -424,18 +399,8 @@ const generateMovieInsight = async (movieTitle: string, otherMovies: Array<{ tit
       prompt = `I am planning to watch "${movieTitle}".${historyContext}\nGive me an oversimplified, sarcastic take on this movie's reputation or vibe.\nRoast the movie or the fact that I'm watching it.\nKeep it extremely brief—strictly under two short sentences.${spoilerWarning}`;
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      },
-    );
-
-    if (!response.ok) throw new Error('Gemini API failed');
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Enjoy the show!';
+    const text = await callGemini(prompt);
+    return text || 'Enjoy the show!';
   } catch (error) {
     console.error('AI Error:', error);
     return 'Ready for a great movie night!';

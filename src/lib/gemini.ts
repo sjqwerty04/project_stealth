@@ -120,16 +120,21 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
       throw new Error('Prompt exceeds maximum length');
     }
 
-    const requestBody = { 
+    const requestBody: any = { 
       contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1.0, // Gemini 3 default - recommended
-            maxOutputTokens: 500,
-            thinkingConfig: {
-              thinkingLevel: "low" // Minimize latency for recommendations
-            }
-          }
+      generationConfig: {
+        temperature: 1.0, // Gemini 3 default - recommended
+        maxOutputTokens: 500,
+      }
     };
+
+    // Add thinkingConfig only for Gemini 3 models (may cause 400 if not supported)
+    // If 400 errors persist, remove this block
+    if (model.includes('gemini-3')) {
+      requestBody.generationConfig.thinkingConfig = {
+        thinkingLevel: "low" // Minimize latency for recommendations
+      };
+    }
 
     // Validate request body can be stringified
     let requestBodyString;
@@ -167,10 +172,41 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
         promptPreview: prompt.substring(0, 200) + '...'
       });
       
-      // If 3-flash fails with 400, try 2.5-flash-lite as fallback
+      // If 3-flash fails with 400, try 2.5-flash-lite as fallback (without thinkingConfig)
       if (response.status === 400 && model === 'gemini-3-flash-preview') {
-        console.log('Retrying with gemini-2.5-flash-lite as fallback...');
-        return callGemini(prompt, 'gemini-2.5-flash-lite');
+        console.log('Gemini 3 failed with 400, retrying with gemini-2.5-flash-lite as fallback...');
+        // Retry without thinkingConfig (2.5 doesn't support it)
+        const fallbackBody = {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 1.0,
+            maxOutputTokens: 500,
+          }
+        };
+        
+        try {
+          const fallbackResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(fallbackBody),
+            }
+          );
+          
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            const result = fallbackData.candidates?.[0]?.content?.parts?.[0]?.text || null;
+            if (result) {
+              // Cache the successful fallback response
+              memoryCache.set(cacheKey, { value: result, timestamp: Date.now() });
+              saveToStorage(cacheKey, result);
+              return result;
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback to gemini-2.5-flash-lite also failed:', fallbackError);
+        }
       }
       
       // Throw error with details so caller can handle it

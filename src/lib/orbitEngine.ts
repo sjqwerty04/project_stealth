@@ -1,40 +1,8 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
+import { callGemini } from './gemini';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-
 const TMDB_BASE = 'https://api.themoviedb.org/3';
-
-// Use Gemini 2.0 Flash for ultra-fast orbit recommendations
-const callOrbitGemini = async (prompt: string): Promise<string | null> => {
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.9, // Higher temp for more variety
-            maxOutputTokens: 150, // Small output - just JSON
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      console.error('Orbit Gemini API error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (error) {
-    console.error('Orbit Gemini call failed:', error);
-    return null;
-  }
-};
 
 // Response schema from Gemini
 export interface OrbitResponse {
@@ -218,7 +186,7 @@ export const getNextMovie = async (
   
   const prompt = buildPrompt(currentMovie, direction, extraContext);
   
-  const response = await callOrbitGemini(prompt);
+  const response = await callGemini(prompt);
   if (!response) {
     console.error('Gemini returned no response');
     return null;
