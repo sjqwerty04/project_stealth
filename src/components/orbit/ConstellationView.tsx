@@ -7,26 +7,28 @@ const buildImageUrl = (path: string | null) => {
   return `https://image.tmdb.org/t/p/w200${path}`;
 };
 
-// Connection colors
+// Connection colors - updated for new types
+// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 const getConnectionColor = (type: ConnectionType) => {
   switch (type) {
-    case 'vibe': return '#3b82f6'; // Blue - left
-    case 'auteur': return '#f59e0b'; // Amber - up
-    case 'aesthetic': return '#ec4899'; // Pink - down
-    default: return '#6b7280'; // Gray
+    case 'visual': return '#8b5cf6'; // Purple - up (visual/cinematography)
+    case 'balanced': return '#3b82f6'; // Blue - right (overall match)
+    case 'storytelling': return '#f59e0b'; // Amber - down (narrative)
+    case 'emotional': return '#ec4899'; // Pink - left (feeling)
+    case 'back': return '#6b7280'; // Gray - back navigation
+    default: return '#6b7280';
   }
 };
 
 // Convert connection type to visual direction
-// Note: swipe left = vibe, but visually we show it going LEFT
-// swipe up = auteur, visually going UP
-// swipe down = aesthetic, visually going DOWN
+// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 const connectionTypeToOffset = (type: ConnectionType): { dx: number; dy: number } => {
   switch (type) {
-    case 'vibe': return { dx: -120, dy: 0 }; // Left
-    case 'auteur': return { dx: 0, dy: -140 }; // Up
-    case 'aesthetic': return { dx: 0, dy: 140 }; // Down
-    case 'entry': return { dx: 120, dy: 0 }; // Right (entry point)
+    case 'visual': return { dx: 0, dy: -140 }; // Up
+    case 'balanced': return { dx: 120, dy: 0 }; // Right
+    case 'storytelling': return { dx: 0, dy: 140 }; // Down
+    case 'emotional': return { dx: -120, dy: 0 }; // Left
+    case 'back': return { dx: 0, dy: 0 }; // No offset for back
     default: return { dx: 120, dy: 0 };
   }
 };
@@ -329,9 +331,10 @@ export default function ConstellationView() {
                     color: connectionColor,
                   }}
                 >
-                  {edgeToThis.connectionType === 'vibe' && '← Vibe'}
-                  {edgeToThis.connectionType === 'auteur' && '↑ Auteur'}
-                  {edgeToThis.connectionType === 'aesthetic' && '↓ Aesthetic'}
+                  {edgeToThis.connectionType === 'visual' && '↑ Visual'}
+                  {edgeToThis.connectionType === 'balanced' && '→ Match'}
+                  {edgeToThis.connectionType === 'storytelling' && '↓ Story'}
+                  {edgeToThis.connectionType === 'emotional' && '← Feel'}
                 </div>
               )}
             </motion.div>
@@ -339,20 +342,24 @@ export default function ConstellationView() {
         })}
       </div>
 
-      {/* Legend */}
+      {/* Legend - updated for new attributes */}
       <div className="absolute bottom-24 left-4 right-4 flex justify-center pointer-events-none">
-        <div className="flex gap-4 px-4 py-2 rounded-full bg-black/80 backdrop-blur-md border border-gray-800">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-blue-500 rounded" />
-            <span className="text-white/70 text-xs">← Vibe</span>
+        <div className="flex gap-3 px-4 py-2 rounded-full bg-black/80 backdrop-blur-md border border-gray-800">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-1 bg-purple-500 rounded" />
+            <span className="text-white/70 text-xs">↑ Visual</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-amber-500 rounded" />
-            <span className="text-white/70 text-xs">↑ Auteur</span>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-1 bg-blue-500 rounded" />
+            <span className="text-white/70 text-xs">→ Match</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-1 bg-pink-500 rounded" />
-            <span className="text-white/70 text-xs">↓ Aesthetic</span>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-1 bg-amber-500 rounded" />
+            <span className="text-white/70 text-xs">↓ Story</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-1 bg-pink-500 rounded" />
+            <span className="text-white/70 text-xs">← Feel</span>
           </div>
         </div>
       </div>
