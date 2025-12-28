@@ -103,6 +103,11 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
   }
   lastCallTime = Date.now();
 
+  if (!GEMINI_API_KEY) {
+    console.error('Gemini API key is missing');
+    return null;
+  }
+
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -120,18 +125,28 @@ export const callGemini = async (prompt: string): Promise<string | null> => {
     );
 
     if (!response.ok) {
-      console.error('Gemini API error:', response.status);
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      console.error('Gemini API error:', response.status, errorData);
       return null;
     }
 
     const data = await response.json();
     const result = data.candidates?.[0]?.content?.parts?.[0]?.text || null;
     
-    // Cache successful responses in both memory and storage
-    if (result) {
-      memoryCache.set(cacheKey, { value: result, timestamp: Date.now() });
-      saveToStorage(cacheKey, result);
+    if (!result) {
+      console.error('Gemini API returned empty result:', data);
+      return null;
     }
+    
+    // Cache successful responses in both memory and storage
+    memoryCache.set(cacheKey, { value: result, timestamp: Date.now() });
+    saveToStorage(cacheKey, result);
     
     return result;
   } catch (error) {
