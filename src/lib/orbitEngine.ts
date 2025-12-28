@@ -1,5 +1,5 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
-import { callGemini, extractJSON } from './gemini';
+import { callGeminiForJSON } from './gemini';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -74,17 +74,8 @@ const buildPrompt = (
     .replace('{director}', director);
 };
 
-// Parse Gemini response to OrbitResponse using robust extractJSON
-const parseOrbitResponse = (text: string): OrbitResponse | null => {
-  console.log('Orbit raw response:', text);
-  
-  // Use robust JSON extraction
-  const parsed = extractJSON(text);
-  if (!parsed) {
-    console.error('Failed to extract JSON from orbit response');
-    return null;
-  }
-  
+// Validate and normalize orbit response fields
+const normalizeOrbitResponse = (parsed: any): OrbitResponse | null => {
   // Support both old and new field names for backwards compatibility
   const title = parsed.title || parsed.next_movie_title;
   const year = parsed.year;
@@ -191,15 +182,29 @@ export const getNextMovie = async (
   
   console.log(`Orbit: Getting ${direction} recommendation for "${currentMovie.title}"`);
   
-  const response = await callGemini(prompt);
-  if (!response) {
-    console.error('Gemini returned no response for orbit');
+  // Use validated JSON call with auto-retry
+  const exampleFormat = '{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}';
+  
+  const parsed = await callGeminiForJSON<{
+    title?: string;
+    next_movie_title?: string;
+    year: string;
+    hex?: string;
+    dominant_hex_color?: string;
+    score?: number;
+    similarity_score?: number;
+    reason?: string;
+    connection_reason?: string;
+  }>(prompt, exampleFormat, 2);
+  
+  if (!parsed) {
+    console.error('Orbit: Gemini JSON call failed after retries');
     return null;
   }
   
-  const orbitResponse = parseOrbitResponse(response);
+  const orbitResponse = normalizeOrbitResponse(parsed);
   if (!orbitResponse) {
-    console.error('Failed to parse Gemini response for orbit');
+    console.error('Orbit: Failed to normalize response');
     return null;
   }
   

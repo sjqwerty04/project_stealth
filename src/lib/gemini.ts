@@ -235,8 +235,8 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
     const requestBody: any = { 
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 1.0, // Gemini 3 default - recommended
-        maxOutputTokens: 1024, // Increased from 500 to prevent JSON truncation
+        temperature: 0.7, // Lower temp for more consistent JSON output
+        maxOutputTokens: 2048, // Increased significantly to prevent truncation
       }
     };
     // NOTE: thinkingConfig removed - it was causing response format issues with JSON outputs
@@ -284,8 +284,8 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
         const fallbackBody = {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 1.0,
-            maxOutputTokens: 1024,
+            temperature: 0.7,
+            maxOutputTokens: 2048,
           }
         };
         
@@ -335,6 +335,66 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
     console.error('Gemini API call failed:', error);
     return null;
   }
+};
+
+/**
+ * Call Gemini expecting JSON response with automatic validation and retry
+ * If first response doesn't parse as valid JSON, retries with a "fix" prompt
+ */
+export const callGeminiForJSON = async <T = any>(
+  prompt: string,
+  exampleFormat: string, // Show the expected JSON format
+  maxRetries: number = 2
+): Promise<T | null> => {
+  console.log('callGeminiForJSON: Starting with prompt length:', prompt.length);
+  
+  // First attempt
+  const response = await callGemini(prompt);
+  if (!response) {
+    console.error('callGeminiForJSON: No response from Gemini');
+    return null;
+  }
+  
+  console.log('callGeminiForJSON: Raw response:', response);
+  
+  // Try to extract JSON
+  let parsed = extractJSON(response);
+  if (parsed) {
+    console.log('callGeminiForJSON: Success on first attempt');
+    return parsed as T;
+  }
+  
+  // First attempt failed - try repair/retry
+  console.log('callGeminiForJSON: First attempt failed, trying repair...');
+  
+  for (let retry = 0; retry < maxRetries; retry++) {
+    console.log(`callGeminiForJSON: Retry ${retry + 1}/${maxRetries}`);
+    
+    // Build a repair prompt
+    const repairPrompt = `The following text was supposed to be valid JSON but it's incomplete or malformed:
+---
+${response}
+---
+
+Please output ONLY the corrected, complete JSON in this exact format:
+${exampleFormat}
+
+Output ONLY the JSON, nothing else. No explanation, no markdown.`;
+    
+    const retryResponse = await callGemini(repairPrompt, 'gemini-2.0-flash'); // Use stable model for repair
+    if (!retryResponse) continue;
+    
+    console.log('callGeminiForJSON: Retry response:', retryResponse);
+    
+    parsed = extractJSON(retryResponse);
+    if (parsed) {
+      console.log('callGeminiForJSON: Success on retry', retry + 1);
+      return parsed as T;
+    }
+  }
+  
+  console.error('callGeminiForJSON: All retries failed');
+  return null;
 };
 
 // Batch multiple prompts into a single context for efficiency
