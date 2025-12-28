@@ -42,6 +42,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        skipWaiting: true, // Force service worker to update immediately
+        clientsClaim: true, // Take control of all clients immediately
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/image\.tmdb\.org\/.*/i,

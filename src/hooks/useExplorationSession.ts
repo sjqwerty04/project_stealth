@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
+import { callGemini } from '../lib/gemini';
 
 type ExploredMovie = {
   id: number;
@@ -13,7 +14,6 @@ type ExploredMovie = {
   mediaType: 'movie' | 'tv';
 };
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const PATTERN_PROMPT = `You're a film-obsessed cinephile friend who's seen everything. The user has been browsing these movies/shows in their current session:
@@ -48,26 +48,6 @@ Suggest 10 movies that perfectly match this vibe. Focus on:
 
 Return ONLY a JSON array of objects with this format (no markdown, no explanation):
 [{"title": "Movie Title", "year": "YYYY"}, ...]`;
-
-const callGemini = async (prompt: string): Promise<string | null> => {
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    );
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (error) {
-    console.error('Gemini API call failed:', error);
-    return null;
-  }
-};
 
 const searchTMDB = async (title: string, year?: string): Promise<any | null> => {
   try {
