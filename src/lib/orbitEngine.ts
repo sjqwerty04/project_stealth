@@ -1,5 +1,5 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
-import { callGemini } from './gemini';
+import { callGemini, extractJSON } from './gemini';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -14,21 +14,21 @@ export interface OrbitResponse {
   tmdb_id?: number;
 }
 
-// Compact prompts for faster Gemini Flash responses - must return DIFFERENT movies each time
-const VIBE_PROMPT = `Movie: "{title}" ({year}), {genres}, dir: {director}
-Recommend 1 DIFFERENT movie with similar vibe/tone. Pick something unexpected but fitting - NOT the obvious choice.
-Output RAW JSON only:
-{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"max 6 words","similarity_score":85}`;
+// Compact prompts - MUST output valid JSON only, no markdown
+const VIBE_PROMPT = `TASK: Recommend 1 movie with similar vibe to "{title}" ({year}), {genres}.
+Pick something unexpected - NOT the obvious choice.
+RESPOND WITH EXACTLY THIS JSON AND NOTHING ELSE:
+{"next_movie_title":"Movie Name","year":"2020","dominant_hex_color":"#4a5568","connection_reason":"6 words max","similarity_score":85}`;
 
-const AESTHETIC_PROMPT = `Movie: "{title}" ({year}), cinematography by {cinematographer}
-Recommend 1 DIFFERENT visually similar movie - same color palette, lighting, or visual style. Pick a unique choice.
-Output RAW JSON only:
-{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"visual link","similarity_score":85}`;
+const AESTHETIC_PROMPT = `TASK: Recommend 1 visually similar movie to "{title}" ({year}).
+Same color palette, lighting style, or visual aesthetic.
+RESPOND WITH EXACTLY THIS JSON AND NOTHING ELSE:
+{"next_movie_title":"Movie Name","year":"2020","dominant_hex_color":"#4a5568","connection_reason":"visual link","similarity_score":85}`;
 
-const AUTEUR_PROMPT = `Movie: "{title}" ({year}), dir: {director}, writer: {writer}
-Recommend 1 DIFFERENT movie - either by same director OR with similar narrative/storytelling style. Surprise me.
-Output RAW JSON only:
-{"next_movie_title":"Title","year":"YYYY","dominant_hex_color":"#HEX","connection_reason":"auteur link","similarity_score":85}`;
+const AUTEUR_PROMPT = `TASK: Recommend 1 movie related to "{title}" ({year}) by {director}.
+Either same director OR similar narrative style.
+RESPOND WITH EXACTLY THIS JSON AND NOTHING ELSE:
+{"next_movie_title":"Movie Name","year":"2020","dominant_hex_color":"#4a5568","connection_reason":"auteur link","similarity_score":85}`;
 
 // Build prompt based on direction
 const buildPrompt = (
@@ -65,39 +65,37 @@ const buildPrompt = (
     .replace('{visual_style}', extraContext?.visualStyle || 'distinctive visual style');
 };
 
-// Parse Gemini response to OrbitResponse
+// Parse Gemini response to OrbitResponse using robust extractJSON
 const parseOrbitResponse = (text: string): OrbitResponse | null => {
-  try {
-    // Try to extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    
-    const parsed = JSON.parse(jsonMatch[0]);
-    
-    // Validate required fields
-    if (!parsed.next_movie_title || !parsed.year || !parsed.dominant_hex_color) {
-      console.error('Missing required fields in orbit response');
-      return null;
-    }
-    
-    // Ensure hex color is valid
-    let hexColor = parsed.dominant_hex_color;
-    if (!hexColor.startsWith('#')) {
-      hexColor = '#' + hexColor;
-    }
-    
-    return {
-      next_movie_title: parsed.next_movie_title,
-      year: parsed.year,
-      dominant_hex_color: hexColor,
-      connection_reason: parsed.connection_reason || 'Spiritual successor',
-      similarity_score: parsed.similarity_score || 75,
-      tmdb_id: parsed.tmdb_id,
-    };
-  } catch (error) {
-    console.error('Failed to parse orbit response:', error);
+  console.log('Orbit raw response:', text);
+  
+  // Use robust JSON extraction
+  const parsed = extractJSON(text);
+  if (!parsed) {
+    console.error('Failed to extract JSON from orbit response');
     return null;
   }
+  
+  // Validate required fields
+  if (!parsed.next_movie_title || !parsed.year) {
+    console.error('Missing required fields in orbit response:', parsed);
+    return null;
+  }
+  
+  // Ensure hex color is valid (default if missing)
+  let hexColor = parsed.dominant_hex_color || '#1a1a2e';
+  if (!hexColor.startsWith('#')) {
+    hexColor = '#' + hexColor;
+  }
+  
+  return {
+    next_movie_title: parsed.next_movie_title,
+    year: parsed.year,
+    dominant_hex_color: hexColor,
+    connection_reason: parsed.connection_reason || 'Spiritual successor',
+    similarity_score: parsed.similarity_score || 75,
+    tmdb_id: parsed.tmdb_id,
+  };
 };
 
 // Search TMDB for movie details
