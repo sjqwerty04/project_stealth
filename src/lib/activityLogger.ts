@@ -40,15 +40,14 @@ interface ActivityMetadata {
   [key: string]: any;
 }
 
-// In-memory queue for batching (optional optimization)
-let activityQueue: Array<{
-  userId: string;
-  userEmail: string;
-  action: ActivityAction;
-  metadata?: ActivityMetadata;
-}> = [];
-
-let flushTimeout: ReturnType<typeof setTimeout> | null = null;
+// In-memory queue for batching (optional optimization - reserved for future use)
+// let activityQueue: Array<{
+//   userId: string;
+//   userEmail: string;
+//   action: ActivityAction;
+//   metadata?: ActivityMetadata;
+// }> = [];
+// let flushTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Log a user activity to Firestore
@@ -101,7 +100,7 @@ export const createActivityLogger = (userId: string, userEmail: string) => {
     orbitStarted: (movieId: number, movieTitle: string) =>
       logActivity(userId, userEmail, 'orbit_started', { movieId, movieTitle }),
     
-    orbitSwipe: (direction: string, fromMovieId: number, toMovieId: number, toMovieTitle: string) =>
+    orbitSwipe: (direction: 'left' | 'right' | 'up' | 'down', fromMovieId: number, toMovieId: number, toMovieTitle: string) =>
       logActivity(userId, userEmail, 'orbit_swipe', { 
         swipeDirection: direction, 
         fromMovieId, 
