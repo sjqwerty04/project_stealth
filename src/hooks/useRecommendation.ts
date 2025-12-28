@@ -249,7 +249,12 @@ export function useRecommendation() {
       // Get movie recommendation from LLM
       const llmResponse = await callGemini(prompt);
       if (!llmResponse) {
-        setError('Failed to generate recommendation');
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) {
+          setError('Gemini API key not configured');
+        } else {
+          setError('Failed to generate recommendation. Check console for details.');
+        }
         return null;
       }
 

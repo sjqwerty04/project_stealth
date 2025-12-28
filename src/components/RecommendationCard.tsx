@@ -84,7 +84,7 @@ export default function RecommendationCard({ onAddToCalendar }: RecommendationCa
   if (error && !recommendation) {
     return (
       <div className="mx-4 mb-4 p-3 rounded-xl bg-gray-900/80 border border-gray-800">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-2">
           <div className="p-1.5 rounded-full bg-blue-500/10">
             <Sparkles className="w-4 h-4 text-blue-400" />
           </div>
@@ -96,6 +96,7 @@ export default function RecommendationCard({ onAddToCalendar }: RecommendationCa
             Try Again
           </button>
         </div>
+        <p className="text-xs text-red-400 mt-1">{error}</p>
       </div>
     );
   }
