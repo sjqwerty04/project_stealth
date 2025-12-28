@@ -76,7 +76,7 @@ const cleanupOldCache = (): void => {
 // Run cleanup on load
 cleanupOldCache();
 
-export const callGemini = async (prompt: string, model: string = 'gemini-2.0-flash'): Promise<string | null> => {
+export const callGemini = async (prompt: string, model: string = 'gemini-3-flash-preview'): Promise<string | null> => {
   const cacheKey = hashPrompt(prompt);
   
   // Check memory cache first (fastest)
@@ -122,10 +122,13 @@ export const callGemini = async (prompt: string, model: string = 'gemini-2.0-fla
 
     const requestBody = { 
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 500,
-      }
+          generationConfig: {
+            temperature: 1.0, // Gemini 3 default - recommended
+            maxOutputTokens: 500,
+            thinkingConfig: {
+              thinkingLevel: "low" // Minimize latency for recommendations
+            }
+          }
     };
 
     // Validate request body can be stringified
@@ -164,8 +167,8 @@ export const callGemini = async (prompt: string, model: string = 'gemini-2.0-fla
         promptPreview: prompt.substring(0, 200) + '...'
       });
       
-      // If 2.0-flash fails with 400, try 1.5-flash as fallback
-      if (response.status === 400 && model === 'gemini-2.0-flash') {
+      // If 3-flash fails with 400, try 1.5-flash as fallback
+      if (response.status === 400 && model === 'gemini-3-flash-preview') {
         console.log('Retrying with gemini-1.5-flash as fallback...');
         return callGemini(prompt, 'gemini-1.5-flash');
       }
