@@ -3,7 +3,7 @@ import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { useCalendarLogs } from './useCalendarLogs';
-import { callGemini } from '../lib/gemini';
+import { callGemini, extractJSON } from '../lib/gemini';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -34,33 +34,26 @@ export type RecommendationResult = {
   genres?: string[];
 };
 
-// Configurable LLM prompt template
-const RECOMMENDATION_PROMPT_TEMPLATE = `You are a movie recommendation expert. Recommend ONE movie the user has NOT already watched.
+// Configurable LLM prompt template - CRITICAL: Must output valid JSON only
+const RECOMMENDATION_PROMPT_TEMPLATE = `TASK: Recommend ONE movie the user has NOT already watched.
 
-=== CRITICAL: MOVIES USER HAS ALREADY WATCHED (DO NOT RECOMMEND ANY OF THESE) ===
+ALREADY WATCHED (NEVER recommend these):
 {excludeList}
 
-=== USER'S WATCHLIST (movies they WANT to watch - consider these first!) ===
+WATCHLIST (prefer these if they match taste):
 {watchlist}
 
-=== USER'S TASTE PROFILE ===
-LIKED movies/shows:
-{likedMovies}
+LIKED: {likedMovies}
+DISLIKED: {dislikedMovies}
 
-DISLIKED movies/shows:
-{dislikedMovies}
+RULES:
+1. NEVER recommend anything from "ALREADY WATCHED"
+2. Pick from WATCHLIST if possible
+3. Consider genres/directors/mood from LIKED
+4. Avoid anything similar to DISLIKED
 
-=== RECOMMENDATION RULES ===
-1. NEVER recommend any movie from the "already watched" list above - this is the most important rule
-2. PREFER recommending from the user's watchlist if something there matches their taste
-3. If recommending from watchlist, mention it's something they already wanted to see
-4. Consider genres, directors, mood, pacing, and themes from liked movies
-5. Avoid anything similar to disliked movies
-6. The movie should be released (available to watch)
-7. Only recommend a rewatch if you've exhausted all other options AND have a compelling reason
-
-Return ONLY a JSON object with this exact format (no markdown, no backticks):
-{"title": "Movie Title", "year": "YYYY", "fromWatchlist": true/false}`;
+RESPOND WITH EXACTLY THIS JSON FORMAT AND NOTHING ELSE:
+{"title":"Movie Title","year":"2024","fromWatchlist":false}`;
 
 const REASON_PROMPT_TEMPLATE = `You're a sarcastic film buff friend. The user just got recommended "{movieTitle}" ({movieYear}).
 
@@ -275,15 +268,16 @@ export function useRecommendation() {
         return null;
       }
       console.log('Gemini response received, length:', llmResponse.length);
+      console.log('Raw Gemini response:', llmResponse);
 
-      // Parse the JSON response
-      const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        setError('Invalid recommendation format');
+      // Parse the JSON response using robust extraction
+      const parsed = extractJSON(llmResponse);
+      if (!parsed) {
+        console.error('Failed to extract JSON from response:', llmResponse);
+        setError('Invalid recommendation format - could not parse JSON');
         return null;
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
       const { title, year } = parsed;
 
       if (!title) {
