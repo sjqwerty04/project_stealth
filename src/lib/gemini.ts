@@ -127,6 +127,33 @@ export const extractJSON = (text: string): any | null => {
     console.log('extractJSON success:', parsed);
     return parsed;
   } catch (e) {
+    // Try to repair truncated JSON
+    console.log('extractJSON: Attempting to repair truncated JSON...');
+    
+    // If it looks like our recommendation format truncated at "from, complete it
+    if (jsonStr.includes('"from') && !jsonStr.includes('fromWatchlist')) {
+      const repaired = jsonStr.replace(/"from$/, '"fromWatchlist":false}');
+      try {
+        const parsed = JSON.parse(repaired);
+        console.log('extractJSON repaired success:', parsed);
+        return parsed;
+      } catch {
+        // Continue to other repairs
+      }
+    }
+    
+    // Generic repair: try adding closing brace
+    if (!jsonStr.endsWith('}')) {
+      const repaired = jsonStr + '"}';
+      try {
+        const parsed = JSON.parse(repaired);
+        console.log('extractJSON repaired (added closing):', parsed);
+        return parsed;
+      } catch {
+        // Couldn't repair
+      }
+    }
+    
     console.error('extractJSON parse error:', e, 'Input was:', jsonStr.substring(0, 100));
     return null;
   }
@@ -180,7 +207,7 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 1.0, // Gemini 3 default - recommended
-        maxOutputTokens: 500,
+        maxOutputTokens: 1024, // Increased from 500 to prevent JSON truncation
       }
     };
     // NOTE: thinkingConfig removed - it was causing response format issues with JSON outputs
@@ -229,7 +256,7 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 1.0,
-            maxOutputTokens: 500,
+            maxOutputTokens: 1024,
           }
         };
         
