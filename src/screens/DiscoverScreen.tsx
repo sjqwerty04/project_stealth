@@ -1,19 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, X, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { useMovieSearch, type SearchResult } from '../hooks/useMovieSearch';
 import SearchResultCard from '../components/SearchResultCard';
 import PatternAssistant from '../components/PatternAssistant';
 import { useExploration } from '../contexts/ExplorationContext';
+import { useAuth } from '../hooks/useAuth';
+import { logActivity } from '../lib/activityLogger';
 
 export default function DiscoverScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preSelectedDate = searchParams.get('date');
+  const { user } = useAuth();
   
   const [query, setQuery] = useState('');
   const [isPatternPanelOpen, setIsPatternPanelOpen] = useState(true);
   const { results, isSearching, error, searchMovies, clearResults } = useMovieSearch();
+  const lastLoggedQueryRef = useRef<string>('');
   const { 
     clickedMovies, 
     addMovie, 
@@ -30,16 +34,25 @@ export default function DiscoverScreen() {
 
   // Debounced search
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (query.trim()) {
-        searchMovies(query);
+        const searchResults = await searchMovies(query);
+        
+        // Log search activity (only if query changed significantly)
+        if (user?.uid && user?.email && query.trim() !== lastLoggedQueryRef.current) {
+          lastLoggedQueryRef.current = query.trim();
+          logActivity(user.uid, user.email, 'search_performed', {
+            searchQuery: query.trim(),
+            resultsCount: searchResults.length,
+          });
+        }
       } else {
         clearResults();
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]); // searchMovies and clearResults are now stable refs
+  }, [query, user?.uid, user?.email]); // searchMovies and clearResults are now stable refs
 
   const handleMovieClick = useCallback((movie: SearchResult) => {
     // Track the click for pattern detection

@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
+import { logActivity } from '../lib/activityLogger';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -84,6 +85,17 @@ export function useCalendarLogs() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      
+      // Log activity
+      if (user.email) {
+        logActivity(user.uid, user.email, 'movie_logged', {
+          movieId: eventData.movieId,
+          movieTitle: eventData.title,
+          logDate: eventData.date,
+          mediaType: eventData.mediaType,
+        });
+      }
+      
       return docRef.id;
     },
     [user]
@@ -98,8 +110,20 @@ export function useCalendarLogs() {
         ...eventData,
         updatedAt: serverTimestamp(),
       });
+      
+      // Log rating activity if rating was updated
+      if (user.email && eventData.rating !== undefined) {
+        const event = events.find(e => e.id === eventId);
+        if (event) {
+          logActivity(user.uid, user.email, 'movie_rated', {
+            movieId: event.movieId,
+            movieTitle: event.title,
+            rating: eventData.rating,
+          });
+        }
+      }
     },
-    [user]
+    [user, events]
   );
 
   const deleteEvent = useCallback(

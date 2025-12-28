@@ -10,12 +10,15 @@ import OrbitCardStack from '../components/orbit/OrbitCardStack';
 import OrbitControls from '../components/orbit/OrbitControls';
 import ParryTransition from '../components/orbit/ParryTransition';
 import ConstellationView from '../components/orbit/ConstellationView';
+import { useAuth } from '../hooks/useAuth';
+import { logActivity } from '../lib/activityLogger';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 export default function OrbitScreen() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   
   const {
     currentMovie,
@@ -108,6 +111,14 @@ export default function OrbitScreen() {
         enterOrbit(entryMovie);
         setTransitionColor(dominantHex);
         
+        // Log orbit started activity
+        if (user?.uid && user?.email) {
+          logActivity(user.uid, user.email, 'orbit_started', {
+            movieId: entryMovie.id,
+            movieTitle: entryMovie.title,
+          });
+        }
+        
         // Store context for future queries
         setMovieContext({ cinematographer, writer: undefined, visualStyle: undefined });
         
@@ -176,6 +187,17 @@ export default function OrbitScreen() {
         setTransitioning(false);
         setPendingDirection(null);
         
+        // Log orbit swipe activity
+        if (user?.uid && user?.email && currentMovie) {
+          logActivity(user.uid, user.email, 'orbit_swipe', {
+            swipeDirection: direction,
+            fromMovieId: currentMovie.id,
+            fromMovieTitle: currentMovie.title,
+            toMovieId: prefetched.movie.id,
+            toMovieTitle: prefetched.movie.title,
+          });
+        }
+        
         // Pre-fetch next moves for new movie immediately
         prefetchNextMoves(prefetched.movie, {
           cinematographer: prefetched.movie.cinematographer,
@@ -201,6 +223,17 @@ export default function OrbitScreen() {
           navigateTo(result.movie, direction, result.connectionReason, result.similarityScore);
           setTransitioning(false);
           setPendingDirection(null);
+          
+          // Log orbit swipe activity
+          if (user?.uid && user?.email && currentMovie) {
+            logActivity(user.uid, user.email, 'orbit_swipe', {
+              swipeDirection: direction,
+              fromMovieId: currentMovie.id,
+              fromMovieTitle: currentMovie.title,
+              toMovieId: result.movie.id,
+              toMovieTitle: result.movie.title,
+            });
+          }
           
           // Pre-fetch next moves for new movie
           prefetchNextMoves(result.movie, {
