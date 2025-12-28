@@ -141,3 +141,4 @@ export const setupGlobalErrorLogging = (userId: string, userEmail: string) => {
     });
   });
 };
+
