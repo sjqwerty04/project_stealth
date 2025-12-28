@@ -248,10 +248,23 @@ export function useRecommendation() {
 
       // Get movie recommendation from LLM
       console.log('Generating recommendation with prompt length:', prompt.length);
-      const llmResponse = await callGemini(prompt);
+      let llmResponse;
+      try {
+        llmResponse = await callGemini(prompt);
+      } catch (error: any) {
+        console.error('Gemini API call threw error:', error);
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) {
+          setError('Gemini API key not configured. Please check Vercel environment variables.');
+        } else {
+          setError(error?.message || 'Failed to generate recommendation. Check browser console (F12) for details.');
+        }
+        return null;
+      }
+      
       if (!llmResponse) {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        console.error('Gemini call failed. API key present:', !!apiKey);
+        console.error('Gemini call returned null. API key present:', !!apiKey);
         if (!apiKey) {
           setError('Gemini API key not configured. Please check Vercel environment variables.');
         } else {
