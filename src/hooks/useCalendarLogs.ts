@@ -111,14 +111,14 @@ export function useCalendarLogs() {
         updatedAt: serverTimestamp(),
       });
       
-      // Log rating activity if rating was updated
-      if (user.email && eventData.rating !== undefined) {
+      // Log rating activity if rating was updated (only if it's 'up' or 'down', not null)
+      if (user.email && eventData.rating !== undefined && eventData.rating !== null) {
         const event = events.find(e => e.id === eventId);
         if (event) {
           logActivity(user.uid, user.email, 'movie_rated', {
             movieId: event.movieId,
             movieTitle: event.title,
-            rating: eventData.rating,
+            rating: eventData.rating as 'up' | 'down',
           });
         }
       }
