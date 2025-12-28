@@ -3,7 +3,7 @@ import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { useCalendarLogs } from './useCalendarLogs';
-import { callGemini, extractJSON } from '../lib/gemini';
+import { callGemini, callGeminiForJSON } from '../lib/gemini';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -266,11 +266,18 @@ export function useRecommendation() {
         .replace('{likedMovies}', likedMovies)
         .replace('{dislikedMovies}', dislikedMovies);
 
-      // Get movie recommendation from LLM
+      // Get movie recommendation from LLM with validation and auto-retry
       console.log('Generating recommendation with prompt length:', prompt.length);
-      let llmResponse;
+      
+      const exampleFormat = '{"title":"Movie Title","year":"2024","fromWatchlist":false}';
+      
+      let parsed: { title: string; year: string; fromWatchlist?: boolean } | null = null;
       try {
-        llmResponse = await callGemini(prompt);
+        parsed = await callGeminiForJSON<{ title: string; year: string; fromWatchlist?: boolean }>(
+          prompt,
+          exampleFormat,
+          2 // max retries
+        );
       } catch (error: any) {
         console.error('Gemini API call threw error:', error);
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -282,26 +289,18 @@ export function useRecommendation() {
         return null;
       }
       
-      if (!llmResponse) {
+      if (!parsed) {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        console.error('Gemini call returned null. API key present:', !!apiKey);
+        console.error('Gemini JSON call returned null. API key present:', !!apiKey);
         if (!apiKey) {
           setError('Gemini API key not configured. Please check Vercel environment variables.');
         } else {
-          setError('Failed to generate recommendation. Check browser console (F12) for details.');
+          setError('AI returned invalid response after multiple retries. Please try again.');
         }
         return null;
       }
-      console.log('Gemini response received, length:', llmResponse.length);
-      console.log('Raw Gemini response:', llmResponse);
-
-      // Parse the JSON response using robust extraction
-      const parsed = extractJSON(llmResponse);
-      if (!parsed) {
-        console.error('Failed to extract JSON from response:', llmResponse);
-        setError('Invalid recommendation format - could not parse JSON');
-        return null;
-      }
+      
+      console.log('Recommendation parsed successfully:', parsed);
 
       const { title, year } = parsed;
 
