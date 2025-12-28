@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { usePinchGesture } from '../hooks/usePinchGesture';
-import { useOrbitStore, type SwipeDirection, type OrbitMovie } from '../stores/orbitStore';
+import { useOrbitStore, type SwipeDirection, type OrbitMovie, getOppositeDirection } from '../stores/orbitStore';
 import { getNextMovie, prefetchNextMoves, extractDominantColor } from '../lib/orbitEngine';
 import { orbitHaptics } from '../lib/haptics';
 import OrbitCardStack from '../components/orbit/OrbitCardStack';
@@ -35,12 +35,13 @@ export default function OrbitScreen() {
     setShowConstellation,
     setPendingDirection,
     setPrefetchedMoves,
+    getBackDirection,
+    isBackDirection,
   } = useOrbitStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [transitionColor, setTransitionColor] = useState('#1a1a2e');
-  const [movieContext, setMovieContext] = useState<{ cinematographer?: string; writer?: string; visualStyle?: string } | null>(null);
   
   // Pinch gesture for constellation toggle
   const containerRef = useRef<HTMLDivElement>(null);
@@ -119,9 +120,6 @@ export default function OrbitScreen() {
           });
         }
         
-        // Store context for future queries
-        setMovieContext({ cinematographer, writer: undefined, visualStyle: undefined });
-        
         // Check if first time user
         const hasSeenOnboarding = localStorage.getItem('orbit_onboarding_seen');
         if (!hasSeenOnboarding) {
@@ -131,12 +129,13 @@ export default function OrbitScreen() {
         
         setIsLoading(false);
         
-        // Pre-fetch next moves in background
-        prefetchNextMoves(entryMovie, { cinematographer }).then((moves) => {
+        // Pre-fetch next moves in background (no back direction for entry movie)
+        prefetchNextMoves(entryMovie, null).then((moves) => {
           setPrefetchedMoves({
-            vibe: moves.vibe || null,
-            aesthetic: moves.aesthetic || null,
-            auteur: moves.auteur || null,
+            visual: moves.visual || null,
+            balanced: moves.balanced || null,
+            storytelling: moves.storytelling || null,
+            emotional: moves.emotional || null,
           });
         });
         
@@ -154,14 +153,19 @@ export default function OrbitScreen() {
   }, [id]);
 
   // Handle swipe action
+  // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
+  // BUT: if swipe direction is opposite of how we arrived, go BACK instead
   const handleSwipe = useCallback(async (direction: SwipeDirection) => {
     if (!currentMovie || isTransitioning) return;
     
-    // Handle back navigation
-    if (direction === 'right') {
+    // Check if this direction is the "back" direction
+    if (isBackDirection(direction)) {
       const success = goBack();
       if (success) {
         orbitHaptics.historyNav();
+        
+        // After going back, prefetch for the previous movie
+        // The back direction for the previous movie will be the opposite
       } else {
         orbitHaptics.edgeReached();
       }
@@ -171,8 +175,15 @@ export default function OrbitScreen() {
     // Haptic feedback for swipe
     orbitHaptics.swipeComplete();
     
-    // Check if we have prefetched data FIRST
-    const prefetchKey = direction === 'left' ? 'vibe' : direction === 'down' ? 'aesthetic' : 'auteur';
+    // Map direction to prefetch key
+    // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
+    const directionToPrefetchKey: Record<SwipeDirection, 'visual' | 'balanced' | 'storytelling' | 'emotional'> = {
+      up: 'visual',
+      right: 'balanced',
+      down: 'storytelling',
+      left: 'emotional',
+    };
+    const prefetchKey = directionToPrefetchKey[direction];
     const prefetched = prefetchedMoves[prefetchKey];
     
     if (prefetched) {
@@ -181,7 +192,7 @@ export default function OrbitScreen() {
       setTransitioning(true);
       setPendingDirection(direction);
       
-      // Minimal delay just for visual polish (50ms)
+      // Minimal delay just for visual polish
       requestAnimationFrame(() => {
         navigateTo(prefetched.movie, direction, prefetched.connectionReason, prefetched.similarityScore);
         setTransitioning(false);
@@ -198,14 +209,15 @@ export default function OrbitScreen() {
           });
         }
         
-        // Pre-fetch next moves for new movie immediately
-        prefetchNextMoves(prefetched.movie, {
-          cinematographer: prefetched.movie.cinematographer,
-        }).then((moves) => {
+        // Pre-fetch next moves for new movie
+        // The back direction is the OPPOSITE of how we arrived
+        const backDir = getOppositeDirection(direction);
+        prefetchNextMoves(prefetched.movie, backDir).then((moves) => {
           setPrefetchedMoves({
-            vibe: moves.vibe || null,
-            aesthetic: moves.aesthetic || null,
-            auteur: moves.auteur || null,
+            visual: moves.visual || null,
+            balanced: moves.balanced || null,
+            storytelling: moves.storytelling || null,
+            emotional: moves.emotional || null,
           });
         });
       });
@@ -214,7 +226,7 @@ export default function OrbitScreen() {
       setTransitioning(true);
       setPendingDirection(direction);
       
-      const result = await getNextMovie(currentMovie, direction, movieContext || undefined);
+      const result = await getNextMovie(currentMovie, direction);
       
       if (result) {
         setTransitionColor(result.movie.dominantHex);
@@ -236,13 +248,13 @@ export default function OrbitScreen() {
           }
           
           // Pre-fetch next moves for new movie
-          prefetchNextMoves(result.movie, {
-            cinematographer: result.movie.cinematographer,
-          }).then((moves) => {
+          const backDir = getOppositeDirection(direction);
+          prefetchNextMoves(result.movie, backDir).then((moves) => {
             setPrefetchedMoves({
-              vibe: moves.vibe || null,
-              aesthetic: moves.aesthetic || null,
-              auteur: moves.auteur || null,
+              visual: moves.visual || null,
+              balanced: moves.balanced || null,
+              storytelling: moves.storytelling || null,
+              emotional: moves.emotional || null,
             });
           });
         });
@@ -251,7 +263,7 @@ export default function OrbitScreen() {
         setPendingDirection(null);
       }
     }
-  }, [currentMovie, isTransitioning, prefetchedMoves, movieContext, goBack, setTransitioning, setPendingDirection, navigateTo, setPrefetchedMoves]);
+  }, [currentMovie, isTransitioning, prefetchedMoves, isBackDirection, goBack, setTransitioning, setPendingDirection, navigateTo, setPrefetchedMoves, user]);
 
   // Handle long press (save movie)
   const handleLongPress = useCallback(() => {
@@ -354,7 +366,7 @@ export default function OrbitScreen() {
 
       {/* Loading indicator during swipe - only show if actually waiting */}
       <AnimatePresence>
-        {isTransitioning && !prefetchedMoves[pendingDirection === 'left' ? 'vibe' : pendingDirection === 'down' ? 'aesthetic' : 'auteur'] && (
+        {isTransitioning && pendingDirection && !isBackDirection(pendingDirection) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -369,37 +381,87 @@ export default function OrbitScreen() {
         )}
       </AnimatePresence>
 
-      {/* Swipe direction ready indicators */}
+      {/* Swipe direction indicators - show what each direction does */}
       {!isTransitioning && !showConstellation && (
         <div className="absolute inset-0 pointer-events-none z-10">
-          {/* Up indicator (Auteur) */}
-          {prefetchedMoves.auteur && (
+          {/* UP = Visual (if not back direction) */}
+          {prefetchedMoves.visual && getBackDirection() !== 'up' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
               className="absolute top-20 left-1/2 -translate-x-1/2"
             >
-              <div className="text-white/40 text-xs uppercase tracking-wider">↑ Auteur</div>
+              <div className="text-white/40 text-xs uppercase tracking-wider">↑ Visual</div>
             </motion.div>
           )}
-          {/* Down indicator (Aesthetic) */}
-          {prefetchedMoves.aesthetic && (
+          {/* Show BACK indicator if up is back */}
+          {getBackDirection() === 'up' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              className="absolute top-20 left-1/2 -translate-x-1/2"
+            >
+              <div className="text-white/40 text-xs uppercase tracking-wider">↑ Back</div>
+            </motion.div>
+          )}
+          
+          {/* DOWN = Storytelling (if not back direction) */}
+          {prefetchedMoves.storytelling && getBackDirection() !== 'down' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
               className="absolute bottom-32 left-1/2 -translate-x-1/2"
             >
-              <div className="text-white/40 text-xs uppercase tracking-wider">↓ Aesthetic</div>
+              <div className="text-white/40 text-xs uppercase tracking-wider">↓ Story</div>
             </motion.div>
           )}
-          {/* Left indicator (Vibe) */}
-          {prefetchedMoves.vibe && (
+          {getBackDirection() === 'down' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              className="absolute bottom-32 left-1/2 -translate-x-1/2"
+            >
+              <div className="text-white/40 text-xs uppercase tracking-wider">↓ Back</div>
+            </motion.div>
+          )}
+          
+          {/* LEFT = Emotional (if not back direction) */}
+          {prefetchedMoves.emotional && getBackDirection() !== 'left' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
               className="absolute left-4 top-1/2 -translate-y-1/2"
             >
-              <div className="text-white/40 text-xs uppercase tracking-wider rotate-[-90deg]">← Vibe</div>
+              <div className="text-white/40 text-xs uppercase tracking-wider rotate-[-90deg]">← Feel</div>
+            </motion.div>
+          )}
+          {getBackDirection() === 'left' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              className="absolute left-4 top-1/2 -translate-y-1/2"
+            >
+              <div className="text-white/40 text-xs uppercase tracking-wider rotate-[-90deg]">← Back</div>
+            </motion.div>
+          )}
+          
+          {/* RIGHT = Balanced (if not back direction) */}
+          {prefetchedMoves.balanced && getBackDirection() !== 'right' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              className="absolute right-4 top-1/2 -translate-y-1/2"
+            >
+              <div className="text-white/40 text-xs uppercase tracking-wider rotate-90">→ Match</div>
+            </motion.div>
+          )}
+          {getBackDirection() === 'right' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              className="absolute right-4 top-1/2 -translate-y-1/2"
+            >
+              <div className="text-white/40 text-xs uppercase tracking-wider rotate-90">→ Back</div>
             </motion.div>
           )}
         </div>

@@ -130,32 +130,61 @@ export const extractJSON = (text: string): any | null => {
     // Try to repair truncated JSON
     console.log('extractJSON: Attempting to repair truncated JSON...');
     
-    // If it looks like our recommendation format truncated at "from, complete it
-    if (jsonStr.includes('"from') && !jsonStr.includes('fromWatchlist')) {
-      const repaired = jsonStr.replace(/"from$/, '"fromWatchlist":false}');
-      try {
-        const parsed = JSON.parse(repaired);
-        console.log('extractJSON repaired success:', parsed);
-        return parsed;
-      } catch {
-        // Continue to other repairs
+    let repaired = jsonStr;
+    
+    // Repair strategy 1: Recommendation format - truncated at "from
+    if (repaired.includes('"from') && !repaired.includes('fromWatchlist')) {
+      repaired = repaired.replace(/"from$/, '"fromWatchlist":false}');
+    }
+    
+    // Repair strategy 2: Orbit format - truncated "reason" field (at the end)
+    // Pattern: {"title":"X","year":"Y","hex":"#Z","score":N,"reason":"...
+    if (repaired.includes('"reason":"') && !repaired.endsWith('}')) {
+      // Find where reason starts and add closing
+      const reasonIndex = repaired.lastIndexOf('"reason":"');
+      if (reasonIndex !== -1) {
+        // Check if there's an unclosed string after "reason":"
+        const afterReason = repaired.substring(reasonIndex + 10);
+        if (!afterReason.includes('"}')) {
+          // Truncated mid-reason, close it
+          repaired = repaired + '"}';
+        }
       }
     }
     
-    // Generic repair: try adding closing brace
-    if (!jsonStr.endsWith('}')) {
-      const repaired = jsonStr + '"}';
-      try {
-        const parsed = JSON.parse(repaired);
-        console.log('extractJSON repaired (added closing):', parsed);
-        return parsed;
-      } catch {
-        // Couldn't repair
+    // Repair strategy 3: Truncated score (numeric field)
+    // Pattern: "score": without complete value
+    if (repaired.includes('"score":') && !repaired.includes('"reason"')) {
+      repaired = repaired.replace(/"score":\s*$/, '"score":75,"reason":""}');
+    }
+    
+    // Repair strategy 4: Generic - missing closing brace
+    if (!repaired.endsWith('}')) {
+      // Count braces to see if we need to close
+      const openBraces = (repaired.match(/{/g) || []).length;
+      const closeBraces = (repaired.match(/}/g) || []).length;
+      if (openBraces > closeBraces) {
+        // Check if we're mid-string
+        const lastQuote = repaired.lastIndexOf('"');
+        const lastColon = repaired.lastIndexOf(':');
+        if (lastQuote > lastColon) {
+          // Mid-string value, close it
+          repaired = repaired + '"}';
+        } else {
+          // After a colon, add empty value
+          repaired = repaired + '""}';
+        }
       }
     }
     
-    console.error('extractJSON parse error:', e, 'Input was:', jsonStr.substring(0, 100));
-    return null;
+    try {
+      const parsed = JSON.parse(repaired);
+      console.log('extractJSON repaired success:', parsed);
+      return parsed;
+    } catch {
+      console.error('extractJSON parse error after repair:', 'Input was:', jsonStr.substring(0, 150));
+      return null;
+    }
   }
 };
 
