@@ -74,18 +74,48 @@ const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
 const searchTMDB = async (title: string, year?: string | number): Promise<any | null> => {
+  // Validate TMDB API key
+  if (!TMDB_API_KEY) {
+    console.error('TMDB API key is missing. Check VITE_TMDB_API_KEY in Vercel.');
+    return null;
+  }
+
   try {
     const url = new URL(`${TMDB_BASE}/search/movie`);
-    url.searchParams.set('api_key', TMDB_API_KEY);
+    url.searchParams.set('api_key', TMDB_API_KEY.trim()); // Trim any whitespace
     url.searchParams.set('query', title);
     if (year) url.searchParams.set('year', String(year));
     url.searchParams.set('language', 'en-US');
 
+    console.log('TMDB search:', { title, year, keyLength: TMDB_API_KEY.length });
     const response = await fetch(url.toString());
-    if (!response.ok) return null;
+    
+    if (!response.ok) {
+      console.error('TMDB API error:', { status: response.status, statusText: response.statusText });
+      
+      // If 401/403, the key is invalid
+      if (response.status === 401 || response.status === 403) {
+        console.error('TMDB API key is invalid or unauthorized. Please regenerate it at https://www.themoviedb.org/settings/api');
+      }
+      
+      // If year was specified and search failed, retry without year
+      if (year && response.status !== 401 && response.status !== 403) {
+        console.log('Retrying TMDB search without year...');
+        return searchTMDB(title);
+      }
+      return null;
+    }
 
     const data = await response.json();
-    return data.results?.[0] || null;
+    const result = data.results?.[0] || null;
+    
+    // If no result with year, try without year
+    if (!result && year) {
+      console.log('No TMDB result with year, retrying without year...');
+      return searchTMDB(title);
+    }
+    
+    return result;
   } catch (error) {
     console.error('TMDB search failed:', error);
     return null;
@@ -288,7 +318,12 @@ export function useRecommendation() {
       // Search TMDB for the movie
       const tmdbResult = await searchTMDB(title, year);
       if (!tmdbResult) {
-        setError(`Couldn't find "${title}" on TMDB`);
+        // Check if it's an API key issue
+        if (!TMDB_API_KEY) {
+          setError('TMDB API key not configured');
+        } else {
+          setError(`Couldn't find "${title}" on TMDB - check console for details`);
+        }
         return null;
       }
 
