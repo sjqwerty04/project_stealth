@@ -76,6 +76,62 @@ const cleanupOldCache = (): void => {
 // Run cleanup on load
 cleanupOldCache();
 
+/**
+ * Robust JSON extraction from Gemini responses
+ * Handles: raw JSON, markdown code blocks, thinking tokens, whitespace
+ */
+export const extractJSON = (text: string): any | null => {
+  if (!text || typeof text !== 'string') return null;
+  
+  // Log raw response for debugging
+  console.log('extractJSON input:', text.substring(0, 200) + (text.length > 200 ? '...' : ''));
+  
+  // Try multiple extraction strategies
+  let jsonStr: string | null = null;
+  
+  // Strategy 1: Look for ```json ... ``` code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    jsonStr = codeBlockMatch[1].trim();
+  }
+  
+  // Strategy 2: Look for raw JSON object
+  if (!jsonStr) {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+  }
+  
+  // Strategy 3: Look for JSON array
+  if (!jsonStr) {
+    const arrayMatch = text.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      jsonStr = arrayMatch[0];
+    }
+  }
+  
+  if (!jsonStr) {
+    console.error('extractJSON: No JSON found in response');
+    return null;
+  }
+  
+  // Clean up common issues
+  jsonStr = jsonStr
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
+    .replace(/^\s+|\s+$/g, '') // Trim whitespace
+    .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
+  
+  try {
+    const parsed = JSON.parse(jsonStr);
+    console.log('extractJSON success:', parsed);
+    return parsed;
+  } catch (e) {
+    console.error('extractJSON parse error:', e, 'Input was:', jsonStr.substring(0, 100));
+    return null;
+  }
+};
+
 export const callGemini = async (prompt: string, model: string = 'gemini-3-flash-preview'): Promise<string | null> => {
   const cacheKey = hashPrompt(prompt);
   
@@ -127,14 +183,7 @@ export const callGemini = async (prompt: string, model: string = 'gemini-3-flash
         maxOutputTokens: 500,
       }
     };
-
-    // Add thinkingConfig only for Gemini 3 models (may cause 400 if not supported)
-    // If 400 errors persist, remove this block
-    if (model.includes('gemini-3')) {
-      requestBody.generationConfig.thinkingConfig = {
-        thinkingLevel: "low" // Minimize latency for recommendations
-      };
-    }
+    // NOTE: thinkingConfig removed - it was causing response format issues with JSON outputs
 
     // Validate request body can be stringified
     let requestBodyString;
