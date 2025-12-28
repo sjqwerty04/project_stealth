@@ -4,65 +4,74 @@ import { callGemini, extractJSON } from './gemini';
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Response schema from Gemini
+// Response schema from Gemini - connection_reason is LAST to handle truncation
 export interface OrbitResponse {
-  next_movie_title: string;
+  title: string;
   year: string;
-  dominant_hex_color: string;
-  connection_reason: string;
-  similarity_score: number;
-  tmdb_id?: number;
+  hex: string;
+  score: number;
+  reason: string; // LAST - can be truncated safely
 }
 
-// Compact prompts - MUST output valid JSON only, no markdown
-const VIBE_PROMPT = `TASK: Recommend 1 movie with similar vibe to "{title}" ({year}), {genres}.
-Pick something unexpected - NOT the obvious choice.
-RESPOND WITH EXACTLY THIS JSON AND NOTHING ELSE:
-{"next_movie_title":"Movie Name","year":"2020","dominant_hex_color":"#4a5568","connection_reason":"6 words max","similarity_score":85}`;
+// NEW ORBIT PROMPTS - 4 attributes
+// UP = Visual (cinematography, colors)
+// RIGHT = Balanced (overall match)
+// DOWN = Storytelling (narrative style)
+// LEFT = Emotional (same feeling)
 
-const AESTHETIC_PROMPT = `TASK: Recommend 1 visually similar movie to "{title}" ({year}).
-Same color palette, lighting style, or visual aesthetic.
-RESPOND WITH EXACTLY THIS JSON AND NOTHING ELSE:
-{"next_movie_title":"Movie Name","year":"2020","dominant_hex_color":"#4a5568","connection_reason":"visual link","similarity_score":85}`;
+const VISUAL_PROMPT = `Film: "{title}" ({year})
+Recommend 1 VISUALLY similar film - same cinematography style, color palette, or lighting.
+JSON ONLY (no markdown):
+{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
 
-const AUTEUR_PROMPT = `TASK: Recommend 1 movie related to "{title}" ({year}) by {director}.
-Either same director OR similar narrative style.
-RESPOND WITH EXACTLY THIS JSON AND NOTHING ELSE:
-{"next_movie_title":"Movie Name","year":"2020","dominant_hex_color":"#4a5568","connection_reason":"auteur link","similarity_score":85}`;
+const BALANCED_PROMPT = `Film: "{title}" ({year}), {genres}
+Recommend 1 well-matched film - similar tone, quality, and overall vibe.
+JSON ONLY (no markdown):
+{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
+
+const STORYTELLING_PROMPT = `Film: "{title}" ({year}), dir: {director}
+Recommend 1 film with similar NARRATIVE style - pacing, structure, or storytelling approach.
+JSON ONLY (no markdown):
+{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
+
+const EMOTIONAL_PROMPT = `Film: "{title}" ({year})
+Recommend 1 film that evokes the SAME EMOTION - same feeling when watching.
+JSON ONLY (no markdown):
+{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
 
 // Build prompt based on direction
+// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 const buildPrompt = (
   movie: OrbitMovie,
-  direction: SwipeDirection,
-  extraContext?: { cinematographer?: string; writer?: string; visualStyle?: string }
+  direction: SwipeDirection
 ): string => {
-  const genres = movie.genres?.join(', ') || 'Unknown';
+  const genres = movie.genres?.join(', ') || 'Drama';
   const director = movie.director || 'Unknown';
   
   let template: string;
   
   switch (direction) {
-    case 'left':
-      template = VIBE_PROMPT;
+    case 'up':
+      template = VISUAL_PROMPT;
+      break;
+    case 'right':
+      template = BALANCED_PROMPT;
       break;
     case 'down':
-      template = AESTHETIC_PROMPT;
+      template = STORYTELLING_PROMPT;
       break;
-    case 'up':
-      template = AUTEUR_PROMPT;
+    case 'left':
+      template = EMOTIONAL_PROMPT;
       break;
     default:
-      template = VIBE_PROMPT;
+      template = BALANCED_PROMPT;
   }
   
   return template
     .replace('{title}', movie.title)
     .replace('{year}', movie.year)
     .replace('{genres}', genres)
-    .replace('{director}', director)
-    .replace('{cinematographer}', extraContext?.cinematographer || 'Unknown')
-    .replace('{writer}', extraContext?.writer || 'Unknown')
-    .replace('{visual_style}', extraContext?.visualStyle || 'distinctive visual style');
+    .replace('{director}', director);
 };
 
 // Parse Gemini response to OrbitResponse using robust extractJSON
@@ -76,25 +85,28 @@ const parseOrbitResponse = (text: string): OrbitResponse | null => {
     return null;
   }
   
+  // Support both old and new field names for backwards compatibility
+  const title = parsed.title || parsed.next_movie_title;
+  const year = parsed.year;
+  
   // Validate required fields
-  if (!parsed.next_movie_title || !parsed.year) {
+  if (!title || !year) {
     console.error('Missing required fields in orbit response:', parsed);
     return null;
   }
   
   // Ensure hex color is valid (default if missing)
-  let hexColor = parsed.dominant_hex_color || '#1a1a2e';
+  let hexColor = parsed.hex || parsed.dominant_hex_color || '#1a1a2e';
   if (!hexColor.startsWith('#')) {
     hexColor = '#' + hexColor;
   }
   
   return {
-    next_movie_title: parsed.next_movie_title,
-    year: parsed.year,
-    dominant_hex_color: hexColor,
-    connection_reason: parsed.connection_reason || 'Spiritual successor',
-    similarity_score: parsed.similarity_score || 75,
-    tmdb_id: parsed.tmdb_id,
+    title: title,
+    year: year,
+    hex: hexColor,
+    score: parsed.score || parsed.similarity_score || 75,
+    reason: parsed.reason || parsed.connection_reason || 'Connected',
   };
 };
 
@@ -131,23 +143,20 @@ const getMovieDetails = async (tmdbId: number): Promise<any | null> => {
 // Hydrate OrbitResponse with TMDB data
 const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie | null> => {
   try {
-    let tmdbData: any = null;
-    
-    // If we have a TMDB ID, use it directly
-    if (orbitResponse.tmdb_id) {
-      tmdbData = await getMovieDetails(orbitResponse.tmdb_id);
-    }
-    
-    // Otherwise search for the movie
-    if (!tmdbData) {
-      const searchResult = await searchTMDB(orbitResponse.next_movie_title, orbitResponse.year);
-      if (searchResult) {
-        tmdbData = await getMovieDetails(searchResult.id);
+    // Search for the movie on TMDB
+    const searchResult = await searchTMDB(orbitResponse.title, orbitResponse.year);
+    if (!searchResult) {
+      // Try without year if first search fails
+      const retryResult = await searchTMDB(orbitResponse.title);
+      if (!retryResult) {
+        console.warn('Could not find movie on TMDB:', orbitResponse.title);
+        return null;
       }
     }
     
+    const tmdbData = await getMovieDetails(searchResult?.id || 0);
     if (!tmdbData) {
-      console.warn('Could not find movie on TMDB:', orbitResponse.next_movie_title);
+      console.warn('Could not get movie details from TMDB:', orbitResponse.title);
       return null;
     }
     
@@ -161,7 +170,7 @@ const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie
       year: tmdbData.release_date?.slice(0, 4) || orbitResponse.year,
       posterPath: tmdbData.poster_path,
       backdropPath: tmdbData.backdrop_path,
-      dominantHex: orbitResponse.dominant_hex_color,
+      dominantHex: orbitResponse.hex,
       mediaType: 'movie',
       director,
       cinematographer,
@@ -176,23 +185,21 @@ const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie
 // Main function to get next movie based on swipe direction
 export const getNextMovie = async (
   currentMovie: OrbitMovie,
-  direction: SwipeDirection,
-  extraContext?: { cinematographer?: string; writer?: string; visualStyle?: string }
+  direction: SwipeDirection
 ): Promise<{ movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> => {
-  // Don't process 'right' swipe - that's history navigation
-  if (direction === 'right') return null;
+  const prompt = buildPrompt(currentMovie, direction);
   
-  const prompt = buildPrompt(currentMovie, direction, extraContext);
+  console.log(`Orbit: Getting ${direction} recommendation for "${currentMovie.title}"`);
   
   const response = await callGemini(prompt);
   if (!response) {
-    console.error('Gemini returned no response');
+    console.error('Gemini returned no response for orbit');
     return null;
   }
   
   const orbitResponse = parseOrbitResponse(response);
   if (!orbitResponse) {
-    console.error('Failed to parse Gemini response');
+    console.error('Failed to parse Gemini response for orbit');
     return null;
   }
   
@@ -203,54 +210,48 @@ export const getNextMovie = async (
   
   return {
     movie: hydratedMovie,
-    connectionReason: orbitResponse.connection_reason,
-    similarityScore: orbitResponse.similarity_score,
+    connectionReason: orbitResponse.reason,
+    similarityScore: orbitResponse.score,
   };
 };
 
 // Pre-fetch all possible next moves for a movie
+// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 export const prefetchNextMoves = async (
   currentMovie: OrbitMovie,
-  extraContext?: { cinematographer?: string; writer?: string; visualStyle?: string }
+  backDirection?: SwipeDirection | null // Direction that goes back (skip prefetching)
 ): Promise<{
-  vibe: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-  aesthetic: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-  auteur: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+  visual: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+  balanced: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+  storytelling: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+  emotional: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
 }> => {
-  // Fire all three requests in parallel
-  const [vibe, aesthetic, auteur] = await Promise.all([
-    getNextMovie(currentMovie, 'left', extraContext),
-    getNextMovie(currentMovie, 'down', extraContext),
-    getNextMovie(currentMovie, 'up', extraContext),
+  console.log('Orbit: Prefetching moves, back direction:', backDirection);
+  
+  // Fire all four requests in parallel (skip back direction)
+  const [visual, balanced, storytelling, emotional] = await Promise.all([
+    backDirection === 'up' ? Promise.resolve(null) : getNextMovie(currentMovie, 'up'),
+    backDirection === 'right' ? Promise.resolve(null) : getNextMovie(currentMovie, 'right'),
+    backDirection === 'down' ? Promise.resolve(null) : getNextMovie(currentMovie, 'down'),
+    backDirection === 'left' ? Promise.resolve(null) : getNextMovie(currentMovie, 'left'),
   ]);
   
-  return { vibe, aesthetic, auteur };
+  return { visual, balanced, storytelling, emotional };
 };
 
-// Get extra context for a movie (cinematographer, writer, etc.)
-export const getMovieContext = async (tmdbId: number): Promise<{
+// Get additional movie info from TMDB (for enriching the experience)
+export const getMovieCredits = async (tmdbId: number): Promise<{
+  director?: string;
   cinematographer?: string;
-  writer?: string;
-  visualStyle?: string;
 } | null> => {
   try {
     const details = await getMovieDetails(tmdbId);
     if (!details) return null;
     
+    const director = details.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
     const cinematographer = details.credits?.crew?.find((c: any) => c.job === 'Director of Photography')?.name;
-    const writer = details.credits?.crew?.find((c: any) => c.job === 'Screenplay' || c.job === 'Writer')?.name;
     
-    // Generate a visual style description based on genres
-    const genres = details.genres?.map((g: any) => g.name) || [];
-    let visualStyle = 'cinematic visuals';
-    
-    if (genres.includes('Science Fiction')) visualStyle = 'futuristic, high-tech visuals';
-    else if (genres.includes('Horror')) visualStyle = 'dark, atmospheric tension';
-    else if (genres.includes('Romance')) visualStyle = 'warm, intimate cinematography';
-    else if (genres.includes('Action')) visualStyle = 'dynamic, high-energy visuals';
-    else if (genres.includes('Drama')) visualStyle = 'naturalistic, character-focused framing';
-    
-    return { cinematographer, writer, visualStyle };
+    return { director, cinematographer };
   } catch {
     return null;
   }

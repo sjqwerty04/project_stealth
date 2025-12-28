@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 
 export type SwipeDirection = 'left' | 'right' | 'up' | 'down';
-export type ConnectionType = 'vibe' | 'aesthetic' | 'auteur' | 'entry';
+// New connection types based on swipe direction
+// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
+export type ConnectionType = 'visual' | 'balanced' | 'storytelling' | 'emotional' | 'back';
 
 export interface OrbitMovie {
   id: number;
@@ -28,6 +30,7 @@ export interface OrbitNode {
   movie: OrbitMovie;
   timestamp: number;
   saved: boolean;
+  entryDirection: SwipeDirection | null; // Direction used to arrive at this film (null for entry film)
 }
 
 interface OrbitState {
@@ -47,10 +50,12 @@ interface OrbitState {
   pendingDirection: SwipeDirection | null;
   
   // Pre-fetched next moves with connection info
+  // UP=visual, RIGHT=balanced, DOWN=storytelling, LEFT=emotional
   prefetchedMoves: {
-    vibe: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-    aesthetic: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-    auteur: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+    visual: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+    balanced: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+    storytelling: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
+    emotional: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
   };
   
   // Actions
@@ -65,15 +70,30 @@ interface OrbitState {
   setPendingDirection: (direction: SwipeDirection | null) => void;
   setPrefetchedMoves: (moves: Partial<OrbitState['prefetchedMoves']>) => void;
   getSavedMovies: () => OrbitNode[];
+  getBackDirection: () => SwipeDirection | null;
+  isBackDirection: (direction: SwipeDirection) => boolean;
   reset: () => void;
 }
 
+// Map swipe direction to connection type
+// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 const directionToConnectionType = (direction: SwipeDirection): ConnectionType => {
   switch (direction) {
-    case 'left': return 'vibe';
-    case 'up': return 'auteur';
-    case 'down': return 'aesthetic';
-    default: return 'vibe';
+    case 'up': return 'visual';
+    case 'right': return 'balanced';
+    case 'down': return 'storytelling';
+    case 'left': return 'emotional';
+    default: return 'balanced';
+  }
+};
+
+// Get the opposite direction (for going back)
+export const getOppositeDirection = (direction: SwipeDirection): SwipeDirection => {
+  switch (direction) {
+    case 'up': return 'down';
+    case 'down': return 'up';
+    case 'left': return 'right';
+    case 'right': return 'left';
   }
 };
 
@@ -88,9 +108,10 @@ const initialState = {
   showConstellation: false,
   pendingDirection: null,
   prefetchedMoves: {
-    vibe: null,
-    aesthetic: null,
-    auteur: null,
+    visual: null,
+    balanced: null,
+    storytelling: null,
+    emotional: null,
   },
 };
 
@@ -102,6 +123,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       movie,
       timestamp: Date.now(),
       saved: false,
+      entryDirection: null, // Entry film has no entry direction
     };
     
     set({
@@ -113,7 +135,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       edges: [],
       isTransitioning: false,
       showConstellation: false,
-      prefetchedMoves: { vibe: null, aesthetic: null, auteur: null },
+      prefetchedMoves: { visual: null, balanced: null, storytelling: null, emotional: null },
     });
   },
 
@@ -129,6 +151,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       movie,
       timestamp: Date.now(),
       saved: false,
+      entryDirection: direction, // Track how we arrived at this film
     };
 
     const edge: OrbitEdge = {
@@ -150,7 +173,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       edges: [...state.edges, edge],
       isTransitioning: false,
       pendingDirection: null,
-      prefetchedMoves: { vibe: null, aesthetic: null, auteur: null },
+      prefetchedMoves: { visual: null, balanced: null, storytelling: null, emotional: null },
     });
   },
 
@@ -213,6 +236,22 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
 
   getSavedMovies: () => {
     return get().history.filter((node) => node.saved);
+  },
+
+  // Get the direction that goes back (opposite of how we arrived)
+  getBackDirection: (): SwipeDirection | null => {
+    const state = get();
+    const currentNode = state.history[state.historyIndex];
+    if (!currentNode?.entryDirection) return null; // No back direction for entry film
+    return getOppositeDirection(currentNode.entryDirection);
+  },
+
+  // Check if a given direction is the "back" direction
+  isBackDirection: (direction: SwipeDirection): boolean => {
+    const state = get();
+    const currentNode = state.history[state.historyIndex];
+    if (!currentNode?.entryDirection) return false;
+    return direction === getOppositeDirection(currentNode.entryDirection);
   },
 
   reset: () => {
