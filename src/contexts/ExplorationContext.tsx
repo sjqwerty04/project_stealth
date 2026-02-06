@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
-import { callGemini } from '../lib/gemini';
+import { callClaude } from '../lib/claude';
 import { logActivity } from '../lib/activityLogger';
 
 type ExploredMovie = {
@@ -34,40 +34,82 @@ const ExplorationContext = createContext<ExplorationContextType | null>(null);
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
-const PATTERN_PROMPT = `Analyze these movies the user browsed:
+// System prompt for pattern analysis
+const PATTERN_SYSTEM_PROMPT = `You are a film-obsessed cinephile with encyclopedic knowledge of cinema. You excel at identifying meaningful patterns in viewing behavior. Your voice is playful and Letterboxd-style.`;
 
+// Pattern analysis prompt using Claude's XML structure
+const PATTERN_PROMPT = `<task>
+Determine if there's a MEANINGFUL pattern in the user's browsed movies.
+</task>
+
+<browsed_movies>
 {movieList}
+</browsed_movies>
 
-First, determine if there's a MEANINGFUL pattern (shared director, era, genre combo, thematic thread, or visual style). 
+<pattern_criteria>
+Look for:
+- Shared director or cinematographer
+- Specific era or decade
+- Genre combinations (not just single genre)
+- Thematic threads or subject matter
+- Visual style or aesthetic
+- Film movement (French New Wave, Italian Neorealism, etc.)
+</pattern_criteria>
 
+<response_format>
 If YES (confidence > 50%): Write 1-2 punchy sentences in Letterboxd voice. Be specific - reference directors, movements, eras.
 
-If NO clear pattern: respond with exactly "NO_PATTERN"
+If NO clear pattern: Respond with exactly "NO_PATTERN"
+</response_format>
 
-Examples of good patterns:
-- "Ah, the 'morally bankrupt men doing crimes with style' marathon. Guy Ritchie would be proud."
-- "Someone's got a thing for slow-burn existential dread. Very A24 of you."
+<good_examples>
+"Ah, the 'morally bankrupt men doing crimes with style' marathon. Guy Ritchie would be proud."
+"Someone's got a thing for slow-burn existential dread. Very A24 of you."
+</good_examples>
 
-Examples where you should return NO_PATTERN:
+<no_pattern_examples>
 - Random mix of unrelated genres with no thematic connection
-- Just 3 popular movies from different decades/styles
+- Just 3 popular movies from different decades/styles with nothing in common
+</no_pattern_examples>
 
-DO NOT be generic ("you like action movies"). Be specific or return NO_PATTERN.`;
+<rules>
+- DO NOT be generic ("you like action movies")
+- Be specific or return NO_PATTERN
+- Never force a pattern if none exists
+</rules>`;
 
-const SHOW_MORE_PROMPT = `Based on this detected viewing pattern:
+// System prompt for show more recommendations
+const SHOW_MORE_SYSTEM_PROMPT = `You are an expert film curator who specializes in pattern recognition and recommending films that match specific vibes, themes, and aesthetics.`;
 
-Pattern: {pattern}
+// Show more recommendations prompt
+const SHOW_MORE_PROMPT = `<task>
+Suggest 10 movies that perfectly match the detected viewing pattern.
+</task>
 
-Movies explored: {movieList}
+<detected_pattern>
+{pattern}
+</detected_pattern>
 
-Suggest 10 movies that perfectly match this vibe. Focus on:
-- Similar tone, style, and mood
-- Same era or film movement if relevant
-- Hidden gems the user might not know
+<movies_explored>
+{movieList}
+</movies_explored>
+
+<recommendation_criteria>
+- Match the tone, style, and mood of the pattern
+- Include films from the same era or film movement if relevant
+- Prioritize hidden gems the user might not know
 - Mix of classics and recent films
+- Avoid the movies already explored
+</recommendation_criteria>
 
-Return ONLY a JSON array of objects with this format (no markdown, no explanation):
-[{"title": "Movie Title", "year": "YYYY"}, ...]`;
+<output_format>
+Return ONLY a valid JSON array (no markdown, no explanations):
+[{"title": "Movie Title", "year": "YYYY"}, {"title": "Another Film", "year": "YYYY"}]
+</output_format>
+
+<example>
+[{"title": "Punch-Drunk Love", "year": "2002"}, {"title": "The Master", "year": "2012"}]
+</example>`;
 
 const searchTMDB = async (title: string, year?: string): Promise<any | null> => {
   try {
@@ -112,7 +154,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         .join('\n');
 
       const prompt = PATTERN_PROMPT.replace('{movieList}', movieList);
-      const insight = await callGemini(prompt);
+      const insight = await callClaude(prompt, PATTERN_SYSTEM_PROMPT);
       
       // Only set pattern if it's valid (not NO_PATTERN)
       if (insight && !insight.trim().includes('NO_PATTERN')) {
@@ -169,7 +211,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         .replace('{pattern}', patternInsight)
         .replace('{movieList}', movieList);
 
-      const response = await callGemini(prompt);
+      const response = await callClaude(prompt, SHOW_MORE_SYSTEM_PROMPT);
       if (!response) return [];
 
       // Parse JSON response

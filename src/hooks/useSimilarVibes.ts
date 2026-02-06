@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { callGemini } from '../lib/gemini';
+import { callClaude } from '../lib/claude';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -90,21 +90,40 @@ export function useSimilarVibes() {
       const alreadyLoaded = Array.from(loadedIdsRef.current);
       const skipList = similarMovies.map(m => m.title).join(', ');
       
-      const prompt = `Film recommendation expert. For "${movie.title}" (${movie.release_date?.slice(0, 4)}):
-Genres: ${movie.genres?.map((g: any) => g.name).join(', ')}
+      // System prompt for similar vibes
+      const systemPrompt = `You are a film scholar and critic who specializes in identifying deep connections between films beyond surface-level similarities. You consider directorial style, cinematography, themes, tone, and cultural impact.`;
+      
+      // Similar vibes prompt using Claude's XML structure
+      const prompt = `<task>
+Recommend ${currentPage === 0 ? 8 : 6} films that fans of the reference film would love.
+</task>
 
-Suggest ${currentPage === 0 ? 8 : 6} films that fans would love. Focus on:
+<reference_film>
+Title: "${movie.title}"
+Year: ${movie.release_date?.slice(0, 4)}
+Genres: ${movie.genres?.map((g: any) => g.name).join(', ')}
+</reference_film>
+
+<recommendation_criteria>
 - Same director or cinematographer's other acclaimed work
 - Films with similar narrative structure or themes
-- Critically acclaimed films (7.5+ rating) with similar tone
+- Critically acclaimed films (7.5+ rating preferred) with similar tone
 - Mix of classics and modern films
-- Hidden gems cinephiles love
-${skipList ? `\nSKIP: ${skipList}` : ''}
+- Hidden gems that cinephiles love
+- Avoid mainstream obvious picks if possible
+${skipList ? `\n- DO NOT recommend: ${skipList}` : ''}
+</recommendation_criteria>
 
-Return ONLY valid JSON array:
-[{"title": "Movie Title", "year": "YYYY"}]`;
+<output_format>
+Return ONLY a valid JSON array, no markdown blocks or explanations:
+[{"title": "Movie Title", "year": "YYYY"}, {"title": "Another Film", "year": "YYYY"}]
+</output_format>
 
-      const response = await callGemini(prompt);
+<example>
+[{"title": "There Will Be Blood", "year": "2007"}, {"title": "The Master", "year": "2012"}]
+</example>`;
+
+      const response = await callClaude(prompt, systemPrompt);
       if (!response) {
         // Fallback to TMDB similar endpoint
         await loadFromTMDBFallback(parseInt(id || '0'));
