@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { callGemini } from '../lib/gemini';
+import { callClaude } from '../lib/claude';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -118,26 +118,37 @@ export function useMovieDetails() {
       const englishLogo = logos.find((l: any) => l.iso_639_1 === 'en') || logos[0];
       const logoPath = englishLogo?.file_path || null;
 
-      // Generate AI vibe description - smirky synopsis style
+      // System prompt for vibe descriptions
+      const vibeSystemPrompt = `You are a snarky film critic writing for Letterboxd. Your specialty is writing witty, oversimplified plot synopses that capture the essence of films in a humorous way. You never spoil anything.`;
+      
+      // Generate AI vibe description - smirky synopsis style using Claude's XML structure
       const genreList = detailsData.genres?.map((g: any) => g.name).join(', ') || 'film';
-      const vibePrompt = `You're a snarky cinephile friend. For "${detailsData.title || detailsData.name}" (${detailsData.release_date?.slice(0, 4) || detailsData.first_air_date?.slice(0, 4)}):
+      const vibePrompt = `<task>
+Write a smirky, oversimplified plot synopsis for this film.
+</task>
 
-Give a smirky oversimplified plot synopsis in 1-2 SHORT sentences. Think Letterboxd energy.
+<film>
+Title: "${detailsData.title || detailsData.name}"
+Year: ${detailsData.release_date?.slice(0, 4) || detailsData.first_air_date?.slice(0, 4)}
 Genres: ${genreList}
+</film>
 
-Examples:
-- "Rich people problems get violent. Oscars ensue."
-- "Sad robot learns to feel. You will too."
-- "Heist goes wrong. Cool guys walk slow."
+<rules>
+- Maximum 2 short sentences
+- Be witty and specific, not generic
+- Oversimplify the plot humorously
+- ABSOLUTELY NO spoilers
+- Channel Letterboxd energy
+</rules>
 
-Rules:
-- Max 2 short sentences
-- Be witty, not generic
-- NO spoilers
-- Oversimplify the plot humorously`;
+<examples>
+"Rich people problems get violent. Oscars ensue."
+"Sad robot learns to feel. You will too."
+"Heist goes wrong. Cool guys walk slow."
+</examples>`;
 
       // Start fetching vibe description in background (don't block page load)
-      const vibePromise = callGemini(vibePrompt);
+      const vibePromise = callClaude(vibePrompt, vibeSystemPrompt);
 
       // Build movie details immediately (without waiting for AI)
       const movieDetails: MovieDetails = {

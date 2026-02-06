@@ -3,7 +3,7 @@ import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { useCalendarLogs } from './useCalendarLogs';
-import { callGemini, callGeminiForJSON } from '../lib/gemini';
+import { callClaude, callClaudeForJSON } from '../lib/claude';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -34,40 +34,86 @@ export type RecommendationResult = {
   genres?: string[];
 };
 
-// Configurable LLM prompt template - CRITICAL: Must output valid JSON only
-const RECOMMENDATION_PROMPT_TEMPLATE = `TASK: Recommend ONE movie the user has NOT already watched.
+// System prompt for recommendation generation - defines Claude's role
+const RECOMMENDATION_SYSTEM_PROMPT = `You are an expert film curator with deep knowledge of cinema across all genres, eras, and cultures. Your specialty is analyzing viewing patterns and recommending films that perfectly match viewer preferences while introducing them to new experiences.`;
 
-ALREADY WATCHED (NEVER recommend these):
+// Recommendation prompt using Claude's XML structure for clarity
+const RECOMMENDATION_PROMPT_TEMPLATE = `<task>
+Recommend ONE movie that the user has NOT already watched, based on their viewing history and preferences.
+</task>
+
+<context>
+<already_watched>
 {excludeList}
+</already_watched>
 
-WATCHLIST (prefer these if they match taste):
+<watchlist>
 {watchlist}
+</watchlist>
 
-LIKED: {likedMovies}
-DISLIKED: {dislikedMovies}
+<liked_movies>
+{likedMovies}
+</liked_movies>
 
-RULES:
-1. NEVER recommend anything from "ALREADY WATCHED"
-2. Pick from WATCHLIST if possible
-3. Consider genres/directors/mood from LIKED
-4. Avoid anything similar to DISLIKED
+<disliked_movies>
+{dislikedMovies}
+</disliked_movies>
+</context>
 
-RESPOND WITH EXACTLY THIS JSON FORMAT AND NOTHING ELSE:
-{"title":"Movie Title","year":"2024","fromWatchlist":false}`;
+<rules>
+1. NEVER recommend any movie from the <already_watched> list
+2. Strongly prefer movies from <watchlist> if they align with the user's taste
+3. Analyze patterns in <liked_movies>: consider genres, directors, narrative styles, themes, and mood
+4. Avoid recommending anything similar to <disliked_movies>
+5. Prioritize critically acclaimed films or cult classics when appropriate
+6. Consider both obvious matches and hidden gems
+</rules>
 
-const REASON_PROMPT_TEMPLATE = `You're a sarcastic film buff friend. The user just got recommended "{movieTitle}" ({movieYear}).
+<output_format>
+Respond with ONLY this exact JSON format, no markdown, no explanations:
+{"title": "Movie Title", "year": "2024", "fromWatchlist": false}
+</output_format>
 
-Their recent watches: {recentWatches}
-Their liked recommendations: {likedMovies}
-Their disliked recommendations: {dislikedMovies}
+<example>
+{"title": "The Grand Budapest Hotel", "year": "2014", "fromWatchlist": false}
+</example>`;
 
-CRITICAL RULES:
-- ABSOLUTELY NO SPOILERS - do not reveal any plot points, twists, character fates, or story details
+// System prompt for generating recommendation reasons
+const REASON_SYSTEM_PROMPT = `You are a witty, sarcastic film critic writing for Letterboxd. Your voice is playful, slightly roast-y, but ultimately helpful and insightful. You never spoil movies.`;
+
+// Reason generation prompt with strict no-spoiler rules
+const REASON_PROMPT_TEMPLATE = `<task>
+Explain why "{movieTitle}" ({movieYear}) is a great recommendation for this user.
+</task>
+
+<context>
+<recent_watches>
+{recentWatches}
+</recent_watches>
+
+<liked_recommendations>
+{likedMovies}
+</liked_recommendations>
+
+<disliked_recommendations>
+{dislikedMovies}
+</disliked_recommendations>
+</context>
+
+<rules>
+- ABSOLUTELY NO SPOILERS: Do not reveal any plot points, twists, character fates, or story details
 - Do not describe what happens in the movie
-- Only reference the movie's vibe, genre, director's style, or general themes (e.g. "a slow-burn thriller" not "the twist ending where...")
+- Only reference the movie's vibe, genre, director's style, or general themes
 - Focus on WHY it matches their taste, not WHAT happens in the film
+- Be witty and slightly roast-y but ultimately helpful
+- Reference specific movies they've watched to draw comparisons (without spoiling those either)
+- Keep it to 1-2 punchy sentences
+</rules>
 
-In 1-2 punchy sentences, explain why this movie fits them. Be witty, slightly roast-y, but ultimately helpful. Reference specific movies they've watched to draw comparisons (without spoiling those either).`;
+<example>
+"You clearly have a thing for slow-burn existential dread with pretty cinematography. This checks both boxes."
+</example>`;
+
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -266,23 +312,21 @@ export function useRecommendation() {
         .replace('{likedMovies}', likedMovies)
         .replace('{dislikedMovies}', dislikedMovies);
 
-      // Get movie recommendation from LLM with validation and auto-retry
+      // Get movie recommendation from Claude with validation and auto-retry
       console.log('Generating recommendation with prompt length:', prompt.length);
-      
-      const exampleFormat = '{"title":"Movie Title","year":"2024","fromWatchlist":false}';
       
       let parsed: { title: string; year: string; fromWatchlist?: boolean } | null = null;
       try {
-        parsed = await callGeminiForJSON<{ title: string; year: string; fromWatchlist?: boolean }>(
+        parsed = await callClaudeForJSON<{ title: string; year: string; fromWatchlist?: boolean }>(
           prompt,
-          exampleFormat,
+          RECOMMENDATION_SYSTEM_PROMPT,
           2 // max retries
         );
       } catch (error: any) {
-        console.error('Gemini API call threw error:', error);
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        console.error('Claude API call threw error:', error);
+        const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
         if (!apiKey) {
-          setError('Gemini API key not configured. Please check Vercel environment variables.');
+          setError('Claude API key not configured. Please check environment variables.');
         } else {
           setError(error?.message || 'Failed to generate recommendation. Check browser console (F12) for details.');
         }
@@ -290,10 +334,10 @@ export function useRecommendation() {
       }
       
       if (!parsed) {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        console.error('Gemini JSON call returned null. API key present:', !!apiKey);
+        const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
+        console.error('Claude JSON call returned null. API key present:', !!apiKey);
         if (!apiKey) {
-          setError('Gemini API key not configured. Please check Vercel environment variables.');
+          setError('Claude API key not configured. Please check environment variables.');
         } else {
           setError('AI returned invalid response after multiple retries. Please try again.');
         }
@@ -332,7 +376,7 @@ export function useRecommendation() {
         .replace('{likedMovies}', likedForReason)
         .replace('{dislikedMovies}', dislikedForReason);
 
-      const reasonResponse = await callGemini(reasonPrompt);
+      const reasonResponse = await callClaude(reasonPrompt, REASON_SYSTEM_PROMPT);
       const reason = reasonResponse || "This one's got your name written all over it.";
 
       // Extract director from credits

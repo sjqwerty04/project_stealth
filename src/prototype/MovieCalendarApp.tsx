@@ -17,13 +17,16 @@ import {
   ThumbsDown,
   User as UserIcon,
 } from 'lucide-react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { useAuth } from '../hooks/useAuth';
 import { logMovieAdded } from '../lib/analytics';
 import RecommendationCard from '../components/RecommendationCard';
 import ProfileDropdown from '../components/ProfileDropdown';
 import type { RecommendationResult } from '../hooks/useRecommendation';
-import { callGemini } from '../lib/gemini';
+import { callClaude } from '../lib/claude';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -165,24 +168,41 @@ const fetchLLMColors = async (movieTitle: string, year?: string | number): Promi
   const movieLabel = year ? `${movieTitle} (${year})` : movieTitle;
   console.log(`[fetchLLMColors] Starting for: "${movieLabel}"`);
 
-  const prompt = `Reference the official theatrical release poster for the movie "${movieLabel}".
+  const systemPrompt = `You are a color analysis expert specializing in movie poster design and color grading. You have perfect recall of theatrical release posters and their iconic color palettes.`;
+  
+  const prompt = `<task>
+Identify the two most dominant, iconic colors from the official theatrical release poster for this film.
+</task>
 
-Identify the two most dominant, iconic colors specifically from that poster's color grading.
-- Do not analyze the general movie scenes; focus strictly on the poster art.
-- Capture the specific hue and saturation used in the marketing materials (e.g., if the poster uses a distinct neon gradient or a monochromatic blue filter, extract those exact shades).
+<film>
+"${movieLabel}"
+</film>
 
-Return ONLY a JSON object with this exact format (no markdown, no backticks):
+<rules>
+- Focus strictly on the official theatrical release poster art, not general movie scenes
+- Capture the specific hue and saturation used in the marketing materials
+- If the poster uses a distinct neon gradient or monochromatic filter, extract those exact shades
+- Ensure the text color provides high contrast and readability
+</rules>
+
+<output_format>
+Return ONLY a valid JSON object (no markdown, no code blocks):
 {"start": "#HEX1", "end": "#HEX2", "text": "#HEX3"}
-- "start": The primary dominant color from the poster (e.g., the main background wash).
-- "end": The secondary accent color from the poster that creates the iconic gradient or contrast.
-- "text": A legible text color (strictly #f8fafc for dark backgrounds or #050505 for light backgrounds) that ensures high readability on top of these colors.`;
+- "start": Primary dominant color from the poster (main background wash)
+- "end": Secondary accent color that creates gradient or contrast
+- "text": Legible text color (#f8fafc for dark backgrounds or #050505 for light backgrounds)
+</output_format>
+
+<example>
+{"start": "#1a1a2e", "end": "#ff6b35", "text": "#f8fafc"}
+</example>`;
 
   try {
-    console.log(`[fetchLLMColors] Calling Gemini API...`);
-    const text = await callGemini(prompt);
+    console.log(`[fetchLLMColors] Calling Claude API...`);
+    const text = await callClaude(prompt, systemPrompt);
     
     if (!text) {
-      console.warn('[fetchLLMColors] No response from Gemini');
+      console.warn('[fetchLLMColors] No response from Claude');
       return null;
     }
     
@@ -384,22 +404,55 @@ const normalizeDetailResult = (data: any, mediaType: 'movie' | 'tv'): Movie => {
 
 const generateMovieInsight = async (movieTitle: string, otherMovies: Array<{ title: string }>, rating?: RatingValue) => {
   try {
-    const historyContext =
-      otherMovies && otherMovies.length > 0 ? ` Recently watched: ${otherMovies.map((m) => m.title).join(', ')}.` : '';
+    const systemPrompt = `You are a sarcastic film critic with a sharp wit. You love roasting movies and people's taste in films. Your voice is playful, slightly mean, but ultimately entertaining. Channel Letterboxd and Film Twitter energy.`;
     
-    const spoilerWarning = `\n\nCRITICAL: ABSOLUTELY NO SPOILERS. Do not reveal ANY plot points, twists, character deaths, endings, or story details. Only reference the movie's vibe, genre, reputation, or director's style. Never describe what happens in the film.`;
+    const historyContext = otherMovies && otherMovies.length > 0 
+      ? `\n<recent_watches>\n${otherMovies.map((m) => m.title).join(', ')}\n</recent_watches>` 
+      : '';
     
     let prompt = '';
 
     if (rating === 'up') {
-      prompt = `I watched "${movieTitle}" and I Liked it.${historyContext}\nRoast me sarcastically for having this specific taste. Tell me why I'm basic or pretentious for liking it.\nKeep it extremely brief—strictly under two short sentences.${spoilerWarning}`;
+      prompt = `<task>
+User watched "${movieTitle}" and LIKED it. Roast them sarcastically for this taste.
+</task>
+${historyContext}
+
+<rules>
+- Tell them why they're basic or pretentious for liking it
+- Maximum 2 short sentences
+- Be witty and specific
+- ABSOLUTELY NO SPOILERS - only reference vibe, genre, reputation, or director's style
+- Never describe what happens in the film
+</rules>`;
     } else if (rating === 'down') {
-      prompt = `I watched "${movieTitle}" and I Hated it.${historyContext}\nRoast the movie mercilessly for wasting my time. Validate my hatred with sarcasm. Focus on the movie's reputation or style, not plot details.\nKeep it extremely brief—strictly under two short sentences.${spoilerWarning}`;
+      prompt = `<task>
+User watched "${movieTitle}" and HATED it. Roast the movie mercilessly and validate their hatred.
+</task>
+${historyContext}
+
+<rules>
+- Roast the movie for wasting their time
+- Focus on the movie's reputation or style, not plot details
+- Maximum 2 short sentences
+- Be witty and sarcastic
+- ABSOLUTELY NO SPOILERS
+</rules>`;
     } else {
-      prompt = `I am planning to watch "${movieTitle}".${historyContext}\nGive me an oversimplified, sarcastic take on this movie's reputation or vibe.\nRoast the movie or the fact that I'm watching it.\nKeep it extremely brief—strictly under two short sentences.${spoilerWarning}`;
+      prompt = `<task>
+User is planning to watch "${movieTitle}". Give an oversimplified, sarcastic take on this movie.
+</task>
+${historyContext}
+
+<rules>
+- Roast the movie or the fact that they're watching it
+- Maximum 2 short sentences
+- Be witty and playful
+- ABSOLUTELY NO SPOILERS - only reference reputation or vibe
+</rules>`;
     }
 
-    const text = await callGemini(prompt);
+    const text = await callClaude(prompt, systemPrompt);
     return text || 'Enjoy the show!';
   } catch (error) {
     console.error('AI Error:', error);
@@ -421,7 +474,8 @@ const MOCK_DB: Movie[] = [
 
 export default function MovieCalendarApp() {
   const navigate = useNavigate();
-  const { events, loading: eventsLoading, addEvent, updateEvent, deleteEvent, getEventsForDate } = useCalendarLogs();
+  const { user } = useAuth();
+  const { events, loading: eventsLoading, addEvent, updateEvent, deleteEvent, getEventsForDate, getPendingReviewEvents } = useCalendarLogs();
   const { profileImage, updateProfileImage } = useUserProfile();
   
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -431,7 +485,9 @@ export default function MovieCalendarApp() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [inviteFriend, setInviteFriend] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'search' | 'details' | 'confirm' | 'events'>('search');
+  const [viewMode, setViewMode] = useState<'search' | 'details' | 'confirm' | 'events' | 'success'>('search');
+  const [lastSavedMovie, setLastSavedMovie] = useState<Movie | null>(null);
+  const [lastSavedRating, setLastSavedRating] = useState<RatingValue>(null);
   const [dayEvents, setDayEvents] = useState<CalendarEvent[]>([]);
   const [rating, setRating] = useState<RatingValue>(null);
   const [aiInsight, setAiInsight] = useState('');
@@ -450,6 +506,10 @@ export default function MovieCalendarApp() {
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(false);
   const [selectedAccent, setSelectedAccent] = useState<AccentColors>(DEFAULT_ACCENT);
   const [isSaving, setIsSaving] = useState(false);
+  const [reviewingEvent, setReviewingEvent] = useState<CalendarEvent | null>(null);
+  const [reviewRating, setReviewRating] = useState<RatingValue>(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [dismissedReviewIds, setDismissedReviewIds] = useState<Set<string>>(new Set());
 
   // Sync avatar preview when profile image changes
   useEffect(() => {
@@ -575,7 +635,8 @@ export default function MovieCalendarApp() {
             const titleLower = movie.title.toLowerCase();
             const cleanTitle = titleLower.replace(/^(the|a|an)\s+/i, '');
 
-            const isPriority =
+            // Calculate match rank: 0 = exact/starts with, 1 = contains, 2 = no match
+            const isExactOrStarts =
               titleLower === queryLower ||
               cleanTitle === queryLower ||
               titleLower.startsWith(queryLower) ||
@@ -583,7 +644,7 @@ export default function MovieCalendarApp() {
 
             const containsMatch = titleLower.includes(queryLower) || cleanTitle.includes(queryLower);
 
-            const matchRank = isPriority ? 0 : containsMatch ? 1 : 2;
+            const matchRank = isExactOrStarts ? 0 : containsMatch ? 1 : 2;
 
             return {
               movie,
@@ -592,8 +653,11 @@ export default function MovieCalendarApp() {
             };
           })
           .sort((a: RankedMovie, b: RankedMovie) => {
-            if (b.popularity !== a.popularity) return b.popularity - a.popularity;
+            // Sort by match rank FIRST (lower is better)
             if (a.matchRank !== b.matchRank) return a.matchRank - b.matchRank;
+            // Then by popularity (higher is better)
+            if (b.popularity !== a.popularity) return b.popularity - a.popularity;
+            // Finally alphabetically
             return a.movie.title.localeCompare(b.movie.title);
           })
           .map((entry: RankedMovie) => entry.movie);
@@ -734,7 +798,9 @@ export default function MovieCalendarApp() {
   const handleSaveEvent = async () => {
     if (!selectedMovie || !selectedDate) return;
 
-    if (isPastDate(selectedDate) && !rating) {
+    const isPast = isPastDate(selectedDate);
+    
+    if (isPast && !rating) {
       return;
     }
 
@@ -746,7 +812,8 @@ export default function MovieCalendarApp() {
       poster: selectedMovie.poster,
       date: selectedDate.toISOString(),
       inviteFriend,
-      rating: isPastDate(selectedDate) ? rating : null,
+      rating: isPast ? rating : null,
+      status: isPast ? 'watched' as const : 'planned' as const,
       backdrop: selectedMovie.backdrop,
       mediaType: selectedMovie.mediaType,
       year: selectedMovie.year,
@@ -759,12 +826,40 @@ export default function MovieCalendarApp() {
     try {
       if (editingEventId) {
         await updateEvent(editingEventId, eventData);
+        setIsModalOpen(false);
       } else {
         await addEvent(eventData);
+        
+        // ALSO save to watched_recommendations if it's a past date with rating
+        if (isPast && rating && user) {
+          const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
+          await addDoc(watchedRef, {
+            movieId: selectedMovie.id,
+            title: selectedMovie.title,
+            year: selectedMovie.year,
+            poster: selectedMovie.poster,
+            backdrop: selectedMovie.backdrop,
+            runtime: selectedMovie.runtime,
+            mediaType: selectedMovie.mediaType,
+            rating,
+            ratedAt: serverTimestamp(),
+            source: 'calendar',
+          });
+        }
+        
         // Log analytics event
         await logMovieAdded(selectedMovie.mediaType || 'movie', selectedDate.toISOString());
+        
+        // For past dates (logging), show success screen instead of closing
+        if (isPast) {
+          setLastSavedMovie(selectedMovie);
+          setLastSavedRating(rating);
+          setViewMode('success');
+        } else {
+          // For future dates (planning), close the modal
+          setIsModalOpen(false);
+        }
       }
-      setIsModalOpen(false);
     } catch (error) {
       console.error('Failed to save event:', error);
     } finally {
@@ -848,6 +943,33 @@ export default function MovieCalendarApp() {
     setAiInsight(text);
     setIsGeneratingInsight(false);
   };
+
+  const handleSubmitReview = async () => {
+    if (!reviewingEvent || !reviewRating) return;
+    
+    setIsSubmittingReview(true);
+    try {
+      await updateEvent(reviewingEvent.id, {
+        rating: reviewRating,
+        status: 'watched' as const,
+      });
+      setReviewingEvent(null);
+      setReviewRating(null);
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleDismissReview = (eventId: string) => {
+    setDismissedReviewIds(prev => new Set([...prev, eventId]));
+  };
+
+  // Get pending reviews that haven't been dismissed
+  const pendingReviews = getPendingReviewEvents().filter(
+    event => !dismissedReviewIds.has(event.id)
+  );
 
   const changeMonth = (offset: number) => {
     const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
@@ -983,6 +1105,131 @@ export default function MovieCalendarApp() {
       </div>
 
       <div className="flex-1 px-4 pb-20 overflow-y-auto scrollbar-hide">
+        {/* Pending Review Banner */}
+        {pendingReviews.length > 0 && !reviewingEvent && (
+          <div className="mb-4 space-y-2">
+            {pendingReviews.slice(0, 2).map((event) => (
+              <div
+                key={event.id}
+                className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-700/50 rounded-xl p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={event.poster} 
+                    alt={event.title}
+                    className="w-12 h-16 object-cover rounded-lg shadow-md"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-amber-400 font-semibold uppercase tracking-wide mb-1">
+                      Did you watch this?
+                    </p>
+                    <h4 className="font-bold text-white truncate">{event.title}</h4>
+                    <p className="text-xs text-gray-400">
+                      Planned for {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setReviewingEvent(event);
+                        setReviewRating(null);
+                      }}
+                      className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg font-semibold text-sm transition-colors"
+                    >
+                      Rate
+                    </button>
+                    <button
+                      onClick={() => handleDismissReview(event.id)}
+                      className="px-2 py-2 text-gray-500 hover:text-gray-300 transition-colors"
+                      title="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {pendingReviews.length > 2 && (
+              <p className="text-xs text-gray-500 text-center">
+                +{pendingReviews.length - 2} more movies to review
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Quick Rating Modal for Pending Reviews */}
+        {reviewingEvent && (
+          <div className="mb-4 bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <img 
+                src={reviewingEvent.poster} 
+                alt={reviewingEvent.title}
+                className="w-14 h-20 object-cover rounded-lg shadow-md"
+              />
+              <div className="flex-1">
+                <h4 className="font-bold text-white">{reviewingEvent.title}</h4>
+                <p className="text-xs text-gray-400">{reviewingEvent.year}</p>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-bold text-gray-400 mb-2 block">How was it?</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setReviewRating('up')}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                    reviewRating === 'up'
+                      ? 'border-green-500 bg-green-900/20 text-green-400'
+                      : 'border-gray-700 bg-gray-800 text-gray-500 hover:bg-gray-700'
+                  }`}
+                >
+                  <ThumbsUp size={24} className={reviewRating === 'up' ? 'fill-current' : ''} />
+                  <span className="mt-1 font-bold text-xs">Loved it</span>
+                </button>
+                <button
+                  onClick={() => setReviewRating('down')}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                    reviewRating === 'down'
+                      ? 'border-red-500 bg-red-900/20 text-red-400'
+                      : 'border-gray-700 bg-gray-800 text-gray-500 hover:bg-gray-700'
+                  }`}
+                >
+                  <ThumbsDown size={24} className={reviewRating === 'down' ? 'fill-current' : ''} />
+                  <span className="mt-1 font-bold text-xs">Not for me</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setReviewingEvent(null);
+                  setReviewRating(null);
+                }}
+                className="flex-1 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReview}
+                disabled={!reviewRating || isSubmittingReview}
+                className={`flex-1 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
+                  !reviewRating || isSubmittingReview
+                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-white text-black hover:bg-gray-200'
+                }`}
+              >
+                {isSubmittingReview ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Check size={16} />
+                )}
+                Save Rating
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-7 mb-2">
           {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
             <div key={d + i} className="text-center text-xs font-bold text-gray-500 py-2">
@@ -1478,6 +1725,72 @@ export default function MovieCalendarApp() {
                       <p className="text-sm text-gray-600 italic">Tap generate to see why this movie fits your taste...</p>
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {viewMode === 'success' && lastSavedMovie && (
+              <div className="space-y-6 text-center">
+                <div className="flex flex-col items-center py-4">
+                  <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                    <Check size={40} className="text-green-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-1">Movie Logged!</h2>
+                  <p className="text-gray-400 text-sm">
+                    {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+
+                <div className="flex gap-4 items-center bg-gray-900 p-4 rounded-xl border border-gray-800">
+                  <img 
+                    src={lastSavedMovie.poster} 
+                    className="w-16 h-24 object-cover rounded-lg shadow-lg" 
+                    alt={lastSavedMovie.title} 
+                  />
+                  <div className="flex-1 text-left">
+                    <h3 className="font-bold text-white text-lg">{lastSavedMovie.title}</h3>
+                    <p className="text-sm text-gray-400">{lastSavedMovie.year} • {lastSavedMovie.runtime}</p>
+                  </div>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    lastSavedRating === 'up' 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {lastSavedRating === 'up' ? (
+                      <ThumbsUp size={24} className="fill-current" />
+                    ) : (
+                      <ThumbsDown size={24} className="fill-current" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <button
+                    onClick={() => {
+                      // Reset for adding another movie
+                      setSelectedMovie(null);
+                      setSearchQuery('');
+                      setRating(null);
+                      setLastSavedMovie(null);
+                      setLastSavedRating(null);
+                      setViewMode('search');
+                    }}
+                    className="w-full py-4 rounded-xl font-bold text-lg bg-white hover:bg-gray-200 text-black flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Plus size={20} />
+                    Add Another Movie
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setLastSavedMovie(null);
+                      setLastSavedRating(null);
+                    }}
+                    className="w-full py-3 rounded-xl font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
+                  >
+                    Done
+                  </button>
                 </div>
               </div>
             )}

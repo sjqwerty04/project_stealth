@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { callGemini } from '../lib/gemini';
+import { callClaude } from '../lib/claude';
 
 type ExploredMovie = {
   id: number;
@@ -16,38 +16,71 @@ type ExploredMovie = {
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
-const PATTERN_PROMPT = `You're a film-obsessed cinephile friend who's seen everything. The user has been browsing these movies/shows in their current session:
+// System prompt for pattern analysis
+const PATTERN_SYSTEM_PROMPT = `You are a film-obsessed cinephile friend who's seen everything. Your voice is playful, slightly sarcastic, and you write like you're on Letterboxd or Film Twitter. You're witty, specific, and never generic.`;
 
+// Pattern analysis prompt using Claude's XML structure
+const PATTERN_PROMPT = `<task>
+Analyze the pattern in the user's movie browsing session and identify what connects these films.
+</task>
+
+<browsed_films>
 {movieList}
+</browsed_films>
 
-Analyze the pattern in their exploration. What vibe, theme, director style, era, or mood connects these picks? 
+<analysis_focus>
+- What vibe, theme, or mood connects these picks?
+- Are there director styles or film movements in common?
+- Is there an era or cultural moment tying them together?
+- What does this say about their current mood or taste?
+</analysis_focus>
 
-Write 1-2 punchy sentences in a playful, slightly sarcastic Reddit/Letterboxd voice. Be witty and specific - reference actual film movements, directors, or cultural moments if relevant. Don't be generic.
+<rules>
+- Write 1-2 punchy sentences maximum
+- Be witty and specific - reference actual film movements, directors, or cultural moments
+- Don't be generic (avoid "you like action movies")
+- Never spoil any plots
+- Channel Letterboxd/Reddit energy
+</rules>
 
-Examples of good tone:
-- "Ah, the 'morally bankrupt men doing crimes with style' marathon. Guy Ritchie would be proud."
-- "Someone's got a thing for slow-burn existential dread. Very A24 of you."
-- "The 'I peaked in the 90s and I'm not sorry' starter pack. Respect."
+<examples>
+"Ah, the 'morally bankrupt men doing crimes with style' marathon. Guy Ritchie would be proud."
+"Someone's got a thing for slow-burn existential dread. Very A24 of you."
+"The 'I peaked in the 90s and I'm not sorry' starter pack. Respect."
+</examples>`;
 
-DO NOT:
-- Be generic ("you like action movies")
-- Spoil any plots
-- Be longer than 2 sentences`;
+// System prompt for "show more" recommendations
+const SHOW_MORE_SYSTEM_PROMPT = `You are an expert film curator who specializes in identifying patterns and recommending hidden gems that match specific vibes and themes.`;
 
-const SHOW_MORE_PROMPT = `Based on this detected viewing pattern:
+// Show more recommendations prompt
+const SHOW_MORE_PROMPT = `<task>
+Suggest 10 movies that perfectly match the detected viewing pattern.
+</task>
 
-Pattern: {pattern}
+<detected_pattern>
+{pattern}
+</detected_pattern>
 
-Movies explored: {movieList}
+<movies_explored>
+{movieList}
+</movies_explored>
 
-Suggest 10 movies that perfectly match this vibe. Focus on:
-- Similar tone, style, and mood
-- Same era or film movement if relevant
-- Hidden gems the user might not know
+<recommendation_criteria>
+- Match the tone, style, and mood of the pattern
+- Include films from the same era or film movement if relevant
+- Prioritize hidden gems and lesser-known films the user might not know
 - Mix of classics and recent films
+- Avoid the movies already explored
+</recommendation_criteria>
 
-Return ONLY a JSON array of objects with this format (no markdown, no explanation):
-[{"title": "Movie Title", "year": "YYYY"}, ...]`;
+<output_format>
+Return ONLY a valid JSON array, no markdown, no explanations:
+[{"title": "Movie Title", "year": "YYYY"}, {"title": "Another Film", "year": "YYYY"}]
+</output_format>
+
+<example>
+[{"title": "Punch-Drunk Love", "year": "2002"}, {"title": "The Master", "year": "2012"}]
+</example>`;
 
 const searchTMDB = async (title: string, year?: string): Promise<any | null> => {
   try {
@@ -84,7 +117,7 @@ export function useExplorationSession() {
         .join('\n');
 
       const prompt = PATTERN_PROMPT.replace('{movieList}', movieList);
-      const insight = await callGemini(prompt);
+      const insight = await callClaude(prompt, PATTERN_SYSTEM_PROMPT);
       
       if (insight) {
         setPatternInsight(insight.trim());
@@ -130,7 +163,7 @@ export function useExplorationSession() {
         .replace('{pattern}', patternInsight)
         .replace('{movieList}', movieList);
 
-      const response = await callGemini(prompt);
+      const response = await callClaude(prompt, SHOW_MORE_SYSTEM_PROMPT);
       if (!response) return [];
 
       // Parse JSON response

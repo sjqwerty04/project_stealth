@@ -1,5 +1,5 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
-import { callGeminiForJSON } from './gemini';
+import { callClaudeForJSON } from './claude';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -13,31 +13,118 @@ export interface OrbitResponse {
   reason: string; // LAST - can be truncated safely
 }
 
-// NEW ORBIT PROMPTS - 4 attributes
+// System prompt for orbit recommendations - defines Claude's cinematic expertise
+const ORBIT_SYSTEM_PROMPT = `You are a film scholar and cinematographer with deep expertise in visual storytelling, narrative structure, emotional resonance, and film analysis. You understand the nuanced connections between films across different dimensions.`;
+
+// ORBIT PROMPTS - 4 directional attributes using Claude's XML structure
 // UP = Visual (cinematography, colors)
 // RIGHT = Balanced (overall match)
 // DOWN = Storytelling (narrative style)
 // LEFT = Emotional (same feeling)
 
-const VISUAL_PROMPT = `Film: "{title}" ({year})
-Recommend 1 VISUALLY similar film - same cinematography style, color palette, or lighting.
-JSON ONLY (no markdown):
-{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
+const VISUAL_PROMPT = `<task>
+Recommend ONE film that is visually similar to the reference film.
+Focus on: cinematography style, color palette, lighting design, visual composition, camera work.
+</task>
 
-const BALANCED_PROMPT = `Film: "{title}" ({year}), {genres}
-Recommend 1 well-matched film - similar tone, quality, and overall vibe.
-JSON ONLY (no markdown):
-{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
+<reference_film>
+Title: "{title}"
+Year: {year}
+</reference_film>
 
-const STORYTELLING_PROMPT = `Film: "{title}" ({year}), dir: {director}
-Recommend 1 film with similar NARRATIVE style - pacing, structure, or storytelling approach.
-JSON ONLY (no markdown):
-{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
+<rules>
+- Focus purely on visual aesthetics and cinematography
+- Consider director of photography's style
+- Think about color grading and visual mood
+- Output ONLY valid JSON, no markdown blocks
+</rules>
 
-const EMOTIONAL_PROMPT = `Film: "{title}" ({year})
-Recommend 1 film that evokes the SAME EMOTION - same feeling when watching.
-JSON ONLY (no markdown):
-{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}`;
+<output_format>
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+</output_format>
+
+<example>
+{"title": "Blade Runner 2049", "year": "2017", "hex": "#ff6b35", "score": 92, "reason": "Stunning sci-fi visuals"}
+</example>`;
+
+const BALANCED_PROMPT = `<task>
+Recommend ONE film that is a well-balanced match to the reference film.
+Consider: overall tone, quality, genre blend, pacing, critical acclaim, and general vibe.
+</task>
+
+<reference_film>
+Title: "{title}"
+Year: {year}
+Genres: {genres}
+</reference_film>
+
+<rules>
+- Balance all aspects: tone, quality, genre, audience appeal
+- Consider films that fans of the reference would enjoy
+- Aim for similar critical reception and cultural impact
+- Output ONLY valid JSON, no markdown blocks
+</rules>
+
+<output_format>
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+</output_format>
+
+<example>
+{"title": "No Country for Old Men", "year": "2007", "hex": "#8b4513", "score": 90, "reason": "Tense neo-western"}
+</example>`;
+
+const STORYTELLING_PROMPT = `<task>
+Recommend ONE film with similar narrative structure and storytelling approach.
+Focus on: pacing, plot structure, narrative techniques, directorial style, story complexity.
+</task>
+
+<reference_film>
+Title: "{title}"
+Year: {year}
+Director: {director}
+</reference_film>
+
+<rules>
+- Focus on how the story is told, not what the story is about
+- Consider narrative pacing (slow-burn vs rapid)
+- Think about structure (linear, non-linear, fragmented)
+- Consider the director's storytelling signature
+- Output ONLY valid JSON, no markdown blocks
+</rules>
+
+<output_format>
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+</output_format>
+
+<example>
+{"title": "Memento", "year": "2000", "hex": "#2c3e50", "score": 88, "reason": "Mind-bending structure"}
+</example>`;
+
+const EMOTIONAL_PROMPT = `<task>
+Recommend ONE film that evokes the same emotional experience and feeling.
+Focus on: emotional tone, mood, atmosphere, how the film makes viewers feel.
+</task>
+
+<reference_film>
+Title: "{title}"
+Year: {year}
+</reference_film>
+
+<rules>
+- Focus on the emotional journey and feeling
+- Consider the atmosphere and mood
+- Think about the emotional impact on viewers
+- Match the intensity and type of emotion (melancholy, joy, tension, etc.)
+- Output ONLY valid JSON, no markdown blocks
+</rules>
+
+<output_format>
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+</output_format>
+
+<example>
+{"title": "Her", "year": "2013", "hex": "#f39c12", "score": 87, "reason": "Bittersweet loneliness"}
+</example>`;
 
 // Build prompt based on direction
 // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
@@ -182,10 +269,8 @@ export const getNextMovie = async (
   
   console.log(`Orbit: Getting ${direction} recommendation for "${currentMovie.title}"`);
   
-  // Use validated JSON call with auto-retry
-  const exampleFormat = '{"title":"Film","year":"2020","hex":"#4a5568","score":85,"reason":"3 words"}';
-  
-  const parsed = await callGeminiForJSON<{
+  // Use Claude with validated JSON call and auto-retry
+  const parsed = await callClaudeForJSON<{
     title?: string;
     next_movie_title?: string;
     year: string;
@@ -195,10 +280,10 @@ export const getNextMovie = async (
     similarity_score?: number;
     reason?: string;
     connection_reason?: string;
-  }>(prompt, exampleFormat, 2);
+  }>(prompt, ORBIT_SYSTEM_PROMPT, 2);
   
   if (!parsed) {
-    console.error('Orbit: Gemini JSON call failed after retries');
+    console.error('Orbit: Claude JSON call failed after retries');
     return null;
   }
   
