@@ -953,6 +953,24 @@ export default function MovieCalendarApp() {
         rating: reviewRating,
         status: 'watched' as const,
       });
+
+      // Also save to watched_recommendations so it shows in the Watched library
+      if (user) {
+        const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
+        await addDoc(watchedRef, {
+          movieId: reviewingEvent.movieId,
+          title: reviewingEvent.title,
+          year: reviewingEvent.year,
+          poster: reviewingEvent.poster,
+          backdrop: reviewingEvent.backdrop,
+          runtime: reviewingEvent.runtimeLabel,
+          mediaType: reviewingEvent.mediaType,
+          rating: reviewRating,
+          ratedAt: serverTimestamp(),
+          source: 'calendar',
+        });
+      }
+
       setReviewingEvent(null);
       setReviewRating(null);
     } catch (error) {

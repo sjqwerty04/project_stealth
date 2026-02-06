@@ -1,14 +1,94 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Loader2, Film, Plus, X, Upload } from 'lucide-react';
-import { useRecommendation, type WatchedRecommendation } from '../hooks/useRecommendation';
+import { ArrowLeft, ThumbsUp, ThumbsDown, Loader2, Film, Plus, X, Upload, Calendar } from 'lucide-react';
+import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport, detectImportType, type ImportType } from '../hooks/useIMDBImport';
+
+// --- Timeline grouping helpers ---
+
+type WeekGroup = {
+  weekLabel: string;
+  weekStart: Date;
+  movies: CalendarEvent[];
+};
+
+type MonthGroup = {
+  monthLabel: string;
+  monthKey: string;
+  weeks: WeekGroup[];
+};
+
+const getMonday = (d: Date): Date => {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  date.setDate(diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const formatWeekLabel = (weekStart: Date): string => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `Week of ${months[weekStart.getMonth()]} ${weekStart.getDate()}`;
+};
+
+const formatMonthLabel = (date: Date): string => {
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+const groupByTimeline = (events: CalendarEvent[]): MonthGroup[] => {
+  // Sort descending by date
+  const sorted = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const monthMap = new Map<string, { label: string; weekMap: Map<string, { weekStart: Date; movies: CalendarEvent[] }> }>();
+
+  for (const event of sorted) {
+    const eventDate = new Date(event.date);
+    const monthKey = `${eventDate.getFullYear()}-${String(eventDate.getMonth()).padStart(2, '0')}`;
+    const weekStart = getMonday(eventDate);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+
+    if (!monthMap.has(monthKey)) {
+      monthMap.set(monthKey, {
+        label: formatMonthLabel(eventDate),
+        weekMap: new Map(),
+      });
+    }
+
+    const month = monthMap.get(monthKey)!;
+    if (!month.weekMap.has(weekKey)) {
+      month.weekMap.set(weekKey, { weekStart, movies: [] });
+    }
+    month.weekMap.get(weekKey)!.movies.push(event);
+  }
+
+  // Convert to arrays, keeping descending order
+  const result: MonthGroup[] = [];
+  for (const [monthKey, { label, weekMap }] of monthMap) {
+    const weeks: WeekGroup[] = [];
+    // Sort weeks descending
+    const sortedWeeks = [...weekMap.entries()].sort((a, b) => b[1].weekStart.getTime() - a[1].weekStart.getTime());
+    for (const [, { weekStart, movies }] of sortedWeeks) {
+      weeks.push({
+        weekLabel: formatWeekLabel(weekStart),
+        weekStart,
+        movies,
+      });
+    }
+    result.push({ monthLabel: label, monthKey, weeks });
+  }
+
+  return result;
+};
+
+// --- Component ---
 
 export default function WatchedScreen() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { fetchRatedRecommendations } = useRecommendation();
+  const { events, loading: eventsLoading } = useCalendarLogs();
   const { 
     importFromLetterboxd, 
     isImporting: isLetterboxdImporting, 
@@ -25,8 +105,6 @@ export default function WatchedScreen() {
     importedCount: imdbImportedCount 
   } = useIMDBImport();
   
-  const [watchedMovies, setWatchedMovies] = useState<WatchedRecommendation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'liked' | 'disliked'>('all');
   const [showImportModal, setShowImportModal] = useState(false);
   const [importUrl, setImportUrl] = useState('');
@@ -39,15 +117,24 @@ export default function WatchedScreen() {
   const importError = isLetterboxdImporting ? letterboxdError : imdbError;
   const importedCount = isLetterboxdImporting ? letterboxdImportedCount : imdbImportedCount;
 
-  useEffect(() => {
-    const loadWatched = async () => {
-      setIsLoading(true);
-      const movies = await fetchRatedRecommendations();
-      setWatchedMovies(movies);
-      setIsLoading(false);
-    };
-    loadWatched();
-  }, [fetchRatedRecommendations]);
+  // Get watched movies from calendar_logs (has real watch dates)
+  const watchedEvents = useMemo(() => {
+    return events.filter(e => e.status === 'watched');
+  }, [events]);
+
+  // Apply filter
+  const filteredEvents = useMemo(() => {
+    if (filter === 'all') return watchedEvents;
+    if (filter === 'liked') return watchedEvents.filter(e => e.rating === 'up');
+    if (filter === 'disliked') return watchedEvents.filter(e => e.rating === 'down');
+    return watchedEvents;
+  }, [watchedEvents, filter]);
+
+  // Group into timeline
+  const timeline = useMemo(() => groupByTimeline(filteredEvents), [filteredEvents]);
+
+  const likedCount = watchedEvents.filter(e => e.rating === 'up').length;
+  const dislikedCount = watchedEvents.filter(e => e.rating === 'down').length;
 
   // Detect import type when URL changes
   useEffect(() => {
@@ -58,40 +145,24 @@ export default function WatchedScreen() {
     }
   }, [importUrl]);
 
-  const filteredMovies = watchedMovies.filter((movie) => {
-    if (filter === 'all') return true;
-    if (filter === 'liked') return movie.rating === 'up';
-    if (filter === 'disliked') return movie.rating === 'down';
-    return true;
-  });
-
-  const likedCount = watchedMovies.filter((m) => m.rating === 'up').length;
-  const dislikedCount = watchedMovies.filter((m) => m.rating === 'down').length;
-
   const handleImport = async () => {
     if (!importUrl.trim()) return;
     
     let count = 0;
     
     if (detectedType === 'letterboxd') {
-      // Extract username from Letterboxd URL
       const match = importUrl.match(/letterboxd\.com\/([^\/]+)/i);
       const username = match ? match[1] : importUrl.trim();
       count = await importFromLetterboxd(username);
     } else if (detectedType === 'imdb-ratings') {
       count = await importFromIMDB(importUrl, 'imdb-ratings');
     } else if (detectedType === 'imdb-watchlist') {
-      // Redirect to watchlist screen for this
       navigate('/watchlist');
       return;
     }
 
     if (count > 0) {
       setImportSuccess(count);
-      // Reload the watched movies
-      const movies = await fetchRatedRecommendations();
-      setWatchedMovies(movies);
-      // Close modal after a delay
       setTimeout(() => {
         setShowImportModal(false);
         setImportUrl('');
@@ -111,8 +182,6 @@ export default function WatchedScreen() {
         const count = await importFromCSV(csvContent, 'imdb-ratings');
         if (count > 0) {
           setImportSuccess(count);
-          const movies = await fetchRatedRecommendations();
-          setWatchedMovies(movies);
           setTimeout(() => {
             setShowImportModal(false);
             setImportSuccess(null);
@@ -123,7 +192,6 @@ export default function WatchedScreen() {
     };
     reader.readAsText(file);
     
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -167,7 +235,7 @@ export default function WatchedScreen() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-white">Watched</h1>
-            <p className="text-xs text-gray-500">Your rated recommendations</p>
+            <p className="text-xs text-gray-500">{watchedEvents.length} films logged</p>
           </div>
         </div>
         <button
@@ -189,7 +257,7 @@ export default function WatchedScreen() {
               : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
           }`}
         >
-          All ({watchedMovies.length})
+          All ({watchedEvents.length})
         </button>
         <button
           onClick={() => setFilter('liked')}
@@ -215,63 +283,92 @@ export default function WatchedScreen() {
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {isLoading ? (
+      {/* Timeline Content */}
+      <div className="flex-1 overflow-y-auto">
+        {eventsLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
           </div>
-        ) : filteredMovies.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
+        ) : filteredEvents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center px-4">
             <div className="w-20 h-20 rounded-full bg-gray-900 flex items-center justify-center mb-4">
               <Film className="w-10 h-10 text-gray-600" />
             </div>
             <h3 className="text-lg font-medium text-gray-300 mb-2">
-              {filter === 'all' ? 'No rated movies yet' : `No ${filter} movies`}
+              {filter === 'all' ? 'No watched movies yet' : `No ${filter} movies`}
             </h3>
             <p className="text-sm text-gray-500 max-w-xs">
               {filter === 'all'
-                ? 'Rate recommendations from the home screen and they\'ll appear here.'
-                : `You haven't ${filter === 'liked' ? 'liked' : 'disliked'} any recommendations yet.`}
+                ? 'Log movies from the calendar and they\'ll appear here as a timeline.'
+                : `You haven't ${filter === 'liked' ? 'liked' : 'disliked'} any movies yet.`}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {filteredMovies.map((movie, index) => (
-              <div
-                key={movie.id}
-                onClick={() => navigate(`/movie/${movie.movieId}?type=${movie.mediaType || 'movie'}`)}
-                className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-800 group cursor-pointer transform transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl active:scale-95"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <img
-                  src={movie.poster}
-                  alt={movie.title}
-                  className="w-full aspect-[2/3] object-cover transition-transform duration-200 group-hover:brightness-110"
-                />
-                
-                {/* Rating Badge */}
-                <div
-                  className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 group-hover:scale-110 ${
-                    movie.rating === 'up'
-                      ? 'bg-green-500 text-white'
-                      : 'bg-red-500 text-white'
-                  }`}
-                >
-                  {movie.rating === 'up' ? (
-                    <ThumbsUp size={14} className="fill-current" />
-                  ) : (
-                    <ThumbsDown size={14} className="fill-current" />
-                  )}
+          <div className="pb-8">
+            {timeline.map((monthGroup) => (
+              <div key={monthGroup.monthKey}>
+                {/* Month Header - sticky */}
+                <div className="sticky top-0 z-[5] bg-[#09090b]/95 backdrop-blur-sm px-4 py-3 border-b border-gray-800/50">
+                  <h2 className="text-lg font-bold text-white">{monthGroup.monthLabel}</h2>
                 </div>
 
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-2">
-                  <h4 className="text-xs font-bold text-white leading-tight truncate">
-                    {movie.title}
-                  </h4>
-                  <p className="text-[10px] text-gray-400">{movie.year}</p>
-                </div>
+                {monthGroup.weeks.map((weekGroup) => (
+                  <div key={weekGroup.weekStart.toISOString()} className="px-4 pt-3 pb-1">
+                    {/* Week Sub-header */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar size={13} className="text-gray-500" />
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {weekGroup.weekLabel}
+                      </span>
+                      <span className="text-[10px] text-gray-600">
+                        ({weekGroup.movies.length})
+                      </span>
+                    </div>
+
+                    {/* Movie Poster Grid */}
+                    <div className="grid grid-cols-4 gap-2 mb-2">
+                      {weekGroup.movies.map((movie) => (
+                        <div
+                          key={movie.id}
+                          onClick={() => navigate(`/movie/${movie.movieId}?type=${movie.mediaType || 'movie'}`)}
+                          className="relative rounded-lg overflow-hidden bg-gray-900 group cursor-pointer transform transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl active:scale-95"
+                        >
+                          <img
+                            src={movie.poster}
+                            alt={movie.title}
+                            className="w-full aspect-[2/3] object-cover transition-transform duration-200 group-hover:brightness-110"
+                            loading="lazy"
+                          />
+                          
+                          {/* Rating Badge */}
+                          {movie.rating && (
+                            <div
+                              className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg ${
+                                movie.rating === 'up'
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-red-500 text-white'
+                              }`}
+                            >
+                              {movie.rating === 'up' ? (
+                                <ThumbsUp size={10} className="fill-current" />
+                              ) : (
+                                <ThumbsDown size={10} className="fill-current" />
+                              )}
+                            </div>
+                          )}
+
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-1.5">
+                            <h4 className="text-[10px] font-bold text-white leading-tight truncate">
+                              {movie.title}
+                            </h4>
+                            <p className="text-[8px] text-gray-400">{movie.year}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

@@ -1,5 +1,3 @@
-const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY || '';
-
 // Persistent cache using localStorage for longer-term storage
 const CACHE_PREFIX = 'claude_cache_';
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
@@ -169,11 +167,6 @@ export const callClaude = async (
   }
   lastCallTime = Date.now();
 
-  if (!CLAUDE_API_KEY) {
-    console.error('Claude API key is missing. Check VITE_CLAUDE_API_KEY environment variable.');
-    return null;
-  }
-
   try {
     // Validate prompt length
     if (prompt.length > 1000000) {
@@ -181,58 +174,25 @@ export const callClaude = async (
       throw new Error('Prompt exceeds maximum length');
     }
 
-    const requestBody: any = {
-      model,
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    };
-
-    // Add system prompt if provided
-    if (systemPrompt) {
-      requestBody.system = systemPrompt;
-    }
-
-    const apiUrl = 'https://api.anthropic.com/v1/messages';
-    
-    const response = await fetch(apiUrl, {
+    // Call our Vercel serverless proxy instead of Anthropic directly (avoids CORS)
+    const response = await fetch('/api/claude', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify(requestBody),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemPrompt, model }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { message: errorText };
-      }
-      
-      console.error('Claude API error:', {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('Claude proxy error:', {
         status: response.status,
-        statusText: response.statusText,
         error: errorData,
-        model: model,
         promptLength: prompt.length,
       });
-      
-      throw new Error(`Claude API ${response.status}: ${errorData.error?.message || errorData.message || errorText}`);
+      throw new Error(`Claude API ${response.status}: ${errorData.error || errorData.details || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    
-    // Extract text from Claude's response format
-    const result = data.content?.[0]?.text || null;
+    const result = data.text || null;
     
     if (!result) {
       console.error('Claude API returned empty result:', data);
