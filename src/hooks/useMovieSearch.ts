@@ -8,28 +8,6 @@ const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Reverse genre mapping for search
-const GENRE_NAME_TO_ID: Record<string, number> = {
-  'action': 28,
-  'adventure': 12,
-  'animation': 16,
-  'comedy': 35,
-  'crime': 80,
-  'documentary': 99,
-  'drama': 18,
-  'family': 10751,
-  'fantasy': 14,
-  'history': 36,
-  'horror': 27,
-  'music': 10402,
-  'mystery': 9648,
-  'romance': 10749,
-  'sci-fi': 878,
-  'science fiction': 878,
-  'thriller': 53,
-  'war': 10752,
-  'western': 37,
-};
 const GENRE_MAP: Record<number, string> = {
   28: 'Action',
   12: 'Adventure',
@@ -72,61 +50,38 @@ export type VibeList = {
   movies: SearchResult[];
 };
 
-export type SearchMode = 'standard' | 'actor' | 'genre' | 'ai-curated' | 'vibe';
+export type SearchMode = 'standard' | 'ai-curated';
 export type SearchMetadata = {
   mode: SearchMode;
   label?: string;
-  actorName?: string;
-  genreName?: string;
 };
 
-// Query intent classifier
-const classifyQuery = (query: string): { mode: SearchMode; genreId?: number; genreName?: string } => {
+// Query intent classifier — simple: short queries go to TMDB, everything else to AI
+const classifyQuery = (query: string): { mode: SearchMode } => {
   const lower = query.toLowerCase().trim();
+  const wordCount = lower.split(/\s+/).length;
   
-  // Check for genre patterns
-  const genrePatterns = [
-    /(.+?)\s+movies?$/i,  // "crime movies", "action movie"
-    /(.+?)\s+films?$/i,   // "horror films", "sci-fi film"
-    /^(.+?)$/i,           // Just the genre name (will check against genre map)
+  // AI patterns - complex queries that need interpretation
+  const aiIndicators = [
+    /directed by/i,
+    /movies? (?:with|starring|by|featuring)/i,
+    /films? (?:with|starring|by|featuring)/i,
+    /like\s+/i,
+    /(?:above|over|higher than)\s+\d/i,
+    /(?:similar|comparable) to/i,
+    /best\s+/i,
   ];
   
-  for (const pattern of genrePatterns) {
-    const match = lower.match(pattern);
-    if (match) {
-      const potentialGenre = match[1].trim();
-      const genreId = GENRE_NAME_TO_ID[potentialGenre];
-      if (genreId) {
-        return { mode: 'genre', genreId, genreName: potentialGenre };
-      }
-    }
+  for (const pattern of aiIndicators) {
+    if (pattern.test(query)) return { mode: 'ai-curated' };
   }
   
-  // Check for actor patterns
-  const actorPatterns = [
-    /movies? (?:with|starring|by|featuring)\s+(.+)/i,
-    /(.+)\s+movies?$/i,  // "Tom Hanks movies" (could be actor or genre)
-  ];
+  // Multi-word queries with genre/film keywords -> AI
+  if (wordCount >= 3) return { mode: 'ai-curated' };
   
-  for (const pattern of actorPatterns) {
-    if (pattern.test(query)) {
-      // This might be an actor search - will verify by searching TMDB
-      return { mode: 'actor' };
-    }
-  }
-  
-  // Check for complex AI-curated patterns
-  const aiPatterns = [
-    /like\s+/i,                    // "movies like Heat"
-    /(?:above|over|higher than)\s+\d/i,  // "crime movies with IMDb above 7"
-    /(?:similar|comparable) to/i,  // "similar to Parasite"
-    /best\s+/i,                    // "best sci-fi movies"
-  ];
-  
-  for (const pattern of aiPatterns) {
-    if (pattern.test(query)) {
-      return { mode: 'ai-curated' };
-    }
+  // 2-word queries: check if it could be a person name + "films/movies"
+  if (wordCount === 2) {
+    if (/\b(films?|movies?)\b/i.test(query)) return { mode: 'ai-curated' };
   }
   
   return { mode: 'standard' };
@@ -208,87 +163,7 @@ export function useMovieSearch() {
       let metadata: SearchMetadata = { mode: classification.mode };
       
       // Handle different search modes
-      if (classification.mode === 'genre' && classification.genreId) {
-        // Genre search using TMDB discover
-        metadata.genreName = classification.genreName;
-        metadata.label = `${classification.genreName?.charAt(0).toUpperCase()}${classification.genreName?.slice(1)} movies`;
-        
-        const res = await fetch(
-          `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${classification.genreId}&sort_by=popularity.desc&language=en-US&page=1`,
-          { signal: abortControllerRef.current.signal }
-        );
-        
-        if (res.ok) {
-          const data = await res.json();
-          searchResults = (data.results || []).map((m: any) => ({
-            id: m.id,
-            title: m.title,
-            year: m.release_date?.slice(0, 4) || '',
-            posterPath: m.poster_path,
-            backdropPath: m.backdrop_path,
-            genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-            overview: m.overview || '',
-            popularity: m.popularity || 0,
-            voteAverage: m.vote_average || 0,
-            voteCount: m.vote_count || 0,
-            mediaType: 'movie' as const,
-          }));
-        }
-        
-        // Trigger personalized vibe list in parallel
-        if (user?.uid) {
-          generateVibeList(trimmedQuery, classification.genreName || '');
-        }
-        
-      } else if (classification.mode === 'actor') {
-        // Actor search - first search for the person
-        const actorMatch = trimmedQuery.match(/(?:movies? (?:with|starring|by|featuring)\s+)?(.+?)(?:\s+movies?)?$/i);
-        const actorName = actorMatch ? actorMatch[1].trim() : trimmedQuery;
-        
-        const personRes = await fetch(
-          `${TMDB_BASE}/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(actorName)}&language=en-US`,
-          { signal: abortControllerRef.current.signal }
-        );
-        
-        if (personRes.ok) {
-          const personData = await personRes.json();
-          if (personData.results && personData.results.length > 0) {
-            const person = personData.results[0];
-            metadata.actorName = person.name;
-            metadata.label = `Movies starring ${person.name}`;
-            
-            // Fetch their movie credits
-            const creditsRes = await fetch(
-              `${TMDB_BASE}/person/${person.id}/movie_credits?api_key=${TMDB_API_KEY}&language=en-US`,
-              { signal: abortControllerRef.current.signal }
-            );
-            
-            if (creditsRes.ok) {
-              const creditsData = await creditsRes.json();
-              searchResults = (creditsData.cast || [])
-                .sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0))
-                .slice(0, 20)
-                .map((m: any) => ({
-                  id: m.id,
-                  title: m.title,
-                  year: m.release_date?.slice(0, 4) || '',
-                  posterPath: m.poster_path,
-                  backdropPath: m.backdrop_path,
-                  genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-                  overview: m.overview || '',
-                  popularity: m.popularity || 0,
-                  voteAverage: m.vote_average || 0,
-                  voteCount: m.vote_count || 0,
-                  mediaType: 'movie' as const,
-                }));
-            }
-          } else {
-            // No actor found, fall back to standard search
-            classification.mode = 'standard';
-          }
-        }
-        
-      } else if (classification.mode === 'ai-curated') {
+      if (classification.mode === 'ai-curated') {
         // AI-powered search for complex queries
         metadata.label = 'AI-curated results';
         
@@ -359,6 +234,11 @@ Return a JSON array of movie objects.
           } catch (err) {
             console.error('Failed to parse AI response:', err);
           }
+        }
+        
+        // Trigger personalized vibe list in parallel for AI queries
+        if (user?.uid) {
+          generateVibeList(trimmedQuery, '');
         }
         
         if (searchResults.length === 0) {
