@@ -20,7 +20,7 @@ export default function OrbitScreen() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { addToWatchlist, isInWatchlist } = useWatchlist();
+  const { addToWatchlist } = useWatchlist();
   
   const {
     currentMovie,
