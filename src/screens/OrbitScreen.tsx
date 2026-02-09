@@ -11,6 +11,7 @@ import OrbitControls from '../components/orbit/OrbitControls';
 import ParryTransition from '../components/orbit/ParryTransition';
 import ConstellationView from '../components/orbit/ConstellationView';
 import { useAuth } from '../hooks/useAuth';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { logActivity } from '../lib/activityLogger';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -19,6 +20,7 @@ export default function OrbitScreen() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { addToWatchlist, isInWatchlist } = useWatchlist();
   
   const {
     currentMovie,
@@ -42,6 +44,8 @@ export default function OrbitScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [transitionColor, setTransitionColor] = useState('#1a1a2e');
+  const [showWatchlistToast, setShowWatchlistToast] = useState(false);
+  const watchlistToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Pinch gesture for constellation toggle
   const containerRef = useRef<HTMLDivElement>(null);
@@ -265,14 +269,42 @@ export default function OrbitScreen() {
     }
   }, [currentMovie, isTransitioning, prefetchedMoves, isBackDirection, goBack, setTransitioning, setPendingDirection, navigateTo, setPrefetchedMoves, user]);
 
-  // Handle long press (save movie)
-  const handleLongPress = useCallback(() => {
+  // Handle long press (save movie to watchlist)
+  const handleLongPress = useCallback(async () => {
     if (currentMovie) {
+      // Toggle saved state in orbit store
       toggleSaved(currentMovie.id);
       orbitHaptics.save();
       orbitHaptics.saved();
+      
+      // Add to Firebase watchlist
+      const success = await addToWatchlist({
+        movieId: currentMovie.id,
+        title: currentMovie.title,
+        year: currentMovie.year,
+        poster: currentMovie.posterPath || '',
+        backdrop: currentMovie.backdropPath || '',
+      });
+      
+      if (success) {
+        // Show toast confirmation
+        setShowWatchlistToast(true);
+        if (watchlistToastTimer.current) {
+          clearTimeout(watchlistToastTimer.current);
+        }
+        watchlistToastTimer.current = setTimeout(() => {
+          setShowWatchlistToast(false);
+        }, 2000);
+      }
     }
-  }, [currentMovie, toggleSaved]);
+  }, [currentMovie, toggleSaved, addToWatchlist]);
+
+  // Handle info press (navigate to movie details)
+  const handleInfoPress = useCallback(() => {
+    if (currentMovie) {
+      navigate(`/movie/${currentMovie.id}?from=orbit&type=movie`);
+    }
+  }, [currentMovie, navigate]);
 
   // Handle exit
   const handleExit = useCallback(() => {
@@ -351,6 +383,7 @@ export default function OrbitScreen() {
             <OrbitCardStack
               onSwipe={handleSwipe}
               onLongPress={handleLongPress}
+              onInfoPress={handleInfoPress}
               isTransitioning={isTransitioning}
             />
           </motion.div>
@@ -466,6 +499,22 @@ export default function OrbitScreen() {
           )}
         </div>
       )}
+
+      {/* Watchlist Toast */}
+      <AnimatePresence>
+        {showWatchlistToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50"
+          >
+            <div className="flex items-center gap-2 px-6 py-3 rounded-full bg-green-500 shadow-lg">
+              <span className="text-white font-medium">Added to Watchlist</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -6,6 +6,7 @@ import OrbitCard from './OrbitCard';
 interface OrbitCardStackProps {
   onSwipe: (direction: SwipeDirection) => void;
   onLongPress: () => void;
+  onInfoPress?: () => void;
   isTransitioning: boolean;
 }
 
@@ -16,6 +17,7 @@ type TimeoutId = ReturnType<typeof setTimeout>;
 export default function OrbitCardStack({
   onSwipe,
   onLongPress,
+  onInfoPress,
   isTransitioning,
 }: OrbitCardStackProps) {
   const { currentMovie, history, historyIndex } = useOrbitStore();
@@ -220,6 +222,7 @@ export default function OrbitCardStack({
             isSaved={isSaved}
             connectionReason={historyIndex > 0 ? undefined : undefined} // Could show connection reason here
             onSaveToggle={() => {}}
+            onInfoPress={onInfoPress}
             isActive={!isTransitioning}
           />
         </motion.div>

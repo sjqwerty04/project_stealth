@@ -2,8 +2,15 @@ import { useState, useCallback } from 'react';
 import { callClaude } from '../lib/claude';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+const OMDB_API_KEY = import.meta.env.VITE_OMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
+
+export type MovieRatings = {
+  imdb: string | null;
+  rottenTomatoes: string | null;
+  metacritic: string | null;
+};
 
 export type MovieDetails = {
   id: number;
@@ -27,6 +34,7 @@ export type MovieDetails = {
     buy: { name: string; logoPath: string }[];
   } | null;
   vibeDescription: string | null;
+  ratings: MovieRatings | null;
   mediaType: 'movie' | 'tv';
 };
 
@@ -50,25 +58,27 @@ export function useMovieDetails() {
     try {
       const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
       
-      // Fetch main details, credits, videos, watch providers, and images in parallel
-      const [detailsRes, creditsRes, videosRes, providersRes, imagesRes] = await Promise.all([
+      // Fetch main details, credits, videos, watch providers, images, and external IDs in parallel
+      const [detailsRes, creditsRes, videosRes, providersRes, imagesRes, externalIdsRes] = await Promise.all([
         fetch(`${TMDB_BASE}/${endpoint}/${movieId}?api_key=${TMDB_API_KEY}&language=en-US`),
         fetch(`${TMDB_BASE}/${endpoint}/${movieId}/credits?api_key=${TMDB_API_KEY}`),
         fetch(`${TMDB_BASE}/${endpoint}/${movieId}/videos?api_key=${TMDB_API_KEY}`),
         fetch(`${TMDB_BASE}/${endpoint}/${movieId}/watch/providers?api_key=${TMDB_API_KEY}`),
         fetch(`${TMDB_BASE}/${endpoint}/${movieId}/images?api_key=${TMDB_API_KEY}`),
+        fetch(`${TMDB_BASE}/${endpoint}/${movieId}/external_ids?api_key=${TMDB_API_KEY}`),
       ]);
 
       if (!detailsRes.ok) {
         throw new Error('Failed to fetch movie details');
       }
 
-      const [detailsData, creditsData, videosData, providersData, imagesData] = await Promise.all([
+      const [detailsData, creditsData, videosData, providersData, imagesData, externalIdsData] = await Promise.all([
         detailsRes.json(),
         creditsRes.ok ? creditsRes.json() : { crew: [], cast: [] },
         videosRes.ok ? videosRes.json() : { results: [] },
         providersRes.ok ? providersRes.json() : { results: {} },
         imagesRes.ok ? imagesRes.json() : { logos: [] },
+        externalIdsRes.ok ? externalIdsRes.json() : { imdb_id: null },
       ]);
 
       // Find director (for movies) or creator (for TV)
@@ -117,6 +127,53 @@ export function useMovieDetails() {
       const logos = imagesData.logos || [];
       const englishLogo = logos.find((l: any) => l.iso_639_1 === 'en') || logos[0];
       const logoPath = englishLogo?.file_path || null;
+
+      // Fetch ratings from OMDb if we have an IMDb ID
+      let ratings: MovieRatings | null = null;
+      const imdbId = externalIdsData.imdb_id;
+      
+      if (imdbId && OMDB_API_KEY && OMDB_API_KEY !== 'placeholder_get_from_omdbapi_com') {
+        try {
+          const omdbRes = await fetch(
+            `https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_API_KEY}`
+          );
+          
+          if (omdbRes.ok) {
+            const omdbData = await omdbRes.json();
+            
+            // Parse ratings
+            const imdbRating = omdbData.imdbRating && omdbData.imdbRating !== 'N/A' 
+              ? omdbData.imdbRating 
+              : null;
+            
+            const metacriticRating = omdbData.Metascore && omdbData.Metascore !== 'N/A'
+              ? omdbData.Metascore
+              : null;
+            
+            // Find Rotten Tomatoes from Ratings array
+            let rtRating: string | null = null;
+            if (omdbData.Ratings && Array.isArray(omdbData.Ratings)) {
+              const rtEntry = omdbData.Ratings.find((r: any) => r.Source === 'Rotten Tomatoes');
+              if (rtEntry && rtEntry.Value) {
+                rtRating = rtEntry.Value; // Already includes % sign
+              }
+            }
+            
+            ratings = {
+              imdb: imdbRating,
+              rottenTomatoes: rtRating,
+              metacritic: metacriticRating,
+            };
+          }
+        } catch (err) {
+          console.error('Failed to fetch OMDb ratings:', err);
+          // Continue without ratings if OMDb fails
+        }
+      } else if (!imdbId) {
+        console.warn('No IMDb ID found for this movie');
+      } else if (!OMDB_API_KEY || OMDB_API_KEY === 'placeholder_get_from_omdbapi_com') {
+        console.warn('OMDb API key not configured');
+      }
 
       // System prompt for vibe descriptions
       const vibeSystemPrompt = `You are a snarky film critic writing for Letterboxd. Your specialty is writing witty, oversimplified plot synopses that capture the essence of films in a humorous way. You never spoil anything.`;
@@ -171,6 +228,7 @@ Genres: ${genreList}
         trailer: trailer ? { key: trailer.key, site: trailer.site, name: trailer.name } : null,
         watchProviders,
         vibeDescription: null, // Will be loaded async
+        ratings,
         mediaType,
       };
 

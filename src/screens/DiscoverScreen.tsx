@@ -16,7 +16,7 @@ export default function DiscoverScreen() {
   
   const [query, setQuery] = useState('');
   const [isPatternPanelOpen, setIsPatternPanelOpen] = useState(true);
-  const { results, isSearching, error, searchMovies, clearResults } = useMovieSearch();
+  const { results, isSearching, error, searchMetadata, vibeList, isLoadingVibe, searchMovies, clearResults } = useMovieSearch();
   const lastLoggedQueryRef = useRef<string>('');
   const { 
     clickedMovies, 
@@ -229,19 +229,74 @@ export default function DiscoverScreen() {
 
         {/* Results List */}
         {results.length > 0 && !isSearching && (
-          <div className="space-y-3">
-            {results.map((movie) => (
-              <SearchResultCard
-                key={`${movie.mediaType}-${movie.id}`}
-                movieId={movie.id}
-                title={movie.title}
-                year={movie.year}
-                posterPath={movie.posterPath}
-                backdropPath={movie.backdropPath}
-                genres={movie.genres}
-                onClick={() => handleMovieClick(movie)}
-              />
-            ))}
+          <div className="space-y-4">
+            {/* Search mode label */}
+            {searchMetadata.label && (
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Sparkles className="w-4 h-4" />
+                <span>{searchMetadata.label}</span>
+              </div>
+            )}
+            
+            {/* AI-Generated Vibe List */}
+            {vibeList && (
+              <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-purple-400 mt-1 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-white mb-1">{vibeList.title}</h3>
+                    <p className="text-sm text-gray-300 mb-3">{vibeList.description}</p>
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                      {vibeList.movies.map((movie) => (
+                        <button
+                          key={movie.id}
+                          onClick={() => handleMovieClick(movie)}
+                          className="flex-shrink-0 w-24 group"
+                        >
+                          {movie.posterPath ? (
+                            <img
+                              src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                              alt={movie.title}
+                              className="w-full h-36 object-cover rounded-lg border border-white/10 group-hover:border-purple-400/50 transition-colors"
+                            />
+                          ) : (
+                            <div className="w-full h-36 bg-gray-800 rounded-lg border border-white/10 flex items-center justify-center">
+                              <span className="text-xs text-gray-500">?</span>
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-300 mt-1 truncate">{movie.title}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Vibe loading state */}
+            {isLoadingVibe && !vibeList && (
+              <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/10 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                  <span className="text-sm text-gray-400">Curating personalized recommendations...</span>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              {results.map((movie) => (
+                <SearchResultCard
+                  key={`${movie.mediaType}-${movie.id}`}
+                  movieId={movie.id}
+                  title={movie.title}
+                  year={movie.year}
+                  posterPath={movie.posterPath}
+                  backdropPath={movie.backdropPath}
+                  genres={movie.genres}
+                  onClick={() => handleMovieClick(movie)}
+                />
+              ))}
+            </div>
           </div>
         )}
 

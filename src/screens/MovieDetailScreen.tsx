@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Star, Play, ChevronDown, ChevronUp, ExternalLink, Loader2, Orbit, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Orbit, X, ThumbsUp, ThumbsDown, Check, Plus, Volume2, VolumeX } from 'lucide-react';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useSimilarVibes } from '../hooks/useSimilarVibes';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -9,6 +9,7 @@ import { useExploration } from '../contexts/ExplorationContext';
 import MovieActions from '../components/MovieActions';
 import SearchResultCard from '../components/SearchResultCard';
 import PatternAssistant from '../components/PatternAssistant';
+import RatingBadges from '../components/RatingBadges';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -25,6 +26,7 @@ export default function MovieDetailScreen() {
   const [searchParams] = useSearchParams();
   const preSelectedDate = searchParams.get('date');
   const mediaType = (searchParams.get('type') as 'movie' | 'tv') || 'movie';
+  const fromOrbit = searchParams.get('from') === 'orbit';
   
   const { user } = useAuth();
   const { details, isLoading, isLoadingVibe, error, fetchDetails } = useMovieDetails();
@@ -52,12 +54,36 @@ export default function MovieDetailScreen() {
   const [isMarkedSeen, setIsMarkedSeen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(preSelectedDate || new Date().toISOString().split('T')[0]);
+  const [showRatingPicker, setShowRatingPicker] = useState(false);
+  const [selectedRating, setSelectedRating] = useState<'up' | 'down' | null>(null);
+  const [showSuccessState, setShowSuccessState] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Check if selected date is past or today
+  const isPastDate = useCallback((dateStr: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(dateStr + 'T00:00:00');
+    return selected <= today;
+  }, []);
 
   useEffect(() => {
     if (id) {
       fetchDetails(parseInt(id), mediaType);
     }
   }, [id, mediaType, fetchDetails]);
+
+  // Auto-show rating picker when landing on page with past pre-selected date
+  useEffect(() => {
+    if (preSelectedDate && isPastDate(preSelectedDate) && !showRatingPicker && !showSuccessState) {
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        setShowRatingPicker(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [preSelectedDate, isPastDate, showRatingPicker, showSuccessState]);
 
   // Log movie view for activity tracking
   useEffect(() => {
@@ -89,14 +115,36 @@ export default function MovieDetailScreen() {
     navigate(-1);
   };
 
+  const toggleMute = () => {
+    const iframe = iframeRef.current;
+    if (iframe?.contentWindow) {
+      const command = isMuted ? 'unMute' : 'mute';
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: command }),
+        '*'
+      );
+    }
+    setIsMuted(!isMuted);
+  };
+
   const showPatternAssistant = clickedMovies.length >= 3 && patternInsight;
 
   const handleAddToCalendar = useCallback(async () => {
     if (!details || !user) return;
     
-    if (!preSelectedDate && !showDatePicker) {
+    // Step 1: If no date selected yet (no preSelectedDate), show date picker
+    if (!preSelectedDate && !showDatePicker && !showRatingPicker) {
       setShowDatePicker(true);
       return;
+    }
+
+    // Step 2: If date is in the past and no rating selected yet, show rating picker
+    if (isPastDate(selectedDate) && !selectedRating) {
+      if (!showRatingPicker) {
+        setShowDatePicker(false);
+        setShowRatingPicker(true);
+      }
+      return; // Don't proceed without rating for past dates
     }
 
     setIsAddingToCalendar(true);
@@ -108,27 +156,55 @@ export default function MovieDetailScreen() {
         ? new Date()
         : normalizedDate;
 
+      const isPast = isPastDate(selectedDate);
+
+      // Save to calendar logs
       await addEvent({
         movieId: details.id,
         title: details.title,
         poster: buildImageUrl(details.posterPath) || '',
         date: safeDate.toISOString(),
         inviteFriend: false,
+        rating: isPast ? selectedRating : null,
+        status: isPast ? 'watched' : 'planned',
         backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
         mediaType: details.mediaType,
         year: details.year,
         runtimeLabel: details.runtime || 'Feature',
       });
+
+      // ALSO save to watched_recommendations if it's a past date with rating
+      if (isPast && selectedRating) {
+        const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
+        await addDoc(watchedRef, {
+          movieId: details.id,
+          title: details.title,
+          year: details.year,
+          poster: buildImageUrl(details.posterPath) || '',
+          backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
+          runtime: details.runtime,
+          mediaType: details.mediaType,
+          rating: selectedRating,
+          ratedAt: serverTimestamp(),
+          source: 'calendar',
+        });
+      }
       
       setShowDatePicker(false);
-      // Navigate back to calendar on the selected date
-      navigate(`/app?date=${selectedDate}`);
+      setShowRatingPicker(false);
+      
+      // Show success state for past dates, navigate directly for future dates
+      if (isPast) {
+        setShowSuccessState(true);
+      } else {
+        navigate(`/app?date=${selectedDate}`);
+      }
     } catch (err) {
       console.error('Failed to add to calendar:', err);
     } finally {
       setIsAddingToCalendar(false);
     }
-  }, [details, user, preSelectedDate, showDatePicker, selectedDate, addEvent, navigate]);
+  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate]);
 
   const handleAddToWatchlist = useCallback(async () => {
     if (!details) return;
@@ -231,26 +307,58 @@ export default function MovieDetailScreen() {
       
       {/* Hero Section */}
       <div className="relative">
-        {/* Backdrop */}
+        {/* Backdrop or Trailer */}
         <div className="h-72 sm:h-96 relative overflow-hidden">
-          {backdropUrl ? (
-            <img
-              src={backdropUrl}
-              alt=""
-              className="w-full h-full object-cover"
-            />
+          {details.trailer ? (
+            <>
+              {/* Scale iframe larger to crop YouTube UI */}
+              <div className="absolute inset-0 scale-110">
+                <iframe
+                  ref={iframeRef}
+                  src={`https://www.youtube.com/embed/${details.trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${details.trailer.key}&playsinline=1&rel=0&modestbranding=1&showinfo=0&enablejsapi=1`}
+                  className="absolute inset-0 w-full h-full"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  allow="autoplay; encrypted-media"
+                  title="Trailer"
+                />
+              </div>
+              {/* Gradient overlay that blocks pointer events to YouTube */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-auto" />
+              
+              {/* Mute/Unmute Button */}
+              <button
+                onClick={toggleMute}
+                className="absolute bottom-4 right-4 p-3 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors z-10 pointer-events-auto"
+              >
+                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              </button>
+            </>
+          ) : backdropUrl ? (
+            <>
+              <img
+                src={backdropUrl}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+            </>
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
+            <>
+              <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+            </>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
         </div>
 
         {/* Back Button */}
         <button
           onClick={handleBack}
-          className="absolute top-4 left-4 p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors z-10"
+          className="absolute top-4 left-4 p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors z-10 flex items-center gap-2"
         >
           <ArrowLeft size={24} />
+          {fromOrbit && (
+            <span className="text-sm font-medium pr-2">Back to Orbit</span>
+          )}
         </button>
 
         {/* Poster & Title Overlay */}
@@ -283,16 +391,14 @@ export default function MovieDetailScreen() {
                   <span>{details.runtime}</span>
                 </>
               )}
-              {details.voteAverage > 0 && (
-                <>
-                  <span className="text-gray-600">•</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span>{details.voteAverage.toFixed(1)}</span>
-                  </div>
-                </>
-              )}
             </div>
+            
+            {/* Rating Badges */}
+            {details.ratings && (
+              <div className="mt-3">
+                <RatingBadges ratings={details.ratings} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -354,7 +460,7 @@ export default function MovieDetailScreen() {
         )}
 
         {/* Date Picker Modal */}
-        {showDatePicker && (
+        {showDatePicker && !showRatingPicker && !showSuccessState && (
           <div className="p-4 rounded-xl bg-gray-900 border border-gray-700">
             <label className="block text-sm text-gray-400 mb-2">Select date:</label>
             <input
@@ -375,8 +481,159 @@ export default function MovieDetailScreen() {
                 disabled={isAddingToCalendar}
                 className="flex-1 py-2 rounded-lg bg-white text-black font-semibold hover:bg-gray-200 disabled:opacity-50"
               >
-                {isAddingToCalendar ? 'Adding...' : 'Confirm'}
+                {isAddingToCalendar ? 'Adding...' : isPastDate(selectedDate) ? 'Next: Rate Movie' : 'Add to Calendar'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Rating Picker Modal Overlay for Past Dates */}
+        {showRatingPicker && !showSuccessState && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm p-6 rounded-2xl bg-gray-900 border border-gray-700 space-y-5 shadow-2xl">
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-white mb-1">Log Movie</h3>
+                <p className="text-sm text-gray-400">
+                  {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+              
+              {/* Movie preview */}
+              {details && (
+                <div className="flex gap-3 items-center bg-gray-800/50 p-3 rounded-xl">
+                  <img 
+                    src={buildImageUrl(details.posterPath) || ''} 
+                    className="w-12 h-18 object-cover rounded-lg" 
+                    alt={details.title} 
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-white truncate">{details.title}</h4>
+                    <p className="text-sm text-gray-400">{details.year}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <label className="text-sm font-bold text-gray-400 mb-3 block text-center">How was it?</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSelectedRating('up')}
+                    className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all ${
+                      selectedRating === 'up'
+                        ? 'border-green-500 bg-green-900/30 text-green-400 scale-105'
+                        : 'border-gray-700 bg-gray-800 text-gray-500 hover:bg-gray-700 hover:border-gray-600'
+                    }`}
+                  >
+                    <ThumbsUp size={36} className={selectedRating === 'up' ? 'fill-current' : ''} />
+                    <span className="mt-2 font-bold text-sm">Loved it</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedRating('down')}
+                    className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all ${
+                      selectedRating === 'down'
+                        ? 'border-red-500 bg-red-900/30 text-red-400 scale-105'
+                        : 'border-gray-700 bg-gray-800 text-gray-500 hover:bg-gray-700 hover:border-gray-600'
+                    }`}
+                  >
+                    <ThumbsDown size={36} className={selectedRating === 'down' ? 'fill-current' : ''} />
+                    <span className="mt-2 font-bold text-sm">Not for me</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowRatingPicker(false);
+                    setSelectedRating(null);
+                  }}
+                  className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddToCalendar}
+                  disabled={!selectedRating || isAddingToCalendar}
+                  className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                    !selectedRating || isAddingToCalendar
+                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-white text-black hover:bg-gray-200'
+                  }`}
+                >
+                  {isAddingToCalendar ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Plus size={18} />
+                  )}
+                  Log Movie
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success State Modal Overlay */}
+        {showSuccessState && details && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm p-6 rounded-2xl bg-gray-900 border border-gray-700 space-y-5 shadow-2xl text-center">
+              <div className="flex flex-col items-center py-2">
+                <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                  <Check size={40} className="text-green-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-1">Movie Logged!</h2>
+                <p className="text-gray-400 text-sm">
+                  {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+
+              <div className="flex gap-3 items-center bg-gray-800/50 p-3 rounded-xl">
+                <img 
+                  src={buildImageUrl(details.posterPath) || ''} 
+                  className="w-14 h-20 object-cover rounded-lg shadow-lg" 
+                  alt={details.title} 
+                />
+                <div className="flex-1 text-left min-w-0">
+                  <h3 className="font-bold text-white truncate">{details.title}</h3>
+                  <p className="text-sm text-gray-400">{details.year} • {details.runtime}</p>
+                </div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  selectedRating === 'up' 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {selectedRating === 'up' ? (
+                    <ThumbsUp size={20} className="fill-current" />
+                  ) : (
+                    <ThumbsDown size={20} className="fill-current" />
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => {
+                    // Reset and allow adding another movie
+                    setShowSuccessState(false);
+                    setSelectedRating(null);
+                    setShowRatingPicker(false);
+                    // Go back to discover to search another movie
+                    navigate(`/discover?date=${selectedDate}`);
+                  }}
+                  className="w-full py-3 rounded-xl font-bold bg-white hover:bg-gray-200 text-black flex items-center justify-center gap-2 transition-all"
+                >
+                  <Plus size={18} />
+                  Add Another Movie
+                </button>
+                
+                <button
+                  onClick={() => {
+                    navigate(`/app?date=${selectedDate}`);
+                  }}
+                  className="w-full py-3 rounded-xl font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -421,67 +678,6 @@ export default function MovieDetailScreen() {
               </button>
             )}
           </div>
-        )}
-
-        {/* Streaming Availability */}
-        {details.watchProviders && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Where to Watch</h3>
-            {details.watchProviders.flatrate.length > 0 && (
-              <div className="mb-3">
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Stream</span>
-                <div className="flex gap-2 mt-1">
-                  {details.watchProviders.flatrate.map((p) => (
-                    <img
-                      key={p.name}
-                      src={`https://image.tmdb.org/t/p/w92${p.logoPath}`}
-                      alt={p.name}
-                      title={p.name}
-                      className="w-10 h-10 rounded-lg"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            {details.watchProviders.rent.length > 0 && (
-              <div className="mb-3">
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Rent</span>
-                <div className="flex gap-2 mt-1">
-                  {details.watchProviders.rent.map((p) => (
-                    <img
-                      key={p.name}
-                      src={`https://image.tmdb.org/t/p/w92${p.logoPath}`}
-                      alt={p.name}
-                      title={p.name}
-                      className="w-10 h-10 rounded-lg"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            {details.watchProviders.flatrate.length === 0 && details.watchProviders.rent.length === 0 && (
-              <p className="text-gray-500 text-sm">No streaming info available</p>
-            )}
-          </div>
-        )}
-
-        {/* Trailer */}
-        {details.trailer && (
-          <a
-            href={`https://www.youtube.com/watch?v=${details.trailer.key}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 p-4 rounded-xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors"
-          >
-            <div className="p-3 rounded-full bg-red-600">
-              <Play className="w-5 h-5 fill-white text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium">Watch Trailer</p>
-              <p className="text-sm text-gray-500">{details.trailer.name}</p>
-            </div>
-            <ExternalLink className="w-5 h-5 text-gray-500" />
-          </a>
         )}
 
         {/* Similar Vibes Section */}

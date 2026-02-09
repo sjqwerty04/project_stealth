@@ -4,13 +4,13 @@ import { getFirestore } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBgFrnYEhFA-UubYMxPNhGllXwPcrET5aw",
-  authDomain: "viewfindr-233b0.firebaseapp.com",
-  projectId: "viewfindr-233b0",
-  storageBucket: "viewfindr-233b0.firebasestorage.app",
-  messagingSenderId: "379704472200",
-  appId: "1:379704472200:web:04e4b10648c37e1848253d",
-  measurementId: "G-VFK6G47T45"
+  apiKey: "AIzaSyADZLBw2WEMYKpr9d_NKO1aEncT-tGX8PU",
+  authDomain: "mvplockedin.firebaseapp.com",
+  projectId: "mvplockedin",
+  storageBucket: "mvplockedin.firebasestorage.app",
+  messagingSenderId: "977586022473",
+  appId: "1:977586022473:web:7286a559d8e8c138ed7798",
+  measurementId: "G-H6VRBCV7MD"
 };
 
 export const app = initializeApp(firebaseConfig);
