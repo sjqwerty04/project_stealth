@@ -1,10 +1,35 @@
 import { useState, useCallback, useRef } from 'react';
+import { callClaude } from '../lib/claude';
+import { useAuth } from './useAuth';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Genre ID to name mapping
+// Reverse genre mapping for search
+const GENRE_NAME_TO_ID: Record<string, number> = {
+  'action': 28,
+  'adventure': 12,
+  'animation': 16,
+  'comedy': 35,
+  'crime': 80,
+  'documentary': 99,
+  'drama': 18,
+  'family': 10751,
+  'fantasy': 14,
+  'history': 36,
+  'horror': 27,
+  'music': 10402,
+  'mystery': 9648,
+  'romance': 10749,
+  'sci-fi': 878,
+  'science fiction': 878,
+  'thriller': 53,
+  'war': 10752,
+  'western': 37,
+};
 const GENRE_MAP: Record<number, string> = {
   28: 'Action',
   12: 'Adventure',
@@ -37,15 +62,116 @@ export type SearchResult = {
   overview: string;
   popularity: number;
   voteAverage: number;
+  voteCount: number;
   mediaType: 'movie' | 'tv';
+};
+
+export type VibeList = {
+  title: string;
+  description: string;
+  movies: SearchResult[];
+};
+
+export type SearchMode = 'standard' | 'actor' | 'genre' | 'ai-curated' | 'vibe';
+export type SearchMetadata = {
+  mode: SearchMode;
+  label?: string;
+  actorName?: string;
+  genreName?: string;
+};
+
+// Query intent classifier
+const classifyQuery = (query: string): { mode: SearchMode; genreId?: number; genreName?: string } => {
+  const lower = query.toLowerCase().trim();
+  
+  // Check for genre patterns
+  const genrePatterns = [
+    /(.+?)\s+movies?$/i,  // "crime movies", "action movie"
+    /(.+?)\s+films?$/i,   // "horror films", "sci-fi film"
+    /^(.+?)$/i,           // Just the genre name (will check against genre map)
+  ];
+  
+  for (const pattern of genrePatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      const potentialGenre = match[1].trim();
+      const genreId = GENRE_NAME_TO_ID[potentialGenre];
+      if (genreId) {
+        return { mode: 'genre', genreId, genreName: potentialGenre };
+      }
+    }
+  }
+  
+  // Check for actor patterns
+  const actorPatterns = [
+    /movies? (?:with|starring|by|featuring)\s+(.+)/i,
+    /(.+)\s+movies?$/i,  // "Tom Hanks movies" (could be actor or genre)
+  ];
+  
+  for (const pattern of actorPatterns) {
+    if (pattern.test(query)) {
+      // This might be an actor search - will verify by searching TMDB
+      return { mode: 'actor' };
+    }
+  }
+  
+  // Check for complex AI-curated patterns
+  const aiPatterns = [
+    /like\s+/i,                    // "movies like Heat"
+    /(?:above|over|higher than)\s+\d/i,  // "crime movies with IMDb above 7"
+    /(?:similar|comparable) to/i,  // "similar to Parasite"
+    /best\s+/i,                    // "best sci-fi movies"
+  ];
+  
+  for (const pattern of aiPatterns) {
+    if (pattern.test(query)) {
+      return { mode: 'ai-curated' };
+    }
+  }
+  
+  return { mode: 'standard' };
+};
+
+// Fetch user preference context for personalized vibes
+const fetchUserContext = async (userId: string): Promise<string[]> => {
+  try {
+    const contextMovies: string[] = [];
+    
+    // Get recent watchlist items (last 10)
+    const watchlistRef = collection(db, 'users', userId, 'watchlist');
+    const watchlistQuery = query(watchlistRef, orderBy('addedAt', 'desc'), limit(10));
+    const watchlistSnap = await getDocs(watchlistQuery);
+    watchlistSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.title) contextMovies.push(data.title);
+    });
+    
+    // Get recent calendar logs (last 10)
+    const calendarRef = collection(db, 'users', userId, 'calendar');
+    const calendarQuery = query(calendarRef, orderBy('date', 'desc'), limit(10));
+    const calendarSnap = await getDocs(calendarQuery);
+    calendarSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.title) contextMovies.push(data.title);
+    });
+    
+    return contextMovies.slice(0, 15); // Max 15 for context
+  } catch (err) {
+    console.error('Failed to fetch user context:', err);
+    return [];
+  }
 };
 
 export function useMovieSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchMetadata, setSearchMetadata] = useState<SearchMetadata>({ mode: 'standard' });
+  const [vibeList, setVibeList] = useState<VibeList | null>(null);
+  const [isLoadingVibe, setIsLoadingVibe] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string>('');
+  const { user } = useAuth();
 
   const searchMovies = useCallback(async (query: string): Promise<SearchResult[]> => {
     const trimmedQuery = query.trim();
@@ -59,6 +185,8 @@ export function useMovieSearch() {
     
     if (!trimmedQuery) {
       setResults([]);
+      setVibeList(null);
+      setSearchMetadata({ mode: 'standard' });
       return [];
     }
 
@@ -70,83 +198,299 @@ export function useMovieSearch() {
 
     setIsSearching(true);
     setError(null);
+    setVibeList(null);
 
     try {
-      // Search both movies and TV shows
-      const [movieRes, tvRes] = await Promise.all([
-        fetch(
-          `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`,
-          { signal: abortControllerRef.current.signal }
-        ),
-        fetch(
-          `${TMDB_BASE}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`,
-          { signal: abortControllerRef.current.signal }
-        ),
-      ]);
-
-      if (!movieRes.ok || !tvRes.ok) {
-        throw new Error('Search failed');
-      }
-
-      const [movieData, tvData] = await Promise.all([
-        movieRes.json(),
-        tvRes.json(),
-      ]);
-
-      const movies: SearchResult[] = (movieData.results || []).map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        year: m.release_date?.slice(0, 4) || '',
-        posterPath: m.poster_path,
-        backdropPath: m.backdrop_path,
-        genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-        overview: m.overview || '',
-        popularity: m.popularity || 0,
-        voteAverage: m.vote_average || 0,
-        mediaType: 'movie' as const,
-      }));
-
-      const tvShows: SearchResult[] = (tvData.results || []).map((t: any) => ({
-        id: t.id,
-        title: t.name,
-        year: t.first_air_date?.slice(0, 4) || '',
-        posterPath: t.poster_path,
-        backdropPath: t.backdrop_path,
-        genres: (t.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-        overview: t.overview || '',
-        popularity: t.popularity || 0,
-        voteAverage: t.vote_average || 0,
-        mediaType: 'tv' as const,
-      }));
-
-      // Combine and sort by relevance (title match) then popularity
-      const queryLower = trimmedQuery.toLowerCase();
-      const combined = [...movies, ...tvShows].sort((a, b) => {
-        const aTitle = a.title.toLowerCase();
-        const bTitle = b.title.toLowerCase();
-        
-        // Exact match first
-        if (aTitle === queryLower && bTitle !== queryLower) return -1;
-        if (bTitle === queryLower && aTitle !== queryLower) return 1;
-        
-        // Starts with query second
-        const aStarts = aTitle.startsWith(queryLower);
-        const bStarts = bTitle.startsWith(queryLower);
-        if (aStarts && !bStarts) return -1;
-        if (bStarts && !aStarts) return 1;
-        
-        // Contains query third
-        const aContains = aTitle.includes(queryLower);
-        const bContains = bTitle.includes(queryLower);
-        if (aContains && !bContains) return -1;
-        if (bContains && !aContains) return 1;
-        
-        // Then by popularity
-        return b.popularity - a.popularity;
-      });
+      // Classify query intent
+      const classification = classifyQuery(trimmedQuery);
       
-      setResults(combined);
-      return combined;
+      let searchResults: SearchResult[] = [];
+      let metadata: SearchMetadata = { mode: classification.mode };
+      
+      // Handle different search modes
+      if (classification.mode === 'genre' && classification.genreId) {
+        // Genre search using TMDB discover
+        metadata.genreName = classification.genreName;
+        metadata.label = `${classification.genreName?.charAt(0).toUpperCase()}${classification.genreName?.slice(1)} movies`;
+        
+        const res = await fetch(
+          `${TMDB_BASE}/discover/movie?api_key=${TMDB_API_KEY}&with_genres=${classification.genreId}&sort_by=popularity.desc&language=en-US&page=1`,
+          { signal: abortControllerRef.current.signal }
+        );
+        
+        if (res.ok) {
+          const data = await res.json();
+          searchResults = (data.results || []).map((m: any) => ({
+            id: m.id,
+            title: m.title,
+            year: m.release_date?.slice(0, 4) || '',
+            posterPath: m.poster_path,
+            backdropPath: m.backdrop_path,
+            genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+            overview: m.overview || '',
+            popularity: m.popularity || 0,
+            voteAverage: m.vote_average || 0,
+            voteCount: m.vote_count || 0,
+            mediaType: 'movie' as const,
+          }));
+        }
+        
+        // Trigger personalized vibe list in parallel
+        if (user?.uid) {
+          generateVibeList(trimmedQuery, classification.genreName || '');
+        }
+        
+      } else if (classification.mode === 'actor') {
+        // Actor search - first search for the person
+        const actorMatch = trimmedQuery.match(/(?:movies? (?:with|starring|by|featuring)\s+)?(.+?)(?:\s+movies?)?$/i);
+        const actorName = actorMatch ? actorMatch[1].trim() : trimmedQuery;
+        
+        const personRes = await fetch(
+          `${TMDB_BASE}/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(actorName)}&language=en-US`,
+          { signal: abortControllerRef.current.signal }
+        );
+        
+        if (personRes.ok) {
+          const personData = await personRes.json();
+          if (personData.results && personData.results.length > 0) {
+            const person = personData.results[0];
+            metadata.actorName = person.name;
+            metadata.label = `Movies starring ${person.name}`;
+            
+            // Fetch their movie credits
+            const creditsRes = await fetch(
+              `${TMDB_BASE}/person/${person.id}/movie_credits?api_key=${TMDB_API_KEY}&language=en-US`,
+              { signal: abortControllerRef.current.signal }
+            );
+            
+            if (creditsRes.ok) {
+              const creditsData = await creditsRes.json();
+              searchResults = (creditsData.cast || [])
+                .sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0))
+                .slice(0, 20)
+                .map((m: any) => ({
+                  id: m.id,
+                  title: m.title,
+                  year: m.release_date?.slice(0, 4) || '',
+                  posterPath: m.poster_path,
+                  backdropPath: m.backdrop_path,
+                  genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                  overview: m.overview || '',
+                  popularity: m.popularity || 0,
+                  voteAverage: m.vote_average || 0,
+                  voteCount: m.vote_count || 0,
+                  mediaType: 'movie' as const,
+                }));
+            }
+          } else {
+            // No actor found, fall back to standard search
+            classification.mode = 'standard';
+          }
+        }
+        
+      } else if (classification.mode === 'ai-curated') {
+        // AI-powered search for complex queries
+        metadata.label = 'AI-curated results';
+        
+        const aiPrompt = `<task>
+The user is searching for movies with this query: "${trimmedQuery}"
+
+Interpret their intent and recommend 8-10 highly relevant movies.
+Return a JSON array of movie objects.
+</task>
+
+<rules>
+- Understand complex criteria (e.g., ratings, comparisons, mood)
+- Return popular, well-known films that match the criteria
+- Output ONLY valid JSON array, no markdown
+</rules>
+
+<output_format>
+[
+  {"title": "Movie Title", "year": "2020"},
+  {"title": "Another Movie", "year": "2015"}
+]
+</output_format>`;
+
+        const aiResponse = await callClaude(aiPrompt, 'You are a film expert helping users discover movies.');
+        
+        if (aiResponse) {
+          try {
+            // Extract JSON from response
+            const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              const movieTitles: {title: string, year: string}[] = JSON.parse(jsonMatch[0]);
+              
+              // Hydrate each movie via TMDB search
+              const hydratePromises = movieTitles.map(async (m) => {
+                try {
+                  const res = await fetch(
+                    `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`,
+                    { signal: abortControllerRef.current?.signal }
+                  );
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                      const movie = data.results[0];
+                      return {
+                        id: movie.id,
+                        title: movie.title,
+                        year: movie.release_date?.slice(0, 4) || '',
+                        posterPath: movie.poster_path,
+                        backdropPath: movie.backdrop_path,
+                        genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                        overview: movie.overview || '',
+                        popularity: movie.popularity || 0,
+                        voteAverage: movie.vote_average || 0,
+                        voteCount: movie.vote_count || 0,
+                        mediaType: 'movie' as const,
+                      };
+                    }
+                  }
+                } catch (err) {
+                  console.error('Failed to hydrate movie:', m.title, err);
+                }
+                return null;
+              });
+              
+              const hydrated = await Promise.all(hydratePromises);
+              searchResults = hydrated.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+            }
+          } catch (err) {
+            console.error('Failed to parse AI response:', err);
+          }
+        }
+        
+        if (searchResults.length === 0) {
+          // Fall back to standard search if AI fails
+          classification.mode = 'standard';
+        }
+      }
+      
+      // Standard search (or fallback)
+      if (classification.mode === 'standard' || searchResults.length === 0) {
+        metadata.mode = 'standard';
+        
+        // Search both movies and TV shows
+        const [movieRes, tvRes] = await Promise.all([
+          fetch(
+            `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`,
+            { signal: abortControllerRef.current.signal }
+          ),
+          fetch(
+            `${TMDB_BASE}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`,
+            { signal: abortControllerRef.current.signal }
+          ),
+        ]);
+
+        if (!movieRes.ok || !tvRes.ok) {
+          throw new Error('Search failed');
+        }
+
+        const [movieData, tvData] = await Promise.all([
+          movieRes.json(),
+          tvRes.json(),
+        ]);
+
+        const movies: SearchResult[] = (movieData.results || []).map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          year: m.release_date?.slice(0, 4) || '',
+          posterPath: m.poster_path,
+          backdropPath: m.backdrop_path,
+          genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+          overview: m.overview || '',
+          popularity: m.popularity || 0,
+          voteAverage: m.vote_average || 0,
+          voteCount: m.vote_count || 0,
+          mediaType: 'movie' as const,
+        }));
+
+        const tvShows: SearchResult[] = (tvData.results || []).map((t: any) => ({
+          id: t.id,
+          title: t.name,
+          year: t.first_air_date?.slice(0, 4) || '',
+          posterPath: t.poster_path,
+          backdropPath: t.backdrop_path,
+          genres: (t.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+          overview: t.overview || '',
+          popularity: t.popularity || 0,
+          voteAverage: t.vote_average || 0,
+          voteCount: t.vote_count || 0,
+          mediaType: 'tv' as const,
+        }));
+
+        // Combine and sort by enhanced relevance algorithm
+        const queryLower = trimmedQuery.toLowerCase();
+        const queryWords = queryLower.split(/\s+/).filter(Boolean);
+        
+        // For very short queries (< 3 chars), rely more on TMDB's native ordering
+        const isShortQuery = trimmedQuery.length < 3;
+        
+        searchResults = [...movies, ...tvShows].sort((a, b) => {
+          const aTitle = a.title.toLowerCase();
+          const bTitle = b.title.toLowerCase();
+          
+          // Remove "The ", "A ", "An " prefix for better matching
+          const cleanA = aTitle.replace(/^(the|a|an)\s+/i, '');
+          const cleanB = bTitle.replace(/^(the|a|an)\s+/i, '');
+          
+          // Calculate match ranks (lower is better)
+          const getMatchRank = (title: string, cleanTitle: string) => {
+            // Exact match
+            if (title === queryLower || cleanTitle === queryLower) return 0;
+            
+            // Starts with query
+            if (title.startsWith(queryLower) || cleanTitle.startsWith(queryLower)) return 1;
+            
+            // Subtitle matching - check for query after colon or dash
+            // e.g., "Tokyo Drift" matches "The Fast and the Furious: Tokyo Drift"
+            const colonParts = title.split(/[:\-–—]/);
+            for (const part of colonParts) {
+              const trimmedPart = part.trim();
+              if (trimmedPart === queryLower || trimmedPart.startsWith(queryLower)) {
+                return 2; // High priority for subtitle matches
+              }
+            }
+            
+            // All query words present (word boundary matching)
+            if (queryWords.length > 1) {
+              const allWordsPresent = queryWords.every(word => 
+                title.includes(word) || cleanTitle.includes(word)
+              );
+              if (allWordsPresent) return 3;
+            }
+            
+            // Contains query anywhere
+            if (title.includes(queryLower) || cleanTitle.includes(queryLower)) return 4;
+            
+            return 5; // No match
+          };
+          
+          const aRank = getMatchRank(aTitle, cleanA);
+          const bRank = getMatchRank(bTitle, cleanB);
+          
+          // Sort by match rank first
+          if (aRank !== bRank) return aRank - bRank;
+          
+          // For short queries, prioritize TMDB popularity more heavily
+          if (isShortQuery) {
+            return b.popularity - a.popularity;
+          }
+          
+          // Within same rank, use vote_count as primary tiebreaker (favors well-known titles)
+          if (a.voteCount !== b.voteCount) {
+            return b.voteCount - a.voteCount;
+          }
+          
+          // Final tiebreaker: popularity
+          return b.popularity - a.popularity;
+        });
+      }
+      
+      setResults(searchResults);
+      setSearchMetadata(metadata);
+      return searchResults;
     } catch (err: any) {
       if (err.name === 'AbortError') {
         return []; // Return empty on abort, don't update state
@@ -157,11 +501,115 @@ export function useMovieSearch() {
     } finally {
       setIsSearching(false);
     }
-  }, []); // No dependencies - stable callback
+  }, [user?.uid]); // Depend on user ID for personalized vibes
+
+  // Generate personalized vibe list (runs in background)
+  const generateVibeList = useCallback(async (query: string, genreHint: string) => {
+    if (!user?.uid) return;
+    
+    setIsLoadingVibe(true);
+    
+    try {
+      // Fetch user context
+      const userMovies = await fetchUserContext(user.uid);
+      const contextString = userMovies.length > 0 
+        ? `\nUser's recent movies: ${userMovies.join(', ')}` 
+        : '';
+      
+      const vibePrompt = `<task>
+Create a personalized movie recommendation list based on the user's search query and their viewing history.
+Query: "${query}"
+Genre hint: "${genreHint}"${contextString}
+
+Generate a catchy list title and 6-8 movie recommendations tailored to this user's tastes.
+</task>
+
+<rules>
+- Make the list title punchy and personalized (e.g., "Gritty Crime for the Heat Lover")
+- Include a brief description of the vibe/theme
+- Recommend diverse but thematically connected films
+- Consider the user's viewing history when available
+- Output ONLY valid JSON, no markdown
+</rules>
+
+<output_format>
+{
+  "title": "List Title",
+  "description": "Brief description of the vibe",
+  "movies": [
+    {"title": "Movie Title", "year": "2020"},
+    {"title": "Another Movie", "year": "2015"}
+  ]
+}
+</output_format>`;
+
+      const aiResponse = await callClaude(vibePrompt, 'You are a film curator creating personalized movie lists.');
+      
+      if (aiResponse) {
+        try {
+          // Extract JSON from response
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const vibeData: { title: string; description: string; movies: {title: string, year: string}[] } = JSON.parse(jsonMatch[0]);
+            
+            // Hydrate movies via TMDB
+            const hydratePromises = vibeData.movies.map(async (m) => {
+              try {
+                const res = await fetch(
+                  `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`
+                );
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.results && data.results.length > 0) {
+                    const movie = data.results[0];
+                    return {
+                      id: movie.id,
+                      title: movie.title,
+                      year: movie.release_date?.slice(0, 4) || '',
+                      posterPath: movie.poster_path,
+                      backdropPath: movie.backdrop_path,
+                      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                      overview: movie.overview || '',
+                      popularity: movie.popularity || 0,
+                      voteAverage: movie.vote_average || 0,
+                      voteCount: movie.vote_count || 0,
+                      mediaType: 'movie' as const,
+                    };
+                  }
+                }
+              } catch (err) {
+                console.error('Failed to hydrate vibe movie:', m.title, err);
+              }
+              return null;
+            });
+            
+            const hydratedMovies = await Promise.all(hydratePromises);
+            const validMovies = hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+            
+            if (validMovies.length > 0) {
+              setVibeList({
+                title: vibeData.title,
+                description: vibeData.description,
+                movies: validMovies,
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Failed to parse vibe response:', err);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate vibe list:', err);
+    } finally {
+      setIsLoadingVibe(false);
+    }
+  }, [user?.uid]);
 
   const clearResults = useCallback(() => {
     setResults([]);
     setError(null);
+    setVibeList(null);
+    setSearchMetadata({ mode: 'standard' });
     lastQueryRef.current = '';
   }, []);
 
@@ -169,6 +617,9 @@ export function useMovieSearch() {
     results,
     isSearching,
     error,
+    searchMetadata,
+    vibeList,
+    isLoadingVibe,
     searchMovies,
     clearResults,
   };

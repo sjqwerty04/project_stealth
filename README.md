@@ -1,4 +1,97 @@
-# React + TypeScript + Vite
+# Movie Discovery App
+
+A modern movie discovery and tracking application built with React, TypeScript, Vite, and Firebase.
+
+## Features
+
+- AI-powered movie recommendations using Claude
+- Smart orbit-based discovery system
+- Multi-modal search (actors, genres, AI-curated)
+- Personalized vibe lists
+- Movie calendar and watchlist tracking
+- YouTube trailer auto-play
+- Rating badges from IMDb, Rotten Tomatoes, and Metacritic
+
+## Development
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+- Vercel CLI (for local AI feature testing)
+
+### Environment Variables
+
+Create a `.env` file with the following keys:
+
+```bash
+VITE_CLAUDE_API_KEY=your_claude_api_key
+VITE_TMDB_API_KEY=your_tmdb_api_key
+VITE_OMDB_API_KEY=your_omdb_api_key
+```
+
+### Running Locally
+
+**For basic UI testing (no AI features):**
+```bash
+npm run dev
+```
+
+**For full feature testing (including AI features):**
+
+The AI features use Vercel serverless functions at `/api/claude`. To test these locally:
+
+```bash
+# Install Vercel CLI globally (one time only)
+npm i -g vercel
+
+# Run dev server with serverless function emulation
+vercel dev
+```
+
+The Vercel dev server will:
+- Start the Vite dev server
+- Emulate the `/api/claude` serverless function locally
+- Enable all AI features (recommendations, orbit, search vibes, etc.)
+
+When prompted by Vercel CLI:
+- Link to your Vercel project or create a new one
+- Select your project settings
+- The server will start on the port shown (usually 3000)
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+### Deployment
+
+The app is configured to deploy automatically to Vercel on push to main:
+
+```bash
+git push origin main
+```
+
+Or manually deploy:
+
+```bash
+vercel --prod
+```
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS
+- **Animation**: Framer Motion
+- **Backend**: Firebase (Firestore, Auth)
+- **AI**: Claude (Anthropic) via Vercel serverless functions
+- **APIs**: TMDB, OMDb
+- **Deployment**: Vercel
+
+---
+
+## Original Vite Template Info
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

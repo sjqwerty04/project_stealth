@@ -15,6 +15,7 @@ import { useAuth } from './useAuth';
 import { logActivity } from '../lib/activityLogger';
 
 type RatingValue = 'up' | 'down' | null;
+type EventStatus = 'planned' | 'watched' | null;
 
 export type CalendarEvent = {
   id: string;
@@ -24,6 +25,7 @@ export type CalendarEvent = {
   date: string;
   inviteFriend: boolean;
   rating?: RatingValue;
+  status?: EventStatus;
   backdrop?: string;
   mediaType?: 'movie' | 'tv';
   year?: number | string;
@@ -31,6 +33,7 @@ export type CalendarEvent = {
   accentStart?: string;
   accentEnd?: string;
   accentText?: string;
+  source?: string;
   createdAt?: any;
   updatedAt?: any;
 };
@@ -151,6 +154,24 @@ export function useCalendarLogs() {
     [events]
   );
 
+  // Get events that were planned but are now in the past and need a rating
+  const getPendingReviewEvents = useCallback((): CalendarEvent[] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return events.filter((event) => {
+      const eventDate = new Date(event.date);
+      eventDate.setHours(0, 0, 0, 0);
+      
+      // Event is in the past (or today) AND was planned AND has no rating
+      const isPastOrToday = eventDate <= today;
+      const wasPlanned = event.status === 'planned';
+      const needsRating = !event.rating;
+      
+      return isPastOrToday && wasPlanned && needsRating;
+    });
+  }, [events]);
+
   // Delete all events from a specific source (e.g., 'imdb', 'letterboxd')
   const deleteEventsBySource = useCallback(
     async (source: string): Promise<number> => {
@@ -207,6 +228,7 @@ export function useCalendarLogs() {
     updateEvent,
     deleteEvent,
     getEventsForDate,
+    getPendingReviewEvents,
     deleteEventsBySource,
     deleteEventsByDateAndSource,
   };

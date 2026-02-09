@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Star, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Star, Bookmark, BookmarkCheck, Info } from 'lucide-react';
 import type { OrbitMovie } from '../../stores/orbitStore';
 
 interface OrbitCardProps {
@@ -7,6 +7,7 @@ interface OrbitCardProps {
   isSaved: boolean;
   connectionReason?: string;
   onSaveToggle: () => void;
+  onInfoPress?: () => void;
   isActive?: boolean;
 }
 
@@ -20,11 +21,17 @@ export default function OrbitCard({
   isSaved,
   connectionReason,
   onSaveToggle: _onSaveToggle,
+  onInfoPress,
   isActive = true,
 }: OrbitCardProps) {
   // onSaveToggle is passed for future use but long-press handled in parent
   const posterUrl = buildImageUrl(movie.posterPath, 'w500');
   const backdropUrl = buildImageUrl(movie.backdropPath, 'original');
+
+  const handleInfoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onInfoPress?.();
+  };
 
   return (
     <motion.div
@@ -124,12 +131,26 @@ export default function OrbitCard({
           )}
         </motion.div>
 
+        {/* Info button */}
+        {onInfoPress && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            onClick={handleInfoClick}
+            className="mt-4 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-colors flex items-center gap-2"
+          >
+            <Info className="w-4 h-4 text-white" />
+            <span className="text-sm text-white/90 font-medium">View Details</span>
+          </motion.button>
+        )}
+
         {/* Save button hint */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-8 flex items-center gap-2 text-white/40 text-sm"
+          className="mt-4 flex items-center gap-2 text-white/40 text-sm"
         >
           <Bookmark className="w-4 h-4" />
           <span>Hold to save</span>

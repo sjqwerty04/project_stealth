@@ -36,16 +36,20 @@ Year: {year}
 - Focus purely on visual aesthetics and cinematography
 - Consider director of photography's style
 - Think about color grading and visual mood
+- The "reason" must reference "{title}" by name
+- Keep the reason under 8 words
+- Make it punchy, evocative, and immediately understandable
 - Output ONLY valid JSON, no markdown blocks
 </rules>
 
 <output_format>
-{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason referencing source film"}
 </output_format>
 
-<example>
-{"title": "Blade Runner 2049", "year": "2017", "hex": "#ff6b35", "score": 92, "reason": "Stunning sci-fi visuals"}
-</example>`;
+<examples>
+For "Heat" (1995): {"title": "Sicario", "year": "2015", "hex": "#3d5a80", "score": 88, "reason": "Blue hues and shadows from Heat"}
+For "Blade Runner" (1982): {"title": "Ghost in the Shell", "year": "1995", "hex": "#2d3561", "score": 91, "reason": "Neon-soaked cyberpunk like Blade Runner"}
+</examples>`;
 
 const BALANCED_PROMPT = `<task>
 Recommend ONE film that is a well-balanced match to the reference film.
@@ -62,16 +66,20 @@ Genres: {genres}
 - Balance all aspects: tone, quality, genre, audience appeal
 - Consider films that fans of the reference would enjoy
 - Aim for similar critical reception and cultural impact
+- The "reason" must reference "{title}" by name
+- Keep the reason under 8 words
+- Make it punchy, evocative, and immediately understandable
 - Output ONLY valid JSON, no markdown blocks
 </rules>
 
 <output_format>
-{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason referencing source film"}
 </output_format>
 
-<example>
-{"title": "No Country for Old Men", "year": "2007", "hex": "#8b4513", "score": 90, "reason": "Tense neo-western"}
-</example>`;
+<examples>
+For "Heat" (1995): {"title": "The Town", "year": "2010", "hex": "#4a5568", "score": 86, "reason": "Crime thriller vibes like Heat"}
+For "No Country for Old Men" (2007): {"title": "Hell or High Water", "year": "2016", "hex": "#8b6f47", "score": 89, "reason": "Modern western tension from No Country"}
+</examples>`;
 
 const STORYTELLING_PROMPT = `<task>
 Recommend ONE film with similar narrative structure and storytelling approach.
@@ -89,16 +97,20 @@ Director: {director}
 - Consider narrative pacing (slow-burn vs rapid)
 - Think about structure (linear, non-linear, fragmented)
 - Consider the director's storytelling signature
+- The "reason" must reference "{title}" by name
+- Keep the reason under 8 words
+- Make it punchy, evocative, and immediately understandable
 - Output ONLY valid JSON, no markdown blocks
 </rules>
 
 <output_format>
-{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason referencing source film"}
 </output_format>
 
-<example>
-{"title": "Memento", "year": "2000", "hex": "#2c3e50", "score": 88, "reason": "Mind-bending structure"}
-</example>`;
+<examples>
+For "Memento" (2000): {"title": "Primer", "year": "2004", "hex": "#34495e", "score": 87, "reason": "Mind-bending puzzle like Memento"}
+For "Dunkirk" (2017): {"title": "1917", "year": "2019", "hex": "#5c6f7a", "score": 90, "reason": "Real-time intensity from Dunkirk"}
+</examples>`;
 
 const EMOTIONAL_PROMPT = `<task>
 Recommend ONE film that evokes the same emotional experience and feeling.
@@ -115,16 +127,20 @@ Year: {year}
 - Consider the atmosphere and mood
 - Think about the emotional impact on viewers
 - Match the intensity and type of emotion (melancholy, joy, tension, etc.)
+- The "reason" must reference "{title}" by name
+- Keep the reason under 8 words
+- Make it punchy, evocative, and immediately understandable
 - Output ONLY valid JSON, no markdown blocks
 </rules>
 
 <output_format>
-{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason"}
+{"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 85, "reason": "Brief reason referencing source film"}
 </output_format>
 
-<example>
-{"title": "Her", "year": "2013", "hex": "#f39c12", "score": 87, "reason": "Bittersweet loneliness"}
-</example>`;
+<examples>
+For "Lost in Translation" (2003): {"title": "Her", "year": "2013", "hex": "#f39c12", "score": 87, "reason": "Same lonely ache as Lost in Translation"}
+For "Parasite" (2019): {"title": "Burning", "year": "2018", "hex": "#c0392b", "score": 85, "reason": "Simmering tension from Parasite"}
+</examples>`;
 
 // Build prompt based on direction
 // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional

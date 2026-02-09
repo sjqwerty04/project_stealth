@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie Poster Crawl - Test</title>
+  
+  <!-- GSAP Core + Plugins -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/InertiaPlugin.min.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #050505;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      cursor: grab;
+    }
+
+    body:active {
+      cursor: grabbing;
+    }
+
+    /* Subtle instruction text */
+    .instructions {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      z-index: 100;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+
+    .instructions.hidden {
+      opacity: 0;
+    }
+
+    /* Main container */
+    .viewport {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Draggable canvas */
+    .poster-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 40px;
+      width: max-content;
+      will-change: transform;
+    }
+
+    /* Individual poster card */
+    .poster-card {
+      width: 160px;
+      height: 240px;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      transform-origin: center center;
+      will-change: transform;
+      transition: box-shadow 0.3s ease;
+      flex-shrink: 0;
+      background: #111;
+    }
+
+    .poster-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      display: block;
+    }
+
+    .poster-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .poster-card:hover::after {
+      opacity: 1;
+    }
+
+    .poster-card:hover {
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 255, 255, 0.03);
+    }
+
+    /* Movie title overlay */
+    .poster-title {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.3s ease;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+      z-index: 2;
+      line-height: 1.3;
+    }
+
+    .poster-card:hover .poster-title {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .poster-year {
+      font-weight: 400;
+      opacity: 0.6;
+      margin-left: 4px;
+    }
+
+    /* Ambient glow effect */
+    .ambient-glow {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    /* Stats badge */
+    .stats-badge {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 12px 20px;
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 100;
+    }
+
+    .stats-badge strong {
+      color: #a78bfa;
+      font-weight: 700;
+    }
+
+    /* Row containers for proper wrapping */
+    .poster-row {
+      display: flex;
+      gap: 16px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="stats-badge">
+    <strong>25</strong> films logged
+  </div>
+  
+  <div class="instructions">DRAG TO EXPLORE</div>
+  
+  <div class="ambient-glow"></div>
+  
+  <div class="viewport">
+    <div class="poster-canvas" id="posterCanvas">
+      <!-- Posters will be injected here -->
+    </div>
+  </div>
+
+  <script>
+    // 25 Popular Action/Crime Films (2015-2025)
+    const movies = [
+      { title: "John Wick: Chapter 4", year: 2023, poster: "https://image.tmdb.org/t/p/w342/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg" },
+      { title: "Oppenheimer", year: 2023, poster: "https://image.tmdb.org/t/p/w342/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg" },
+      { title: "Top Gun: Maverick", year: 2022, poster: "https://image.tmdb.org/t/p/w342/62HCnUTziyWcpDaBO2i1DX17ljH.jpg" },
+      { title: "Furiosa", year: 2024, poster: "https://image.tmdb.org/t/p/w342/iADOJ8Zymht2JPMoy3R7xceZprc.jpg" },
+      { title: "Dune: Part Two", year: 2024, poster: "https://image.tmdb.org/t/p/w342/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg" },
+      { title: "Dune", year: 2021, poster: "https://image.tmdb.org/t/p/w342/d5NXSklXo0qyIYkgV94XAgMIckC.jpg" },
+      { title: "No Time to Die", year: 2021, poster: "https://image.tmdb.org/t/p/w342/iUgygt3fscRoKWCV1d0C7FbM9TP.jpg" },
+      { title: "Mad Max: Fury Road", year: 2015, poster: "https://image.tmdb.org/t/p/w342/8tZYtuWezp8JbcsvHYO0O46tFbo.jpg" },
+      { title: "Mission: Impossible - Dead Reckoning", year: 2023, poster: "https://image.tmdb.org/t/p/w342/NNxYkU70HPurnNCSiCjYAmacwm.jpg" },
+      { title: "Extraction 2", year: 2023, poster: "https://image.tmdb.org/t/p/w342/7gKI9hpEMcZUQpNgKrkDzJpbnNS.jpg" },
+      { title: "The Equalizer 3", year: 2023, poster: "https://image.tmdb.org/t/p/w342/b0Ej6fnXAP8fK75hlyi2jKqdhHz.jpg" },
+      { title: "Drive", year: 2011, poster: "https://image.tmdb.org/t/p/w342/602vevIURmpDfzbnv5Ubi6wIkQm.jpg" },
+      { title: "Baby Driver", year: 2017, poster: "https://image.tmdb.org/t/p/w342/dN9LbVNNZFITwfaRjl4tmwGWkRg.jpg" },
+      { title: "John Wick: Chapter 3", year: 2019, poster: "https://image.tmdb.org/t/p/w342/ziEuG1essDuWuC5lpWUaw1uXY2O.jpg" },
+      { title: "Gladiator", year: 2000, poster: "https://image.tmdb.org/t/p/w342/ty8TGRuvJLPUmAR1H1nRIsgwvim.jpg" },
+      { title: "Bullet Train", year: 2022, poster: "https://image.tmdb.org/t/p/w342/tVxDe01Zy3kZqaZRNiXFGDICdZk.jpg" },
+      { title: "Nobody", year: 2021, poster: "https://image.tmdb.org/t/p/w342/oBgWY00bEFeZ9N25wWVyuQddbAo.jpg" },
+      { title: "Tenet", year: 2020, poster: "https://image.tmdb.org/t/p/w342/k68nPLbIST6NP96JmTxmZijEvCA.jpg" },
+      { title: "The Gentlemen", year: 2020, poster: "https://image.tmdb.org/t/p/w342/jtrhTYB7xSrJxR1vusu99nvnZ1g.jpg" },
+      { title: "Knives Out", year: 2019, poster: "https://image.tmdb.org/t/p/w342/pThyQovXQrw2m0s9x82twj48Jq4.jpg" },
+      { title: "Fast X", year: 2023, poster: "https://image.tmdb.org/t/p/w342/fiVW06jE7z9YnO4trhaMEdclSiC.jpg" },
+      { title: "The Killer", year: 2023, poster: "https://image.tmdb.org/t/p/w342/e7Jvsry47JJQruuezjU2X1Z6J77.jpg" },
+      { title: "Extraction", year: 2020, poster: "https://image.tmdb.org/t/p/w342/wlfDxbGEsW58vGhFljKkcR5IxDj.jpg" },
+      { title: "The Dark Knight", year: 2008, poster: "https://image.tmdb.org/t/p/w342/qJ2tW6WMUDux911r6m7haRef0WH.jpg" },
+      { title: "Upgrade", year: 2018, poster: "https://image.tmdb.org/t/p/w342/adOzdWS35KAo21r9R4BuFCkLer6.jpg" },
+    ];
+
+    // Duplicate movies to create the grid (5 rows x ~10 columns)
+    const allMovies = [...movies, ...movies];
+    const COLS = 10;
+    
+    const canvas = document.getElementById('posterCanvas');
+    const ambientGlow = document.querySelector('.ambient-glow');
+    const instructions = document.querySelector('.instructions');
+    
+    // Build poster grid in rows
+    for (let i = 0; i < allMovies.length; i += COLS) {
+      const row = document.createElement('div');
+      row.className = 'poster-row';
+      
+      for (let j = i; j < Math.min(i + COLS, allMovies.length); j++) {
+        const movie = allMovies[j];
+        const card = document.createElement('div');
+        card.className = 'poster-card';
+        card.innerHTML = `
+          <img src="${movie.poster}" alt="${movie.title}" />
+          <div class="poster-title">${movie.title}<span class="poster-year">${movie.year}</span></div>
+        `;
+        row.appendChild(card);
+      }
+      
+      canvas.appendChild(row);
+    }
+
+    const cards = document.querySelectorAll('.poster-card');
+
+    // GSAP Draggable with smooth inertia
+    gsap.registerPlugin(Draggable, InertiaPlugin);
+    
+    Draggable.create(canvas, {
+      type: "x,y",
+      inertia: true,
+      edgeResistance: 0.65,
+      bounds: {
+        minX: -canvas.scrollWidth + window.innerWidth - 100,
+        maxX: 100,
+        minY: -canvas.scrollHeight + window.innerHeight - 100,
+        maxY: 100
+      },
+      onDragStart: () => {
+        instructions.classList.add('hidden');
+      }
+    });
+
+    // Magnetic cursor effect variables
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      
+      // Move ambient glow
+      gsap.to(ambientGlow, {
+        x: mouseX,
+        y: mouseY,
+        duration: 1,
+        ease: "power2.out"
+      });
+    });
+
+    // Magnetic repulsion effect on posters
+    const applyMagneticEffect = () => {
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenterX = rect.left + rect.width / 2;
+        const cardCenterY = rect.top + rect.height / 2;
+        
+        const deltaX = mouseX - cardCenterX;
+        const deltaY = mouseY - cardCenterY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        const maxDistance = 200;
+        const maxPush = 15;
+        const maxScale = 1.06;
+        
+        if (distance < maxDistance) {
+          const force = (1 - distance / maxDistance);
+          const pushX = -(deltaX / distance) * force * maxPush;
+          const pushY = -(deltaY / distance) * force * maxPush;
+          const scale = 1 + (force * (maxScale - 1));
+          
+          gsap.to(card, {
+            x: pushX,
+            y: pushY,
+            scale: scale,
+            duration: 0.3,
+            ease: "power2.out",
+            overwrite: "auto"
+          });
+        } else {
+          gsap.to(card, {
+            x: 0,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            ease: "elastic.out(1, 0.6)",
+            overwrite: "auto"
+          });
+        }
+      });
+      
+      requestAnimationFrame(applyMagneticEffect);
+    };
+
+    applyMagneticEffect();
+
+    // Initial stagger animation
+    gsap.from(cards, {
+      scale: 0.85,
+      opacity: 0,
+      duration: 0.6,
+      stagger: {
+        amount: 0.8,
+        from: "start"
+      },
+      ease: "back.out(1.4)"
+    });
+
+    // Hide instructions after 3 seconds
+    setTimeout(() => {
+      instructions.classList.add('hidden');
+    }, 3500);
+  </script>
+</body>
+</html>
