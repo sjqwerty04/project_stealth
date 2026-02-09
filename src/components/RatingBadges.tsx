@@ -4,10 +4,26 @@ interface RatingBadgesProps {
   ratings: MovieRatings;
 }
 
+// Rotten Tomatoes: >= 60% is Fresh (red), < 60% is Rotten (green)
+const getRTColor = (value: string): string => {
+  const num = parseInt(value);
+  if (isNaN(num)) return 'text-red-500';
+  return num >= 60 ? 'text-red-500' : 'text-green-500';
+};
+
+// Metacritic: 61-100 green, 40-60 yellow, 0-39 red
+const getMetacriticColor = (value: string): string => {
+  const num = parseInt(value);
+  if (isNaN(num)) return 'text-yellow-400';
+  if (num >= 61) return 'text-green-500';
+  if (num >= 40) return 'text-yellow-400';
+  return 'text-red-500';
+};
+
 export default function RatingBadges({ ratings }: RatingBadgesProps) {
   const badges = [];
 
-  // IMDb rating
+  // IMDb rating — always yellow
   if (ratings.imdb) {
     badges.push({
       id: 'imdb',
@@ -17,23 +33,23 @@ export default function RatingBadges({ ratings }: RatingBadgesProps) {
     });
   }
 
-  // Rotten Tomatoes
+  // Rotten Tomatoes — red/green by 60% threshold
   if (ratings.rottenTomatoes) {
     badges.push({
       id: 'rt',
       logo: '/rt-logo.png',
       value: ratings.rottenTomatoes,
-      color: 'text-red-400',
+      color: getRTColor(ratings.rottenTomatoes),
     });
   }
 
-  // Metacritic
+  // Metacritic — green/yellow/red by score range
   if (ratings.metacritic) {
     badges.push({
       id: 'metacritic',
       logo: '/metacritic-logo.png',
       value: ratings.metacritic,
-      color: 'text-green-400',
+      color: getMetacriticColor(ratings.metacritic),
     });
   }
 
@@ -50,7 +66,6 @@ export default function RatingBadges({ ratings }: RatingBadgesProps) {
             src={badge.logo} 
             alt={badge.id} 
             className="h-5 w-auto"
-            style={{ filter: 'brightness(0) invert(1)' }}
           />
           <span className={`text-sm font-bold ${badge.color}`}>
             {badge.value}

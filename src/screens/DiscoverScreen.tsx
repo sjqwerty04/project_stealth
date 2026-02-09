@@ -244,8 +244,7 @@ export default function DiscoverScreen() {
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-purple-400 mt-1 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white mb-1">{vibeList.title}</h3>
-                    <p className="text-sm text-gray-300 mb-3">{vibeList.description}</p>
+                    <h3 className="font-semibold text-white mb-3">{vibeList.title}</h3>
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
                       {vibeList.movies.map((movie) => (
                         <button

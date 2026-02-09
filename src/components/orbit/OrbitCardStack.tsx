@@ -20,7 +20,7 @@ export default function OrbitCardStack({
   onInfoPress,
   isTransitioning,
 }: OrbitCardStackProps) {
-  const { currentMovie, history, historyIndex } = useOrbitStore();
+  const { currentMovie, history, historyIndex, edges } = useOrbitStore();
   
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -220,7 +220,7 @@ export default function OrbitCardStack({
           <OrbitCard
             movie={currentMovie}
             isSaved={isSaved}
-            connectionReason={historyIndex > 0 ? undefined : undefined} // Could show connection reason here
+            connectionReason={historyIndex > 0 ? edges.find(e => e.toId === currentMovie.id)?.connectionReason : undefined}
             onSaveToggle={() => {}}
             onInfoPress={onInfoPress}
             isActive={!isTransitioning}
