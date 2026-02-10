@@ -280,31 +280,6 @@ export default function MovieDetailScreen() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Pattern Assistant - sticky at top when triggered */}
-      {showPatternAssistant && (
-        <div className="sticky top-0 z-30 bg-black relative">
-          <button
-            onClick={dismissPattern}
-            className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-black/50 text-gray-400 hover:text-white hover:bg-black/70 transition-colors"
-            aria-label="Dismiss pattern"
-          >
-            <X size={16} />
-          </button>
-          <PatternAssistant
-            insight={patternInsight}
-            isAnalyzing={isAnalyzing}
-            onShowMore={showMoreMovies}
-            onSaveVibe={saveVibe}
-            isLoadingMore={isLoadingMore}
-            isSavingVibe={isSavingVibe}
-            vibeSaved={vibeSaved}
-            movieCount={clickedMovies.length}
-            showMoreResults={showMoreResults}
-            onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
-          />
-        </div>
-      )}
-      
       {/* Hero Section */}
       <div className="relative">
         {/* Backdrop or Trailer */}
@@ -376,48 +351,50 @@ export default function MovieDetailScreen() {
               <img
                 src={`https://image.tmdb.org/t/p/w500${details.logoPath}`}
                 alt={details.title}
-                className="h-12 sm:h-16 w-auto max-w-full object-contain drop-shadow-lg"
+                className="max-h-12 sm:max-h-16 w-auto max-w-full object-contain drop-shadow-lg"
               />
             ) : (
               <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
                 {details.title}
               </h1>
             )}
-            <div className="flex items-center gap-2 mt-2 text-sm text-gray-300 flex-wrap">
-              <span>{details.year}</span>
-              {details.runtime && (
-                <>
-                  <span className="text-gray-600">•</span>
-                  <span>{details.runtime}</span>
-                </>
-              )}
-            </div>
-            
-            {/* Rating Badges */}
-            {details.ratings && (
-              <div className="mt-3">
-                <RatingBadges ratings={details.ratings} />
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-6">
-        {/* Genre Tags */}
-        {details.genres.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {details.genres.map((genre) => (
-              <span
-                key={genre}
-                className="px-3 py-1 rounded-full bg-gray-800 text-sm text-gray-300"
-              >
-                {genre}
-              </span>
-            ))}
+      <div className="p-4 space-y-4">
+        {/* Year, Runtime, Genres & Ratings — grouped below hero */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-gray-400 flex-wrap">
+            <span>{details.year}</span>
+            {details.runtime && (
+              <>
+                <span className="text-gray-600">•</span>
+                <span>{details.runtime}</span>
+              </>
+            )}
           </div>
-        )}
+
+          {/* Genre Tags */}
+          {details.genres.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {details.genres.map((genre) => (
+                <span
+                  key={genre}
+                  className="px-3 py-1 rounded-full bg-gray-800 text-sm text-gray-300"
+                >
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Rating Badges */}
+          {details.ratings && (
+            <RatingBadges ratings={details.ratings} />
+          )}
+        </div>
 
         {/* AI Vibe Description */}
         {(details.vibeDescription || isLoadingVibe) && (
@@ -677,6 +654,33 @@ export default function MovieDetailScreen() {
                 )}
               </button>
             )}
+          </div>
+        )}
+
+        {/* Pattern Detection — compact inline card */}
+        {showPatternAssistant && (
+          <div className="relative">
+            <button
+              onClick={dismissPattern}
+              className="absolute top-2 right-2 z-10 p-1 rounded-full text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+              aria-label="Dismiss pattern"
+            >
+              <X size={14} />
+            </button>
+            <PatternAssistant
+              compact
+              insight={patternInsight}
+              isAnalyzing={isAnalyzing}
+              onShowMore={showMoreMovies}
+              onSaveVibe={saveVibe}
+              isLoadingMore={isLoadingMore}
+              isSavingVibe={isSavingVibe}
+              vibeSaved={vibeSaved}
+              movieCount={clickedMovies.length}
+              showMoreResults={showMoreResults}
+              onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
+              triggerMovies={clickedMovies.map(m => ({ id: m.id, title: m.title, posterPath: m.posterPath }))}
+            />
           </div>
         )}
 
