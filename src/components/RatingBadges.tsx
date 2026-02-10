@@ -60,14 +60,14 @@ export default function RatingBadges({ ratings }: RatingBadgesProps) {
       {badges.map((badge) => (
         <div
           key={badge.id}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10"
+          className="flex items-center gap-1.5"
         >
           <img 
             src={badge.logo} 
             alt={badge.id} 
-            className="h-5 w-auto"
+            className="h-4 w-auto"
           />
-          <span className={`text-sm font-bold ${badge.color}`}>
+          <span className={`text-xs font-bold ${badge.color}`}>
             {badge.value}
           </span>
         </div>

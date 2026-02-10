@@ -129,6 +129,7 @@ export default function DiscoverScreen() {
               movieCount={clickedMovies.length}
               showMoreResults={showMoreResults}
               onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
+              triggerMovies={clickedMovies.map(m => ({ id: m.id, title: m.title, posterPath: m.posterPath }))}
             />
           </div>
         </div>
