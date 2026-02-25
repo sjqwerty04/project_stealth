@@ -10,11 +10,12 @@ import { logActivity } from '../lib/activityLogger';
 
 export default function DiscoverScreen() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const preSelectedDate = searchParams.get('date');
   const { user } = useAuth();
   
-  const [query, setQuery] = useState('');
+  // Initialize query from URL param so it survives back navigation
+  const [query, setQuery] = useState(() => searchParams.get('q') || '');
   const [isPatternPanelOpen, setIsPatternPanelOpen] = useState(true);
   const { results, isSearching, error, searchMetadata, vibeList, isLoadingVibe, searchMovies, clearResults } = useMovieSearch();
   const lastLoggedQueryRef = useRef<string>('');
@@ -31,6 +32,18 @@ export default function DiscoverScreen() {
     isSavingVibe,
     vibeSaved,
   } = useExploration();
+
+  // Sync query changes to URL params (so back navigation restores query)
+  useEffect(() => {
+    const updated = new URLSearchParams(searchParams);
+    if (query.trim()) {
+      updated.set('q', query.trim());
+    } else {
+      updated.delete('q');
+    }
+    setSearchParams(updated, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   // Debounced search
   useEffect(() => {

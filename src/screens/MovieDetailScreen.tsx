@@ -10,6 +10,7 @@ import MovieActions from '../components/MovieActions';
 import SearchResultCard from '../components/SearchResultCard';
 import PatternAssistant from '../components/PatternAssistant';
 import RatingBadges from '../components/RatingBadges';
+import TechBadges from '../components/TechBadges';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -31,7 +32,7 @@ export default function MovieDetailScreen() {
   const { user } = useAuth();
   const { details, isLoading, isLoadingVibe, error, fetchDetails } = useMovieDetails();
   const { similarMovies, isLoading: isLoadingSimilar, loadMore, hasMore } = useSimilarVibes();
-  const { addToWatchlist, isInWatchlist } = useWatchlist();
+  const { addToWatchlist, isInWatchlist, removeFromWatchlist, getWatchlistItem } = useWatchlist();
   const { addEvent } = useCalendarLogs();
   const {
     clickedMovies,
@@ -190,6 +191,14 @@ export default function MovieDetailScreen() {
         });
       }
       
+      // Auto-remove from watchlist when logging as watched
+      if (isPast) {
+        const watchlistItem = getWatchlistItem(details.id);
+        if (watchlistItem) {
+          await removeFromWatchlist(watchlistItem.id);
+        }
+      }
+
       setShowDatePicker(false);
       setShowRatingPicker(false);
       
@@ -204,7 +213,7 @@ export default function MovieDetailScreen() {
     } finally {
       setIsAddingToCalendar(false);
     }
-  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate]);
+  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate, getWatchlistItem, removeFromWatchlist]);
 
   const handleAddToWatchlist = useCallback(async () => {
     if (!details) return;
@@ -244,13 +253,20 @@ export default function MovieDetailScreen() {
         ratedAt: serverTimestamp(),
         source: 'discovery',
       });
+
+      // Auto-remove from watchlist when marked as seen
+      const watchlistItem = getWatchlistItem(details.id);
+      if (watchlistItem) {
+        await removeFromWatchlist(watchlistItem.id);
+      }
+
       setIsMarkedSeen(true);
     } catch (err) {
       console.error('Failed to mark as seen:', err);
     } finally {
       setIsMarkingSeen(false);
     }
-  }, [details, user]);
+  }, [details, user, getWatchlistItem, removeFromWatchlist]);
 
   const handleSimilarMovieClick = (movie: any) => {
     navigate(`/movie/${movie.id}?type=movie`);
@@ -393,6 +409,11 @@ export default function MovieDetailScreen() {
           {/* Rating Badges */}
           {details.ratings && (
             <RatingBadges ratings={details.ratings} />
+          )}
+
+          {/* Tech Badges (IMAX, Dolby, Certification) */}
+          {details.techSpecs && (
+            <TechBadges techSpecs={details.techSpecs} />
           )}
         </div>
 

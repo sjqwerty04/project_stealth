@@ -12,6 +12,13 @@ export type MovieRatings = {
   metacritic: string | null;
 };
 
+export type TechSpecs = {
+  certification: string | null; // R, PG-13, PG, G, NC-17, TV-MA, etc.
+  isImax: boolean;
+  isDolbyAtmos: boolean;
+  isDolbyVision: boolean;
+};
+
 export type MovieDetails = {
   id: number;
   title: string;
@@ -35,6 +42,7 @@ export type MovieDetails = {
   } | null;
   vibeDescription: string | null;
   ratings: MovieRatings | null;
+  techSpecs: TechSpecs | null;
   mediaType: 'movie' | 'tv';
 };
 
@@ -44,6 +52,26 @@ const formatRuntime = (minutes?: number | null): string => {
   const mins = minutes % 60;
   return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 };
+
+// Fetch IMAX/Dolby info from IMDb technical specs via our API
+async function fetchIMDbTechSpecs(imdbId: string): Promise<{ isImax: boolean; isDolbyAtmos: boolean; isDolbyVision: boolean }> {
+  try {
+    const response = await fetch(`/api/imdb-techspecs?imdbId=${imdbId}`);
+    if (!response.ok) {
+      console.warn('Failed to fetch IMDb tech specs:', response.status);
+      return { isImax: false, isDolbyAtmos: false, isDolbyVision: false };
+    }
+    const data = await response.json();
+    return {
+      isImax: data.isImax || false,
+      isDolbyAtmos: data.isDolbyAtmos || false,
+      isDolbyVision: data.isDolbyVision || false,
+    };
+  } catch (err) {
+    console.warn('Error fetching IMDb tech specs:', err);
+    return { isImax: false, isDolbyAtmos: false, isDolbyVision: false };
+  }
+}
 
 export function useMovieDetails() {
   const [details, setDetails] = useState<MovieDetails | null>(null);
@@ -128,8 +156,9 @@ export function useMovieDetails() {
       const englishLogo = logos.find((l: any) => l.iso_639_1 === 'en') || logos[0];
       const logoPath = englishLogo?.file_path || null;
 
-      // Fetch ratings from OMDb if we have an IMDb ID
+      // Fetch ratings and certification from OMDb if we have an IMDb ID
       let ratings: MovieRatings | null = null;
+      let certification: string | null = null;
       const imdbId = externalIdsData.imdb_id;
       
       if (imdbId && OMDB_API_KEY && OMDB_API_KEY !== 'placeholder_get_from_omdbapi_com') {
@@ -164,6 +193,11 @@ export function useMovieDetails() {
               rottenTomatoes: rtRating,
               metacritic: metacriticRating,
             };
+
+            // Extract certification (Rated field: R, PG-13, PG, G, NC-17, TV-MA, etc.)
+            if (omdbData.Rated && omdbData.Rated !== 'N/A' && omdbData.Rated !== 'Not Rated') {
+              certification = omdbData.Rated;
+            }
           }
         } catch (err) {
           console.error('Failed to fetch OMDb ratings:', err);
@@ -174,6 +208,17 @@ export function useMovieDetails() {
       } else if (!OMDB_API_KEY || OMDB_API_KEY === 'placeholder_get_from_omdbapi_com') {
         console.warn('OMDb API key not configured');
       }
+
+      // Build initial tech specs with certification (IMAX/Dolby will be loaded async)
+      let techSpecs: TechSpecs = {
+        certification,
+        isImax: false,
+        isDolbyAtmos: false,
+        isDolbyVision: false,
+      };
+
+      // Start fetching IMDb tech specs in background (don't block page load)
+      const imdbTechPromise = imdbId ? fetchIMDbTechSpecs(imdbId) : Promise.resolve(null);
 
       // System prompt for vibe descriptions
       const vibeSystemPrompt = `You are a snarky film critic writing for Letterboxd. Your specialty is writing witty, oversimplified plot synopses that capture the essence of films in a humorous way. You never spoil anything.`;
@@ -229,6 +274,7 @@ Genres: ${genreList}
         watchProviders,
         vibeDescription: null, // Will be loaded async
         ratings,
+        techSpecs,
         mediaType,
       };
 
@@ -243,6 +289,21 @@ Genres: ${genreList}
         }
         setIsLoadingVibe(false);
       }).catch(() => setIsLoadingVibe(false));
+
+      // Update with IMDb tech specs (IMAX/Dolby) when ready
+      imdbTechPromise.then(imdbTech => {
+        if (imdbTech) {
+          setDetails(prev => prev ? {
+            ...prev,
+            techSpecs: {
+              ...prev.techSpecs!,
+              isImax: imdbTech.isImax,
+              isDolbyAtmos: imdbTech.isDolbyAtmos,
+              isDolbyVision: imdbTech.isDolbyVision,
+            }
+          } : null);
+        }
+      }).catch(err => console.warn('Failed to load IMDb tech specs:', err));
 
       return movieDetails;
     } catch (err) {
