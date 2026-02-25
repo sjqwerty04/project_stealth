@@ -175,14 +175,15 @@ Return a JSON array of movie objects.
 </task>
 
 <rules>
-- Understand complex criteria (e.g., ratings, comparisons, mood)
-- Return popular, well-known films that match the criteria
+- Understand complex criteria (e.g., ratings, comparisons, mood, actors, directors, genres)
+- Return films that match the criteria, including recent releases from 2023, 2024, and 2025
+- Do NOT limit results to only well-known classics — include newer films where relevant
 - Output ONLY valid JSON array, no markdown
 </rules>
 
 <output_format>
 [
-  {"title": "Movie Title", "year": "2020"},
+  {"title": "Movie Title", "year": "2024"},
   {"title": "Another Movie", "year": "2015"}
 ]
 </output_format>`;
@@ -196,31 +197,39 @@ Return a JSON array of movie objects.
             if (jsonMatch) {
               const movieTitles: {title: string, year: string}[] = JSON.parse(jsonMatch[0]);
               
-              // Hydrate each movie via TMDB search
+              // Hydrate each movie via TMDB search (with year fallback)
               const hydratePromises = movieTitles.map(async (m) => {
                 try {
-                  const res = await fetch(
+                  const signal = abortControllerRef.current?.signal;
+                  // First try with year for precision
+                  let res = await fetch(
                     `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`,
-                    { signal: abortControllerRef.current?.signal }
+                    { signal }
                   );
-                  if (res.ok) {
-                    const data = await res.json();
-                    if (data.results && data.results.length > 0) {
-                      const movie = data.results[0];
-                      return {
-                        id: movie.id,
-                        title: movie.title,
-                        year: movie.release_date?.slice(0, 4) || '',
-                        posterPath: movie.poster_path,
-                        backdropPath: movie.backdrop_path,
-                        genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-                        overview: movie.overview || '',
-                        popularity: movie.popularity || 0,
-                        voteAverage: movie.vote_average || 0,
-                        voteCount: movie.vote_count || 0,
-                        mediaType: 'movie' as const,
-                      };
-                    }
+                  let data = res.ok ? await res.json() : { results: [] };
+                  // Fallback: search without year if no results (handles year mismatches & new films)
+                  if (!data.results?.length) {
+                    res = await fetch(
+                      `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=en-US`,
+                      { signal }
+                    );
+                    data = res.ok ? await res.json() : { results: [] };
+                  }
+                  if (data.results && data.results.length > 0) {
+                    const movie = data.results[0];
+                    return {
+                      id: movie.id,
+                      title: movie.title,
+                      year: movie.release_date?.slice(0, 4) || '',
+                      posterPath: movie.poster_path,
+                      backdropPath: movie.backdrop_path,
+                      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                      overview: movie.overview || '',
+                      popularity: movie.popularity || 0,
+                      voteAverage: movie.vote_average || 0,
+                      voteCount: movie.vote_count || 0,
+                      mediaType: 'movie' as const,
+                    };
                   }
                 } catch (err) {
                   console.error('Failed to hydrate movie:', m.title, err);
@@ -432,30 +441,36 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
           if (jsonMatch) {
             const vibeData: { title: string; description: string; movies: {title: string, year: string}[] } = JSON.parse(jsonMatch[0]);
             
-            // Hydrate movies via TMDB
+            // Hydrate movies via TMDB (with year fallback)
             const hydratePromises = vibeData.movies.map(async (m) => {
               try {
-                const res = await fetch(
+                // First try with year for precision
+                let res = await fetch(
                   `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`
                 );
-                if (res.ok) {
-                  const data = await res.json();
-                  if (data.results && data.results.length > 0) {
-                    const movie = data.results[0];
-                    return {
-                      id: movie.id,
-                      title: movie.title,
-                      year: movie.release_date?.slice(0, 4) || '',
-                      posterPath: movie.poster_path,
-                      backdropPath: movie.backdrop_path,
-                      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-                      overview: movie.overview || '',
-                      popularity: movie.popularity || 0,
-                      voteAverage: movie.vote_average || 0,
-                      voteCount: movie.vote_count || 0,
-                      mediaType: 'movie' as const,
-                    };
-                  }
+                let data = res.ok ? await res.json() : { results: [] };
+                // Fallback: search without year if no results
+                if (!data.results?.length) {
+                  res = await fetch(
+                    `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=en-US`
+                  );
+                  data = res.ok ? await res.json() : { results: [] };
+                }
+                if (data.results && data.results.length > 0) {
+                  const movie = data.results[0];
+                  return {
+                    id: movie.id,
+                    title: movie.title,
+                    year: movie.release_date?.slice(0, 4) || '',
+                    posterPath: movie.poster_path,
+                    backdropPath: movie.backdrop_path,
+                    genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                    overview: movie.overview || '',
+                    popularity: movie.popularity || 0,
+                    voteAverage: movie.vote_average || 0,
+                    voteCount: movie.vote_count || 0,
+                    mediaType: 'movie' as const,
+                  };
                 }
               } catch (err) {
                 console.error('Failed to hydrate vibe movie:', m.title, err);

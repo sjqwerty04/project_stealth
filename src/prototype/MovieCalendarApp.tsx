@@ -16,6 +16,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   User as UserIcon,
+  Info,
 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -1642,6 +1643,13 @@ export default function MovieCalendarApp() {
             {viewMode === 'details' && selectedMovie && (
               <div className="space-y-6">
                 <div className="absolute top-4 right-4 z-20 flex gap-3">
+                  <button
+                    onClick={() => navigate(`/movie/${selectedMovie.id}?type=${selectedMovie.mediaType || 'movie'}`)}
+                    className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 hover:scale-105 transition-all"
+                    title="View Full Details"
+                  >
+                    <Info size={18} />
+                  </button>
                   <button
                     onClick={() => setViewMode('search')}
                     className="w-10 h-10 bg-amber-400 text-black rounded-full flex items-center justify-center shadow-lg hover:bg-amber-300 hover:scale-105 transition-all border border-amber-500/20"

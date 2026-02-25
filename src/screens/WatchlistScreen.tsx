@@ -90,8 +90,9 @@ export default function WatchlistScreen() {
     setSelectedMovie(null);
   };
 
-  const handleMarkAsWatched = (item: WatchlistItem) => {
-    // Navigate to movie detail page where user can add to calendar
+  const handleMarkAsWatched = async (item: WatchlistItem) => {
+    // Remove from watchlist immediately, then navigate to detail page to log it
+    await removeFromWatchlist(item.id);
     setShowActionModal(false);
     setSelectedMovie(null);
     navigate(`/movie/${item.movieId}?type=movie`);
