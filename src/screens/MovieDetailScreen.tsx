@@ -352,25 +352,18 @@ export default function MovieDetailScreen() {
           )}
         </button>
 
-        {/* Poster & Title Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 flex gap-4">
-          {posterUrl && (
-            <img
-              src={posterUrl}
-              alt={details.title}
-              className="w-28 sm:w-36 rounded-xl border-2 border-gray-800 shadow-2xl -mt-20 relative z-10"
-            />
-          )}
-          <div className="flex-1 min-w-0 self-end pb-2">
+        {/* Movie Logo Overlay (bottom left) */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <div className="min-w-0">
             {/* Movie Logo or Title */}
             {details.logoPath ? (
               <img
                 src={`https://image.tmdb.org/t/p/w500${details.logoPath}`}
                 alt={details.title}
-                className="max-h-12 sm:max-h-16 w-auto max-w-full object-contain drop-shadow-lg"
+                className="max-h-14 sm:max-h-20 w-auto max-w-[70%] object-contain drop-shadow-lg"
               />
             ) : (
-              <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold leading-tight drop-shadow-lg">
                 {details.title}
               </h1>
             )}
@@ -417,21 +410,35 @@ export default function MovieDetailScreen() {
           )}
         </div>
 
-        {/* AI Vibe Description */}
-        {(details.vibeDescription || isLoadingVibe) && (
-          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20">
-            {isLoadingVibe ? (
-              <div className="flex items-center gap-2 text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm italic">Reading the vibe...</span>
+        {/* AI Vibe Description with Poster */}
+        <div className="flex gap-4">
+          {/* Poster */}
+          {posterUrl && (
+            <img
+              src={posterUrl}
+              alt={details.title}
+              className="w-24 sm:w-28 rounded-xl border border-gray-800 shadow-xl flex-shrink-0"
+            />
+          )}
+          
+          {/* Vibe Description */}
+          <div className="flex-1 min-w-0">
+            {(details.vibeDescription || isLoadingVibe) && (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20 h-full flex items-center">
+                {isLoadingVibe ? (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm italic">Reading the vibe...</span>
+                  </div>
+                ) : (
+                  <p className="text-gray-200 italic leading-relaxed">
+                    "{details.vibeDescription}"
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-gray-200 italic leading-relaxed">
-                "{details.vibeDescription}"
-              </p>
             )}
           </div>
-        )}
+        </div>
 
         {/* Action Buttons */}
         <MovieActions
