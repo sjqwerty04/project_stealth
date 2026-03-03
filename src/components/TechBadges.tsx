@@ -1,4 +1,4 @@
-import { TechSpecs } from '../hooks/useMovieDetails';
+import type { TechSpecs } from '../hooks/useMovieDetails';
 
 interface TechBadgesProps {
   techSpecs: TechSpecs;
