@@ -22,6 +22,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { useHandle, isValidHandle, normalizeHandle } from '../hooks/useHandle';
 import { useAuth } from '../hooks/useAuth';
 import { logMovieAdded } from '../lib/analytics';
 import RecommendationCard from '../components/RecommendationCard';
@@ -477,7 +478,12 @@ export default function MovieCalendarApp() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { events, loading: eventsLoading, addEvent, updateEvent, deleteEvent, getEventsForDate, getPendingReviewEvents } = useCalendarLogs();
-  const { profileImage, updateProfileImage } = useUserProfile();
+  const { profile, profileImage, updateProfileImage } = useUserProfile();
+  const { claimHandle, isAvailable } = useHandle();
+  const [handleInput, setHandleInput] = useState('');
+  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [handleSubmitting, setHandleSubmitting] = useState(false);
+  const [handleError, setHandleError] = useState('');
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -516,6 +522,20 @@ export default function MovieCalendarApp() {
   useEffect(() => {
     setAvatarPreview(profileImage);
   }, [profileImage]);
+
+  // Debounced handle availability check
+  useEffect(() => {
+    const lower = normalizeHandle(handleInput);
+    if (!handleInput) { setHandleStatus('idle'); return; }
+    if (!isValidHandle(lower)) { setHandleStatus('invalid'); return; }
+    setHandleStatus('checking');
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const ok = await isAvailable(lower).catch(() => false);
+      if (!cancelled) setHandleStatus(ok ? 'available' : 'taken');
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [handleInput, isAvailable]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1091,7 +1111,7 @@ export default function MovieCalendarApp() {
     <div className="min-h-screen bg-[#09090b] font-sans text-gray-100 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden border-x border-gray-800">
       <div className="bg-[#09090b]/90 backdrop-blur-md px-6 py-6 flex items-center justify-between sticky top-0 z-10 border-b border-gray-800">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">ViewFindr</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Selects</h1>
           <p className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-semibold">Your Cinema Journal</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1828,8 +1848,8 @@ export default function MovieCalendarApp() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsAvatarModalOpen(false)} />
           <div className="bg-[#18181b] w-full max-w-sm rounded-2xl p-6 border border-gray-800 relative z-10 space-y-4">
-            <h3 className="text-lg font-semibold text-white">Update Profile Picture</h3>
-            <p className="text-sm text-gray-500">Upload any image file (square looks best).</p>
+            <h3 className="text-lg font-semibold text-white">Edit Profile</h3>
+            <p className="text-sm text-gray-500">Update your picture or handle.</p>
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-700">
                 <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
@@ -1851,23 +1871,74 @@ export default function MovieCalendarApp() {
               </div>
             </div>
             {avatarError && <p className="text-xs text-red-400">{avatarError}</p>}
-            <div className="flex gap-3">
+
+            {/* Handle section */}
+            <div className="border-t border-gray-800 pt-4">
+              <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-semibold">Your handle</p>
+              {profile?.handle ? (
+                <div className="flex items-center justify-between bg-black/30 rounded-xl px-3 py-2.5 border border-gray-800">
+                  <span className="text-blue-400 font-mono">@{profile.handle}</span>
+                  <button onClick={() => setHandleInput(profile.handle ?? '')} className="text-xs text-gray-500 hover:text-gray-300">Change</button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">No handle yet — claim one so friends can find you.</p>
+              )}
+              {(handleInput || !profile?.handle) && (
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center bg-black/40 border border-gray-800 rounded-xl px-3 py-2.5 focus-within:border-blue-500">
+                    <span className="text-gray-500 mr-1 text-sm">@</span>
+                    <input
+                      value={handleInput}
+                      onChange={e => setHandleInput(e.target.value)}
+                      placeholder="your_handle"
+                      className="flex-1 bg-transparent outline-none text-white text-sm placeholder-gray-600"
+                    />
+                    {handleStatus === 'checking' && <span className="text-xs text-gray-500">…</span>}
+                    {handleStatus === 'available' && <span className="text-xs text-green-400">✓</span>}
+                    {handleStatus === 'taken' && <span className="text-xs text-red-400">taken</span>}
+                  </div>
+                  {handleStatus === 'invalid' && handleInput && <p className="text-xs text-amber-400">3-20 chars: letters, numbers, underscore</p>}
+                  {handleError && <p className="text-xs text-red-400">{handleError}</p>}
+                  <button
+                    disabled={handleStatus !== 'available' || handleSubmitting}
+                    onClick={async () => {
+                      setHandleSubmitting(true);
+                      setHandleError('');
+                      try {
+                        await claimHandle(normalizeHandle(handleInput));
+                        setHandleInput('');
+                        setHandleStatus('idle');
+                      } catch (e: any) {
+                        setHandleError(e?.message ?? 'Could not claim handle');
+                      } finally {
+                        setHandleSubmitting(false);
+                      }
+                    }}
+                    className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {handleSubmitting ? 'Saving…' : `Claim @${normalizeHandle(handleInput) || '...'}`}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setIsAvatarModalOpen(false)}
+                onClick={() => { setIsAvatarModalOpen(false); setHandleInput(''); setHandleStatus('idle'); setHandleError(''); }}
                 className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
               >
-                Cancel
+                Done
               </button>
               <button
                 onClick={handleAvatarSave}
                 disabled={isSavingAvatar}
                 className={`flex-1 py-3 rounded-xl text-white font-semibold transition-colors ${
-                  isSavingAvatar 
-                    ? 'bg-gray-600 cursor-not-allowed' 
-                    : 'bg-blue-500 hover:bg-blue-400'
+                  isSavingAvatar
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-white text-black hover:bg-gray-200'
                 }`}
               >
-                {isSavingAvatar ? 'Saving...' : 'Save'}
+                {isSavingAvatar ? 'Saving...' : 'Save Photo'}
               </button>
             </div>
           </div>

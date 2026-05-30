@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ViewFindr — HomeV2 Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090b;--bg2:#0c0c0e;--card:#18181b;
+  --border:#27272a;--border2:#3f3f46;
+  --text:#f4f4f5;--text2:#a1a1aa;--text3:#71717a;--text4:#52525b;
+  --blue:#3b82f6;--blue-dim:#1e3a5f;
+  --green:#22c55e;--green-dim:#14532d;
+  --red:#ef4444;--red-dim:#7f1d1d;
+  --accent-default-start:#201c3a;--accent-default-end:#0d1531;
+}
+html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+
+/* ─── Shell ─── */
+.shell{height:100dvh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border);overflow:hidden;position:relative}
+
+/* ─── Header ─── */
+.header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(12px);background:rgba(9,9,11,.9);flex-shrink:0;z-index:10}
+.header-brand h1{font-size:18px;font-weight:800;letter-spacing:-.3px}
+.header-brand p{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-weight:600;margin-top:2px}
+.header-actions{display:flex;gap:6px}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:none;background:transparent;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.icon-btn:hover{background:var(--card);color:var(--text)}
+.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--border)}
+
+/* ─── Hero ─── */
+.hero{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;transition:background .6s ease}
+.hero-loading,.hero-error{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.hero-loading .pulse{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{animation:spin .8s linear infinite}
+
+/* Full-bleed background: trailer video or still image */
+.hero-bg-wrap{position:absolute;inset:0;width:100%;height:100%;z-index:0;overflow:hidden}
+.hero-still,.hero-trailer{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:0;transition:opacity .5s ease}
+.hero-still{object-fit:cover}
+.hero-still.active{opacity:.3}
+.hero-trailer{display:none;pointer-events:none}
+.hero-trailer.active{display:block;opacity:.4}
+.hero-trailer iframe{position:absolute;top:50%;left:50%;width:100vw;height:56.25vw;min-width:177.78vh;min-height:100vh;transform:translate(-50%,-50%);border:none}
+
+/* Gradient overlay on top of still */
+.hero-gradient{position:absolute;inset:0;z-index:1;background:linear-gradient(to top, #09090b 5%, rgba(9,9,11,.7) 40%, transparent 70%);pointer-events:none}
+
+/* Next Watch label row */
+.nw-label{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 20px 6px;flex-shrink:0;position:relative;z-index:2}
+.nw-label .popcorn{width:30px;height:30px}
+.nw-label .popcorn.left{transform:rotate(-12deg)}
+.nw-label .popcorn.right{transform:rotate(12deg)}
+.nw-center{text-align:center}
+.nw-center .tag{display:flex;align-items:center;gap:5px;justify-content:center}
+.nw-center .tag svg{width:13px;height:13px}
+.nw-center .tag span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;color:var(--blue)}
+.nw-center .date{font-size:9px;color:var(--text4);margin-top:3px}
+
+/* Movie info body — overlays the still */
+.hero-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:0;padding:0 24px 16px;min-height:0;position:relative;z-index:2}
+.hero-logo{max-width:70%;max-height:72px;object-fit:contain;opacity:0;transition:opacity .4s ease;margin-bottom:10px;filter:drop-shadow(0 4px 20px rgba(0,0,0,.7))}
+.hero-logo.active{opacity:1}
+.hero-title-text{font-size:22px;font-weight:800;line-height:1.2;text-align:center;margin-bottom:8px;text-shadow:0 2px 16px rgba(0,0,0,.8);opacity:0;transition:opacity .4s ease}
+.hero-title-text.active{opacity:1}
+.movie-info{text-align:center;max-width:88%}
+.movie-info .meta{font-size:11px;color:var(--text2);margin-top:2px;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.movie-info .genres{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+.movie-info .genres span{font-size:9px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:var(--text2)}
+.movie-info .reason{font-size:11px;color:var(--text3);font-style:italic;line-height:1.5;margin-top:6px;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+
+/* Split-screen hero for multi-movie dates */
+#heroSplit{display:none;flex:1;flex-direction:column;position:relative;z-index:2}
+.split-panel{position:relative;flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.split-panel.top{border-bottom:1px solid rgba(255,255,255,.08)}
+.split-bg-wrap{position:absolute;inset:0;overflow:hidden}
+.split-still,.split-trailer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s ease}
+.split-still.active{opacity:.3}
+.split-trailer{display:none;pointer-events:none}
+.split-trailer.active{display:block;opacity:.4}
+.split-trailer iframe{position:absolute;top:50%;left:50%;width:100%;height:100%;min-width:100%;min-height:177.78%;transform:translate(-50%,-50%);border:none}
+.split-gradient{position:absolute;inset:0;background:linear-gradient(to top, rgba(9,9,11,.8) 0%, transparent 50%, rgba(9,9,11,.4) 100%);pointer-events:none}
+.split-logo{position:relative;z-index:1;max-width:60%;max-height:48px;object-fit:contain;filter:drop-shadow(0 3px 16px rgba(0,0,0,.7));opacity:0;transition:opacity .4s ease}
+.split-logo.active{opacity:1}
+.split-title{position:relative;z-index:1;font-size:16px;font-weight:800;text-align:center;text-shadow:0 2px 12px rgba(0,0,0,.8);opacity:0;transition:opacity .4s ease;padding:0 16px}
+.split-title.active{opacity:1}
+.split-meta{position:relative;z-index:1;font-size:10px;color:var(--text3);margin-top:4px;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+
+/* Empty state when past date has no movie */
+.hero-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:2;gap:8px}
+.hero-empty p{font-size:13px;color:var(--text4);font-weight:500}
+.hero-empty .empty-icon{opacity:.3}
+
+/* Action bar */
+.actions{display:flex;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.35);backdrop-filter:blur(8px);flex-shrink:0;position:relative;z-index:3}
+.actions button{flex:1;padding:11px 0;border:none;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;background:transparent}
+.actions button:not(:last-child){border-right:1px solid rgba(255,255,255,.06)}
+.actions .like{color:#4ade80}.actions .like:hover{background:rgba(34,197,94,.1)}
+.actions .like.active{background:#22c55e;color:#fff}
+.actions .pass{color:#f87171}.actions .pass:hover{background:rgba(239,68,68,.1)}
+.actions .pass.active{background:#ef4444;color:#fff}
+.actions .skip{color:var(--text3)}.actions .skip:hover{background:var(--card)}
+.actions .add-cal{background:#fff;color:#000}.actions .add-cal:hover{background:#e5e5e5}
+
+.refresh-btn{position:absolute;top:14px;right:20px;z-index:5}
+.mute-btn{position:absolute;bottom:16px;right:16px;z-index:6;opacity:.35;transition:opacity .2s;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);border-radius:50%}
+.mute-btn:hover{opacity:1}
+
+/* ─── Date Strip ─── */
+.strip-section{flex-shrink:0;background:var(--bg2);border-top:1px solid rgba(255,255,255,.06);padding-bottom:env(safe-area-inset-bottom,0)}
+.strip-header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px 6px}
+.strip-header span{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.strip-header button{background:none;border:none;color:var(--text4);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center}
+.strip-header button:hover{color:var(--text)}
+.strip-scroll{display:flex;gap:8px;padding:0 16px 14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.strip-scroll::-webkit-scrollbar{display:none}
+.date-cell{flex-shrink:0;width:56px;height:66px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s,opacity .2s,box-shadow .2s;scroll-snap-align:center;position:relative;border:1px solid transparent}
+.date-cell .dow{font-size:9px;font-weight:700;text-transform:uppercase}
+.date-cell .day{font-size:17px;font-weight:800}
+.date-cell.empty{background:var(--card)}
+.date-cell.empty .dow{color:var(--text4)}
+.date-cell.empty .day{color:var(--text3)}
+.date-cell.today.empty{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3)}
+.date-cell.today.empty .dow,.date-cell.today.empty .day{color:var(--blue)}
+.date-cell.selected{box-shadow:0 0 0 2.5px rgba(255,255,255,.55);background:rgba(255,255,255,.07)}
+.date-cell .count-badge{position:absolute;top:-4px;right:-4px;font-size:8px;font-weight:700;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.2);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center}
+.date-cell .dot{position:absolute;bottom:2px;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35)}
+
+/* ─── Modal ─── */
+.modal-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+.modal-sheet{position:relative;z-index:1;width:100%;max-width:430px;background:var(--card);border-radius:24px 24px 0 0;padding:24px;max-height:85vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.modal-overlay.open .modal-sheet{transform:translateY(0)}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:2px}
+.modal-sub{font-size:12px;color:var(--text3);margin-bottom:16px}
+.search-box{position:relative;margin-bottom:12px}
+.search-box input{width:100%;padding:10px 12px 10px 38px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border .15s}
+.search-box input:focus{border-color:var(--blue)}
+.search-box svg{position:absolute;left:11px;top:11px;color:var(--text4);width:18px;height:18px}
+.search-results{max-height:300px;overflow-y:auto}
+.search-item{display:flex;gap:10px;padding:8px;border-radius:12px;cursor:pointer;transition:background .12s;border:1px solid transparent}
+.search-item:hover{background:rgba(255,255,255,.04);border-color:var(--border)}
+.search-item img{width:44px;height:62px;border-radius:8px;object-fit:cover}
+.search-item .info{display:flex;flex-direction:column;justify-content:center}
+.search-item .info strong{font-size:13px;font-weight:600;color:var(--text)}
+.search-item .info span{font-size:11px;color:var(--text4)}
+.search-item:hover .info strong{color:var(--blue)}
+
+/* toast */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:100;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:600;backdrop-filter:blur(8px);transition:transform .3s cubic-bezier(.22,1,.36,1);pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{background:rgba(34,197,94,.9);color:#fff}
+.toast.info{background:rgba(59,130,246,.9);color:#fff}
+</style>
+</head>
+<body>
+
+<div class="shell" id="app">
+  <!-- Hero -->
+  <div class="hero" id="hero">
+    <!-- Background: trailer (autoplay) or still image -->
+    <div class="hero-bg-wrap">
+      <div class="hero-trailer" id="heroTrailer"></div>
+      <img class="hero-still" id="heroStill" src="" alt="">
+    </div>
+    <div class="hero-gradient"></div>
+
+    <div class="hero-loading" id="heroLoading" style="position:relative;z-index:2">
+      <svg class="pulse" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <p style="font-size:13px;font-weight:500">Finding your next watch...</p>
+      <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+    </div>
+
+    <!-- Empty state (past date, no movie) -->
+    <div class="hero-empty" id="heroEmpty" style="display:none">
+      <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <p>No movie logged this day</p>
+    </div>
+
+    <!-- Split-screen hero for multi-movie dates -->
+    <div id="heroSplit">
+      <div class="split-panel top">
+        <div class="split-bg-wrap">
+          <div class="split-trailer" id="splitTrailer1"></div>
+          <img class="split-still" id="splitStill1" src="" alt="">
+        </div>
+        <div class="split-gradient"></div>
+        <img class="split-logo" id="splitLogo1" src="" alt="">
+        <h3 class="split-title" id="splitTitle1"></h3>
+      </div>
+      <div class="split-panel bottom">
+        <div class="split-bg-wrap">
+          <div class="split-trailer" id="splitTrailer2"></div>
+          <img class="split-still" id="splitStill2" src="" alt="">
+        </div>
+        <div class="split-gradient"></div>
+        <img class="split-logo" id="splitLogo2" src="" alt="">
+        <h3 class="split-title" id="splitTitle2"></h3>
+      </div>
+    </div>
+
+    <!-- Populated hero content -->
+    <div id="heroContent" style="display:none;flex:1;flex-direction:column">
+      <div class="nw-label">
+        <svg class="popcorn left" viewBox="0 0 64 64" fill="none"><path d="M18 28L14 56C14 57.1 14.9 58 16 58H48C49.1 58 50 57.1 50 56L46 28H18Z" fill="#E53935" stroke="#B71C1C" stroke-width="1.5"/><path d="M20 28L16.5 54H47.5L44 28H20Z" fill="#EF5350"/><rect x="22" y="28" width="2" height="26" rx="1" fill="#FFCDD2" opacity=".3"/><rect x="30" y="28" width="2" height="26" rx="1" fill="#FFCDD2" opacity=".3"/><rect x="38" y="28" width="2" height="26" rx="1" fill="#FFCDD2" opacity=".3"/><circle cx="24" cy="20" r="8" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/><circle cx="32" cy="16" r="9" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/><circle cx="40" cy="20" r="8" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/><circle cx="28" cy="14" r="7" fill="#FFFDE7" stroke="#F9A825" stroke-width="1"/><circle cx="36" cy="13" r="7" fill="#FFFDE7" stroke="#F9A825" stroke-width="1"/><circle cx="22" cy="22" r="5" fill="#FFF8E1"/><circle cx="42" cy="22" r="5" fill="#FFF8E1"/><circle cx="32" cy="10" r="5" fill="#FFF8E1"/></svg>
+        <div class="nw-center">
+          <div class="tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span id="heroTagLabel">Next Watch</span>
+          </div>
+          <div class="date" id="heroDate"></div>
+        </div>
+        <svg class="popcorn right" viewBox="0 0 64 64" fill="none"><path d="M18 28L14 56C14 57.1 14.9 58 16 58H48C49.1 58 50 57.1 50 56L46 28H18Z" fill="#E53935" stroke="#B71C1C" stroke-width="1.5"/><path d="M20 28L16.5 54H47.5L44 28H20Z" fill="#EF5350"/><rect x="22" y="28" width="2" height="26" rx="1" fill="#FFCDD2" opacity=".3"/><rect x="30" y="28" width="2" height="26" rx="1" fill="#FFCDD2" opacity=".3"/><rect x="38" y="28" width="2" height="26" rx="1" fill="#FFCDD2" opacity=".3"/><circle cx="24" cy="20" r="8" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/><circle cx="32" cy="16" r="9" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/><circle cx="40" cy="20" r="8" fill="#FFF9C4" stroke="#F9A825" stroke-width="1"/><circle cx="28" cy="14" r="7" fill="#FFFDE7" stroke="#F9A825" stroke-width="1"/><circle cx="36" cy="13" r="7" fill="#FFFDE7" stroke="#F9A825" stroke-width="1"/><circle cx="22" cy="22" r="5" fill="#FFF8E1"/><circle cx="42" cy="22" r="5" fill="#FFF8E1"/><circle cx="32" cy="10" r="5" fill="#FFF8E1"/></svg>
+      </div>
+
+      <div class="hero-body">
+        <img class="hero-logo" id="heroLogo" src="" alt="">
+        <h2 class="hero-title-text" id="heroTitle"></h2>
+        <div class="movie-info">
+          <p class="meta" id="heroMeta"></p>
+          <div class="genres" id="heroGenres"></div>
+          <p class="reason" id="heroReason"></p>
+        </div>
+      </div>
+
+      <div class="actions" id="heroActions">
+        <button class="like" onclick="handleAction('like')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+          <span>Like</span>
+        </button>
+        <button class="pass" onclick="handleAction('pass')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+          <span>Pass</span>
+        </button>
+        <button class="skip" onclick="handleAction('skip')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          <span>Skip</span>
+        </button>
+        <button class="add-cal" onclick="handleAction('add')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>
+          <span>Add</span>
+        </button>
+      </div>
+
+      <button class="icon-btn refresh-btn" onclick="loadNextRecommendation()" title="Refresh">
+        <svg id="refreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+    </div>
+
+    <button id="muteBtn" class="icon-btn mute-btn" onclick="toggleMute()" title="Unmute">
+      <span id="muteBtnIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg></span>
+    </button>
+  </div>
+
+  <!-- Date Strip -->
+  <div class="strip-section">
+    <div class="strip-header">
+      <button onclick="shiftWeek(-7)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span id="stripMonth"></span>
+      <button onclick="shiftWeek(7)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+    <div class="strip-scroll" id="stripScroll"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-sheet">
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────
+const TMDB_KEY = '087e509f6f93e629488a550f1451bb76';
+const TMDB = 'https://api.themoviedb.org/3';
+const IMG = (path, size='w500') => path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+const PLACEHOLDER_POSTER = 'https://placehold.co/200x300/111/333?text=No+Poster';
+
+// ─── State ────────────────────────────────────────────────────
+let selectedDate = new Date();
+let calendarEvents = {};
+let currentRec = null;
+let recHistory = [];
+let trendingPool = [];
+let poolIndex = 0;
+let heroMode = 'recommendation'; // 'recommendation' | 'event' | 'empty'
+let renderedDates = [];
+let lastCenteredIdx = -1;
+let audioCtx = null;
+let isMuted = true;
+
+const mutedSVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+const unmutedSVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+
+function toggleMute(){
+  isMuted=!isMuted;
+  document.getElementById('muteBtn').title=isMuted?'Unmute':'Mute';
+  document.getElementById('muteBtnIcon').innerHTML=isMuted?mutedSVG:unmutedSVG;
+  const cmd=JSON.stringify({event:'command',func:isMuted?'mute':'unMute',args:[]});
+  ['heroTrailer','splitTrailer1','splitTrailer2'].forEach(id=>{
+    const iframe=document.getElementById(id)?.querySelector('iframe');
+    if(iframe)iframe.contentWindow.postMessage(cmd,'*');
+  });
+}
+
+// ─── Color Extraction (canvas pixel sampling) ────────────────
+function rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0;const l=(mx+mn)/2;if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);switch(mx){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h/=6}return[h*360,s,l]}
+function hslToHex(h,s,l){const _h=((h%360)+360)%360,_s=Math.min(1,Math.max(0,s/100)),_l=Math.min(1,Math.max(0,l/100));const f=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<.5)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p};let r,g,b;if(_s===0){r=g=b=_l}else{const q=_l<.5?_l*(1+_s):_l+_s-_l*_s,p=2*_l-q;r=f(p,q,_h/360+1/3);g=f(p,q,_h/360);b=f(p,q,_h/360-1/3)}const hex=v=>{const h=Math.round(v*255).toString(16);return h.length===1?'0'+h:h};return`#${hex(r)}${hex(g)}${hex(b)}`}
+function shiftL(h,s,l,d){return hslToHex(h,s*100,Math.min(100,Math.max(0,l*100+d)))}
+function textColor(r,g,b){return(.299*r+.587*g+.114*b)/255>.6?'#050505':'#f8fafc'}
+
+function extractAccent(imgUrl){
+  return new Promise(resolve=>{
+    if(!imgUrl){resolve({start:'#201c3a',end:'#0d1531',text:'#f8fafc'});return}
+    const img=new Image();img.crossOrigin='Anonymous';img.src=imgUrl;
+    img.onload=()=>{
+      try{
+        const c=document.createElement('canvas'),sz=64;c.width=sz;c.height=sz;
+        const ctx=c.getContext('2d');ctx.drawImage(img,0,0,sz,sz);
+        const{data}=ctx.getImageData(0,0,sz,sz);
+        const samples=[];
+        for(let y=0;y<sz;y+=4)for(let x=0;x<sz;x+=4){
+          const i=(y*sz+x)*4;if(data[i+3]<180)continue;
+          const r=data[i],g=data[i+1],b=data[i+2];
+          const[h,s,l]=rgbToHsl(r,g,b);
+          samples.push({r,g,b,h,s,l,score:Math.max(r,g,b)/255*.7+s*.3});
+        }
+        if(!samples.length){resolve({start:'#201c3a',end:'#0d1531',text:'#f8fafc'});return}
+        samples.sort((a,b)=>b.score-a.score);
+        const p=samples[0];let sec=samples.find(s=>Math.abs(s.h-p.h)>60);
+        if(!sec)sec={...p,l:Math.max(0,p.l-.25)};
+        resolve({
+          start:shiftL(p.h,p.s,p.l,10),
+          end:sec===p?shiftL(p.h,p.s,p.l,-35):shiftL(sec.h,sec.s,sec.l,-15),
+          text:textColor(p.r,p.g,p.b)
+        });
+      }catch(e){resolve({start:'#201c3a',end:'#0d1531',text:'#f8fafc'})}
+    };
+    img.onerror=()=>resolve({start:'#201c3a',end:'#0d1531',text:'#f8fafc'});
+  });
+}
+
+// ─── Date Helpers ─────────────────────────────────────────────
+function dateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function isToday(d){return new Date().toDateString()===d.toDateString()}
+function isPast(d){const t=new Date();t.setHours(0,0,0,0);const dd=new Date(d);dd.setHours(0,0,0,0);return dd<t}
+function fmtDate(d){return d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}
+function dowShort(d){return d.toLocaleDateString('en-US',{weekday:'short'}).slice(0,3)}
+
+// ─── TMDB: Fetch logo + backdrop + trailer ──────────────────────
+async function fetchMovieImages(tmdbId){
+  try{
+    const [imgRes,vidRes]=await Promise.all([
+      fetch(`${TMDB}/movie/${tmdbId}/images?api_key=${TMDB_KEY}&include_image_language=en,null`),
+      fetch(`${TMDB}/movie/${tmdbId}/videos?api_key=${TMDB_KEY}&language=en-US`),
+    ]);
+    const img=await imgRes.json();
+    const vid=await vidRes.json();
+    const logo=(img.logos||[]).find(l=>l.iso_639_1==='en')||(img.logos||[])[0];
+    const bd=(img.backdrops||[])[0];
+    const trailer=(vid.results||[]).find(v=>v.site==='YouTube'&&(v.type==='Trailer'||v.type==='Teaser')&&v.official)||
+                 (vid.results||[]).find(v=>v.site==='YouTube'&&(v.type==='Trailer'||v.type==='Teaser'));
+    return{
+      logoUrl:logo?.file_path?IMG(logo.file_path,'w500'):null,
+      heroStill:bd?.file_path?IMG(bd.file_path,'w780'):null,
+      trailerKey:trailer?.key||null,
+    };
+  }catch(e){return{logoUrl:null,heroStill:null,trailerKey:null}}
+}
+
+// ─── TMDB: Fetch trending ─────────────────────────────────────
+async function fetchTrending(){
+  try{
+    const r=await fetch(`${TMDB}/trending/movie/week?api_key=${TMDB_KEY}&language=en-US`);
+    const d=await r.json();
+    const movies=[];
+    for(const item of (d.results||[]).slice(0,15)){
+      try{
+        const dr=await fetch(`${TMDB}/movie/${item.id}?api_key=${TMDB_KEY}&append_to_response=credits`);
+        const dd=await dr.json();
+        const director=dd.credits?.crew?.find(c=>c.job==='Director')?.name||'';
+        const genres=(dd.genres||[]).slice(0,2).map(g=>g.name);
+        const rt=dd.runtime;const hrs=Math.floor(rt/60),mins=rt%60;
+        const images=await fetchMovieImages(item.id);
+        movies.push({
+          id:item.id,title:dd.title||item.title,year:(dd.release_date||'').slice(0,4),
+          runtime:rt>0?(hrs>0?`${hrs}h ${mins}m`:`${mins}m`):'Feature',
+          poster:IMG(dd.poster_path)||PLACEHOLDER_POSTER,
+          backdrop:IMG(dd.backdrop_path,'w780'),
+          director,genres,
+          logoUrl:images.logoUrl,
+          heroStill:images.heroStill||IMG(dd.backdrop_path,'w780'),
+          trailerKey:images.trailerKey,
+        });
+      }catch(e){
+        movies.push({id:item.id,title:item.title,year:(item.release_date||'').slice(0,4),
+          runtime:'Feature',poster:IMG(item.poster_path)||PLACEHOLDER_POSTER,
+          backdrop:IMG(item.backdrop_path,'w780'),
+          director:'',genres:[],logoUrl:null,heroStill:IMG(item.backdrop_path,'w780'),trailerKey:null});
+      }
+    }
+    return movies;
+  }catch(e){console.error('Trending fetch failed',e);return[]}
+}
+
+async function searchTMDB(query){
+  if(!query.trim())return[];
+  try{
+    const r=await fetch(`${TMDB}/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false&language=en-US`);
+    const d=await r.json();
+    return(d.results||[]).filter(i=>i.media_type==='movie'||i.media_type==='tv').slice(0,12).map(i=>({
+      id:i.id,title:i.title||i.name,year:(i.release_date||i.first_air_date||'').slice(0,4),
+      runtime:i.media_type==='tv'?'Series':'Feature',
+      poster:IMG(i.poster_path,'w200')||PLACEHOLDER_POSTER,
+      backdrop:IMG(i.backdrop_path,'w780'),
+      mediaType:i.media_type
+    }));
+  }catch(e){return[]}
+}
+
+// ─── Seed Demo Events ─────────────────────────────────────────
+const SEED_MOVIES = [
+  {title:'Iron Man',tmdbId:1726},{title:'The Batman',tmdbId:414906},
+  {title:'Dune: Part Two',tmdbId:693134},{title:'Oppenheimer',tmdbId:872585},
+  {title:'Spider-Man: Into the Spider-Verse',tmdbId:324857},
+  {title:'Interstellar',tmdbId:157336},{title:'Past Lives',tmdbId:666277},
+];
+
+async function seedEvents(){
+  const today=new Date();
+  const assignments=[
+    {offset:-3,movies:[0]},{offset:-1,movies:[1,2]},{offset:0,movies:[3]},
+    {offset:2,movies:[4]},{offset:5,movies:[5]},{offset:7,movies:[6]},
+  ];
+  for(const a of assignments){
+    const d=new Date(today);d.setDate(today.getDate()+a.offset);
+    const dk=dateKey(d);
+    if(!calendarEvents[dk])calendarEvents[dk]=[];
+    for(const mi of a.movies){
+      const seed=SEED_MOVIES[mi];
+      try{
+        const r=await fetch(`${TMDB}/movie/${seed.tmdbId}?api_key=${TMDB_KEY}`);
+        const dd=await r.json();
+        const posterUrl=IMG(dd.poster_path,'w200')||PLACEHOLDER_POSTER;
+        const accent=await extractAccent(posterUrl);
+        const images=await fetchMovieImages(seed.tmdbId);
+        calendarEvents[dk].push({
+          id:Date.now()+Math.random(),title:dd.title||seed.title,
+          poster:posterUrl,year:(dd.release_date||'').slice(0,4),
+          runtime:dd.runtime?`${Math.floor(dd.runtime/60)}h ${dd.runtime%60}m`:'Feature',
+          logoUrl:images.logoUrl,
+          heroStill:images.heroStill||IMG(dd.backdrop_path,'w780'),
+          trailerKey:images.trailerKey,
+          ...accent
+        });
+      }catch(e){
+        calendarEvents[dk].push({
+          id:Date.now()+Math.random(),title:seed.title,
+          poster:PLACEHOLDER_POSTER,year:'2024',runtime:'Feature',
+          logoUrl:null,heroStill:null,
+          start:'#201c3a',end:'#0d1531',text:'#f8fafc'
+        });
+      }
+    }
+  }
+}
+
+// ─── Hero Rendering ───────────────────────────────────────────
+const reasons=[
+  "You clearly have a thing for existential dread with pretty cinematography.",
+  "Your taste screams 'I peaked during film school' and honestly, same.",
+  "This has your name written all over it. That's not a compliment.",
+  "Based on your history, you'll either love this or write a Letterboxd essay about it.",
+  "Your algorithm is giving 'I only watch movies that make me feel things.'",
+  "This one checks your boxes: moody, long, and will absolutely ruin your evening.",
+];
+
+function playReelClick(){
+  try{
+    if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    const osc=audioCtx.createOscillator();
+    const gain=audioCtx.createGain();
+    osc.connect(gain);gain.connect(audioCtx.destination);
+    osc.type='square';
+    osc.frequency.setValueAtTime(800,audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200,audioCtx.currentTime+.03);
+    gain.gain.setValueAtTime(.08,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.04);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime+.04);
+  }catch(e){}
+}
+
+function showHeroEmpty(){
+  heroMode='empty';
+  document.getElementById('heroLoading').style.display='none';
+  document.getElementById('heroContent').style.display='none';
+  document.getElementById('heroSplit').style.display='none';
+  document.getElementById('heroEmpty').style.display='flex';
+  document.getElementById('heroStill').classList.remove('active');
+  document.getElementById('heroStill').src='';
+  const trailerEl=document.getElementById('heroTrailer');
+  trailerEl.classList.remove('active');
+  trailerEl.innerHTML='';
+  document.getElementById('hero').style.backgroundImage='none';
+}
+
+async function updateHero(movie, isEvent){
+  if(!movie){showHeroEmpty();return}
+
+  heroMode=isEvent?'event':'recommendation';
+  document.getElementById('heroEmpty').style.display='none';
+  document.getElementById('heroLoading').style.display='none';
+  document.getElementById('heroSplit').style.display='none';
+  const content=document.getElementById('heroContent');
+  content.style.display='flex';
+
+  // Trailer video (autoplay) or still image fallback
+  const trailerEl=document.getElementById('heroTrailer');
+  const stillEl=document.getElementById('heroStill');
+  const key=movie.trailerKey||null;
+  const stillSrc=movie.heroStill||movie.backdrop||null;
+  trailerEl.classList.remove('active');
+  trailerEl.innerHTML='';
+  stillEl.classList.remove('active');
+  stillEl.src='';
+  if(key){
+    const iframe=document.createElement('iframe');
+    iframe.src=`https://www.youtube.com/embed/${key}?autoplay=1&mute=${isMuted?1:0}&loop=1&playlist=${key}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${location.origin}`;
+    iframe.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture';
+    iframe.allowFullscreen=true;
+    trailerEl.appendChild(iframe);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>trailerEl.classList.add('active')));
+  }else if(stillSrc){
+    stillEl.src=stillSrc;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>stillEl.classList.add('active')));
+  }
+
+  // Accent gradient on hero background
+  const accent=movie.start?{start:movie.start,end:movie.end}:await extractAccent(movie.poster);
+  document.getElementById('hero').style.backgroundImage=
+    `radial-gradient(ellipse at top center, ${accent.start}40, ${accent.end}20, #09090b 80%)`;
+
+  // Tag label
+  document.getElementById('heroTagLabel').textContent=isEvent?'Watched':'Next Watch';
+  document.getElementById('heroDate').textContent=fmtDate(selectedDate);
+
+  // Logo or title text
+  const logoEl=document.getElementById('heroLogo');
+  const titleEl=document.getElementById('heroTitle');
+  logoEl.classList.remove('active');
+  titleEl.classList.remove('active');
+
+  if(movie.logoUrl){
+    logoEl.src=movie.logoUrl;
+    logoEl.style.display='block';
+    titleEl.style.display='none';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>logoEl.classList.add('active')));
+  }else{
+    logoEl.style.display='none';
+    titleEl.style.display='block';
+    titleEl.textContent=movie.title;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>titleEl.classList.add('active')));
+  }
+
+  // Meta
+  let meta=movie.year||'';
+  if(movie.runtime)meta+=` \u2022 ${movie.runtime}`;
+  if(movie.director)meta+=` \u2022 ${movie.director}`;
+  document.getElementById('heroMeta').textContent=meta;
+
+  // Genres
+  const genresEl=document.getElementById('heroGenres');
+  genresEl.innerHTML='';
+  (movie.genres||[]).forEach(g=>{const s=document.createElement('span');s.textContent=g;genresEl.appendChild(s)});
+
+  // Reason
+  const reasonEl=document.getElementById('heroReason');
+  if(isEvent){
+    reasonEl.textContent='';
+  }else{
+    reasonEl.textContent=`\u201c${reasons[Math.floor(Math.random()*reasons.length)]}\u201d`;
+  }
+
+  // Show/hide action bar based on mode
+  document.getElementById('heroActions').style.display=isEvent?'none':'flex';
+  document.querySelector('.refresh-btn').style.display=isEvent?'none':'flex';
+}
+
+// ─── Split-screen hero for multi-movie dates ─────────────────
+async function showHeroSplit(movies){
+  heroMode='event';
+  document.getElementById('heroLoading').style.display='none';
+  document.getElementById('heroContent').style.display='none';
+  document.getElementById('heroEmpty').style.display='none';
+  document.getElementById('heroStill').classList.remove('active');
+  document.getElementById('heroStill').src='';
+  const tr=document.getElementById('heroTrailer');
+  tr.classList.remove('active');
+  tr.innerHTML='';
+  document.getElementById('hero').style.backgroundImage='none';
+
+  const splitEl=document.getElementById('heroSplit');
+  splitEl.style.display='flex';
+
+  const pairs=[
+    {still:'splitStill1',trailer:'splitTrailer1',logo:'splitLogo1',title:'splitTitle1'},
+    {still:'splitStill2',trailer:'splitTrailer2',logo:'splitLogo2',title:'splitTitle2'},
+  ];
+  for(let i=0;i<2;i++){
+    const m=movies[i]||null;
+    const p=pairs[i];
+    const stillEl=document.getElementById(p.still);
+    const trailerEl=document.getElementById(p.trailer);
+    const logoEl=document.getElementById(p.logo);
+    const titleEl=document.getElementById(p.title);
+    stillEl.classList.remove('active');trailerEl.classList.remove('active');trailerEl.innerHTML='';logoEl.classList.remove('active');titleEl.classList.remove('active');
+    if(!m){stillEl.src='';logoEl.src='';titleEl.textContent='';continue}
+    const key=m.trailerKey||null;
+    const stillSrc=m.heroStill||m.backdrop||null;
+    if(key){
+      const iframe=document.createElement('iframe');
+      iframe.src=`https://www.youtube.com/embed/${key}?autoplay=1&mute=${isMuted?1:0}&loop=1&playlist=${key}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${location.origin}`;
+      iframe.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture';
+      trailerEl.appendChild(iframe);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>trailerEl.classList.add('active')));
+    }else if(stillSrc){stillEl.src=stillSrc;requestAnimationFrame(()=>requestAnimationFrame(()=>stillEl.classList.add('active')))}
+    if(m.logoUrl){
+      logoEl.src=m.logoUrl;logoEl.style.display='block';titleEl.style.display='none';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>logoEl.classList.add('active')));
+    }else{
+      logoEl.style.display='none';titleEl.style.display='block';titleEl.textContent=m.title;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>titleEl.classList.add('active')));
+    }
+  }
+}
+
+// ─── Date Selection drives hero ───────────────────────────────
+function onDateSelected(date){
+  const dk=dateKey(date);
+  const evts=calendarEvents[dk]||[];
+
+  if(evts.length>=2){
+    showHeroSplit(evts);
+  }else if(evts.length===1){
+    updateHero(evts[0],true);
+  }else if(isPast(date)){
+    updateHero(null);
+  }else{
+    if(currentRec){
+      updateHero(currentRec,false);
+    }else{
+      loadNextRecommendation();
+    }
+  }
+}
+
+async function loadNextRecommendation(){
+  const icon=document.getElementById('refreshIcon');
+  if(icon)icon.style.animation='spin .8s linear infinite';
+  document.getElementById('heroLoading').style.display='flex';
+  document.getElementById('heroContent').style.display='none';
+  document.getElementById('heroEmpty').style.display='none';
+  document.getElementById('heroSplit').style.display='none';
+
+  if(!trendingPool.length){
+    trendingPool=await fetchTrending();
+    trendingPool.sort(()=>Math.random()-.5);
+    poolIndex=0;
+  }
+  if(poolIndex>=trendingPool.length){trendingPool.sort(()=>Math.random()-.5);poolIndex=0}
+  const movie=trendingPool[poolIndex++];
+  currentRec=movie;
+  recHistory.push(movie);
+  await updateHero(movie,false);
+  if(icon)icon.style.animation='';
+}
+
+function handleAction(type){
+  if(!currentRec)return;
+  if(type==='like'){
+    showToast(`Liked ${currentRec.title}!`,'success');
+    loadNextRecommendation();
+  }else if(type==='pass'){
+    showToast(`Passed on ${currentRec.title}`,'info');
+    loadNextRecommendation();
+  }else if(type==='skip'){
+    loadNextRecommendation();
+  }else if(type==='add'){
+    addMovieToDate(selectedDate,currentRec);
+    showToast(`Added to ${fmtDate(selectedDate)}`,'success');
+    renderStrip();
+    loadNextRecommendation();
+  }
+}
+
+async function addMovieToDate(date,movie){
+  const dk=dateKey(date);
+  if(!calendarEvents[dk])calendarEvents[dk]=[];
+  const accent=await extractAccent(movie.poster);
+  const images=movie.logoUrl!==undefined?{logoUrl:movie.logoUrl,heroStill:movie.heroStill,trailerKey:movie.trailerKey}:await fetchMovieImages(movie.id);
+  calendarEvents[dk].push({
+    id:Date.now()+Math.random(),title:movie.title,poster:movie.poster,
+    year:movie.year,runtime:movie.runtime,
+    logoUrl:images.logoUrl,
+    heroStill:images.heroStill||movie.backdrop||null,
+    trailerKey:images.trailerKey||null,
+    ...accent
+  });
+}
+
+// ─── Render: Date Strip ───────────────────────────────────────
+function renderStrip(){
+  const container=document.getElementById('stripScroll');
+  container.innerHTML='';
+
+  document.getElementById('stripMonth').textContent=
+    selectedDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  renderedDates=[];
+  for(let i=-14;i<=14;i++){const d=new Date(selectedDate);d.setDate(selectedDate.getDate()+i);renderedDates.push(d)}
+  const centerIdx=14;
+  lastCenteredIdx=centerIdx;
+
+  renderedDates.forEach((d,i)=>{
+    const dk=dateKey(d);
+    const evts=calendarEvents[dk]||[];
+    const hasEvent=evts.length>0;
+    const primary=evts[0];
+    const today=isToday(d);
+    const isSel=selectedDate.toDateString()===d.toDateString();
+    const dist=Math.abs(i-centerIdx);
+    const scale=isSel?1.3:Math.max(.8,1-dist*.025);
+    const opacity=isSel?1:Math.max(.4,1-dist*.06);
+
+    const cell=document.createElement('div');
+    cell.className='date-cell'+(hasEvent?'':' empty')+(today&&!hasEvent?' today':'')+(isSel?' selected':'');
+    cell.style.transform=`scale(${scale})`;
+    cell.style.opacity=opacity;
+    cell.style.transition='transform .2s, opacity .2s';
+
+    if(hasEvent){
+      cell.style.backgroundImage=`radial-gradient(circle at top right, ${primary.start||'#201c3a'}, ${primary.end||'#0d1531'})`;
+    }
+
+    const dow=document.createElement('span');dow.className='dow';
+    dow.textContent=dowShort(d);
+    dow.style.color=hasEvent?(primary.text||'#f8fafc'):today?'#3b82f6':'#52525b';
+
+    const day=document.createElement('span');day.className='day';
+    day.textContent=d.getDate();
+    day.style.color=hasEvent?(primary.text||'#f8fafc'):today?'#3b82f6':'#9ca3af';
+
+    cell.appendChild(dow);cell.appendChild(day);
+
+    if(evts.length>1){
+      const badge=document.createElement('span');badge.className='count-badge';
+      badge.textContent=evts.length;
+      badge.style.color=primary.text||'#f8fafc';
+      cell.appendChild(badge);
+    }else if(hasEvent){
+      const dot=document.createElement('div');dot.className='dot';cell.appendChild(dot);
+    }
+
+    cell.onclick=()=>{
+      const container=document.getElementById('stripScroll');
+      const targetLeft=cell.offsetLeft-container.clientWidth/2+cell.offsetWidth/2;
+      container.scrollTo({left:targetLeft,behavior:'smooth'});
+    };
+
+    container.appendChild(cell);
+  });
+
+  requestAnimationFrame(()=>{
+    const center=container.children[centerIdx];
+    if(center){
+      container.scrollTo({left:center.offsetLeft-container.clientWidth/2+center.offsetWidth/2,behavior:'auto'});
+    }
+  });
+}
+
+function updateStripSelection(activeIdx){
+  const container=document.getElementById('stripScroll');
+  const cells=container.children;
+  for(let i=0;i<cells.length;i++){
+    const dist=Math.abs(i-activeIdx);
+    const isSel=(i===activeIdx);
+    cells[i].classList.toggle('selected',isSel);
+    cells[i].style.transform=`scale(${isSel?1.3:Math.max(.8,1-dist*.025)})`;
+    cells[i].style.opacity=isSel?1:Math.max(.4,1-dist*.06);
+  }
+}
+
+let scrollDebounce=null;
+function setupScrollSnap(){
+  const container=document.getElementById('stripScroll');
+  container.addEventListener('scroll',()=>{
+    clearTimeout(scrollDebounce);
+    scrollDebounce=setTimeout(()=>{
+      const cx=container.scrollLeft+container.clientWidth/2;
+      let closestIdx=-1,closestDist=Infinity;
+      for(let i=0;i<container.children.length;i++){
+        const child=container.children[i];
+        const mid=child.offsetLeft+child.offsetWidth/2;
+        const d=Math.abs(mid-cx);
+        if(d<closestDist){closestDist=d;closestIdx=i}
+      }
+      if(closestIdx>=0&&closestIdx!==lastCenteredIdx&&renderedDates[closestIdx]){
+        lastCenteredIdx=closestIdx;
+        selectedDate=new Date(renderedDates[closestIdx]);
+        updateStripSelection(closestIdx);
+        onDateSelected(selectedDate);
+        if(navigator.vibrate)navigator.vibrate(8);
+        playReelClick();
+      }
+    },100);
+  },{passive:true});
+}
+
+function shiftWeek(days){
+  selectedDate.setDate(selectedDate.getDate()+days);
+  selectedDate=new Date(selectedDate);
+  renderStrip();
+  onDateSelected(selectedDate);
+}
+
+// ─── Modal ────────────────────────────────────────────────────
+function openModal(html){
+  document.getElementById('modalBody').innerHTML=html;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+
+function openEventsModal(dk){
+  const evts=calendarEvents[dk]||[];
+  const d=new Date(dk+'T12:00:00');
+  let html=`<div class="modal-title">Movies on this day</div>
+    <p class="modal-sub">${fmtDate(d)}</p>
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto">`;
+  evts.forEach(e=>{
+    html+=`<div style="display:flex;gap:10px;padding:10px;border-radius:12px;background:var(--bg);border:1px solid var(--border);cursor:pointer">
+      <img src="${e.poster}" style="width:44px;height:62px;border-radius:8px;object-fit:cover" alt="${e.title}">
+      <div style="display:flex;flex-direction:column;justify-content:center">
+        <strong style="font-size:13px">${e.title}</strong>
+        <span style="font-size:11px;color:var(--text4)">${e.year||''} \u2022 ${e.runtime||''}</span>
+      </div>
+    </div>`;
+  });
+  html+=`</div>
+    <button onclick="closeModal();openSearchModal(new Date('${dk}T12:00:00'))"
+      style="width:100%;margin-top:16px;padding:14px;border-radius:12px;border:none;background:#fff;color:#000;font-weight:700;font-size:15px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Another Movie
+    </button>`;
+  openModal(html);
+}
+
+function openSearchModal(date){
+  const past=isPast(date)||isToday(date);
+  let html=`<div class="modal-title">${past?'Log Watched Movie':'Plan a Movie'}</div>
+    <p class="modal-sub">${fmtDate(date)}</p>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="modalSearch" type="text" placeholder="${past?'What did you watch?':'Search for a movie...'}" oninput="handleModalSearch(this.value,'${dateKey(date)}')" autofocus>
+    </div>
+    <div class="search-results" id="modalResults"></div>`;
+  openModal(html);
+  setTimeout(()=>{const el=document.getElementById('modalSearch');if(el)el.focus()},100);
+}
+
+let searchTimeout=null;
+function handleModalSearch(query,dk){
+  clearTimeout(searchTimeout);
+  const box=document.getElementById('modalResults');
+  if(!query.trim()){box.innerHTML='<p style="text-align:center;color:var(--text4);font-size:12px;padding:16px">Type a title to search TMDB</p>';return}
+  box.innerHTML='<p style="text-align:center;color:var(--text4);font-size:12px;padding:16px">Searching...</p>';
+  searchTimeout=setTimeout(async()=>{
+    const results=await searchTMDB(query);
+    if(!results.length){box.innerHTML='<p style="text-align:center;color:var(--text4);font-size:12px;padding:16px">No results found</p>';return}
+    box.innerHTML='';
+    results.forEach(m=>{
+      const item=document.createElement('div');item.className='search-item';
+      item.innerHTML=`<img src="${m.poster}" alt="${m.title}"><div class="info"><strong>${m.title}</strong><span>${m.year} \u2022 ${m.runtime}</span></div>`;
+      item.onclick=async()=>{
+        closeModal();
+        const d=new Date(dk+'T12:00:00');
+        await addMovieToDate(d,m);
+        renderStrip();
+        onDateSelected(d);
+        showToast(`Added "${m.title}" to ${fmtDate(d)}`,'success');
+      };
+      box.appendChild(item);
+    });
+  },350);
+}
+
+// ─── Toast ────────────────────────────────────────────────────
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────
+(async function boot(){
+  await seedEvents();
+  renderStrip();
+  setupScrollSnap();
+  await loadNextRecommendation();
+})();
+</script>
+</body>
+</html>

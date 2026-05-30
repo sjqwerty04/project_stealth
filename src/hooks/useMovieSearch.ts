@@ -260,28 +260,34 @@ Return a JSON array of movie objects.
       if (classification.mode === 'standard' || searchResults.length === 0) {
         metadata.mode = 'standard';
         
-        // Search both movies and TV shows
-        const [movieRes, tvRes] = await Promise.all([
-          fetch(
-            `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`,
-            { signal: abortControllerRef.current.signal }
-          ),
-          fetch(
-            `${TMDB_BASE}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`,
-            { signal: abortControllerRef.current.signal }
-          ),
+        // Search movies (pages 1+2) and TV (page 1) in parallel so popular films
+        // like "Casino Royale" that TMDB buries on page 2 still surface correctly.
+        const sig = { signal: abortControllerRef.current.signal };
+        const movieUrl = (page: number) =>
+          `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=${page}`;
+        const tvUrl =
+          `${TMDB_BASE}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=1`;
+
+        const [movie1Res, movie2Res, tvRes] = await Promise.all([
+          fetch(movieUrl(1), sig),
+          fetch(movieUrl(2), sig),
+          fetch(tvUrl, sig),
         ]);
 
-        if (!movieRes.ok || !tvRes.ok) {
-          throw new Error('Search failed');
-        }
+        if (!movie1Res.ok || !tvRes.ok) throw new Error('Search failed');
 
-        const [movieData, tvData] = await Promise.all([
-          movieRes.json(),
+        const [movie1Data, movie2Data, tvData] = await Promise.all([
+          movie1Res.json(),
+          movie2Res.ok ? movie2Res.json() : { results: [] },
           tvRes.json(),
         ]);
 
-        const movies: SearchResult[] = (movieData.results || []).map((m: any) => ({
+        // Merge page 1+2 movie results, deduplicate by id
+        const seenIds = new Set<number>();
+        const mergedMovieResults = [...(movie1Data.results || []), ...(movie2Data.results || [])]
+          .filter((m: any) => { if (seenIds.has(m.id)) return false; seenIds.add(m.id); return true; });
+
+        const movies: SearchResult[] = mergedMovieResults.map((m: any) => ({
           id: m.id,
           title: m.title,
           year: m.release_date?.slice(0, 4) || '',
@@ -314,7 +320,7 @@ Return a JSON array of movie objects.
         const queryWords = queryLower.split(/\s+/).filter(Boolean);
         
         // For very short queries (< 3 chars), rely more on TMDB's native ordering
-        const isShortQuery = trimmedQuery.length < 3;
+        void trimmedQuery.length; // ranking no longer needs short-query special-case
         
         searchResults = [...movies, ...tvShows].sort((a, b) => {
           const aTitle = a.title.toLowerCase();
@@ -361,19 +367,14 @@ Return a JSON array of movie objects.
           
           // Sort by match rank first
           if (aRank !== bRank) return aRank - bRank;
-          
-          // For short queries, prioritize TMDB popularity more heavily
-          if (isShortQuery) {
-            return b.popularity - a.popularity;
-          }
-          
-          // Within same rank, use vote_count as primary tiebreaker (favors well-known titles)
-          if (a.voteCount !== b.voteCount) {
-            return b.voteCount - a.voteCount;
-          }
-          
-          // Final tiebreaker: popularity
-          return b.popularity - a.popularity;
+
+          // Within same rank: use TMDB popularity as primary tiebreaker.
+          // Popularity reflects real-time trending — a 2026 film that's currently
+          // viral will score higher than a 1995 film with more all-time votes.
+          // Use a blended score: 70% popularity, 30% log-scaled vote_count.
+          const scoreA = a.popularity * 0.7 + Math.log10((a.voteCount || 0) + 1) * 0.3;
+          const scoreB = b.popularity * 0.7 + Math.log10((b.voteCount || 0) + 1) * 0.3;
+          return scoreB - scoreA;
         });
       }
       

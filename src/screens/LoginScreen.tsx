@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Mail, Lock, Loader2, ArrowRight, Chrome, UserPlus, LogIn } from 'lucide-react';
 
@@ -8,6 +8,18 @@ type Step = 'email' | 'choose' | 'signin' | 'signup';
 export default function LoginScreen() {
   const { checkWhitelist, signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get('next');
+  const isSafeNext = !!nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//');
+  const goAfterAuth = (isNew = false) => {
+    if (isNew) {
+      // New accounts always go through onboarding first; next resumes after.
+      const dest = isSafeNext ? nextPath! : '/app';
+      navigate(`/onboarding?next=${encodeURIComponent(dest)}`, { replace: true });
+    } else {
+      navigate(isSafeNext ? nextPath! : '/app', { replace: true });
+    }
+  };
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
@@ -28,7 +40,8 @@ export default function LoginScreen() {
 
     try {
       const whitelisted = await checkWhitelist(email);
-      if (whitelisted) {
+      const hasInvite = !!sessionStorage.getItem('pendingInviteCode') || !!sessionStorage.getItem('appInvite');
+      if (whitelisted || hasInvite) {
         setStep('choose');
       } else {
         navigate('/waitlist', { replace: true });
@@ -52,7 +65,7 @@ export default function LoginScreen() {
 
     try {
       await signIn(email, password);
-      navigate('/app', { replace: true });
+      goAfterAuth();
     } catch (err: any) {
       console.log('Sign in error:', err.code, err.message);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
@@ -85,7 +98,7 @@ export default function LoginScreen() {
 
     try {
       await signUp(email, password);
-      navigate('/app', { replace: true });
+      goAfterAuth(true);
     } catch (err: any) {
       if (err.message === 'Email not whitelisted') {
         navigate('/waitlist', { replace: true });
@@ -105,7 +118,7 @@ export default function LoginScreen() {
 
     try {
       await signInWithGoogle();
-      navigate('/app', { replace: true });
+      goAfterAuth();
     } catch (err: any) {
       if (err.message === 'Email not whitelisted') {
         navigate('/waitlist', { replace: true });
@@ -121,9 +134,13 @@ export default function LoginScreen() {
     <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-white">
-            ViewFindr
-          </h1>
+          <div className="flex justify-center mb-2">
+            <img
+              src="/selects-logo.png"
+              alt="Selects"
+              className="h-10 w-auto"
+            />
+          </div>
           <p className="text-sm text-gray-500">
             {step === 'email' && 'Enter your email to get started'}
             {step === 'choose' && 'You\'re on the list! How would you like to continue?'}

@@ -1,52 +1,131 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Whitelist - anyone can read to check if email is allowed
+    // Whitelist - anyone can read to check if email is allowed.
+    // Authenticated users may create their own entry (self-whitelist via invite).
+    // Updates and deletes remain admin-only.
     match /whitelist/{email} {
       allow read: if true;
-      allow write: if false; // Only admin can write via console
+      allow create: if request.auth != null
+                    && (request.auth.token.email.lower() == email
+                        || request.auth.token.email == 'shroomyai2000@gmail.com')
+                    && request.resource.data.allowed == true;
+      allow update: if request.auth.token.email == 'shroomyai2000@gmail.com';
+      allow delete: if request.auth != null
+                    && request.auth.token.email == 'shroomyai2000@gmail.com';
     }
-    
+
     // User data - only the authenticated user can access their own data
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      
+
       // Calendar logs subcollection
       match /calendar_logs/{logId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-      
+
       // Watched recommendations subcollection
       match /watched_recommendations/{recId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-      
+
       // Watchlist subcollection (movies user wants to watch)
       match /watchlist/{itemId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-      
+
       // Skipped recommendations subcollection (temporary "Not Now" buffer)
       match /skipped_recommendations/{skipId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-      
+
       // Saved vibes subcollection (user's saved taste patterns)
       match /saved_vibes/{vibeId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
-    
+
+    // Shared watchlists - collaborative lists with multiple members
+    match /shared_watchlists/{listId} {
+      function isMember() {
+        return request.auth != null
+          && request.auth.uid in resource.data.memberUids;
+      }
+      function willBeMember() {
+        return request.auth != null
+          && request.auth.uid in request.resource.data.memberUids;
+      }
+
+      allow read: if isMember();
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.auth.uid in request.resource.data.memberUids;
+      // Two paths:
+      //   (a) An existing member updates the list (rename, add member, etc.)
+      //       Owner cannot be changed.
+      //   (b) A non-member self-joins via invite: they add themselves to
+      //       memberUids and members. They cannot rename, change owner, or
+      //       affect other members. Discovery of the listId is gated by the
+      //       invite code (see shared_watchlist_invites).
+      allow update: if request.auth != null
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && (
+                      isMember()
+                      || (
+                        !(request.auth.uid in resource.data.memberUids)
+                        && request.auth.uid in request.resource.data.memberUids
+                        && request.resource.data.name == resource.data.name
+                      )
+                    );
+      allow delete: if request.auth != null
+                    && resource.data.ownerUid == request.auth.uid;
+
+      match /items/{itemId} {
+        function parentList() {
+          return get(/databases/$(database)/documents/shared_watchlists/$(listId)).data;
+        }
+        allow read: if request.auth != null
+          && request.auth.uid in parentList().memberUids;
+        allow create: if request.auth != null
+          && request.auth.uid in parentList().memberUids
+          && request.resource.data.addedBy == request.auth.uid;
+        // Adder or owner can delete; no edits.
+        allow delete: if request.auth != null
+          && (resource.data.addedBy == request.auth.uid
+              || parentList().ownerUid == request.auth.uid);
+      }
+    }
+
+    // Invite codes for shared watchlists
+    match /shared_watchlist_invites/{code} {
+      allow read: if true; // codes are unguessable; public read needed before auth
+      allow create: if request.auth != null
+                    && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if request.auth != null
+                    && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Handles - public uniqueness registry mapping handle -> uid
+    match /handles/{handleLower} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
     // Feedback inbox - authenticated users can create, but not read
     match /feedback_inbox/{docId} {
       allow create: if request.auth != null;
       allow read, update, delete: if false; // Only admin via console
     }
-    
+
     // Activity logs - authenticated users can create, only admin can read
     match /activity_logs/{logId} {
       allow create: if request.auth != null;
-      allow read, update, delete: if false; // Only admin via console/Streamlit
+      allow read: if request.auth != null
+                  && request.auth.token.email == 'shroomyai2000@gmail.com';
+      allow update, delete: if false;
     }
   }
 }

@@ -1,120 +1,68 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Bookmark, Trash2, CalendarPlus, Plus, X, Upload } from 'lucide-react';
-import { useWatchlist, type WatchlistItem } from '../hooks/useWatchlist';
+import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Loader2, Plus, Upload, Users, X } from 'lucide-react';
+import { useWatchlist } from '../hooks/useWatchlist';
+import { useSharedWatchlists } from '../hooks/useSharedWatchlists';
 import { useIMDBImport, detectImportType } from '../hooks/useIMDBImport';
-import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 
 export default function WatchlistScreen() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { items, loading, removeFromWatchlist, refreshWatchlist } = useWatchlist();
-  const { importFromIMDB, importFromCSV, isImporting: isIMDBImporting, progress: imdbProgress, error: imdbError, importedCount: imdbImportedCount } = useIMDBImport();
-  // Letterboxd import not used on watchlist screen but keeping hook for potential future use
-  const { isImporting: isLetterboxdImporting, progress: letterboxdProgress, error: letterboxdError, importedCount: letterboxdImportedCount } = useLetterboxdImport();
-  
+  const { items: savedItems, loading: savedLoading, refreshWatchlist } = useWatchlist();
+  const { personalLists, sharedLists, loading: listsLoading, createList } = useSharedWatchlists();
+  const { importFromIMDB, importFromCSV, isImporting, progress, error: importError } = useIMDBImport();
+
+  const [showCreatePersonal, setShowCreatePersonal] = useState(false);
+  const [showCreateShared, setShowCreateShared] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [creating, setCreating] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [importSuccess, setImportSuccess] = useState<number | null>(null);
-  const [selectedMovie, setSelectedMovie] = useState<WatchlistItem | null>(null);
-  const [showActionModal, setShowActionModal] = useState(false);
-  const [importMode, setImportMode] = useState<'url' | 'csv'>('csv'); // Default to CSV since it's more reliable
 
-  const isImporting = isIMDBImporting || isLetterboxdImporting;
-  const progress = isIMDBImporting ? imdbProgress : letterboxdProgress;
-  const importError = isIMDBImporting ? imdbError : letterboxdError;
-  const importedCount = isIMDBImporting ? imdbImportedCount : letterboxdImportedCount;
+  const loading = savedLoading || listsLoading;
+
+  const handleCreate = async (isPersonal: boolean) => {
+    const name = newListName.trim();
+    if (!name) return;
+    setCreating(true);
+    const id = await createList(name, { isPersonal });
+    setCreating(false);
+    setNewListName('');
+    setShowCreatePersonal(false);
+    setShowCreateShared(false);
+    if (id) navigate(isPersonal ? `/shared/${id}` : `/shared/${id}`);
+  };
 
   const handleImport = async () => {
     if (!importUrl.trim()) return;
-    
-    const importType = detectImportType(importUrl);
-    
-    if (importType === 'unknown') {
-      return;
-    }
-
-    let count = 0;
-    
-    if (importType === 'imdb-watchlist') {
-      count = await importFromIMDB(importUrl, 'imdb-watchlist');
-    } else if (importType === 'letterboxd') {
-      // Letterboxd doesn't have a separate watchlist, but we could support it in the future
-      // For now, show an error
-      return;
-    }
-
+    const type = detectImportType(importUrl);
+    if (type !== 'imdb-watchlist') return;
+    const count = await importFromIMDB(importUrl, 'imdb-watchlist');
     if (count > 0) {
       setImportSuccess(count);
       await refreshWatchlist();
-      setTimeout(() => {
-        setShowImportModal(false);
-        setImportUrl('');
-        setImportSuccess(null);
-        setImportMode('csv');
-      }, 2000);
+      setTimeout(() => { setShowImportModal(false); setImportUrl(''); setImportSuccess(null); }, 2000);
     }
   };
 
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const csvContent = e.target?.result as string;
-      if (csvContent) {
-        const count = await importFromCSV(csvContent, 'imdb-watchlist');
+      const csv = e.target?.result as string;
+      if (csv) {
+        const count = await importFromCSV(csv, 'imdb-watchlist');
         if (count > 0) {
           setImportSuccess(count);
           await refreshWatchlist();
-          setTimeout(() => {
-            setShowImportModal(false);
-            setImportSuccess(null);
-            setImportMode('csv');
-          }, 2000);
+          setTimeout(() => { setShowImportModal(false); setImportSuccess(null); }, 2000);
         }
       }
     };
     reader.readAsText(file);
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleRemove = async (item: WatchlistItem) => {
-    await removeFromWatchlist(item.id);
-    setShowActionModal(false);
-    setSelectedMovie(null);
-  };
-
-  const handleMarkAsWatched = async (item: WatchlistItem) => {
-    // Remove from watchlist immediately, then navigate to detail page to log it
-    await removeFromWatchlist(item.id);
-    setShowActionModal(false);
-    setSelectedMovie(null);
-    navigate(`/movie/${item.movieId}?type=movie`);
-  };
-
-  const getImportTypeLabel = () => {
-    const type = detectImportType(importUrl);
-    switch (type) {
-      case 'imdb-watchlist':
-        return 'IMDB Watchlist detected';
-      case 'imdb-ratings':
-        return 'IMDB Ratings detected (use Watched screen for this)';
-      case 'letterboxd':
-        return 'Letterboxd detected (use Watched screen for diary)';
-      default:
-        return '';
-    }
-  };
-
-  const isValidImportUrl = () => {
-    const type = detectImportType(importUrl);
-    return type === 'imdb-watchlist';
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -129,291 +77,205 @@ export default function WatchlistScreen() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white">Watchlist</h1>
-            <p className="text-xs text-gray-500">Movies you want to watch</p>
+            <h1 className="text-xl font-bold text-white">Library</h1>
+            <p className="text-xs text-gray-500">Your lists &amp; saved films</p>
           </div>
         </div>
         <button
           onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-sm font-medium transition-colors"
         >
-          <Plus size={16} />
-          <span className="hidden sm:inline">Import</span>
+          <Upload size={15} />
+          Import
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
           </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 rounded-full bg-gray-900 flex items-center justify-center mb-4">
-              <Bookmark className="w-10 h-10 text-gray-600" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-300 mb-2">
-              Your watchlist is empty
-            </h3>
-            <p className="text-sm text-gray-500 max-w-xs mb-6">
-              Import your IMDB watchlist or add movies you want to watch.
-            </p>
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors"
-            >
-              Import from IMDB
-            </button>
-          </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  setSelectedMovie(item);
-                  setShowActionModal(true);
-                }}
-                className="relative rounded-xl overflow-hidden bg-gray-900 border border-gray-800 group cursor-pointer transform transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl active:scale-95"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <img
-                  src={item.poster}
-                  alt={item.title}
-                  className="w-full aspect-[2/3] object-cover transition-transform duration-200 group-hover:brightness-110"
-                />
-                
-                {/* Bookmark Badge */}
-                <div className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg bg-blue-500 text-white transition-transform duration-200 group-hover:scale-110">
-                  <Bookmark size={14} className="fill-current" />
-                </div>
+          <div className="p-4 space-y-5">
+            {/* Liked + Saved */}
+            <section>
+              <LibraryRow
+                icon={<Heart size={18} className="text-red-400 fill-current" />}
+                label="Liked Movies"
+                subtitle="Films you gave a thumbs up"
+                accentColor="bg-red-500/10"
+                onTap={() => navigate('/liked')}
+              />
+              <LibraryRow
+                icon={<Bookmark size={18} className="text-blue-400 fill-current" />}
+                label="Saved"
+                subtitle={`${savedItems.length} film${savedItems.length !== 1 ? 's' : ''}`}
+                accentColor="bg-blue-500/10"
+                onTap={() => navigate('/saved')}
+              />
+            </section>
 
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-2">
-                  <h4 className="text-xs font-bold text-white leading-tight truncate">
-                    {item.title}
-                  </h4>
-                  <p className="text-[10px] text-gray-400">{item.year}</p>
-                </div>
+            {/* My Playlists */}
+            <section>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">My Playlists</p>
+                <button
+                  onClick={() => { setShowCreatePersonal(true); setShowCreateShared(false); }}
+                  className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  <Plus size={14} />
+                  New
+                </button>
               </div>
-            ))}
+
+              {showCreatePersonal && (
+                <CreateListInput
+                  value={newListName}
+                  onChange={setNewListName}
+                  onSubmit={() => handleCreate(true)}
+                  onCancel={() => { setShowCreatePersonal(false); setNewListName(''); }}
+                  creating={creating}
+                  placeholder="Playlist name…"
+                />
+              )}
+
+              {personalLists.length === 0 && !showCreatePersonal ? (
+                <button
+                  onClick={() => { setShowCreatePersonal(true); setShowCreateShared(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-dashed border-gray-800 text-gray-600 hover:text-gray-400 hover:border-gray-700 transition-colors text-sm"
+                >
+                  <ListPlus size={16} />
+                  Create a playlist
+                </button>
+              ) : (
+                personalLists.map((list) => (
+                  <LibraryRow
+                    key={list.id}
+                    icon={<ListPlus size={18} className="text-purple-400" />}
+                    label={list.name}
+                    subtitle="Personal playlist"
+                    accentColor="bg-purple-500/10"
+                    onTap={() => navigate(`/shared/${list.id}`)}
+                  />
+                ))
+              )}
+            </section>
+
+            {/* Shared Lists */}
+            <section>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Shared with Friends</p>
+                <button
+                  onClick={() => { setShowCreateShared(true); setShowCreatePersonal(false); }}
+                  className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  <Plus size={14} />
+                  New
+                </button>
+              </div>
+
+              {showCreateShared && (
+                <CreateListInput
+                  value={newListName}
+                  onChange={setNewListName}
+                  onSubmit={() => handleCreate(false)}
+                  onCancel={() => { setShowCreateShared(false); setNewListName(''); }}
+                  creating={creating}
+                  placeholder="e.g. Date Night, Horror Club…"
+                />
+              )}
+
+              {sharedLists.length === 0 && !showCreateShared ? (
+                <button
+                  onClick={() => { setShowCreateShared(true); setShowCreatePersonal(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-dashed border-gray-800 text-gray-600 hover:text-gray-400 hover:border-gray-700 transition-colors text-sm"
+                >
+                  <Users size={16} />
+                  Create a shared list with a friend
+                </button>
+              ) : (
+                sharedLists.map((list) => {
+                  const memberCount = list.memberUids?.length ?? 0;
+                  const avatars = Object.values(list.members ?? {}).slice(0, 3);
+                  return (
+                    <LibraryRow
+                      key={list.id}
+                      icon={
+                        <div className="flex -space-x-2">
+                          {avatars.map((m, i) => (
+                            <div key={i} className="w-7 h-7 rounded-full ring-2 ring-[#09090b] overflow-hidden bg-gray-700 flex items-center justify-center text-xs font-semibold">
+                              {m.profileImage
+                                ? <img src={m.profileImage} alt={m.displayName} className="w-full h-full object-cover" />
+                                : (m.displayName || '?').charAt(0)}
+                            </div>
+                          ))}
+                        </div>
+                      }
+                      label={list.name}
+                      subtitle={`${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}
+                      accentColor="bg-green-500/10"
+                      onTap={() => navigate(`/shared/${list.id}`)}
+                    />
+                  );
+                })
+              )}
+            </section>
           </div>
         )}
       </div>
 
-      {/* Action Modal */}
-      {showActionModal && selectedMovie && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
-            onClick={() => {
-              setShowActionModal(false);
-              setSelectedMovie(null);
-            }} 
-          />
-          
-          <div className="bg-[#18181b] w-full max-w-sm rounded-2xl p-6 shadow-2xl z-50 relative border border-gray-800">
-            <div className="flex gap-4 mb-6">
-              <img
-                src={selectedMovie.poster}
-                alt={selectedMovie.title}
-                className="w-20 h-28 object-cover rounded-xl border border-gray-800"
-              />
-              <div className="flex-1">
-                <h3 className="font-bold text-white text-lg">{selectedMovie.title}</h3>
-                <p className="text-sm text-gray-400">{selectedMovie.year}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={() => navigate(`/movie/${selectedMovie.movieId}?type=movie`)}
-                className="w-full py-3 rounded-xl font-medium bg-white hover:bg-gray-200 text-black flex items-center justify-center gap-2 transition-colors"
-              >
-                <ArrowLeft size={18} className="rotate-180" />
-                View Details
-              </button>
-              
-              <button
-                onClick={() => handleMarkAsWatched(selectedMovie)}
-                className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 text-white flex items-center justify-center gap-2 transition-colors"
-              >
-                <CalendarPlus size={18} />
-                Mark as Watched
-              </button>
-              
-              <button
-                onClick={() => handleRemove(selectedMovie)}
-                className="w-full py-3 rounded-xl font-medium bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-800/50 flex items-center justify-center gap-2 transition-colors"
-              >
-                <Trash2 size={18} />
-                Remove from Watchlist
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
-            onClick={() => !isImporting && setShowImportModal(false)} 
-          />
-          
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !isImporting && setShowImportModal(false)} />
           <div className="bg-[#18181b] w-full max-w-sm rounded-2xl p-6 shadow-2xl z-50 relative border border-gray-800">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <Bookmark className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white">Import Watchlist</h3>
-                  <p className="text-xs text-gray-500">Add movies to watch later</p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white">Import from IMDB</h3>
               {!isImporting && (
-                <button
-                  onClick={() => setShowImportModal(false)}
-                  className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-full transition-colors"
-                >
-                  <X size={18} />
+                <button onClick={() => setShowImportModal(false)} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800">
+                  <X size={16} />
                 </button>
               )}
             </div>
 
-            {importSuccess !== null ? (
-              <div className="text-center py-6">
-                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h4 className="text-lg font-bold text-white mb-1">Import Complete!</h4>
-                <p className="text-gray-400">{importSuccess} movies added to watchlist</p>
-              </div>
-            ) : isImporting ? (
-              <div className="text-center py-6">
-                <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
-                <h4 className="text-lg font-bold text-white mb-1">Importing...</h4>
-                <p className="text-gray-400">
-                  {progress.current} of {progress.total} movies
-                </p>
-                {importedCount > 0 && (
-                  <p className="text-sm text-green-400 mt-2">{importedCount} added to watchlist</p>
-                )}
-              </div>
+            {importSuccess ? (
+              <p className="text-green-400 text-center py-4">✓ Imported {importSuccess} movies</p>
             ) : (
-              <>
-                {/* Import Mode Tabs */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setImportMode('csv')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      importMode === 'csv'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-                    }`}
-                  >
-                    Upload CSV
-                  </button>
-                  <button
-                    onClick={() => setImportMode('url')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      importMode === 'url'
-                        ? 'bg-white text-black'
-                        : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-                    }`}
-                  >
-                    Paste URL
-                  </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="w-full py-3 rounded-xl bg-white hover:bg-gray-200 text-black font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  <Upload size={16} />
+                  Upload IMDB CSV
+                </button>
+                <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800" /></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-[#18181b] px-4 text-gray-500">or paste URL</span></div>
                 </div>
-
-                {importMode === 'csv' ? (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-gray-900 border border-gray-800 border-dashed">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        onChange={handleCSVUpload}
-                        className="hidden"
-                        id="watchlist-csv-upload"
-                      />
-                      <label
-                        htmlFor="watchlist-csv-upload"
-                        className="flex flex-col items-center justify-center cursor-pointer py-6"
-                      >
-                        <Upload className="w-10 h-10 text-blue-400 mb-3" />
-                        <p className="text-sm font-medium text-white mb-1">Upload IMDB Watchlist CSV</p>
-                        <p className="text-xs text-gray-500">Click to select your watchlist.csv file</p>
-                      </label>
-                    </div>
-
-                    {importError && (
-                      <div className="p-3 rounded-xl bg-red-900/30 border border-red-800/50">
-                        <p className="text-sm text-red-400">{importError}</p>
-                      </div>
-                    )}
-
-                    <div className="p-3 rounded-xl bg-gray-900 border border-gray-800">
-                      <p className="text-xs font-medium text-gray-300 mb-2">How to export from IMDB:</p>
-                      <ol className="text-xs text-gray-500 space-y-1 list-decimal list-inside">
-                        <li>Go to your IMDB Watchlist page</li>
-                        <li>Click the three dots menu (⋮) or "Export"</li>
-                        <li>Download the CSV file</li>
-                        <li>Upload it here</li>
-                      </ol>
-                      <p className="text-xs text-green-400 mt-2">
-                        ✓ This method imports ALL your movies
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
-                        IMDB Watchlist URL
-                      </label>
-                      <input
-                        type="text"
-                        value={importUrl}
-                        onChange={(e) => setImportUrl(e.target.value)}
-                        placeholder="https://www.imdb.com/user/ur.../watchlist/"
-                        className="w-full bg-gray-900 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all border border-gray-800"
-                        autoFocus
-                      />
-                      {importUrl && (
-                        <p className={`text-xs mt-2 ${isValidImportUrl() ? 'text-green-400' : 'text-yellow-400'}`}>
-                          {getImportTypeLabel()}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-yellow-900/20 border border-yellow-800/50">
-                      <p className="text-xs text-yellow-400">
-                        ⚠️ URL import only gets ~25 movies due to IMDB limitations. Use CSV upload for your full list.
-                      </p>
-                    </div>
-
-                    {importError && (
-                      <div className="p-3 rounded-xl bg-red-900/30 border border-red-800/50">
-                        <p className="text-sm text-red-400">{importError}</p>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={handleImport}
-                      disabled={!isValidImportUrl()}
-                      className="w-full py-4 rounded-xl font-bold text-lg bg-blue-600 hover:bg-blue-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Import Watchlist
-                    </button>
+                <input
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  placeholder="https://www.imdb.com/list/..."
+                  className="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-3 text-white text-sm outline-none focus:border-blue-500 placeholder-gray-600"
+                />
+                {isImporting && (
+                  <div className="text-center text-sm text-gray-400">
+                    <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
+                    Importing {progress.current}/{progress.total}...
                   </div>
                 )}
-              </>
+                {importError && <p className="text-xs text-red-400">{importError}</p>}
+                <button
+                  onClick={handleImport}
+                  disabled={!importUrl.trim() || isImporting || detectImportType(importUrl) !== 'imdb-watchlist'}
+                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Import
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -422,3 +284,72 @@ export default function WatchlistScreen() {
   );
 }
 
+function LibraryRow({
+  icon,
+  label,
+  subtitle,
+  accentColor,
+  onTap,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  subtitle: string;
+  accentColor: string;
+  onTap: () => void;
+}) {
+  return (
+    <button
+      onClick={onTap}
+      className="w-full flex items-center gap-3 bg-gray-900/40 hover:bg-gray-900 border border-gray-800/60 rounded-2xl p-3 transition-colors text-left mb-2"
+    >
+      <div className={`w-11 h-11 rounded-xl ${accentColor} flex items-center justify-center shrink-0`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white truncate">{label}</p>
+        <p className="text-xs text-gray-500 truncate">{subtitle}</p>
+      </div>
+      <ChevronRight size={16} className="text-gray-600 shrink-0" />
+    </button>
+  );
+}
+
+function CreateListInput({
+  value,
+  onChange,
+  onSubmit,
+  onCancel,
+  creating,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  creating: boolean;
+  placeholder: string;
+}) {
+  return (
+    <div className="bg-black/30 rounded-2xl border border-gray-800 p-3 mb-2 space-y-2">
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
+        placeholder={placeholder}
+        className="w-full bg-transparent outline-none text-white placeholder-gray-600 text-sm"
+      />
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-gray-700 text-gray-400 text-sm hover:text-white">Cancel</button>
+        <button
+          onClick={onSubmit}
+          disabled={!value.trim() || creating}
+          className="flex-1 py-2 rounded-xl bg-white text-black text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-1"
+        >
+          {creating && <Loader2 size={14} className="animate-spin" />}
+          Create
+        </button>
+      </div>
+    </div>
+  );
+}

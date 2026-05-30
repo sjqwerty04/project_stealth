@@ -36,3 +36,35 @@ body {
 @utility glass-input {
   @apply w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-white/20 backdrop-blur-sm text-white placeholder-white/30;
 }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* When the hero video container goes fullscreen, cover the whole screen edge-to-edge */
+.hero-video-wrap:fullscreen,
+.hero-video-wrap:-webkit-full-screen {
+  background: #000;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+.hero-video-wrap:fullscreen iframe,
+.hero-video-wrap:-webkit-full-screen iframe {
+  height: max(56.25vw, 100vh) !important;
+  width: max(100vw, calc(100vh * 16 / 9)) !important;
+  min-width: unset !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  pointer-events: auto !important;
+}
+/* Hide the tap overlay in fullscreen so native controls are accessible */
+.hero-video-wrap:fullscreen > div[class*="z-10"],
+.hero-video-wrap:-webkit-full-screen > div[class*="z-10"] {
+  display: none;
+}

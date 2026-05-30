@@ -1,7 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2 } from 'lucide-react';
-
 type ProtectedRouteProps = {
   children: React.ReactNode;
 };
@@ -17,14 +16,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (isWhitelisted === false) {
-    return <Navigate to="/waitlist" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (isWhitelisted === false) return <Navigate to="/waitlist" replace />;
 
   return <>{children}</>;
 }
-
