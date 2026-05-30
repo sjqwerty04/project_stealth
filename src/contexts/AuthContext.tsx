@@ -84,6 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: user.email,
           joinDate: serverTimestamp(),
           profileImage: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
+          handle: null,
+          handleLower: null,
         },
       });
     }
@@ -97,14 +99,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    const pendingInvite = sessionStorage.getItem('pendingInviteCode');
     const whitelisted = await checkWhitelistInternal(email);
-    if (!whitelisted) {
+
+    if (!whitelisted && !pendingInvite) {
       throw new Error('Email not whitelisted');
     }
-    
+
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await createUserProfile(result.user);
+
+    // Auto-whitelist the new user if they arrived via an invite link.
+    if (!whitelisted && pendingInvite) {
+      try {
+        const normalizedEmail = email.toLowerCase().trim();
+        await setDoc(doc(db, 'whitelist', normalizedEmail), { allowed: true });
+      } catch {
+        // Non-fatal — user may already exist or rule blocked it.
+      }
+    }
+
     await logUserSignedUp('email');
+    sessionStorage.removeItem('appInvite');
+    // Mark as new user so the caller can route to onboarding.
+    sessionStorage.setItem('isNewUser', '1');
     setState((prev) => ({ ...prev, isWhitelisted: true }));
   };
 

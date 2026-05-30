@@ -25,7 +25,7 @@ export default function WaitlistScreen() {
             Access Restricted
           </h1>
           <p className="text-gray-400 leading-relaxed">
-            ViewFindr is currently invite-only. We're carefully curating our beta community to ensure the best experience.
+            Selects is currently invite-only. We're carefully curating our beta community to ensure the best experience.
           </p>
         </div>
 
@@ -56,7 +56,7 @@ export default function WaitlistScreen() {
 
       <div className="absolute bottom-8 text-center">
         <p className="text-xs text-gray-600">
-          ViewFindr Beta
+          Selects Beta
         </p>
       </div>
     </div>

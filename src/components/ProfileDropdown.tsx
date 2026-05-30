@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Film, LogOut, Settings, ChevronDown, Bookmark, Sparkles } from 'lucide-react';
+import { Film, LogOut, Settings, ChevronDown, Bookmark, Sparkles, AtSign, ShieldCheck, UserPlus, Check } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 type ProfileDropdownProps = {
   profileImage: string;
@@ -11,6 +12,21 @@ type ProfileDropdownProps = {
 
 export default function ProfileDropdown({ profileImage, onOpenAvatarModal }: ProfileDropdownProps) {
   const { signOut, user } = useAuth();
+  const { profile } = useUserProfile();
+  const [copied, setCopied] = useState(false);
+  const JOIN_URL = 'https://selects-film.vercel.app/join';
+
+  const shareInvite = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Join me on Selects', url: JOIN_URL });
+      } else {
+        await navigator.clipboard.writeText(JOIN_URL);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch { /* dismissed */ }
+  };
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
@@ -79,7 +95,15 @@ export default function ProfileDropdown({ profileImage, onOpenAvatarModal }: Pro
               <p className="text-sm font-medium text-white truncate">
                 {user?.displayName || user?.email?.split('@')[0] || 'User'}
               </p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+              {profile?.handle ? (
+                <p className="text-xs text-blue-400 truncate flex items-center gap-1 mt-0.5">
+                  <AtSign size={10} />
+                  {profile.handle}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-600 truncate mt-0.5">No handle — tap Edit Profile</p>
+              )}
+              <p className="text-xs text-gray-500 truncate mt-0.5">{user?.email}</p>
             </div>
 
             {/* Menu Items */}
@@ -118,6 +142,14 @@ export default function ProfileDropdown({ profileImage, onOpenAvatarModal }: Pro
               </button>
 
               <button
+                onClick={() => { setIsOpen(false); shareInvite(); }}
+                className={neutralButtonClasses}
+              >
+                {copied ? <Check size={18} className="text-green-400" /> : <UserPlus size={18} className="text-blue-400" />}
+                <span>{copied ? 'Link copied!' : 'Invite to Selects'}</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setIsOpen(false);
                   onOpenAvatarModal();
@@ -127,6 +159,16 @@ export default function ProfileDropdown({ profileImage, onOpenAvatarModal }: Pro
                 <Settings size={18} className="text-gray-400" />
                 <span>Edit Profile</span>
               </button>
+
+              {user?.email === 'shroomyai2000@gmail.com' && (
+                <button
+                  onClick={() => { setIsOpen(false); navigate('/admin'); }}
+                  className={neutralButtonClasses}
+                >
+                  <ShieldCheck size={18} className="text-amber-400" />
+                  <span>Admin</span>
+                </button>
+              )}
             </div>
 
             {/* Sign Out */}

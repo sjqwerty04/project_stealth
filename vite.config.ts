@@ -5,15 +5,26 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      // Forward /api/* to the production Vercel deployment so AI features
+      // work in local dev without needing `vercel dev` running.
+      '/api': {
+        target: 'https://movie-lcursor.vercel.app',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'prompt',
-      includeAssets: ['vite.svg'],
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'selects-logo.png'],
       manifest: {
-        name: 'ViewFindr',
-        short_name: 'ViewFindr',
+        name: 'Selects',
+        short_name: 'Selects',
         description: 'Your Personal Cinema Journal - Log movies, get AI recommendations',
         theme_color: '#09090b',
         background_color: '#09090b',
@@ -37,6 +48,11 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable',
+          },
+          {
+            src: 'apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
           },
         ],
       },

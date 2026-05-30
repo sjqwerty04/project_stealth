@@ -10,6 +10,8 @@ export type MovieRatings = {
   imdb: string | null;
   rottenTomatoes: string | null;
   metacritic: string | null;
+  letterboxd: string | null;
+  imdbId: string | null;
 };
 
 export type TechSpecs = {
@@ -35,6 +37,8 @@ export type MovieDetails = {
   director: string | null;
   cast: { id: number; name: string; character: string; profilePath: string | null }[];
   trailer: { key: string; site: string; name: string } | null;
+  // Best clip for the hero — prefers an official Clip/Featurette (a real scene) over the trailer.
+  heroVideo: { key: string; site: string; name: string; type: string } | null;
   watchProviders: {
     flatrate: { name: string; logoPath: string }[];
     rent: { name: string; logoPath: string }[];
@@ -128,11 +132,29 @@ export function useMovieDetails() {
 
       // Find trailer (prefer official YouTube trailers)
       const videos = videosData.results || [];
-      const trailer = videos.find((v: any) => 
+      const trailer = videos.find((v: any) =>
         v.type === 'Trailer' && v.site === 'YouTube' && v.official
-      ) || videos.find((v: any) => 
+      ) || videos.find((v: any) =>
         v.type === 'Trailer' && v.site === 'YouTube'
       ) || null;
+
+      // Pick the best hero video: an actual scene clip beats a "preview audiences" trailer.
+      // Preference: official Clip > Clip > official Featurette > Featurette > Trailer > Teaser.
+      const ytVideos = videos.filter((v: any) => v.site === 'YouTube');
+      const heroPriority = ['Clip', 'Featurette', 'Trailer', 'Teaser'];
+      const pickHero = () => {
+        for (const type of heroPriority) {
+          const official = ytVideos.find((v: any) => v.type === type && v.official);
+          if (official) return official;
+          const any = ytVideos.find((v: any) => v.type === type);
+          if (any) return any;
+        }
+        return ytVideos[0] || null;
+      };
+      const heroVideoRaw = pickHero();
+      const heroVideo = heroVideoRaw
+        ? { key: heroVideoRaw.key, site: heroVideoRaw.site, name: heroVideoRaw.name, type: heroVideoRaw.type }
+        : null;
 
       // Get US watch providers
       const usProviders = providersData.results?.US;
@@ -192,6 +214,8 @@ export function useMovieDetails() {
               imdb: imdbRating,
               rottenTomatoes: rtRating,
               metacritic: metacriticRating,
+              letterboxd: null, // fetched lazily via api/letterboxd-rating
+              imdbId: imdbId || null,
             };
 
             // Extract certification (Rated field: R, PG-13, PG, G, NC-17, TV-MA, etc.)
@@ -271,6 +295,7 @@ Genres: ${genreList}
         director,
         cast,
         trailer: trailer ? { key: trailer.key, site: trailer.site, name: trailer.name } : null,
+        heroVideo,
         watchProviders,
         vibeDescription: null, // Will be loaded async
         ratings,

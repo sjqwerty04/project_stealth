@@ -8,6 +8,8 @@ export type UserProfile = {
   email: string;
   joinDate: any;
   profileImage: string;
+  handle?: string | null;
+  handleLower?: string | null;
 };
 
 export function useUserProfile() {
