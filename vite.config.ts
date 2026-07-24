@@ -5,6 +5,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Vendor code changes far less often than app code, so isolating it keeps
+        // it cached across deploys instead of being invalidated by every release.
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       // Forward /api/* to the production Vercel deployment so AI features
