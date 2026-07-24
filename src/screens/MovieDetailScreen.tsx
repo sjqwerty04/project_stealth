@@ -10,6 +10,8 @@ import MovieActions from '../components/MovieActions';
 import PatternAssistant from '../components/PatternAssistant';
 import RatingBadges from '../components/RatingBadges';
 import TechBadges from '../components/TechBadges';
+import WhereToWatch from '../components/WhereToWatch';
+import AttributionNotice from '../components/AttributionNotice';
 import StarterPrompts from '../components/StarterPrompts';
 import MovieChatSheet from '../components/MovieChatSheet';
 import { useMovieInsights } from '../hooks/useMovieInsights';
@@ -428,6 +430,9 @@ export default function MovieDetailScreen() {
         )}
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
 
+        {/* Where to Watch — before the actions, so availability informs the decision */}
+        <WhereToWatch providers={details.watchProviders} />
+
         {/* Action Buttons */}
         <MovieActions
           movie={{
@@ -604,6 +609,8 @@ export default function MovieDetailScreen() {
             </button>
           )}
         </div>
+
+        <AttributionNotice />
 
         {/* Spacer so floating chips don't cover last content */}
         <div className="h-24" />
