@@ -30,6 +30,7 @@ const InviteAcceptScreen = lazy(() => import('./screens/InviteAcceptScreen'));
 const LikedMoviesScreen = lazy(() => import('./screens/LikedMoviesScreen'));
 const SavedScreen = lazy(() => import('./screens/SavedScreen'));
 const OnboardingScreen = lazy(() => import('./screens/OnboardingScreen'));
+const TonightScreen = lazy(() => import('./screens/TonightScreen'));
 const AdminScreen = lazy(() => import('./screens/AdminScreen'));
 const JoinScreen = lazy(() => import('./screens/JoinScreen'));
 const ProfileScreen = lazy(() => import('./screens/ProfileScreen'));
@@ -118,6 +119,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <CleanupIMDBCalendar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tonight"
+                element={
+                  <ProtectedRoute>
+                    <TonightScreen />
                   </ProtectedRoute>
                 }
               />
