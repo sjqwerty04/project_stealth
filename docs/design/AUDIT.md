@@ -1,5 +1,11 @@
 # Selects — Full UI/UX Audit
 
+> **Status:** the findings below stand as written. The *recommendations* have since been
+> superseded in three places by your answers — see [DECISIONS.md](DECISIONS.md). Specifically:
+> §4.1 (the calendar stays on the first screen), §4.2 (the monthly video survives, as an
+> earned rung on a ladder), and §3.7 / §6 (nothing gets deleted; surfaces are promoted into
+> one system instead). Those sections are annotated inline.
+
 Reviewed at commit `ba07af6` (`features` branch). Static source review of all 20,852 lines
 of `src/` and `api/`, plus every shipped brand asset in `public/`, plus runtime screenshots
 of `/login` and `/onboarding`, plus frame-by-frame analysis of `BUG.mov` (an 82-second phone
@@ -295,6 +301,10 @@ Also: a debug counter ships to production — a fixed pill reading
 
 ### 3.7 Structural duplication — severity: medium
 
+> **Recommendation superseded, findings unchanged.** Nothing gets deleted. Each surface below
+> keeps its route and is promoted into one system — the mapping is in
+> [DECISIONS.md §24](DECISIONS.md#24-nothing-gets-deleted--plan-inverted).
+
 - `HomeV2.tsx` (1,153 lines) is a complete second home screen, ~70% duplicated from
   `MovieCalendarApp.tsx`, not imported by any route. It is also the *better* composition —
   recommendation-first with the calendar demoted to a bottom date strip. Someone had the
@@ -331,6 +341,11 @@ Also: a debug counter ships to production — a fixed pill reading
 
 ### 4.1 The opening screen — full-screen trailer
 
+> **Superseded.** You want the calendar to stay on the first screen, enhanced with a video
+> carousel, the film's logo in front, and a detented date strip below — which is `HomeV2.tsx`,
+> your own unrouted prototype. I withdraw the demotion. Everything below about *sequencing*
+> (verdict before atmosphere, never a black hero) still holds and now applies to the carousel.
+
 **Verdict: right instinct, and it needs one guardrail.**
 
 Killing calendar-as-home is correct and overdue. But "full-screen trailer" and "find films
@@ -352,6 +367,13 @@ depends on it will feel broken maybe a fifth of the time. Prefer a short loop, c
 a slow drift.
 
 ### 4.2 The monthly AI-cut video — "Spotify Wrapped for film"
+
+> **Partly superseded.** Your Amazon-Prime-slate framing won the format argument: for someone
+> logging 20–25 films a month, a cut of clips and dialogue is genuinely personal and a still
+> can't carry it. Resolution is a ladder — the Print monthly for everyone, **the Cut** earned
+> by logging, the Year in December. Making it earned controls render cost *and* turns logging
+> into what unlocks the artifact. The scarcity argument below still explains why it must be
+> earned rather than automatic.
 
 **Verdict: right instinct, wrong cadence and wrong medium. This is where I'd push back hardest.**
 
@@ -576,6 +598,12 @@ piece of the loop, and it is question one in `QUESTIONS.md`.
 
 ## 6. What I would do first
 
+> **Superseded.** Rewritten against your answers — the current sequence is
+> [DECISIONS.md § What this changes in the roadmap](DECISIONS.md#what-this-changes-in-the-roadmap).
+> Two things changed: nothing is deleted (surfaces get promoted into one system instead), and
+> Focus + the Ticket lead, because a decaying readiness score is what finally makes investment
+> load the next trigger. The stage-1 and stage-2 items below are unchanged and still correct.
+
 Not a schedule — a dependency order. Each stage unlocks the next.
 
 **Stage 1 — make the loop close.** Nothing else matters until it does.
@@ -591,24 +619,25 @@ Not a schedule — a dependency order. Each stage unlocks the next.
 5. Render similarity reasons under similar films.
 6. Render the Reddit micro-tags as facet chips.
 7. Swap the TMDB synopsis for `vibeDescription`; wire `taste` into the chat.
-8. Promote the one-liner above the CTAs; delete `Sparkles`; rename "Ask AI".
+8. Promote the one-liner above the CTAs; remove `Sparkles`; rename "Ask AI".
 9. Fix the Orbit axis labels to one vocabulary. Purge purple.
 
-**Stage 3 — the new front door.** Now there is something worth opening it for.
+**Stage 3 — the front door.** Now there is something worth opening it for.
 
-10. Recommendation-first home; calendar becomes an artifact, not an input. `HomeV2.tsx` is
-    already 70% of this.
+10. Wire `HomeV2.tsx` and add the video carousel and the detented date strip. The calendar
+    stays home; it gets enhanced rather than demoted.
 11. Onboarding restructured reward-before-investment, with `layoutId` morphs.
 12. The Letterboxd import reveal.
 
 **Stage 4 — identity.** Once behaviour is worth reading.
 
-13. The mark, the typeface, the token set. Kill `ViewFindr`.
-14. The monthly one-sheet, and the landing page built from the same artifact.
-15. One unified graph: Orbit as motion, DNA as map, everything else deleted.
+13. The mark, the typeface, the token set. Retire `ViewFindr`.
+14. The Print and the Cut, and the landing page built from the same artifact.
+15. One unified graph — Rabbit Hole as motion, the Assembly as map — with `DNAScreen`, the
+    constellation and Saved Vibes promoted into it rather than removed.
 
-**Deliberately not now:** theatres and formats (your call), a trained similarity model
-(needs data the Investment fix will produce), and the annual video (needs a year).
+**Deliberately not now:** Selects Maps and film tourism, perks partnerships, TV, and a
+trained similarity model (which needs data the Investment fix will produce).
 
 ---
 

@@ -1,90 +1,93 @@
 # Selects — Design Review
 
-A full UI/UX audit of the app at commit `ba07af6`, plus a proposed brand, system and motion
-direction, plus the questions I need answered before anything gets built.
+A full UI/UX audit of the app at `ba07af6`, your answers to all 27 questions converted into
+locked decisions, and the system that follows from them.
 
 | Document | What it is |
 |---|---|
-| **[AUDIT.md](AUDIT.md)** | The audit. Hook Model score, feature-by-feature teardown, a read of the vision back to you, and a 38-item defect register with `file:line` for every claim. |
-| **[DIRECTION.md](DIRECTION.md)** | The proposal. Mark, colour, typography, voice, the eight-axis facet vocabulary, motion tokens, and how the brand crosses from phone to print to web. |
-| **[QUESTIONS.md](QUESTIONS.md)** | 27 questions, 7 blocking. |
-| **[direction-board.html](direction-board.html)** | The visual version. Open it in a browser — it is live HTML/CSS and meant to be edited, not a flat export. |
-
-Nothing in the app has been changed. This is a review and a proposal; `QUESTIONS.md` exists
-because several of the calls in `DIRECTION.md` are yours to make, not mine.
+| **[DECISIONS.md](DECISIONS.md)** | All 27 answers, locked. Where you overruled me, I say so. Read this first — it supersedes parts of the audit. |
+| **[DIRECTION.md](DIRECTION.md)** | **Rev B.** The system: mark, colour, type, voice, the facet vocabulary, motion, and the two objects that close the loop. |
+| **[AUDIT.md](AUDIT.md)** | The original audit. Hook Model score, feature teardown, and 38 defects with `file:line`. Findings stand; three recommendations are annotated as superseded. |
+| **[QUESTIONS.md](QUESTIONS.md)** | Round 2. Nine questions, three blocking. |
+| **[direction-board.html](direction-board.html)** | The visual version. Live HTML/CSS with the fonts self-hosted — open it and edit it. |
 
 ---
 
-## The short version
+## What changed
 
-**Hook Model score: 4/10 — the loop does not close.**
+You overruled rev A in four places, and each one made the design better.
 
-![Hook score](assets/board-01-score.jpg)
-
-Five findings, in order of what they cost:
-
-1. **The reward for the core action is an invisible dark blue square.** A user finds a film,
-   taps *Add to Calendar*, and the payoff is a day cell turning a slightly different shade of
-   near-black. The poster is fetched, shown in the sheet, then discarded at the exact moment
-   the user has earned something.
-2. **The app forgets you.** The exploration graph lives in React `useState` and is destroyed
-   on reload. There is no push, no email, no widget, no streak, no recap anywhere in the
-   repository — so nothing the user invests can ever bring them back.
-3. **The genericness has one root cause, and it is 19 strings long.** Every AI surface in the
-   product reasons over TMDB's genre list. Meanwhile the app already generates the specific
-   micro-tags you want, and renders none of them.
-4. **"Similar in terms of what?" — the answer is computed and thrown away.** Same for the
-   personalised synopsis, the Reddit tags, and the chat's taste context. There is a
-   personalisation layer in this codebase that users have never seen.
-5. **The identity is literally invisible.** The app icon is dark-grey sprockets on pure black.
-   The wordmark PNG has a black plate baked behind it. The product ships under three names at
-   once.
+![Four reversals](assets/board-00-reversals.jpg)
 
 ---
-
-## The first screen
-
-Today it pitches data entry, on a product whose promise is speed — and it is empty by
-definition for a new user.
-
-![First screen, before and after](assets/board-05-first-screen.jpg)
-
-## The reward moment
-
-The highest-leverage fix in the product, and it is roughly one component.
-
-![Reward moment, before and after](assets/board-06-reward.jpg)
-
-## Eight axes, not nineteen genres
-
-Your test case, answered: the Heat ↔ Dark Knight edge is a sentence made of shared facets,
-not a number.
-
-![Facet taxonomy](assets/board-07-facets.jpg)
-
-## One graph
-
-Orbit is the motion, DNA is the map. Five features currently do this job, and Orbit's four
-axes are labelled three mutually contradictory ways.
-
-![The taste graph](assets/board-08-graph.jpg)
 
 ## The mark
 
-A grease-pencil ring — the circle an editor draws around a select. The name as a gesture, and
-a shape the product can reuse as a node, an orbit, a progress arc, and a focus ring.
+You were right about the ring: Criterion owns a circle, and a ring is not differentiating.
+Your clapstick instinct is stronger — and it gave the system more than a logo.
 
-![The mark](assets/board-02-mark.jpg)
+**Six takes. One selected.** The name, drawn.
 
-## Monthly is a poster. Annual is the film.
+![The mark](assets/board-01-mark.jpg)
 
-My strongest disagreement with the brief, and the one artifact that is identical on a phone,
-a wall, and the landing page.
+And unlike the ring, the bar is reusable. One shape, seven jobs — which means the
+sprocket-detent date strip you asked for falls out of the logo instead of being designed
+separately.
 
-![The monthly one-sheet](assets/board-09-one-sheet.jpg)
+![The bar is the atom](assets/board-02-bar-atom.jpg)
+
+---
+
+## Focus and the Ticket
+
+Your readiness score, made honest. It doesn't measure whether *you* are ready — you always
+are. It measures **how sharply Selects has you in focus**, and it **decays**.
+
+That decay is the first thing in the product where investment loads the next trigger — the
+Hook row that was scoring 0. And it's rendered as literal sharpness: the image is the metric.
+
+![Focus and the Ticket](assets/board-03-focus-ticket.jpg)
+
+---
+
+## 11:40pm
+
+The mechanism was already in your data. The Ticket was torn at 9:15 and the runtime is 170
+minutes, so the push fires at 12:10. No guessing — and it makes the torn stub the only feature
+that tells you when someone is *inside* a film.
+
+![The 11:40pm loop](assets/board-08-1140pm.jpg)
+
+---
+
+## Two layers, and every facet is a room
+
+The hybrid you asked for: one vocabulary that never drifts, phrased differently for every
+user. Tap one facet and you're in a room; tap three and you're somewhere nobody else is.
+
+![Facet system](assets/board-06-facets.jpg)
+
+---
+
+## The Assembly
+
+Rabbit Hole is the Assembly in motion; the Assembly is Rabbit Hole at rest. One graph, two
+verbs — and nothing gets deleted to build it. Logging fills a node in, so your map visibly
+grows.
+
+![The Assembly](assets/board-07-assembly.jpg)
+
+---
+
+## Named from the cutting room
+
+Because the app already was. Your origin story gave the product its vocabulary, not just its
+mark.
+
+![Naming and the Nudge](assets/board-09-naming.jpg)
 
 ---
 
 ## Everything, in one image
 
-![Full direction board](assets/board-overview.jpg)
+![Full direction board, rev B](assets/board-overview.jpg)

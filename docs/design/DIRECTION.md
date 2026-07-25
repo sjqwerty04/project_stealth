@@ -1,388 +1,545 @@
 # Selects — Brand, System & Motion Direction
 
-Companion to `AUDIT.md`. This is a proposal, not a decision — several calls in here depend
-on answers to `QUESTIONS.md`. Open `direction-board.html` in a browser for the visual
-version; everything in that file is live HTML/CSS and meant to be edited.
+**Rev B.** Rev A was a proposal; this is the spec, rewritten against your answers to all 27
+questions. Rationale for each decision lives in [DECISIONS.md](DECISIONS.md). Open
+`direction-board.html` for the visual version — it is live HTML/CSS and meant to be edited.
+
+Changed materially since rev A: the mark (ring → clapstick), the colour system (single warm
+base → reactive film-derived chroma), the home screen (recommendation-first → HomeV2's
+carousel plus calendar), the type register (mono-dominant → mono demoted to specs), and the
+plan (consolidate by deletion → consolidate by promotion).
 
 ---
 
 ## 1. Positioning
 
-> **Selects reads your taste and hands you one film.**
+> **Selects reads you, and hands you the take worth keeping.**
 
-Three constraints that everything else is measured against:
+Your own origin story is the product thesis and it should be said out loud in the marketing:
+at the end of a shoot day the reels go to the editing room, and someone decides which takes
+live. That job — choosing, under time pressure, out of far too much material, most of it not
+worth it — is now everyone's job every night.
 
-1. **The verdict arrives before the atmosphere.** Anything a user must wait for is not the
-   product; it is decoration on top of the product.
-2. **The intelligence shows up as specificity, never as a robot.** No `Sparkles`, no purple,
-   no "AI" in any string, no typewriter effects, no button that announces a machine.
-3. **Maximal information density, minimal decoration density.** This is how "maximalist" and
-   "very subtle" reconcile. Dense type, dense data, hard grid — and zero gradients, zero
-   glows, zero blur, zero drop shadows. All chroma comes from the films themselves.
+**Four rules that govern everything below.**
 
-### The daily reason
-
-`AUDIT.md §5.6` names the gap: everything on the roadmap is a *second*-session feature.
-There is no reason to open the app on an ordinary Tuesday. Proposal:
-
-**Tonight.** One film, chosen for this specific evening, already waiting when the app opens.
-Different from yesterday's. The reason references the user, not the film — *"You've been
-three deep in sodium-lit crime. This is the one that started it."* Delivered at an hour the
-user picks, once a day, and never more.
-
-That is the Oura-morning-number equivalent: something already different before you ask. It
-is the smallest possible feature that closes the loop, and it is the one thing I would build
-before anything in this document.
+1. **Selects is the mount, not the picture.** The chrome is quiet, precise and confident. The
+   films are loud. Every film brings its own logo, its own colour and its own typography, and
+   the app's job is to frame them without competing. This is how maximalism and minimalism
+   coexist: the maximalism is borrowed, the restraint is ours.
+2. **The verdict arrives before the atmosphere.** Anything the user has to wait for is
+   decoration on top of the product, not the product.
+3. **The intelligence shows up as specificity, never as a robot.** No `Sparkles`, no purple,
+   no "AI" in any string. It reacts to what you just did; it does not animate at you.
+4. **Investment must be visible.** If logging a film doesn't visibly change something the user
+   can see, it will not happen twice.
 
 ---
 
-## 2. The name
+## 2. The two objects that close the loop
 
-Keep **Selects**. It is an editing-room word — the takes the editor pulled — so it is
-insider without being cute, and it describes the product's job rather than its category.
+### Focus
 
-Retire **ViewFindr** today: dropped-vowel startup naming reads 2014, and shipping two names
-in one binary (`public/manifest.json:2` vs `vite.config.ts:26`) costs recognition on every
-install. Also rename the package off `movielcursor` and the cache key off `movielove_*`.
+The readiness score. It does not measure whether you're ready to watch — you always are. It
+measures **how sharply Selects has you in focus**: how confident the app is that it knows what
+you want right now.
 
-One flag for you: "Selects" is a common English word, so app-store search and the domain are
-worth checking before the mark is finalised. See `QUESTIONS.md`.
+That framing is what keeps it honest, and it produces the mechanic the product has been
+missing, because **it decays.**
 
----
-
-## 3. The mark
-
-**A hand-drawn ring — the grease-pencil circle an editor draws around a select.**
-
-Why this and not another film strip:
-
-- It is **literally the product's name as a gesture**. Circling the take you're keeping is
-  what "selects" means.
-- It is **analog and imperfect**, which is how you get an AI-dense product that doesn't read
-  as AI. A hand-drawn stroke cannot look like a machine made it.
-- It **survives at 60px** on a crowded home screen — a thick bone-coloured ring on warm ink
-  is legible at any size, which the current sprocket icon is not (it is dark grey on black
-  and disappears entirely).
-- It is **reusable as a UI primitive**, which is the property the current mark lacks
-  entirely. The ring becomes: the node in the taste graph, the orbit path, the focus ring
-  around a poster, the progress indicator, the avatar frame, the loading state, and the
-  "logged" stamp on a day. Oura's ring is both its logo and its progress arc; that is the
-  economy to aim for.
-
-**Construction.** Single stroke, ~11% of diameter. One deliberate gap where the pencil
-lifted — this is the distinguishing feature, and it also gives the ring a start and end so
-it can animate as a progress arc. Slight ellipse and stroke-width variance; never a perfect
-circle. Ships as SVG only.
-
-**Lockup.** Ring, then a full-height gap, then `SELECTS` in the display grotesk at
-`tracking-[-0.02em]`. Never on a plate, never in a box, always on transparent — the opposite
-of the current PNG. Icon = ring alone, optically centred, ~62% of the tile.
-
-**Risk, stated plainly:** rings are a crowded space in logo design. Before this is
-finalised, run a trademark and visual-similarity check. The gap plus the hand-drawn variance
-plus the bone-on-warm-ink palette is what makes it defensible; a clean geometric ring would
-not be.
-
----
-
-## 4. Colour
-
-The current base is `#09090b` — Tailwind `zinc-950`, the most common dark-mode default in
-existence. It reads "template", not "cinema". Replace it with a **warm** black: a darkened
-auditorium rather than an OLED test card.
-
-| Token | Hex | Use |
+| Contributor | Rises | Decays |
 |---|---|---|
-| `--ink` | `#0B0A08` | base surface |
-| `--ink-2` | `#15130F` | raised surface, sheets |
-| `--ink-3` | `#1E1B16` | cards, inputs |
-| `--ink-4` | `#2A251E` | hairlines, dividers, chip fills |
-| `--bone` | `#EDE7DA` | primary text, the mark |
-| `--bone-2` | `#C4BCAD` | secondary text — clears AA on `--ink` |
-| `--bone-3` | `#8A8275` | tertiary, mono labels |
-| `--grease` | `#E8391A` | the mark, and exactly one live state per screen |
-| `--film` | *runtime* | dominant colour extracted from the current poster |
+| **Depth** | imports, logs | never — your floor |
+| **Freshness** | you logged recently | days without a log |
+| **Clarity** | recent picks share facets | scattered picks |
+| **Context** | time, weather, showtimes near you, hours free | — |
 
-Two rules that matter more than the values:
+**It is rendered as literal sharpness.** Low Focus and your Ticket art is soft; high Focus and
+it is razor-sharp with the grain visible. No dial, no gauge, no percentage ring. The image is
+the metric.
 
-**`--grease` is rationed.** One use per screen, maximum. It is the eye's anchor; the moment
-it appears twice it stops meaning anything. Everything currently coloured blue, purple, or
-amber becomes bone, ink, or nothing.
+Two logs after a soft week snap it back — and that is the first thing in the product where
+investment loads the next trigger.
 
-**`--film` carries all the chroma.** `extractDominantColor` already exists
-(`OrbitScreen.tsx:69-116`) and is spent on one background wash. It should drive the whole
-palette of whatever film is on screen — hero grade, node colour in the graph, the day cell,
-the tag underline, the one-sheet. This is the single change that makes the app impossible to
-mistake for a template, because its colour comes from the content and therefore never repeats.
+### The Ticket
 
-**Deleted:** every `blue-*`, `purple-*`, `amber-*`, `green-*`/`red-*` Tailwind default. Like
-and pass become bone and ink with different weights, not green and red.
+Three stubs a day. Each stub is a film plus one line naming **why today**, drawn from whichever
+contributor is doing the work:
 
-**Grain.** A 2–4% monochrome noise overlay across every surface, fixed to the viewport so it
-does not scroll. It costs nothing, kills dark-mode banding on gradients, and is the cheapest
-possible signal of "photochemical" rather than "screen".
+- *"It's raining and you have two hours."*
+- *"You're four films into heist procedurals. This is the one they were copying."*
+- *"70mm. Four blocks away. Sunday, 7:40."*
+
+**Tearing a stub** is the core action: a downward drag, a perforation that gives, a heavy
+haptic, and a variable reward behind it — sometimes a B-side, sometimes a piece of canon
+nobody told you, sometimes a facet unlocking into a room.
+
+Three, not one: a single guess can be wrong and wrong kills trust. Three, not six: more than
+four rebuilds the paralysis the app exists to end.
+
+The stub is a real-world object on purpose. It prints, it shares, and it is already the right
+shape for film-tourism check-ins later.
 
 ---
 
-## 5. Typography
+## 3. Naming and information architecture
 
-Nothing is loaded today (`index.html`), so every heading is Helvetica or Roboto. This is the
-largest single gap between the current app and the brief.
+Everything comes from the cutting room, because the name already did.
 
-**Two families, strictly divided.**
-
-| Role | Family | Rules |
+| Name | What it is | Today |
 |---|---|---|
-| **Display** — titles, verdicts, one-liners | Tight grotesk | `-0.03em` tracking at body sizes, `-0.045em` above 32px. Weights 500 and 800 only — no 600/700 middle ground. Sentence case for verdicts, never title case. |
-| **Mono** — all metadata | Monospace | 11px / `0.08em` / uppercase for labels. Tabular numerals everywhere. Runtimes, years, ratios, formats, facet tags, edge labels, timestamps. |
+| **Selects** | the app; the films you keep | — |
+| **the Ticket** | your daily three | new |
+| **Focus** | how sharply the app has you | new |
+| **the Strip** | everything you've logged, zoomable | `MovieCalendarApp` `/app` |
+| **the Assembly** | your taste graph | `DNAScreen` + Orbit constellation |
+| **Rabbit Hole** | the deep session mode | `OrbitScreen` |
+| **the Nudge** | contextual, timed suggestion | `PatternAssistant` |
+| **the Cut** | monthly trailer of your month | new |
+| **the Print** | shareable still | new |
+| **the Wallet** | the handful of films closest to you | new |
 
-The mono split is the load-bearing decision. It gives you the **spec-sheet register** the
-technical-specs feature needs (`1.43:1 · IMAX 70MM · 15/70 NEG`), and — more importantly — it
-makes AI-written text read as *readout* rather than *chat*. A one-liner set in mono is a
-lab result. The same sentence in a rounded sans with a sparkle is a chatbot. Same words,
-opposite product.
+Nothing is deleted. Every existing screen keeps its route and gets a job in this system.
 
-**Licensing.** The ideal pairing for the Brooklyn-flyer register you described is
-**ABC Diatype + Diatype Mono** (Dinamo). Alternatives worth comparing: Söhne + Söhne Mono
-(Klim), Neue Haas Grotesk Display + a mono of choice. Zero-cost interim that gets 80% of the
-way: **Inter** (with `tracking` tightened aggressively — Inter's defaults are far too loose
-for this) + **JetBrains Mono**. Self-host, subset to Latin, `font-display: swap`, preload the
-two weights actually used. Do not ship four weights.
-
-**Type scale** (`rem` at 16px base):
-
-| Step | Size | Family / weight | Use |
-|---|---|---|---|
-| Verdict | 34 / 0.95 | Display 800, `-0.045em` | the one-liner that sells the film |
-| Title | 26 / 1.05 | Display 800, `-0.04em` | film titles, screen titles |
-| Lead | 19 / 1.35 | Display 500, `-0.02em` | personalised synopsis |
-| Body | 15 / 1.5 | Display 500, `-0.01em` | prose |
-| Meta | 13 / 1.4 | Mono 400 | year · runtime · director |
-| Label | 11 / 1 | Mono 500, `0.08em`, upper | section labels, facet tags |
-
-**Numerals are a brand surface.** Ratings, runtimes, years, counts, aspect ratios — all
-tabular mono. Big numbers set large and tight is the core move of the poster vocabulary you
-described, and it costs nothing.
+**Retire `ViewFindr`.** It still ships in `public/manifest.json` alongside `Selects` in
+`vite.config.ts` and `movielcursor` in `package.json`. One name.
 
 ---
 
-## 6. Voice
+## 4. The mark
 
-**Who is speaking:** someone who has seen everything and does not need you to know that.
-Declarative, present tense, unimpressed. Closer to a projectionist than a critic, and
-nowhere near a brand.
+**Six diagonal bars. One of them lit.**
 
-**Rules**
+The clapstick's stripes, abstracted — not a clapperboard. It reads as cinema instantly,
+survives at 60px because it is pure high-contrast diagonal, and cannot be mistaken for a ring,
+a circle, a play triangle or a film strip.
 
-1. Never the words *AI*, *powered by*, *generate*, *curated*, *vibes*, *personalized*,
-   *smart*, *magic*, *journey*.
-2. Never explain the mechanism. The user does not want to know it read their Letterboxd; they
-   want to be understood.
-3. Verbs on buttons: `Log`, `Save`, `Open`, `Import`, `Circle it`. Never `Submit`, `Continue`,
-   `Get Started`, `Learn More`.
-4. Specific nouns beat adjectives. "Sodium-lit" over "atmospheric". "Nobody wins" over
-   "gritty".
-5. One dry joke per screen, maximum. Zero exclamation marks.
-6. When the app talks about the user, it observes. It never compliments and never flatters.
+The single accent bar is the entire idea: **six takes, one selected.** The name, drawn.
 
-**Before / after**
+**Construction.** Six parallelograms, bar width 14 and pitch 24 in a 100-unit square, sheared
+so each bar's foot sits directly beneath the previous bar's head (a shear of exactly one
+pitch, ≈13.5°). Clipped square. The lit bar is third from the left. SVG only; never a raster,
+never on a plate.
 
-| Surface | Now | Proposed |
-|---|---|---|
-| Splash | "Your Personal Cinema Journal" | `Selects` — and nothing else |
-| Onboarding intro | "Your cinema. Understood. / A few questions to get started." | "Three films you'd rewatch tonight." |
-| Movie page CTA | "Ask AI" | The first suggested question, verbatim: "What does the red chair mean?" |
-| Similar films | "Similar Films" | "Because of the night" — the shared facet as the heading |
-| Import | "Imported" ✓ | "800 films. Here's what they say about you." |
-| Log confirmation | "Movie Logged!" | "Circled. 41 this year." |
-| Empty watchlist | "No movies yet" | "Nothing queued. That's a choice." |
-| Waitlist | "Reach out to the team" | "Not open yet. Leave an email and one line about the last film that wrecked you." |
-| Pattern found | "Pattern Detected • 4 films explored" | "You keep choosing men who lose." |
-| Recommendation label | "NEXT WATCH" | "Tonight" |
+**Lockup.** Bars, a full-bar gap, then `SELECTS` in Archivo at `-0.02em`. Icon is the bars
+alone at ~78% of the tile.
 
-The existing pattern prompt already has the right voice —
-*"Ah, the 'morally bankrupt men doing crimes with style' marathon"*
-(`ExplorationContext.tsx:66`). That register exists in the prompts and nowhere in the UI
-chrome. Make the chrome match the prompts, not the reverse.
+**Launch animation.** The bars clap shut and rebound, with the haptic. One second, once per
+cold start, and it is the whole brand in a gesture.
 
----
+### The bar is the atom of the system
 
-## 7. The facet vocabulary
+This is what the ring could not do.
 
-This is the fix for the genericness complaint and the prerequisite for the graph, the
-progression, and the personalised synopsis. Today the only vocabulary in the system is 19
-TMDB genre strings (`useMovieSearch.ts:11-31`), which is why every AI surface sounds like a
-streaming service.
+| The bar becomes | Where |
+|---|---|
+| the mark | six bars, one lit |
+| a day | the date strip — one bar per day, detented, haptic per detent |
+| a year | 365 bars, each carrying that film's colour |
+| a rating | five bars, lit |
+| progress | bars filling left to right |
+| a rule | a run of small bars instead of a hairline |
+| a Ticket stub edge | the perforation |
 
-**Eight axes. Controlled vocabulary, human-readable, no scores shown to users.**
-
-| Axis | Purpose | Example terms |
-|---|---|---|
-| `look` | how it was photographed | 35mm grain · anamorphic flare · available light · sodium-and-cyan night · video-tape texture · high-contrast monochrome · Kodachrome warmth · fluorescent institutional |
-| `camera` | how the camera behaves | locked-off · handheld verité · dolly-in on faces · unbroken take · god's-eye overhead · zoom-as-punctuation |
-| `tempo` | how time moves | slow burn · procedural · breathless · elliptical · real-time · dread accumulating |
-| `weather` | moral climate | nobody wins · competence porn · doomed romance · guilt as engine · complicity · dignity under pressure |
-| `sound` | the ear | needle-drop maximalism · silence as threat · synth pulse · diegetic only · score as narrator |
-| `world` | where it lives | rain-slick city night · sunbaked backroad · institutional corridors · one apartment · the sea · a war with no front |
-| `shape` | structure | nonlinear · frame story · chapter cards · ensemble braid · single POV · two-hander |
-| `format` | the physical fact | 1.37 Academy · 2.39 anamorphic · IMAX 70mm · 16mm blowup · shot digital, finished on film |
-
-Rules: 4–7 facets per film. Every facet must be a thing a person could *say out loud* at a
-bar. If a term needs explaining, it is the wrong term. `format` is the only axis where jargon
-is allowed, because there the jargon *is* the pleasure.
-
-**Worked example — your own test case.**
-
-```
-Heat (1995)
-  look     sodium-and-cyan night · available light
-  camera   locked-off · dolly-in on faces
-  tempo    procedural · slow burn
-  weather  competence porn · nobody wins
-  world    rain-slick city night
-  format   2.39 anamorphic
-
-The Dark Knight (2008)
-  look     sodium-and-cyan night · high-contrast monochrome
-  camera   handheld verité · god's-eye overhead
-  tempo    procedural · breathless
-  weather  competence porn · complicity
-  world    rain-slick city night
-  format   IMAX 70mm
-```
-
-The edge between them is not a number. It is a sentence made of the overlap:
-
-> **sodium-and-cyan night · procedural · competence porn · rain-slick city night**
-> *the city is the antagonist and both men are good at their jobs*
-
-That is your "non-geek natural way": the blues, the crime, the heist — stated as the facets
-they actually share, in words a person would use.
-
-**Edge weight.** Weighted facet overlap with rarer facets weighted higher — TF-IDF across
-the corpus. Two films sharing `heist procedural` score far above two sharing `drama`. This
-is explainable, debuggable, instant, and needs no training data. Weight drives line
-thickness and opacity in the graph; the number is never shown. Learn weights from behaviour
-later, once the Investment fix in `AUDIT.md §6` has produced behaviour to learn from.
-
-**Where facets replace what exists**
-
-- Every prompt currently interpolating `GENRE_MAP` — pattern analysis, Orbit's balanced
-  prompt, discover, similar vibes.
-- Chips on the movie page, where nothing is rendered today.
-- Node colour and edge labels in the graph.
-- The active state of the progression: *"three films into sodium-lit crime."*
-- The similar-films heading: "Because of the night" instead of "Similar Films".
+The sprocket-detent date strip you asked for falls out of the mark rather than being designed
+separately.
 
 ---
 
-## 8. Motion
+## 5. Colour
 
-The perceived jank is not bad easing. It is that **elements teleport**: the poster in the
-onboarding grid, the poster in the confirmation sheet, and the poster on the movie page are
-three unrelated DOM nodes that never acknowledge each other. One fix carries most of the
-"smoothness" complaint.
-
-### 8.1 The one rule
-
-**The poster is the transition.** Framer Motion is already a dependency; every poster in the
-app gets `layoutId={`poster-${movieId}`}`. It then physically travels: grid cell → hero →
-day cell → graph node → one-sheet. Nothing cuts.
-
-### 8.2 Tokens
+The shell stays out of the way. **All chroma comes from the films, and it moves.**
 
 | Token | Value | Use |
 |---|---|---|
-| `swift` | 140ms, `cubic-bezier(.2,0,.2,1)` | taps, chips, toggles |
-| `travel` | 320ms, spring `stiffness 420 / damping 34` | shared-element morphs |
-| `settle` | 480ms, spring `stiffness 260 / damping 28` | sheets, screen entry |
-| `drift` | 8s, linear, infinite | hero Ken-Burns, graph idle breathing |
-| `arc` | 620ms, `cubic-bezier(.65,0,.35,1)` | a dot travelling an edge in the graph |
+| `--base` | `#0A0A0B` | the shell. Near-neutral so it never tints poster colour |
+| `--base-2` | `#141416` | raised surfaces, sheets |
+| `--base-3` | `#1D1D20` | cards, inputs |
+| `--line` | `#2B2B2F` | hairlines, chip borders |
+| `--fg` | `#EFEDE9` | primary text, the mark |
+| `--fg-2` | `#B9B6B0` | secondary — clears AA on `--base` |
+| `--fg-3` | `#7C7A76` | tertiary, mono labels |
+| `--select` | `#FF3B14` | the lit bar, and one live state per screen |
+| `--film` | *runtime* | dominant colour of whatever film is on screen |
+| `--film-2` | *runtime* | secondary poster colour, for the flare |
 
-Nothing in the UI is allowed to change state instantly except text already on screen.
+**The reactive field.** The Gemini behaviour you pointed at, sourced from films instead of a
+brand palette: `--film` and `--film-2` bloom softly under the thumb and settle when released.
+The Ticket is lit by the film it's offering. The Assembly is lit entirely by the films in it.
+A day in the Strip carries the colour of what you watched.
 
-### 8.3 The four canonical transitions
+`extractDominantColor` already exists and currently powers a single background wash in Orbit.
+It becomes the palette.
 
-**1. Onboarding morph.** The three chosen posters converge to the centre, overlap, and
-collapse into a single card that becomes the verdict. The posters do not fade out; they
-*become* the next screen. `layoutId` per poster, `settle`, staggered 60ms.
+**`--select` is rationed to once per screen.** The moment it appears twice it stops meaning
+anything. Everything currently blue, purple, amber, green or red becomes foreground, base, or
+nothing. Purple in particular is the universal "an LLM lives here" signal and has to go — it
+is currently on the onboarding selection state, every Orbit surface and the chat.
 
-**2. The log.** Poster leaves the sheet on `travel`, scales to the day cell, lands with a
-`medium` haptic, the cell takes the poster's `--film` colour, and the year count ticks up by
-one with the numeral rolling. This replaces the invisible navy square and is the single
-highest-value animation in the product.
+**Grain** at 2–4%, fixed to the viewport. Costs nothing, kills dark-mode banding, and reads
+photochemical rather than screen.
 
-**3. Graph traversal.** A dot leaves the current node, travels the edge on `arc`, and the
-edge label types in **once** as it travels — the only place in the app where progressive text
-is allowed, because here it maps to physical motion rather than imitating a chatbot. The new
-node scales to 1, the old drops to 0.4 opacity. This is the "dots traversing node to node"
-you described, and it is what `/dna/:id` should be instead of a hard grid swap.
+---
 
-**4. Hero arrival.** Backdrop paints immediately at full opacity — never a black rectangle.
-Video fades in over it across 600ms once buffered. Grain sits above both. Verdict and facet
-row are already legible before the video exists. If the video never loads, the screen is
-complete anyway.
+## 6. Typography
 
-### 8.4 Haptics
+Ship free now, license later.
 
-`src/lib/haptics.ts` is built and fires only in Orbit. Wire it everywhere:
+| Role | Family | Rules |
+|---|---|---|
+| **Display** | **Archivo Variable** | weight and **width** axes. `-0.03em` at body sizes, `-0.045em` above 32px. Expanded for verdicts, condensed for dense meta. Sentence case, never title case. |
+| **Spec** | **Martian Mono** | 11px / `0.08em` / uppercase. Facet chips, formats, runtimes, ratios, timestamps. Tabular numerals. |
+
+Both are free and on Google Fonts, so this ships today. Budget Diatype or Söhne for the
+rebrand pass.
+
+Archivo's width axis is the reason to pick it over Inter: one file goes from condensed to
+expanded, which is the poster move, and it doesn't read as a default.
+
+**Mono is demoted from rev A.** You rejected the lab-report register — it appears on specs and
+facet chips only and never carries body copy.
+
+**The film's own type outranks ours.** TMDB serves logo images and `useMovieDetails` already
+fetches them. Wherever a film has a logo, the logo is the title — the app never re-sets
+*Mission: Impossible* in Archivo.
+
+| Step | Size | Family | Use |
+|---|---|---|---|
+| Verdict | 34 / 0.95 | Archivo 800 expanded, `-0.045em` | the line that argues for the film |
+| Title | 26 / 1.05 | Archivo 800, `-0.04em` | screen titles, films with no logo |
+| Lead | 19 / 1.35 | Archivo 500, `-0.02em` | personalised synopsis |
+| Body | 15 / 1.5 | Archivo 400 | prose |
+| Meta | 13 / 1.4 | Martian Mono | year · runtime · director |
+| Chip | 11 / 1 | Martian Mono 500, `0.08em`, upper | facets, formats |
+
+---
+
+## 7. Taste: two layers
+
+**Layer 1 — the ground truth.** Every film tagged once against a closed eight-axis
+vocabulary, cached forever, identical for every user. Generated with ~300–500 hand-tagged
+canonical films pasted in as few-shot examples so the wording never drifts. This is what the
+graph computes on.
+
+**Layer 2 — your words.** How those facets are *named and phrased for you*, learned from your
+behaviour and your language. Two users read two different sentences off the identical edge.
+
+**Feedback.** Long-press any facet: *wrong / not why I liked it.* Repairs the tag, and the
+correction is the best taste signal in the product because the user is telling you *why*.
+
+**Every facet is a room.** Tapping one opens the films that share it, under a name written for
+you. Tap two and you're in a subset; tap three and you're somewhere nobody else is. That is
+the "subsets of subsets of subsets", and it is the Spotify-daylist mechanic applied to film.
+
+### The eight axes
+
+| Axis | Example terms |
+|---|---|
+| `look` | 35mm grain · sodium-and-cyan night · available light · video-tape texture · high-contrast monochrome |
+| `camera` | locked-off · handheld verité · dolly-in on faces · unbroken take · god's-eye overhead |
+| `tempo` | slow burn · procedural · breathless · elliptical · dread accumulating |
+| `weather` | nobody wins · competence porn · doomed romance · guilt as engine · complicity |
+| `sound` | needle-drop maximalism · silence as threat · synth pulse · diegetic only |
+| `world` | rain-slick city night · institutional corridors · one apartment · sunbaked backroad |
+| `shape` | nonlinear · frame story · two-hander · ensemble braid |
+| `format` | 1.37 Academy · 2.39 anamorphic · IMAX 70mm · 16mm blowup |
+
+Every term must be something a person could say out loud at a bar. If it needs explaining it
+is the wrong term. `format` is the one axis where jargon is the pleasure.
+
+`world` carries location as a first-class property, which is what Selects Maps will inherit.
+
+### Edges
+
+Weighted facet overlap, rarer facets weighted higher — TF-IDF across the corpus, so
+`heist procedural` far outranks `drama`. No training data needed, explainable, debuggable,
+instant.
+
+The edge is rendered as **a sentence made of the overlap**, never a number:
+
+> Heat ↔ The Dark Knight
+> `sodium-and-cyan night · procedural · competence porn · rain-slick city night`
+> *the city is the antagonist and both men are good at their jobs*
+
+**0.87 is never shown to anyone.** Strength drives line weight and opacity.
+
+### "What did you like about this?"
+
+One free-text line, offered on any film. Your Guy Ritchie → *Seven Psychopaths* route only
+existed because you wrote a paragraph describing the quality you wanted. That paragraph is the
+facet system in plain English. It is the richest signal available, users give it willingly
+because it feels like talking rather than rating, and it feeds Layer 2 directly.
+
+### What replaces `GENRE_MAP`
+
+Every prompt currently interpolating TMDB's 19 genre strings — pattern analysis, Orbit's
+balanced prompt, discover, similar vibes. Plus: chips on the film page where nothing renders
+today; node colour and edge labels in the Assembly; the Nudge's copy; the similar-films
+heading, which becomes the shared facet — *"Because of the night"* rather than *"Similar Films"*.
+
+---
+
+## 8. The Assembly
+
+Your taste graph. Every film you've logged, laid out and connected, extending outward into
+films you haven't seen.
+
+- **Seen** films are solid and carry their own poster colour. **Unseen** are outlined and
+  colourless. Logging fills one in — **your map visibly grows when you log**, which is the
+  reward the calendar has never paid.
+- **Node colour is the film's colour.** Never a category palette. This alone makes the graph
+  impossible to mistake for generic data-viz.
+- **Traversal is a dot travelling an edge**, and the edge label writes itself once as the dot
+  moves. This is the only place in the app where progressive text is allowed, because here it
+  maps to physical motion rather than imitating a chatbot.
+- **Layout differs by how you use the app.** Someone who lives in Rabbit Hole gets a map
+  dominated by their paths; someone who logs compulsively gets one dominated by density. Two
+  users at 99% taste match should not get the same picture.
+- **The Wallet** — the handful of films closest to you — anchors the centre.
+
+**Search is the Assembly with a query at the centre.** Your spherical-web idea: typing a title
+doesn't return a list, it drops you into the graph at that film with its neighbours around
+you, swipeable in any direction. Same renderer, different entry point — not a separate build.
+
+Rabbit Hole is the Assembly in motion; the Assembly is Rabbit Hole at rest. One graph, two
+verbs, and `DNAScreen` and the Orbit constellation both become views of it without either
+being removed.
+
+---
+
+## 9. The 11:40pm loop
+
+The strongest untapped trigger in the category, and the mechanism is already in your data.
+
+1. **The app knows the film is ending.** The Ticket was torn at 9:15, runtime is 170 minutes.
+   Or a calendar log has a start time. Or they tapped "watching now." No guessing — and note
+   that this is the strongest argument for the Ticket: *it is the only feature that tells you
+   when someone is inside a film.*
+2. **Verdict push, 10–15 minutes after the credits.** *"So. Did the ending earn it?"*
+3. **One tap logs it.** Rating, and an optional line — the *Days of Thunder* note, no F1 films
+   without it. Those lines are the most personal thing in the product and eventually they are
+   what the Cut is narrated by.
+4. **Then the door.** *"That corridor shot is lifted from Oldboy."* Which opens the Assembly at
+   that film, and the collaborator paths go from there — Hardy to Nolan to Murphy to Peaky
+   Blinders. Or the questions: what does this signify, were they running, what did they forget.
+5. **Then the three.** Not "similar films" — *"three more where the city is the antagonist."*
+   Each with its reason stated, because you were right that genre-adjacency is stale and
+   everyone can feel it.
+
+---
+
+## 10. Motion
+
+The jank isn't easing. **Elements teleport.** The poster in the onboarding grid, the poster in
+the confirmation sheet and the poster on the film page are three unrelated DOM nodes that
+never acknowledge each other.
+
+### The one rule
+
+**The poster is the transition.** Framer Motion is already a dependency. Every poster gets
+`layoutId={`poster-${id}`}` and physically travels: swipe card → Ticket stub → hero → day bar
+→ Assembly node → Print. Nothing cuts.
+
+### Tokens
+
+| Token | Value | Use |
+|---|---|---|
+| `swift` | 140ms · `cubic-bezier(.2,0,.2,1)` | taps, chips, toggles |
+| `travel` | spring 420 / 34 | shared-element morphs |
+| `settle` | spring 260 / 28 | sheets, screen entry |
+| `tear` | 260ms · `cubic-bezier(.36,0,.1,1)` | the Ticket perforation |
+| `drift` | 8s linear ∞ | hero carousel, Assembly idle |
+| `arc` | 620ms · `cubic-bezier(.65,0,.35,1)` | a dot travelling an edge |
+| `clap` | 380ms spring 500 / 22 | the launch mark |
+
+Nothing changes state instantly except text already on screen.
+
+### Canonical moments
+
+**The tear.** Drag the stub down, the perforation resists, gives, and the film's colour floods
+the screen. Heavy haptic plus success. The variable reward lands underneath.
+
+**The log.** Poster leaves the sheet, travels, lands in the day bar, takes that day's colour,
+Focus visibly sharpens and the count rolls. This replaces the current reward, which is a 44px
+near-black square.
+
+**The strip.** One detent per day, one `selection` haptic per detent. Fling and the detents
+blur into a run.
+
+**Assembly traversal.** Dot leaves, travels the edge on `arc`, edge label writes once, new node
+scales to 1, old drops to 0.4.
+
+**Hero arrival.** Backdrop paints at full opacity immediately — never a black rectangle. Video
+fades in over it once buffered. Logo and verdict are legible before the video exists. If the
+video never loads, the screen is still complete.
+
+### Haptics
+
+Built (`src/lib/haptics.ts`) and currently firing only in Orbit.
 
 | Event | Haptic |
 |---|---|
+| Tear a stub | `heavy` + `success` |
 | Log a film | `medium` + `success` |
-| Facet chip tap | `selection` |
-| Graph node arrival | `light` |
-| Orbit swipe | `medium` *(already)* |
-| Reached an edge of the graph | `warning` |
-| One-sheet ready | `heavy` |
+| Date strip detent | `selection` |
+| Facet chip | `selection` |
+| Assembly node arrival | `light` |
+| Edge of the graph | `warning` |
+| Launch clap | `heavy` |
 
-### 8.5 Skeletons, not spinners
+### Skeletons, not spinners
 
-There is one centred spinner per screen in this app and that is the strongest "generic web
-app" signal in the whole product. Replace all of them: the poster's own dominant colour as a
-blurred plate, mono labels in place at 20% opacity, and content filling in. The layout
-should never move once painted.
-
----
-
-## 9. Crossing surfaces
-
-The brief asks for a brand that bleeds through phone, real life, film, cinema, and the web.
-One artifact does all five: **the one-sheet.**
-
-`AUDIT.md §4.2` argues monthly should be a poster and annual should be the film. The reason
-is that a poster is the same object everywhere:
-
-| Surface | The same artifact |
-|---|---|
-| **Phone** | end-of-month reveal; saved to Photos; the ring animates as the progress arc toward it |
-| **Real life** | printable at A3; sticker sheets of your top facets; a QR that resolves to your graph |
-| **Film / cinema** | the vocabulary *is* cinema's — 1.37, 70mm, sodium light. The one-sheet is typeset like a rep-house calendar, not like an app export |
-| **Web landing page** | the hero is a live one-sheet of a real user's month, regenerating. The product demos itself with zero screenshots of UI |
-| **Social** | it is poster-shaped, so it fills a phone screen when posted; every share is a brand impression rather than a cropped screenshot |
-
-Landing page structure follows from that: one live one-sheet, one sentence, one field. No
-feature grid, no phone mockups on gradients, no "How it works" in three columns. The type,
-the grain, the ink, and the bone are the entire design — the same system as the app, at
-poster scale.
-
-**Print specifics, since real life was named:** the palette is deliberately two-ink, so it
-screen-prints. Bone on ink, one hit of grease. That is a $2 poster and a $0.40 sticker, and
-it is the cheapest brand distribution a film app will ever have.
+One centred spinner per screen is the strongest "generic web app" signal in the product.
+Replace every one: the poster's own colour as a blurred plate, mono labels in place at 20%,
+content filling in. The layout never moves once painted.
 
 ---
 
-## 10. What this replaces
+## 11. Voice
 
-| Current | Becomes |
+**Who is speaking:** someone who has seen everything and doesn't need you to know that.
+Declarative, present tense, unimpressed. A projectionist, not a critic, and nowhere near a
+brand.
+
+1. Never *AI*, *powered by*, *generate*, *curated*, *vibes*, *personalized*, *smart*, *magic*,
+   *journey*.
+2. Never explain the mechanism. They don't want to know it read their Letterboxd; they want to
+   be understood.
+3. Buttons are verbs: `Tear`, `Log`, `Open`, `Import`. Never `Submit`, `Continue`,
+   `Get Started`.
+4. Specific nouns beat adjectives. *Sodium-lit* over *atmospheric*. *Nobody wins* over *gritty*.
+5. One dry joke per screen. Zero exclamation marks.
+6. When the app talks about the user it observes. It never compliments.
+7. **80/20 on sharpness.** Four in five reads are warm and useful; one in five is
+   uncomfortable. The uncomfortable ones only appear in two places the user chose to open —
+   profile insights and the import reveal. Never unrequested on a film page.
+
+### The Nudge
+
+Reactive, never running. After three circling searches a bar rises:
+
+> **You're three deep in heist procedurals.** Rabbit hole? — *5s*
+
+Five-second ring, acts if you don't dismiss it, gone if ignored. Your Cursor reference,
+built. `PatternAssistant` is already most of it.
+
+### Push register
+
+Funny enough to be worth the tap, rare enough that the joke still lands. One a day by default,
+two as the ceiling. Zomato gets away with volume because the purchase is cheap and impulsive;
+a film is two hours and a wrong nudge is expensive.
+
+| Type | Fires | Example |
+|---|---|---|
+| Ticket | daily, user-set hour | "Tuesday's ticket. Three, and one of them is a reach." |
+| Verdict | 10–15 min after the credits | "So. Did the ending earn it?" |
+| Drop | a film you'd want, near you or newly streaming | "Heat. 70mm. Four blocks away. Sunday." |
+| Focus decay | rarely, always with an offer | "You've gone soft. Two logs and I'll have you sharp again." |
+
+### Before / after
+
+| Surface | Now | Proposed |
+|---|---|---|
+| Splash | "Your Personal Cinema Journal" | `Selects` — nothing else |
+| Onboarding | "Your cinema. Understood. / A few questions to get started." | "Three films you'd rewatch tonight." |
+| Film CTA | "Ask AI" | the first suggested question, verbatim |
+| Similar | "Similar Films" | "Because of the night" |
+| Import done | "Imported ✓" | "856 films. Here's what they say about you." |
+| Logged | "Movie Logged!" | "Kept. 41 this year." |
+| Empty list | "No movies yet" | "Nothing queued. That's a choice." |
+| Waitlist | "Reach out to the team" *(no link)* | "Not open yet. Leave an email and one line about the last film that wrecked you." |
+| Pattern | "Pattern Detected • 4 films explored" | "You keep choosing men who lose." |
+| Rec label | "NEXT WATCH" | "Tonight" |
+
+The pattern prompt already has this voice — *"Ah, the 'morally bankrupt men doing crimes with
+style' marathon."* It exists in the prompts and nowhere in the chrome. Make the chrome match
+the prompts, not the reverse.
+
+---
+
+## 12. Onboarding
+
+Reward before investment. Currently pages 5 and 6 ask for a Letterboxd username and an IMDb
+CSV before the user has seen a single recommendation.
+
+1. **Swipe to calibrate.** A poster, four directions — right: seen it, loved it. Left: seen it,
+   didn't land. Up: haven't seen it, want to. Down: not for me. Two bits per swipe instead of
+   one, faster than tapping, and it teaches Rabbit Hole's gesture while it builds the graph.
+   Around forty swipes is a usable Assembly.
+2. **The read.** The swipes converge into one sentence that is uncomfortably accurate, plus the
+   facets it read off them. This is where they decide.
+3. **One Ticket**, torn. Value delivered before anything is asked for.
+4. **Then Letterboxd** — username only, reframed as *"I can read your last fifty in four
+   seconds."*
+
+**Import.** Username gets the public RSS diary — recent films *with ratings* — instantly, which
+is enough for a real reveal. Full history still needs the CSV. So: username first for the hit,
+CSV offered afterwards, once they already believe you.
+
+**The reveal.** Checkmark, **"856 films imported"**, one number-forward line with an absurd
+true equivalence, and an **Explore** button with nothing competing with it. Explore opens the
+Assembly. If it isn't built yet, say so and push when it is.
+
+The reveal carries the sharp reads: time-of-day patterns, the dominant colour across your
+posters, the brothers observation, and the blind spots — including the ones nobody would guess.
+Not "favourite director, favourite genre."
+
+**Morphs, not cuts.** Every step today is `if (page === N) return`. The chosen posters converge
+and collapse into the read; `layoutId` per poster, `settle`, staggered 60ms.
+
+---
+
+## 13. The artifacts
+
+A ladder, so it ships and stays affordable.
+
+| Rung | What | Who |
+|---|---|---|
+| **the Print** | still one-sheet — your films, your dominant colour, your top facets, one line about who you were | everyone, monthly |
+| **the Cut** | 20–30s cut of trailer clips, dialogue and title cards, your month as a slate trailer | anyone who logged enough that month |
+| **the Year** | the long one | December |
+
+Making the Cut **earned** does two jobs: it controls render cost, and it turns logging into the
+thing that unlocks the artifact — a fixed-ratio reward on exactly the behaviour you need.
+
+*Rights flag:* build the Cut from trailers, stills and logos. Trailer footage is promotional
+and widely tolerated; feature footage is not.
+
+**The Assembly is public by default**, private on request, shareable at any horizon — a week, a
+month, a year, each as its own Print. No per-platform buttons; one image, one long-press, the
+OS sheet.
+
+**Match percentage** on another user's profile, top right. Cheapest, highest-value social
+object in the category, and the thing people screenshot.
+
+---
+
+## 14. Crossing surfaces
+
+| Surface | The same system |
 |---|---|
-| `#09090b` zinc base | `--ink` `#0B0A08` warm |
-| Blue, purple, amber, green, red accents | bone + ink + one rationed `--grease` + `--film` from the poster |
-| System font stack | tight grotesk + mono, strictly divided by role |
-| `Sparkles` icon, "Ask AI", purple gradients | the question itself, set in mono |
-| 19 TMDB genres | eight-axis facet vocabulary |
-| Film-strip sprocket icon | the grease-pencil ring |
-| Centred spinners | poster-coloured skeletons |
-| Hard cuts between steps | poster as shared element |
-| Numeric similarity, unshown | facet overlap, shown as a sentence |
-| "ViewFindr" / "Selects" / "movielcursor" | Selects |
+| **Phone** | Ticket stubs, the Strip's bars, the Assembly lit by your films |
+| **Widget** | one bar per recent day, one tap to log. A second trigger channel for almost nothing |
+| **Real life** | the Print at A3 — two inks, so it screen-prints. Sticker sheets of your facets. The Ticket stub is already a physical object |
+| **Cinema** | the vocabulary *is* cinema's: 1.37, 70mm, sodium light. Typeset like a rep-house calendar, not an app export |
+| **Web** | the hero is a live Print of a real user's month, regenerating. No feature grid, no phone mockups on gradients |
+
+The palette is deliberately two-ink plus film colour, which means a $2 poster and a $0.40
+sticker. Cheapest brand distribution a film app will ever have.
+
+---
+
+## 15. What this replaces
+
+| Rev A / today | Rev B |
+|---|---|
+| grease-pencil ring | six clapstick bars, one lit |
+| `#09090b` zinc, single warm base | `#0A0A0B` neutral shell, all chroma from films, reactive |
+| system font stack | Archivo Variable + Martian Mono |
+| mono-dominant lab report | mono demoted to specs; the film's logo does the talking |
+| 19 TMDB genres | closed eight-axis spine, open personalised surface, every facet a room |
+| recommendation-first home | HomeV2: carousel + logo + detented date strip |
+| consolidate by deleting | consolidate by promoting; nothing removed |
+| centred spinners | poster-coloured skeletons |
+| hard cuts | the poster is the transition |
+| numeric similarity, unshown | facet overlap, shown as a sentence |
+| ViewFindr / Selects / movielcursor | Selects |
