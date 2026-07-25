@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { callClaude } from '../lib/claude';
+import { apiFetch } from '../lib/apiClient';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const OMDB_API_KEY = import.meta.env.VITE_OMDB_API_KEY || '';
@@ -60,7 +61,7 @@ const formatRuntime = (minutes?: number | null): string => {
 // Fetch IMAX/Dolby info from IMDb technical specs via our API
 async function fetchIMDbTechSpecs(imdbId: string): Promise<{ isImax: boolean; isDolbyAtmos: boolean; isDolbyVision: boolean }> {
   try {
-    const response = await fetch(`/api/imdb-techspecs?imdbId=${imdbId}`);
+    const response = await apiFetch(`/api/imdb-techspecs?imdbId=${imdbId}`);
     if (!response.ok) {
       console.warn('Failed to fetch IMDb tech specs:', response.status);
       return { isImax: false, isDolbyAtmos: false, isDolbyVision: false };

@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { guard } from './_lib/http';
+import { AI_LIMIT } from './_lib/rateLimit';
 import { callOpenRouter } from './_lib/openrouter';
 
 const SYSTEM = `You write ultra-short audience-perspective hooks for films. Max 7 words. Rules:
@@ -9,12 +11,8 @@ Good: "$1M budget. $80M gross. Earned every dollar.", "The horror film nobody sa
 Bad: "Barker's directorial debut" (nobody knows Barker), "drops next year" (stale), "Baker's horror debut" (same problem).`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  const auth = await guard(req, res, { methods: ['GET'], rateLimit: AI_LIMIT });
+  if (!auth.ok) return;
 
   const title = typeof req.query.title === 'string' ? req.query.title : '';
   const year  = typeof req.query.year  === 'string' ? req.query.year  : '';

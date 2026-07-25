@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { callClaude } from '../lib/claude';
 import { loadSkill } from '../lib/skills';
+import { apiFetch } from '../lib/apiClient';
 
 export function useMovieKnownFor(
   title: string | undefined,
@@ -17,7 +18,7 @@ export function useMovieKnownFor(
       try {
         // Try the server route first — uses OpenRouter + Gemini 3.1 Flash Lite with real-time web search.
         const params = new URLSearchParams({ title, year: year || '' });
-        const res = await fetch(`/api/movie-known-for?${params}`);
+        const res = await apiFetch(`/api/movie-known-for?${params}`);
         const data = res.ok ? await res.json() : { knownFor: null };
 
         if (!cancelled && data.knownFor) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/apiClient';
 
 export function useLetterboxdRating(tmdbId: number | undefined, title?: string, year?: string) {
   const [rating, setRating] = useState<string | null>(null);
@@ -14,7 +15,7 @@ export function useLetterboxdRating(tmdbId: number | undefined, title?: string, 
       year: year || '',
     });
 
-    fetch(`/api/letterboxd-rating?${params.toString()}`)
+    apiFetch(`/api/letterboxd-rating?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : { rating: null, filmUrl: null }))
       .then((data) => {
         if (cancelled) return;

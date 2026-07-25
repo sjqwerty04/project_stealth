@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { guard } from './_lib/http';
+import { SCRAPE_LIMIT } from './_lib/rateLimit';
 
 export type IMDbTechSpecs = {
   soundMix: string[];
@@ -12,17 +14,8 @@ export type IMDbTechSpecs = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const auth = await guard(req, res, { methods: ['GET'], rateLimit: SCRAPE_LIMIT });
+  if (!auth.ok) return;
 
   const { imdbId } = req.query;
 

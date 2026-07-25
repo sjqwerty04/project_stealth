@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 // Persistent cache using localStorage for longer-term storage
 const CACHE_PREFIX = 'claude_cache_';
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
@@ -172,7 +174,7 @@ export const callClaude = async (
     }
 
     // Call our Vercel serverless proxy instead of Anthropic directly (avoids CORS)
-    const response = await fetch('/api/claude', {
+    const response = await apiFetch('/api/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, systemPrompt, model }),
