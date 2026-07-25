@@ -29,6 +29,7 @@ import { logMovieAdded } from '../lib/analytics';
 import { useRecommendation } from '../hooks/useRecommendation';
 import ProfileDropdown from '../components/ProfileDropdown';
 import { callClaude } from '../lib/claude';
+import { buildImageUrl as tmdbImageUrl, type PosterSize } from '../lib/tmdb';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -58,10 +59,8 @@ const TRENDING_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 type AccentColors = { start: string; end: string; text: string };
 type TrendingCachePayload = { timestamp: number; items: Movie[] };
 
-const buildImageUrl = (path: string | null | undefined, size: 'w200' | 'w500' | 'w780' = 'w200') => {
-  if (!path) return size === 'w200' ? TMDB_POSTER_PLACEHOLDER : TMDB_BACKDROP_PLACEHOLDER;
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+const buildImageUrl = (path: string | null | undefined, size: PosterSize = 'w200') =>
+  tmdbImageUrl(path, size, size === 'w200' ? TMDB_POSTER_PLACEHOLDER : TMDB_BACKDROP_PLACEHOLDER);
 
 // ─── Color Utilities ──────────────────────────────────────────
 const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {

@@ -3,32 +3,13 @@ import { callClaude } from '../lib/claude';
 import { useAuth } from './useAuth';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { genreNames } from '../lib/tmdb';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-const GENRE_MAP: Record<number, string> = {
-  28: 'Action',
-  12: 'Adventure',
-  16: 'Animation',
-  35: 'Comedy',
-  80: 'Crime',
-  99: 'Documentary',
-  18: 'Drama',
-  10751: 'Family',
-  14: 'Fantasy',
-  36: 'History',
-  27: 'Horror',
-  10402: 'Music',
-  9648: 'Mystery',
-  10749: 'Romance',
-  878: 'Sci-Fi',
-  10770: 'TV Movie',
-  53: 'Thriller',
-  10752: 'War',
-  37: 'Western',
-};
+
 
 export type SearchResult = {
   id: number;
@@ -223,7 +204,7 @@ Return a JSON array of movie objects.
                       year: movie.release_date?.slice(0, 4) || '',
                       posterPath: movie.poster_path,
                       backdropPath: movie.backdrop_path,
-                      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                      genres: genreNames(movie.genre_ids),
                       overview: movie.overview || '',
                       popularity: movie.popularity || 0,
                       voteAverage: movie.vote_average || 0,
@@ -293,7 +274,7 @@ Return a JSON array of movie objects.
           year: m.release_date?.slice(0, 4) || '',
           posterPath: m.poster_path,
           backdropPath: m.backdrop_path,
-          genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+          genres: genreNames(m.genre_ids),
           overview: m.overview || '',
           popularity: m.popularity || 0,
           voteAverage: m.vote_average || 0,
@@ -307,7 +288,7 @@ Return a JSON array of movie objects.
           year: t.first_air_date?.slice(0, 4) || '',
           posterPath: t.poster_path,
           backdropPath: t.backdrop_path,
-          genres: (t.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+          genres: genreNames(t.genre_ids),
           overview: t.overview || '',
           popularity: t.popularity || 0,
           voteAverage: t.vote_average || 0,
@@ -465,7 +446,7 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
                     year: movie.release_date?.slice(0, 4) || '',
                     posterPath: movie.poster_path,
                     backdropPath: movie.backdrop_path,
-                    genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+                    genres: genreNames(movie.genre_ids),
                     overview: movie.overview || '',
                     popularity: movie.popularity || 0,
                     voteAverage: movie.vote_average || 0,

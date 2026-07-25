@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 import { useCalendarLogs } from './useCalendarLogs';
 import { callClaudeForJSON } from '../lib/claude';
 import { buildSeenKeys, isSeen, stripYearSuffix, titleKey } from '../lib/titleMatch';
+import { buildImageUrl } from '../lib/tmdb';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -173,10 +174,7 @@ const formatRuntime = (minutes?: number | null): string => {
   return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 };
 
-const buildImageUrl = (path: string | null | undefined, size: 'w200' | 'w500' | 'w780' = 'w200') => {
-  if (!path) return 'https://placehold.co/200x300?text=Movie';
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+
 
 export function useRecommendation() {
   const { user } = useAuth();

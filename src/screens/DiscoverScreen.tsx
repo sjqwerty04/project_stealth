@@ -7,6 +7,7 @@ import PatternAssistant from '../components/PatternAssistant';
 import { useExploration } from '../contexts/ExplorationContext';
 import { useAuth } from '../hooks/useAuth';
 import { logActivity } from '../lib/activityLogger';
+import { buildImageUrl } from '../lib/tmdb';
 
 export default function DiscoverScreen() {
   const navigate = useNavigate();
@@ -268,7 +269,7 @@ export default function DiscoverScreen() {
                         >
                           {movie.posterPath ? (
                             <img
-                              src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                              src={buildImageUrl(movie.posterPath, 'w200')}
                               alt={movie.title}
                               className="w-full h-36 object-cover rounded-lg border border-white/10 group-hover:border-purple-400/50 transition-colors"
                             />

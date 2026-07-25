@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { buildImageUrl } from '../lib/tmdb';
 import { useAuth } from './useAuth';
 
 type LetterboxdFilm = {
@@ -70,10 +71,7 @@ const searchTMDB = async (title: string, year?: string): Promise<any | null> => 
   }
 };
 
-const buildImageUrl = (path: string | null | undefined, size: 'w200' | 'w500' | 'w780' = 'w200') => {
-  if (!path) return 'https://placehold.co/200x300?text=Movie';
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+
 
 const parseLetterboxdRSS = (xmlText: string): LetterboxdFilm[] => {
   const parser = new DOMParser();

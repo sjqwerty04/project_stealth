@@ -16,6 +16,7 @@ import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserInsights } from '../hooks/useUserInsights';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport } from '../hooks/useIMDBImport';
+import { buildImageUrl } from '../lib/tmdb';
 
 const TASTE_DNA_ICONS = [Film, Globe, Clock];
 
@@ -27,7 +28,7 @@ const filmPrefLabel: Record<string, string> = {
 
 function PosterThumb({ posterPath, title }: { posterPath?: string; title?: string }) {
   const src = posterPath
-    ? `https://image.tmdb.org/t/p/w200${posterPath}`
+    ? buildImageUrl(posterPath, 'w200')
     : null;
   return (
     <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden bg-[#27272a] shrink-0">

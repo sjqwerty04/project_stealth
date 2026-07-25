@@ -1,3 +1,5 @@
+import { buildImageUrl } from '../lib/tmdb';
+
 type Provider = { name: string; logoPath: string };
 
 type WhereToWatchProps = {
@@ -10,8 +12,7 @@ type WhereToWatchProps = {
   region?: string;
 };
 
-const providerLogoUrl = (logoPath: string) =>
-  logoPath ? `https://image.tmdb.org/t/p/w92${logoPath}` : '';
+const providerLogoUrl = (logoPath: string) => buildImageUrl(logoPath, 'w92', '');
 
 function ProviderRow({ label, providers }: { label: string; providers: Provider[] }) {
   if (providers.length === 0) return null;

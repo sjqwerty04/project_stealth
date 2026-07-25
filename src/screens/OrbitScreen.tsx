@@ -13,6 +13,7 @@ import ConstellationView from '../components/orbit/ConstellationView';
 import { useAuth } from '../hooks/useAuth';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { logActivity } from '../lib/activityLogger';
+import { buildImageUrl } from '../lib/tmdb';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -92,7 +93,7 @@ export default function OrbitScreen() {
         
         // Get dominant color from poster
         const posterUrl = data.poster_path 
-          ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
+          ? buildImageUrl(data.poster_path, 'w500')
           : null;
         
         let dominantHex = '#1a1a2e';
