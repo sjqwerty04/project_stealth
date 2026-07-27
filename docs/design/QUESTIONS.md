@@ -1,149 +1,105 @@
-# Questions — round 2
+# Questions — round 3
 
-Round 1 is answered and locked in [DECISIONS.md](DECISIONS.md). These are what your answers
-opened up. Nine, down from twenty-seven, and they're narrower because the shape is settled.
+Rounds 1 and 2 are answered and locked in [DECISIONS.md](DECISIONS.md). Five left, and they're
+smaller again — three of them are tensions between two things you've already decided, which is
+usually a sign the design is nearly settled.
 
-Three are **BLOCKING** — I'd build the wrong thing if I guessed.
-
----
-
-## A. Focus
-
-**1. BLOCKING — Is Focus a number, or a state?**
-
-A number (0–100) is checkable, moves visibly, and is the thing you screenshot. It is also the
-thing users try to game, and a low one can read as an accusation — nobody enjoys being told
-they're a 38.
-
-A state — *soft / settling / sharp / locked* — is warmer, unfakeable and matches the visual
-metaphor, but you can't watch it climb, and half the reason to open the app on a Tuesday is
-watching it climb.
-
-My instinct: **the number, with the word underneath.** "38 · soft." The number gives you the
-climb, the word gives you the tone. But this is the single most-seen element in the product
-and I'd rather you picked it.
-
-**2. How hard should Focus decay?**
-
-This is the dial that decides whether the app feels like a companion or a nag.
-
-- **Gentle** — noticeable after a week. Forgiving. Weak pull.
-- **Firm** — noticeable after three days. Real pull. Some guilt.
-- **Sharp** — visible daily. Strong pull, and it will make some people feel bad about
-  a busy fortnight.
-
-Duolingo chose sharp and it works, but a language streak is a five-minute commitment and a
-film is two hours — the same pressure lands very differently. I'd start **firm** and watch
-what happens to logging rate versus uninstalls. Your call on the starting point.
-
-**3. Can Focus be low and the Ticket still be good?**
-
-Honestly: at Focus 30 the three picks are near-guesses. Two options. Either the Ticket says so
-— *"low confidence, this is a guess"* — which is honest and builds trust but advertises
-weakness on the screen the user sees most. Or it never admits it and quietly leans on
-popularity, which feels better and is a small lie.
-
-I lean toward admitting it, because your whole trust argument in Q11 was that inferred signals
-compound their error. But it costs something on day one, when everyone's Focus is low.
+Two are **BLOCKING**.
 
 ---
 
-## B. The Ticket
+**1. BLOCKING — Does *Seen it* ask for a rating?**
 
-**4. BLOCKING — What is behind the tear?**
+Two of your own answers pull against each other here.
 
-The reward has to be variable or it stops working by week two. Four candidates, and I need to
-know which feel like *you*:
+Round 1 Q11: ratings matter, because inferred signals compound their error and explicit input
+is the ground truth that stops the drift. Round 2 Q9: highest quality, **least friction**.
 
-| Behind the stub | Feels like |
-|---|---|
-| **A B-side** — a second, stranger film that pairs with the first | a mixtape |
-| **Canon** — a fact about the film nobody told them | feeling smart, which you named as the goal |
-| **A facet unlocking** — a new room opens in the Assembly | progression |
-| **A one-liner about them** — "you've picked three films about competence this week" | being known |
+*Seen it* is meant to be one tap. Adding a rating makes it two, on the action people will use
+most in their first month — and a rating you nagged someone into is worth less than one they
+volunteered.
 
-They can all exist and rotate — that's what makes it variable. But one of them should be the
-common case, and that one sets the emotional register of the whole product. My guess is
-**canon**, because "a regular user feels smart" was your answer to Q19.
+Three shapes:
 
-**5. What happens to the two stubs they didn't tear?**
+- **Log it silently.** One tap. You learn they've seen it, nothing more. Fastest, weakest.
+- **Log, then offer.** One tap logs it and the replacement stub slides in; a small rating
+  control stays on screen for a few seconds and is ignorable. Costs nothing to skip.
+- **Log and require.** Two taps, always. Best data, most friction, and it punishes the user for
+  the app's mistake.
 
-Gone at midnight is dramatic and creates real urgency. Rolling into a "missed" pile is kinder
-and lets you learn from what they *keep* passing on, which is a strong negative signal you'd
-otherwise throw away.
+*My leaning: log, then offer.* It respects that the recommendation was wrong — you don't get to
+charge someone for correcting you.
 
-Cinema's own answer is that a ticket expires. I'd expire them visibly — but log the passes
-silently, because a rejected stub tells you as much as a torn one.
+**2. BLOCKING — How does a user ask for a rewatch?**
 
----
+You locked that watched films never arrive unasked. So there has to be a door, and where you
+put it changes how often the feature gets used:
 
-## C. Taste
+- **A mode** — a toggle on the Ticket: *"something I've seen."* Explicit, discoverable, and
+  mostly ignored.
+- **An intent in search** — you go looking, and rewatches are simply not excluded there.
+  Invisible until wanted, but no prompt ever surfaces it.
+- **The app offers, on the right night** — high Focus, a wet Sunday, and one of the three stubs
+  is marked *"you saw this in 2019."* Best feeling, but it edges toward recommending a watched
+  film unasked, which is the thing you ruled out.
 
-**6. Give me twenty facets in your own words.**
+*My leaning: the mode, plus rewatches never being excluded from search.* The third option is
+lovely and I don't want to smuggle it past a rule you set deliberately — so if you want it, say
+so and I'll spec it as an opt-in.
 
-Not the eight axes — I've specified those. I mean the actual terms. `DIRECTION.md §7` has my
-guesses: *sodium-and-cyan night, competence porn, dread accumulating, nobody wins*. Some of
-those are probably right and some are probably me writing like a critic instead of like you.
+**3. When a stub gets *Wrong read*, do you ask why?**
 
-Twenty of yours — for films you love, in the words you'd actually use to a friend — calibrates
-the entire seed corpus. It is thirty minutes of your time and it is the highest-leverage thing
-you can personally do for this product. Everything the app ever says about a film inherits
-from those twenty.
+The tap alone tells you the film was wrong. One more beat — *which part was wrong?*, with the
+three facets that drove the pick as tappable chips — tells you **which facet is mis-tagged**,
+which is worth an order of magnitude more and repairs Layer 1 for everyone.
 
-**7. BLOCKING — Does a user ever see the whole vocabulary?**
+But it's friction at the exact moment someone is already mildly annoyed.
 
-Two very different products.
+*My leaning: ask, but only sometimes.* Every fifth *Wrong read*, not every one. Variable on the
+app's side rather than the user's, and it keeps the action feeling free.
 
-**Hidden:** facets only appear on films and in rooms you arrive at. The vocabulary is
-infrastructure. Feels magical, and mapping the territory is impossible — you can only wander.
+**4. Who picks the 2,000-film spine?**
 
-**Browsable:** there's an index. All eight axes, every term, tap anything. Feels like a
-library, rewards the obsessive, and makes the app a reference tool as well as a
-recommender — which is closer to your answer to Q27 about replacing IMDb.
+`VOCABULARY.md §5` needs a seed list spanning eras, movements, budgets and countries — and
+explicitly **not** the top 2,000 by popularity, or the vocabulary comes out shaped like a
+multiplex. That list determines the ceiling of everything the app can ever say.
 
-Hidden is more magical. Browsable is more useful, and your user zero is a completist. I lean
-browsable but buried — reachable, not advertised.
+Three ways: you write it, we derive it from canonical lists (Sight & Sound, Criterion,
+festival slates, TSPDT) and you edit, or we sample TMDB stratified by decade, country and
+budget.
 
-**8. When Layer 2 renames a facet for someone, do they know?**
+*My leaning: derive and edit.* Same "approve, don't author" shape as the facets — you get a
+list with obvious gaps visible and you fill them, which is where your taste actually adds
+something a sampler can't.
 
-If your app calls it *sodium-and-cyan night* and your friend's calls the identical thing
-*that Michael Mann blue*, that's the personalisation working. But if you ever compare screens
-— and with a public Assembly and a match percentage, you will — one of you finds out the app
-has a different voice for the other person.
+**5. When do the two or three weekly pushes fire?**
 
-That's either delightful or unsettling, and which one depends entirely on whether they were
-told it was happening. My instinct is that the personalisation is invisible until two people
-compare, and at that moment it should be framed as a feature, not discovered as a
-discrepancy.
+You set the budget; the timing is still open. Fixed hour on fixed days is predictable and
+easily ignored. Learned — the app watches when you actually open it and settles there — is
+better and takes weeks of data to get right. Contextual — Friday evening, a rainy Sunday, the
+night after you finished something — is the best and the most likely to misfire early.
 
----
-
-## D. The Cut
-
-**9. What is the bar for earning it?**
-
-You said 20–25 films a month describes a real cinephile. If the threshold is 20, most users
-never see the Cut and it becomes a thing they hear about. If it's 5, almost everyone gets one
-and it stops being an achievement — and your render bill scales with your user count instead
-of with your power users.
-
-There's a third shape: **the Cut's length is what's earned.** Everyone gets one; five films
-buys you fifteen seconds, twenty buys you a minute. Nobody is excluded, the incentive is
-continuous rather than a cliff, and cost scales with engagement instead of with signups.
-
-I prefer the third. But a cliff makes a better thing to brag about, and you know this
-audience better than I do.
+*My leaning: start fixed at a user-chosen hour, on Thursday/Friday/Sunday, and let it drift
+toward learned once there's enough signal.* Predictable is a fine place to start when the
+alternative is being wrong at 11am on a Monday.
 
 ---
 
-## Not asking, but flagging
+## Decided on your behalf — say the word and I'll flip them
 
-Three things I'll assume unless you say otherwise:
+- **The Cut's length is what's earned**, and everyone gets one. Five films buys fifteen
+  seconds, twenty buys a minute. You answered Q9 with a principle rather than a threshold, so I
+  took the lowest-friction reading of it: nobody is excluded, the incentive is continuous, and
+  render cost scales with engagement instead of signups.
+- **No screen for held-over films.** They just reappear, re-pitched. A "missed" list is a chore.
+- **Three passes then retire**, for held-over stubs. *Wrong read* retires on the first tap.
 
-- **The Verdict push needs a start time on the log.** That's a schema change to
-  `calendar_logs`, and it's what makes 11:40pm work. I'm treating it as agreed.
-- **Letterboxd RSS is the import path for the instant reveal**, with CSV as the deeper
-  second pass. If Letterboxd's terms turn out to prohibit it, the whole onboarding sequence
-  needs rethinking, so it's worth someone reading them before this gets built.
-- **The clapstick needs a trademark and visual-similarity check** before it goes on a store
-  listing. Diagonal bars are less crowded than rings, but it should still be cleared.
+## Still flagged, not asked
+
+- **A start time on `calendar_logs`.** Schema change, and it's what makes the 11:40pm push work.
+- **Corpus terms of use.** Reddit has an API with defined terms; bulk-harvesting Letterboxd
+  reviews probably isn't permitted. Worth checking before the mining pipeline is built — a
+  licensed or public critic corpus plus Reddit may be the safer construction anyway, and the
+  critic half is where the scarce craft language lives.
+- **A trademark and visual-similarity check on the clapstick** before it goes near a store
+  listing.

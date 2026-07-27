@@ -1,8 +1,10 @@
 # Selects — Brand, System & Motion Direction
 
-**Rev B.** Rev A was a proposal; this is the spec, rewritten against your answers to all 27
-questions. Rationale for each decision lives in [DECISIONS.md](DECISIONS.md). Open
-`direction-board.html` for the visual version — it is live HTML/CSS and meant to be edited.
+**Rev B, updated for round 2.** Rev A was a proposal; this is the spec, written against your
+answers to all 36 questions across both rounds. Rationale lives in
+[DECISIONS.md](DECISIONS.md); the taste vocabulary has its own document,
+[VOCABULARY.md](VOCABULARY.md). Open `direction-board.html` for the visual version — it is live
+HTML/CSS and meant to be edited.
 
 Changed materially since rev A: the mark (ring → clapstick), the colour system (single warm
 base → reactive film-derived chroma), the home screen (recommendation-first → HomeV2's
@@ -32,6 +34,11 @@ worth it — is now everyone's job every night.
    no "AI" in any string. It reacts to what you just did; it does not animate at you.
 4. **Investment must be visible.** If logging a film doesn't visibly change something the user
    can see, it will not happen twice.
+5. **Never recommend a film they've already seen.** Watched films are excluded from the Ticket
+   and from recommendations by default. Rewatch is an **explicit intent** — the user asks, and
+   rewatch stubs are marked as such (*"you saw this in 2019"*). They never arrive unasked.
+   This only works as well as the app's Depth, which is why **Seen it** (§2) exists: early on
+   the exclusion will fail, and the failure has to be one tap from being useful data.
 
 ---
 
@@ -53,12 +60,22 @@ missing, because **it decays.**
 | **Clarity** | recent picks share facets | scattered picks |
 | **Context** | time, weather, showtimes near you, hours free | — |
 
-**It is rendered as literal sharpness.** Low Focus and your Ticket art is soft; high Focus and
-it is razor-sharp with the grain visible. No dial, no gauge, no percentage ring. The image is
-the metric.
+**The number is primary; the state is derived from it.**
 
-Two logs after a soft week snap it back — and that is the first thing in the product where
-investment loads the next trigger.
+| Focus | State | Ticket art |
+|---|---|---|
+| 0–39 | soft | heavily defocused |
+| 40–64 | settling | soft edges |
+| 65–84 | sharp | clean |
+| 85–100 | locked | clean, grain visible |
+
+The number gives you the climb. The state gives it a tone, so nobody is ever just told they're
+a 38. And it's **rendered as literal sharpness** — no dial, no gauge, no percentage ring. You
+can read your Focus from across the room without looking at a digit.
+
+**Decay is gentle**: noticeably softer after about a week, not three days. Companion, not nag.
+Two logs snap it back — and that is the first thing in the product where investment loads the
+next trigger.
 
 ### The Ticket
 
@@ -69,12 +86,75 @@ contributor is doing the work:
 - *"You're four films into heist procedurals. This is the one they were copying."*
 - *"70mm. Four blocks away. Sunday, 7:40."*
 
-**Tearing a stub** is the core action: a downward drag, a perforation that gives, a heavy
-haptic, and a variable reward behind it — sometimes a B-side, sometimes a piece of canon
-nobody told you, sometimes a facet unlocking into a room.
-
 Three, not one: a single guess can be wrong and wrong kills trust. Three, not six: more than
 four rebuilds the paralysis the app exists to end.
+
+### Four actions on a stub
+
+| Action | What it does | What it tells you |
+|---|---|---|
+| **Tear** | I'm watching this | intent — and it starts the 11:40pm timer |
+| **Seen it** | logs the film, swaps in a replacement stub | the fastest logging path in the app |
+| **Not tonight** | held over, re-pitched later | a **context** miss |
+| **Wrong read** | retired immediately | a **taste** miss |
+
+**Not tonight and Wrong read must stay separate.** One says bad timing, the other says you
+don't know me. Collapsing them throws away the difference between a scheduling problem and a
+model problem — which is exactly the confusion that makes recommenders feel stupid.
+
+**Seen it is the sleeper.** Because watched films are excluded by default (§1) and that
+exclusion is only as good as the app's Depth, tickets *will* surface films the user has already
+seen — often, early on. That mistake becomes the lowest-friction logging surface in the
+product: one tap, no search, no date picker. And because it raises Depth, the mistake makes the
+next ticket better.
+
+**Tearing** is a downward drag, a perforation that resists then gives, a heavy haptic, and a
+variable reward behind it.
+
+### The rewards behind the tear
+
+| Reward | Frequency | Feels like |
+|---|---|---|
+| **Canon** — something about the film nobody told them | common | feeling smart |
+| **B-side** — a second, stranger film that pairs with the first | common | a mixtape |
+| **Taste note** — an observation about the shape of the map | occasional | being understood |
+| **A room opens** — a new facet becomes a place you can go | rare | discovery |
+
+A taste note is about **the map, never the person**. *"This corner is getting dense enough to
+have a name"* — not *"you keep choosing men who lose."* The first invites curiosity; the second
+is a verdict on someone's character delivered by a phone. Sharp personal reads stay where they
+belong: the profile insights and the import reveal, both of which the user chose to open.
+
+Room-unlock is rare *and* valuable precisely because the vocabulary has no index (§7) — an
+unlocked room is the only way the territory reveals itself.
+
+### Another take
+
+One refresh per 24 hours. The clapstick claps and three new stubs are struck. Cutting-room
+language, and the mark animates it.
+
+### Held Over
+
+A **Not tonight** stub is not discarded. It's held, and it comes back **re-pitched**: a
+different poster, a different reason drawn from a different facet, at a different time of day
+or a different season. Three passes and it retires as a real negative signal. **Wrong read**
+skips all of it and retires on the first tap.
+
+The re-pitch is free: TMDB's `images` endpoint returns many posters and backdrops per film and
+`useMovieDetails` already calls it — the app uses one and discards the rest. Same film, new
+face, no new integration.
+
+**No screen for held films.** They just reappear. A "missed" list is a chore.
+
+A film passed at 11pm on a Tuesday is not the same film on a Sunday afternoon. Re-pitching is
+the cheapest recommendation quality win available, because the hard part — deciding they'd
+probably like it — is already done.
+
+### Low confidence is admitted
+
+At Focus 30 the three picks are near-guesses, and the Ticket says so in its own register:
+*"Focus is soft today. These are reaches."* Inferred signals compound their error; a
+recommender that never admits a weak hand is spending trust it hasn't earned.
 
 The stub is a real-world object on purpose. It prints, it shares, and it is already the right
 shape for film-tourism check-ins later.
@@ -215,16 +295,29 @@ fetches them. Wherever a film has a logo, the logo is the title — the app neve
 
 ## 7. Taste: two layers
 
-**Layer 1 — the ground truth.** Every film tagged once against a closed eight-axis
-vocabulary, cached forever, identical for every user. Generated with ~300–500 hand-tagged
-canonical films pasted in as few-shot examples so the wording never drifts. This is what the
-graph computes on.
+Full spec, including the Nanocrowd teardown and the mining pipeline, is in
+**[VOCABULARY.md](VOCABULARY.md)**.
+
+**Layer 1 — the ground truth.** Every film tagged once against a closed eight-axis vocabulary,
+cached forever, identical for every user. The vocabulary itself is **mined, not hand-written**:
+audience reviews for feeling, critic and trade writing for craft, and structured metadata for
+format. This is what the graph computes on.
 
 **Layer 2 — your words.** How those facets are *named and phrased for you*, learned from your
 behaviour and your language. Two users read two different sentences off the identical edge.
 
 **Feedback.** Long-press any facet: *wrong / not why I liked it.* Repairs the tag, and the
 correction is the best taste signal in the product because the user is telling you *why*.
+
+**The personalisation is disclosed, not hidden.** A small *your name for this* affordance sits
+on a facet, and when two people compare graphs both namings show:
+
+> **You call it** sodium-lit and shot wide
+> **They call it** that Michael Mann blue
+
+That turns the one moment personalisation could read as a glitch into the moment it is most
+obviously deliberate — and it makes the match-percentage screen far more interesting than a
+number.
 
 **Every facet is a room.** Tapping one opens the films that share it, under a name written for
 you. Tap two and you're in a subset; tap three and you're somewhere nobody else is. That is
@@ -247,6 +340,16 @@ Every term must be something a person could say out loud at a bar. If it needs e
 is the wrong term. `format` is the one axis where jargon is the pleasure.
 
 `world` carries location as a first-class property, which is what Selects Maps will inherit.
+
+**Half these axes cannot be mined from audience reviews.** `camera` and `shape` need critic
+writing; `format` needs structured data. That is the concrete reason for the blended corpus —
+and it is the gap in Letterboxd's nanogenres, where across every visible example not one term
+describes craft. `format` is also nearly free: `api/imdb-techspecs.ts` already fetches IMDb's
+technical specs page and keeps two booleans out of it.
+
+**No index.** Facets appear on films and in rooms you arrive at; the whole vocabulary is never
+browsable. The territory is discovered, never surveyed — which is what makes an unlocked room
+a real reward.
 
 ### Edges
 
@@ -424,16 +527,28 @@ built. `PatternAssistant` is already most of it.
 
 ### Push register
 
-Funny enough to be worth the tap, rare enough that the joke still lands. One a day by default,
-two as the ceiling. Zomato gets away with volume because the purchase is cheap and impulsive;
-a film is two hours and a wrong nudge is expensive.
+Funny enough to be worth the tap, rare enough that the joke still lands. **The budget is two to
+three scheduled pushes a week.** Zomato gets away with volume because the purchase is cheap and
+impulsive; a film is two hours and a wrong nudge is expensive.
 
-| Type | Fires | Example |
+| Type | Fires | Counts against the budget |
 |---|---|---|
-| Ticket | daily, user-set hour | "Tuesday's ticket. Three, and one of them is a reach." |
-| Verdict | 10–15 min after the credits | "So. Did the ending earn it?" |
-| Drop | a film you'd want, near you or newly streaming | "Heat. 70mm. Four blocks away. Sunday." |
-| Focus decay | rarely, always with an offer | "You've gone soft. Two logs and I'll have you sharp again." |
+| **Ticket** | 2–3 × week, on the days the read is strongest | yes |
+| **Verdict** | 10–15 min after a film you actually started | **no** |
+| **Drop** | rare — 70mm near you, or newly streaming | yes |
+| **Focus** | rarely, always with an offer | yes |
+
+**The Ticket exists daily in the app but is only pushed a few times a week.** The widget and the
+habit carry the other days, and the push stays worth opening. **Event-driven pushes sit outside
+the budget** because they're earned by something the user just did — a Verdict is a reply, not
+an interruption.
+
+| Type | Example |
+|---|---|
+| Ticket | "Tuesday's ticket. Three, and one of them is a reach." |
+| Verdict | "So. Did the ending earn it?" |
+| Drop | "Heat. 70mm. Four blocks away. Sunday." |
+| Focus | "You've gone soft. Two logs and I'll have you sharp again." |
 
 ### Before / after
 
@@ -543,3 +658,9 @@ sticker. Cheapest brand distribution a film app will ever have.
 | hard cuts | the poster is the transition |
 | numeric similarity, unshown | facet overlap, shown as a sentence |
 | ViewFindr / Selects / movielcursor | Selects |
+| one push a day, ceiling of two | 2–3 scheduled a week; event pushes outside the budget |
+| Focus as an open question | a number 0–100 driving soft / settling / sharp / locked |
+| a single dismiss on a stub | four actions — tear, seen it, not tonight, wrong read |
+| passed films discarded | Held Over — re-pitched with a different poster and a different reason |
+| a hand-written seed corpus | a mined vocabulary; you approve rather than author |
+| vocabulary possibly browsable | no index. Discovered, never surveyed |

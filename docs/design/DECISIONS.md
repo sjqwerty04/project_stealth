@@ -1,4 +1,10 @@
-# Decisions — round 1
+# Decisions — rounds 1 & 2
+
+Round 2 is at the bottom. Where it revises round 1, the round-1 entry says so.
+
+---
+
+# Round 1
 
 Your answers to all 27 questions, converted into locked decisions. Where an answer overturned
 something I proposed in rev A, I say so plainly. Where an answer needs a mechanism you didn't
@@ -497,26 +503,229 @@ Two operational consequences, both locked:
 
 ---
 
+---
+
+# Round 2
+
+Nine questions, answered. Two of them changed things that were already locked.
+
+## 1. Focus is a number, and the number drives the state
+
+Locked: **the number is primary**, the state is derived from it, and the blur is how both are
+rendered.
+
+| Focus | State | Ticket art |
+|---|---|---|
+| 0–39 | soft | heavily defocused |
+| 40–64 | settling | soft edges |
+| 65–84 | sharp | clean |
+| 85–100 | locked | clean, grain visible |
+
+The number gives the climb. The state gives the tone, so nobody is ever just told they're a 38.
+The blur means you can read your Focus from across the room without looking at a digit.
+
+## 2. Gentle decay — and the push budget drops to 2–3 a week
+
+**This revises rev B.** `DIRECTION.md §11` said one push a day with a ceiling of two. You want
+2–3 nudges a week, so that's the budget now.
+
+Which forces a distinction the spec didn't have:
+
+| | Cadence | Counts against the budget |
+|---|---|---|
+| **The Ticket** | exists **daily** in the app | — |
+| **Ticket push** | 2–3 × week, on the days the read is strongest | yes |
+| **Verdict push** (11:40pm) | only after a film you actually started | **no** |
+| **Drop** (70mm near you, newly streaming) | rare | yes |
+
+The Ticket being there every day while only being *pushed* a few times a week is better than
+what I proposed: the widget and the habit carry the other days, and the push stays worth
+opening. Event-driven pushes sit outside the budget because they're earned by something the
+user just did — they're a reply, not an interruption.
+
+**Gentle decay** means Focus is noticeably softer after about a week, not three days. Companion,
+not nag.
+
+## 3. Admit low confidence — and the Ticket gains four more actions
+
+You added the most useful thing in this round: **tickets will often surface films the user has
+already seen**, so logging has to be possible right there.
+
+Locked action set on a stub:
+
+| Action | What it does | Signal |
+|---|---|---|
+| **Tear** | I'm watching this | intent, and it starts the 11:40pm timer |
+| **Seen it** | logs the film, swaps in a replacement stub | the fastest logging path in the app |
+| **Not tonight** | held over (§5) | context miss |
+| **Wrong read** | retired immediately | **taste miss** |
+
+**"Not tonight" and "wrong read" must be separate**, and the separation is free. One says *bad
+timing*, the other says *you don't know me*. Collapsing them into a single dismiss throws away
+the difference between a scheduling problem and a model problem — which is the exact confusion
+that makes recommenders feel stupid.
+
+**Seen it is the sleeper.** A wrong recommendation becomes the lowest-friction logging surface
+in the product: one tap, no search, no date picker. And because it raises Depth, the mistake
+makes the next ticket better. At cold start these will be frequent, which is fine — early on,
+the Ticket is partly a very efficient way of asking *what have you seen?*
+
+**One refresh per 24h**, and it's called **Another take.** Cutting-room language, and the mark
+animates it — the clapstick claps and three new stubs are struck.
+
+**Low confidence is admitted**, in the app's register rather than as a warning: *"Focus is soft
+today. These are reaches."*
+
+## 4. Behind the tear — three commons and one rare
+
+You picked B-side and canon, and corrected the third: a line about **their taste**, not about
+them.
+
+That correction is a voice rule and it's a good one:
+
+> **The app comments on the map, not on the person.**
+> "This corner is getting dense enough to have a name." — the map.
+> "You keep choosing men who lose." — the person.
+
+The first invites curiosity. The second is a verdict on someone's character delivered by a
+phone. So the sharp personal reads stay confined to where you put them in round 1 — the
+profile insights and the import reveal, both of which the user chose to open — and the daily
+reward never does it.
+
+| Reward | Frequency | Feels like |
+|---|---|---|
+| **Canon** — something about the film nobody told them | common | feeling smart |
+| **B-side** — a second, stranger film that pairs with the first | common | a mixtape |
+| **Taste note** — an observation about the shape of the map | occasional | being understood |
+| **A room opens** — a new facet becomes a place you can go | rare | discovery |
+
+The rare one is rare *and* valuable specifically because of your Q7 answer: with no browsable
+index, an unlocked room is the only way the territory ever reveals itself.
+
+## 5. Untorn stubs are **Held Over**
+
+You asked me to suggest, and your instinct — save them, resurface later with different
+material — is exactly what distributors do. It even has a name: **HELD OVER** is what a cinema
+marquee says when a film stays another week.
+
+Locked:
+
+- A **Not tonight** stub isn't discarded. It's held, and it comes back **re-pitched**: a
+  different poster, a different reason drawn from a different facet, at a different time of
+  day or a different season.
+- **Different poster is free.** TMDB's `images` endpoint returns many posters and backdrops per
+  film, and `useMovieDetails` already calls it — the app currently uses one and discards the
+  rest. Same film, new face, no new integration.
+- **Three passes and it retires**, recorded as a real negative signal.
+- **Wrong read** skips all of that and retires on the first tap. That's the whole reason the
+  two actions are separate.
+- **No screen for held films.** They just reappear. A "missed" list is a chore, and it fails
+  your least-friction principle.
+
+A film passed at 11pm on a Tuesday is not the same film on a Sunday afternoon. Re-pitching is
+the cheapest recommendation quality win available, because the hard part — deciding they'd
+probably like it — is already done.
+
+## 6. The vocabulary is mined, not written — see [VOCABULARY.md](VOCABULARY.md)
+
+Full spec in its own document. The three things worth knowing here:
+
+**I researched Nanocrowd.** Letterboxd's themes and nanogenres come from Nanocrowd's
+*ViewerVoice* platform: ~20,000 titles, three comma-separated words per nanogenre, clustered
+from emotive language in audience reviews, identical for every user, personalised only by
+filters.
+
+**Their weakness is structural, not incidental.** Across every visible example — *Zero Dark
+Thirty*, *Fast & Furious*, *(500) Days of Summer*, *Looper* — **not one term describes craft**.
+No camera, no format, no structure. That isn't sloppiness; audience reviews don't contain that
+language, so a review-mining system cannot produce it.
+
+**Which reframes your instruction.** Blending vernacular with critics isn't a stylistic
+preference — the vernacular corpus is the only place feeling lives, and the critic corpus is
+the only place craft lives. You need both because they carry different information. And your
+user zero, the one who cares what format a film was shot in, is invisible to Nanocrowd by
+construction.
+
+Also: **`format` needs no mining at all.** `api/imdb-techspecs.ts` already scrapes IMDb's
+technical specs page and keeps two booleans. Aspect ratio, negative format, camera and lens
+are all in that same response. One axis, exact rather than inferred, essentially free.
+
+And Q6 gets much smaller for you: the pipeline produces ~600 ranked candidate clusters with
+example films, and your job is to **approve, not author**. A couple of hours of picking, not a
+blank page.
+
+## 7. The vocabulary is hidden
+
+No index. Facets appear on films and in rooms you arrive at. The territory is discovered, never
+browsed.
+
+One consequence worth naming: this makes **room-unlock a genuinely strong reward** (§4), and it
+puts weight on the Nudge and on canon lines to do the teaching. If the vocabulary is invisible,
+the app has to be generous about showing it in context.
+
+## 8. Users know their names are their own
+
+Locked, and it becomes a feature rather than a leak. A small *your name for this* affordance on
+a facet, and when two people compare graphs both namings show:
+
+> **You call it** sodium-lit and shot wide
+> **They call it** that Michael Mann blue
+
+That's the one moment personalisation could read as a glitch, turned into the moment it's most
+obviously deliberate. It also makes the match-percentage screen far more interesting than a
+number.
+
+## 9. Never recommend a watched film — unless a rewatch is the point
+
+You answered with a principle rather than the Cut threshold, and the principle is the more
+important of the two.
+
+**Locked:** watched films are excluded from the Ticket and from recommendations by default.
+Rewatch is an **explicit intent** — the user asks for it, and rewatch stubs are marked as such
+(*"you saw this in 2019"*). They never arrive unasked.
+
+Two consequences:
+
+- This only works as well as Depth. At low Focus the app doesn't reliably know what you've
+  seen, so the exclusion will fail early — which is precisely why **Seen it** (§3) exists.
+  Your two answers solve each other.
+- Excluding watched films shrinks the candidate pool as a user logs more, which is the right
+  pressure: it forces the Assembly outward into unseen territory rather than re-serving the
+  wallet.
+
+**The Cut threshold is still open**, so I'm taking the lowest-friction option unless you say
+otherwise: **everyone gets a Cut, and its length is what's earned** — five films buys fifteen
+seconds, twenty buys a minute. Nobody is excluded, the incentive is continuous instead of a
+cliff, and render cost scales with engagement rather than with signups.
+
+
 ## What this changes in the roadmap
 
-Reordered against the answers. Dependency order, no dates.
+Dependency order, no dates. Revised after round 2 — two items moved earlier because they turn
+out to be nearly free.
 
-**First — close the loop.** Focus and its decay, persisted exploration, one push channel, the
-Ticket. Nothing else matters until a user has a reason to come back tomorrow.
+**First — close the loop.** Focus with gentle decay, persisted exploration, the push channel at
+2–3 a week, and the Ticket with its full action set. Nothing matters until a user has a reason
+to come back. **Seen it** ships with the Ticket, not after it: it is the cheapest logging
+surface in the product and the exclusion rule in §9 depends on it.
 
-**Second — own 11:40pm.** Runtime-timed Verdict push, the log, the three follow-ups with
-reasons, and the door into the Assembly.
+**Second — own 11:40pm.** A start time on `calendar_logs`, the runtime-timed Verdict push, the
+log, the three follow-ups with reasons, and the door into the Assembly.
 
-**Third — the vocabulary.** Seed corpus, Layer 1 tagging, Layer 2 phrasing, long-press
-correction, and facets as tappable rooms. This is what makes everything above stop sounding
-generic.
+**Third — the vocabulary.** In this order, because the cheap part is also the most visible:
+
+1. **`format`, immediately** — no mining, `api/imdb-techspecs.ts` already fetches the page, and
+   it's the axis your user zero notices first.
+2. **Held Over's re-pitch** — alternate posters are already in the TMDB `images` response the
+   app fetches and discards. A recommendation quality win with no new integration.
+3. Then the mining pipeline, Layer 1 tagging, Layer 2 phrasing, corrections, and rooms.
 
 **Fourth — the front door.** HomeV2 wired, carousel, detented strip, and un-hiding the
 personalisation that already exists but has never been rendered.
 
 **Fifth — identity.** Clapstick, bar system, Archivo, reactive colour, one name.
 
-**Sixth — the artifacts.** Import reveal, the Print, the Cut, public Assembly, match
-percentage.
+**Sixth — the artifacts.** Import reveal, the Print, the Cut, public Assembly, match percentage
+with both namings shown.
 
 **Banked:** Selects Maps, perks partnerships, TV.

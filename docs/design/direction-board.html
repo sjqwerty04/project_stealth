@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Selects — Direction Board · rev B</title>
+<title>Selects — Direction Board · rev C</title>
 <style>
 @font-face{font-family:'Archivo';src:url('fonts/archivo-latin.woff2') format('woff2');font-weight:400 800;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:'Martian Mono';src:url('fonts/martianmono-latin.woff2') format('woff2');font-weight:300 700;font-stretch:75% 112.5%;font-display:swap}
@@ -44,9 +44,9 @@ header h1{font-size:54px;font-weight:800;font-stretch:118%;letter-spacing:-.05em
 header .right{margin-left:auto;text-align:right}
 
 /* decision strip */
-.dstrip{display:grid;grid-template-columns:auto repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.dstrip{display:grid;grid-template-columns:auto repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
 .dstrip>div{background:var(--base);padding:18px 20px}
-.dstrip .big{background:var(--base2);display:flex;flex-direction:column;justify-content:center}
+.dstrip .big{background:var(--base2);display:flex;flex-direction:column;justify-content:center;grid-row:span 2}
 .dstrip .big b{font-family:var(--m);font-size:40px;font-weight:700;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums}
 .dstrip h4{font-size:14px;font-weight:800;letter-spacing:-.03em;margin:8px 0 6px}
 .dstrip p{font-size:12px;line-height:1.45;color:var(--fg3)}
@@ -138,20 +138,20 @@ td.was{color:var(--fg3)}
 <header>
   <svg style="width:64px;height:64px;color:var(--fg);flex:none"><use href="#clap"/></svg>
   <div>
-    <div class="lbl" style="margin-bottom:11px">Direction board · rev B · answers locked</div>
+    <div class="lbl" style="margin-bottom:11px">Direction board · rev C · rounds 1 &amp; 2 locked</div>
     <h1>SELECTS</h1>
   </div>
   <div class="right">
-    <div class="lbl">Round 1</div>
-    <div class="meta">27 answered · 4 reversals · 0 deletions</div>
+    <div class="lbl">Rounds 1 &amp; 2</div>
+    <div class="meta">36 answered · 6 reversals · 0 deletions</div>
   </div>
 </header>
 
 <div class="dstrip">
   <div class="big">
     <div class="lbl">Reversals</div>
-    <b>4</b>
-    <p style="margin-top:7px">Where you overruled rev A.</p>
+    <b>6</b>
+    <p style="margin-top:7px">Where you overruled me, across both rounds.</p>
   </div>
   <div>
     <div class="lbl">Q17 · the mark</div>
@@ -172,6 +172,16 @@ td.was{color:var(--fg3)}
     <div class="lbl">Q24 · scope</div>
     <h4><span class="was">delete</span> → promote</h4>
     <p>Every surface keeps its route and gets a job inside one system.</p>
+  </div>
+  <div>
+    <div class="lbl">R2 · Q2 · push</div>
+    <h4><span class="was">daily</span> → 2–3 a week</h4>
+    <p>The Ticket is there every day. It's only pushed a few times. Verdicts sit outside the budget.</p>
+  </div>
+  <div>
+    <div class="lbl">R2 · Q6 · the words</div>
+    <h4><span class="was">hand-written</span> → mined</h4>
+    <p>You approve ~600 ranked clusters rather than author from a blank page.</p>
   </div>
 </div>
 
@@ -306,7 +316,7 @@ td.was{color:var(--fg3)}
         </div>
         <div style="padding:0 15px 16px;margin-top:-4px">
           <div class="meta" style="font-size:31px;font-weight:700;letter-spacing:-.05em;color:var(--fg3)">38</div>
-          <p class="body" style="font-size:12.5px;margin-top:5px">Soft. You haven't logged in nine days.</p>
+          <p class="body" style="font-size:12.5px;margin-top:5px"><b>Soft.</b> You haven't logged in nine days.</p>
         </div>
       </div>
       <div class="pcap"><span class="tag">low</span><span>Freshness has decayed.</span></div>
@@ -323,7 +333,7 @@ td.was{color:var(--fg3)}
         </div>
         <div style="padding:0 15px 16px;margin-top:-4px">
           <div class="meta" style="font-size:31px;font-weight:700;letter-spacing:-.05em;color:var(--fg)">91</div>
-          <p class="body" style="font-size:12.5px;margin-top:5px">Sharp. Two logs did that.</p>
+          <p class="body" style="font-size:12.5px;margin-top:5px"><b>Sharp.</b> Two logs did that.</p>
         </div>
       </div>
       <div class="pcap"><span class="tag next">high</span><span>The image <b>is</b> the metric.</span></div>
@@ -369,6 +379,71 @@ td.was{color:var(--fg3)}
       </table>
       <p class="body" style="margin-top:14px">Freshness decaying is the first thing in the product where <b>investment loads the next trigger</b> — the Hook row that scored 0.</p>
       <p class="body" style="margin-top:12px">And the torn stub is the only feature that tells you <b>when someone is inside a film</b> — which is what makes 11:40pm possible.</p>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:34px;padding-top:30px;border-top:1px solid var(--line)">
+    <div class="fig" style="width:330px">
+      <div class="lbl" style="margin-bottom:13px">Four actions on a stub</div>
+      <table>
+        <tr><td class="m" style="color:var(--fg)">Tear</td><td>I'm watching this — and it starts the 11:40pm timer</td></tr>
+        <tr><td class="m" style="color:var(--fg)">Seen it</td><td>logs the film, swaps in a replacement stub</td></tr>
+        <tr><td class="m" style="color:var(--fg)">Not tonight</td><td>held over, re-pitched later — a <b>context</b> miss</td></tr>
+        <tr><td class="m" style="color:var(--select)">Wrong read</td><td>retired immediately — a <b>taste</b> miss</td></tr>
+      </table>
+      <p class="body" style="margin-top:14px;font-size:13.5px"><b>The last two must stay separate.</b> One says bad timing, the other says you don't know me. Collapsing them throws away the difference between a scheduling problem and a model problem.</p>
+    </div>
+
+    <div class="fig" style="width:300px">
+      <div class="lbl" style="margin-bottom:13px">Held over — re-pitched, not discarded</div>
+      <div style="border:1px solid var(--line);padding:16px">
+        <div style="display:flex;gap:9px;align-items:flex-start">
+          <div class="plate" style="width:52px;background:linear-gradient(150deg,#2b1a10,#140b06)"></div>
+          <div style="font-size:22px;color:var(--fg3);align-self:center">&rarr;</div>
+          <div class="plate" style="width:52px;background:linear-gradient(30deg,#0f3a34,#06120f)"></div>
+          <div style="flex:1">
+            <div class="lbl" style="line-height:1.6">TUE 11PM<br><span style="color:var(--select)">SUN 3PM</span></div>
+          </div>
+        </div>
+        <div class="barset" style="height:4px;gap:3px;margin:14px 0">
+          <script>document.write(Array.from({length:24},(_,i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i<8?'select':'line'})"></div>`).join(''))</script>
+        </div>
+        <p class="body" style="font-size:12.5px">Different poster. Different reason, from a different facet. Three passes and it retires as a real negative signal.</p>
+      </div>
+      <p class="body" style="margin-top:14px;font-size:13.5px">Free: TMDB's <i class="code">images</i> endpoint already returns many posters per film and the app uses one. <b>A film passed at 11pm Tuesday is not the same film on Sunday afternoon.</b></p>
+    </div>
+
+    <div class="fig" style="width:300px">
+      <div class="lbl" style="margin-bottom:13px">Behind the tear</div>
+      <table>
+        <tr><td class="m" style="color:var(--fg)">Canon</td><td class="was">common &middot; feeling smart</td></tr>
+        <tr><td class="m" style="color:var(--fg)">B-side</td><td class="was">common &middot; a mixtape</td></tr>
+        <tr><td class="m" style="color:var(--fg)">Taste note</td><td class="was">occasional &middot; being understood</td></tr>
+        <tr><td class="m" style="color:var(--select)">A room opens</td><td class="was">rare &middot; discovery</td></tr>
+      </table>
+      <div style="border-left:2px solid var(--select);padding-left:13px;margin-top:15px">
+        <p class="body" style="font-size:13.5px"><b>The app comments on the map, never the person.</b></p>
+        <p class="body" style="font-size:13px;margin-top:7px">“This corner is getting dense enough to have a name.” &mdash; the map.<br>“You keep choosing men who lose.” &mdash; the person.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="cols c2" style="gap:30px;margin-top:26px;padding-top:22px;border-top:1px solid var(--line)">
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div class="barset" style="height:30px;gap:4px;flex:none">
+        <div class="bar" style="width:9px;height:100%;background:var(--fg)"></div>
+        <div class="bar" style="width:9px;height:100%;background:var(--select)"></div>
+        <div class="bar" style="width:9px;height:100%;background:var(--fg)"></div>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:7px">Another take</div>
+        <p class="body">One refresh per 24 hours. The clapstick claps and three new stubs are struck &mdash; cutting-room language, and the mark animates it.</p>
+      </div>
+    </div>
+    <div>
+      <div class="lbl" style="margin-bottom:7px">Push, corrected</div>
+      <p class="body">Two to three scheduled pushes a <b>week</b>, not one a day. The Ticket is there daily; it is only <i>pushed</i> a few times, and the widget carries the rest. Verdict pushes sit outside the budget &mdash; they're a reply, not an interruption.</p>
     </div>
   </div>
 </section>
@@ -500,9 +575,106 @@ td.was{color:var(--fg3)}
   </div>
 </section>
 
-<!-- 07 -->
+
+<!-- 07 vocabulary -->
 <section>
-  <div class="shead"><span class="snum">07</span><h2>The Assembly</h2>
+  <div class="shead"><span class="snum">07</span><h2>Nanocrowd tags the film. We tag the edge.</h2>
+    <p>I looked at what Letterboxd is actually doing. The gap it leaves is structural, not incidental — which makes it defensible.</p></div>
+
+  <div class="cols c2" style="gap:36px">
+    <div>
+      <div class="lbl" style="margin-bottom:13px">What Letterboxd ships &mdash; Nanocrowd, ~20,000 titles</div>
+      <table>
+        <tr><td class="m" style="white-space:normal">Zero Dark<br>Thirty</td><td><span class="chip" style="opacity:.55">Terrorism, Government, Cia</span> <span class="chip" style="opacity:.55">Disturbing, Gripping, Riveting</span> <span class="chip" style="opacity:.55">Blood, Brutal, Extreme</span></td></tr>
+        <tr><td class="m" style="white-space:normal">Fast &amp;<br>Furious</td><td><span class="chip" style="opacity:.55">Driving, Chases, Action-Packed</span> <span class="chip" style="opacity:.55">Explosives, Mindless, Excitement</span> <span class="chip" style="opacity:.55">Jokes, Guns, Cool</span></td></tr>
+        <tr><td class="m" style="white-space:normal">(500) Days<br>of Summer</td><td><span class="chip" style="opacity:.55">Witty, Cute, Intelligent</span> <span class="chip" style="opacity:.55">Feelings, Cute, Formulaic</span> <span class="chip" style="opacity:.55">Jokes, Delightful, Cute</span></td></tr>
+      </table>
+      <p class="body" style="margin-top:15px">Three comma-separated words, clustered from emotive language in audience reviews. Identical for every user; personalisation is a <i>hide watched</i> checkbox.</p>
+      <p class="body" style="margin-top:11px">Low-information and repeating &mdash; four of <i>Fast &amp; Furious</i>'s ten contain “Action-Packed” or “Excitement”. And it reads like output: “Cia”, “Chick-Flick”.</p>
+      <div style="border-left:2px solid var(--select);padding-left:14px;margin-top:17px">
+        <p class="body"><b>Across every visible example, not one term describes craft.</b> No camera, no structure, no format. That isn't sloppiness &mdash; audience reviews don't contain that language, so a review-mining system <b>cannot</b> produce it.</p>
+      </div>
+      <p class="body" style="margin-top:14px">Which reframes your instruction. Blending vernacular with critics isn't a stylistic preference: <b>the vernacular corpus is the only place feeling lives, and the critic corpus is the only place craft lives.</b> Your user zero &mdash; the one who cares what format a film was shot on &mdash; is invisible to Nanocrowd by construction.</p>
+    </div>
+
+    <div>
+      <div class="lbl" style="margin-bottom:13px">The register ladder &mdash; one quality in <i>Heat</i>, four ways</div>
+      <div style="border:1px solid var(--line)">
+        <div style="padding:15px 17px;border-bottom:1px solid var(--line)">
+          <div class="lbl" style="margin-bottom:6px">Reddit / Letterboxd</div>
+          <div style="font-size:16px;letter-spacing:-.02em;color:var(--fg2)">“this movie has no business going that hard”</div>
+          <div class="lbl" style="margin-top:6px;color:var(--fg3)">fun &middot; zero information &middot; partitions nothing</div>
+        </div>
+        <div style="padding:15px 17px;border-bottom:1px solid var(--line)">
+          <div class="lbl" style="margin-bottom:6px">Nanocrowd</div>
+          <div class="meta" style="font-size:14px">Suspense, Guns, Action-Packed</div>
+          <div class="lbl" style="margin-top:6px;color:var(--fg3)">machine-readable &middot; says nothing</div>
+        </div>
+        <div style="padding:15px 17px;border-bottom:1px solid var(--line)">
+          <div class="lbl" style="margin-bottom:6px">Critic / trade</div>
+          <div style="font-size:15px;letter-spacing:-.02em;color:var(--fg2)">“Spinotti's available-light nocturnes and Mann's elliptical cross-cutting”</div>
+          <div class="lbl" style="margin-top:6px;color:var(--fg3)">precise &middot; makes a regular reader feel stupid</div>
+        </div>
+        <div style="padding:17px;background:var(--base2)">
+          <div class="lbl" style="margin-bottom:8px;color:var(--select)">Selects</div>
+          <div class="chips"><span class="chip on">sodium-lit and shot wide</span><span class="chip on">nobody wins</span><span class="chip on">both men are good at their jobs</span></div>
+          <div class="lbl" style="margin-top:9px">precise about craft &middot; casual in register</div>
+        </div>
+      </div>
+      <p class="body" style="margin-top:15px">A facet has to be something a person could say out loud at a bar and be understood, while still carrying real information about how the film was made. Which is your own answer to “what should this feel like” &mdash; <b>a regular user feels smart</b>. Not is told they're smart: <i>feels</i> smart, because they now have words for something they'd only ever felt.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:36px;border:1px solid var(--line);padding:26px">
+    <div class="lbl" style="margin-bottom:20px">Where each axis actually comes from</div>
+    <div class="cols c4" style="gap:20px">
+      <div>
+        <div class="chips" style="margin-bottom:9px"><span class="chip">tempo</span><span class="chip">weather</span><span class="chip">world</span></div>
+        <div class="lbl" style="color:var(--fg2)">Audience reviews</div>
+        <p class="body" style="font-size:12.5px;margin-top:5px">Letterboxd, r/TrueFilm, r/movies. This is what viewers actually talk about.</p>
+      </div>
+      <div>
+        <div class="chips" style="margin-bottom:9px"><span class="chip on">camera</span><span class="chip on">shape</span><span class="chip">look</span><span class="chip">sound</span></div>
+        <div class="lbl" style="color:var(--fg2)">Critics &amp; trade</div>
+        <p class="body" style="font-size:12.5px;margin-top:5px">Essentially unrecoverable from audience language. This is the half Nanocrowd cannot reach.</p>
+      </div>
+      <div>
+        <div class="chips" style="margin-bottom:9px"><span class="chip on">format</span></div>
+        <div class="lbl" style="color:var(--fg2)">Structured metadata &mdash; free</div>
+        <p class="body" style="font-size:12.5px;margin-top:5px"><i class="code">api/imdb-techspecs.ts</i> already fetches the specs page and keeps <b>two booleans</b>. Ratio, negative, camera and lens are in the same response.</p>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:9px;color:var(--select)">Ships first</div>
+        <p class="body" style="font-size:12.5px"><b>format</b>, because it needs no mining, the endpoint exists, and it's the axis your user zero notices immediately.</p>
+      </div>
+    </div>
+
+    <div class="barset" style="height:4px;gap:3px;margin:26px 0 20px">
+      <script>document.write(Array.from({length:80},(_,i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i%13===5?'select':'line'})"></div>`).join(''))</script>
+    </div>
+
+    <div class="cols c3" style="gap:24px">
+      <div>
+        <div class="lbl" style="margin-bottom:9px">The pipeline</div>
+        <p class="body" style="font-size:13px"><b>1.</b> A spine of ~2,000 films across eras, movements and budgets — <i>not</i> the top 2,000 by popularity, or the vocabulary comes out shaped like a multiplex.<br><b>2.</b> Harvest reviews.<br><b>3.</b> Extract 2–5 word phrases.</p>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:9px">The step that matters</div>
+        <p class="body" style="font-size:13px"><b>4.</b> Score TF-IDF against a <i>film-writing</i> baseline, so “the cinematography was beautiful” dies and “sodium-lit” survives. Then a <b>partition score</b>: a phrase attached to 40% of films is worthless however filmic it sounds. This is the step that kills “Action-Packed”.</p>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:9px;color:var(--select)">Your part</div>
+        <p class="body" style="font-size:13px"><b>5.</b> Cluster into the eight axes. <b>6.</b> Polish.<br><br>You get ~600 ranked clusters, each with its best phrasings and twenty example films. You pick one per cluster and kill the wrong ones. <b>Approve, don't author</b> — a couple of hours, not a blank page.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="lead" style="margin-top:30px;max-width:780px">A nanogenre tells you <i>Heat</i> is <span class="meta">Suspense, Guns, Action-Packed</span>. It cannot tell you that <i>Heat</i> and <i>The Dark Knight</i> are joined because <b style="color:var(--fg)">the city is the antagonist and both men are good at their jobs</b>. That sentence is the product.</p>
+</section>
+
+<!-- 08 -->
+<section>
+  <div class="shead"><span class="snum">08</span><h2>The Assembly</h2>
     <p>Rabbit Hole is the Assembly in motion; the Assembly is Rabbit Hole at rest. One graph, two verbs — and nothing gets deleted to build it.</p></div>
 
   <div class="row">
@@ -557,9 +729,9 @@ td.was{color:var(--fg3)}
   </div>
 </section>
 
-<!-- 08 -->
+<!-- 09 -->
 <section>
-  <div class="shead"><span class="snum">08</span><h2>11:40pm</h2>
+  <div class="shead"><span class="snum">09</span><h2>11:40pm</h2>
     <p>The strongest untapped trigger in the category — and the mechanism is already in your data.</p></div>
 
   <div class="row" style="gap:20px">
@@ -616,9 +788,9 @@ td.was{color:var(--fg3)}
   </div>
 </section>
 
-<!-- 09 -->
+<!-- 10 -->
 <section>
-  <div class="shead"><span class="snum">09</span><h2>Everything is named from the cutting room</h2>
+  <div class="shead"><span class="snum">10</span><h2>Everything is named from the cutting room</h2>
     <p>Because the app already was. Your origin story gave the product its vocabulary, not just its mark.</p></div>
 
   <div class="row" style="gap:34px">
@@ -656,9 +828,9 @@ td.was{color:var(--fg3)}
   </div>
 </section>
 
-<!-- 10 -->
+<!-- 11 -->
 <section>
-  <div class="shead"><span class="snum">10</span><h2>Motion, and the reward that isn't there</h2>
+  <div class="shead"><span class="snum">11</span><h2>Motion, and the reward that isn't there</h2>
     <p>The jank isn't easing. Elements teleport.</p></div>
 
   <div class="row">
@@ -715,9 +887,9 @@ td.was{color:var(--fg3)}
     <svg style="width:38px;height:38px;color:var(--line)"><use href="#clap"/></svg>
     <div>
       <div class="lbl">Read next</div>
-      <p class="body" style="margin-top:5px">DECISIONS.md — all 27, locked · DIRECTION.md — the system in full · QUESTIONS.md — round 2, nine left · AUDIT.md — 38 findings with file:line</p>
+      <p class="body" style="margin-top:5px">DECISIONS.md — rounds 1 &amp; 2, locked · DIRECTION.md — the system in full · VOCABULARY.md — the Nanocrowd teardown and the mining pipeline · AUDIT.md — 38 findings with file:line</p>
     </div>
-    <div class="lbl" style="margin-left:auto">Rev B · nothing deleted</div>
+    <div class="lbl" style="margin-left:auto">Rev C · nothing deleted</div>
   </div>
 </section>
 
