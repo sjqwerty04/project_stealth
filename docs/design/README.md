@@ -9,8 +9,10 @@ converted into locked decisions, and the system that follows from them.
 | **[DIRECTION.md](DIRECTION.md)** | The system: mark, colour, type, voice, motion, and the two objects that close the loop. |
 | **[VOCABULARY.md](VOCABULARY.md)** | The taste vocabulary — what Letterboxd's nanogenres actually are, where they're weak, and the mining pipeline that replaces hand-writing it. |
 | **[AUDIT.md](AUDIT.md)** | The original audit. Hook Model score, feature teardown, and 38 defects with `file:line`. Findings stand; three recommendations are annotated as superseded. |
+| **[ONBOARDING.md](ONBOARDING.md)** | The five-screen onboarding flow: the morph armature, the copy, the wall seeding rules, and what each question buys the taste model. |
 | **[QUESTIONS.md](QUESTIONS.md)** | Round 2, now answered. |
 | **[direction-board.html](direction-board.html)** | The visual version. Live HTML/CSS with the fonts self-hosted — open it and edit it. |
+| **[onboarding-board.html](onboarding-board.html)** | The onboarding flow, live. Same tokens, same geometry as the Figma components. |
 
 ---
 
@@ -102,6 +104,22 @@ Because the app already was. Your origin story gave the product its vocabulary, 
 mark.
 
 ![Naming and the Nudge](assets/board-10-naming.jpg)
+
+---
+
+## Onboarding: the mark becomes the question
+
+Smart Animate tweens position, rotation, scale, colour and opacity — never vector paths. So the
+morph you asked for is impossible between unrelated shapes, and possible between **the same five
+bars, rearranged**. The limitation became the idea: onboarding is the logo assembling itself into
+each question.
+
+The negative-profile screen is the one to look at. *What did everyone love that never landed for
+you?* — and the graphic is four bars holding formation while the red one breaks out of line.
+
+![The onboarding flow](figma/onboarding-flow.png)
+
+Full spec, copy and seeding rules in **[ONBOARDING.md](ONBOARDING.md)**.
 
 ---
 
