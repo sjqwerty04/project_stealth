@@ -4,7 +4,7 @@ See `agent.md` for the full product/architecture guide and `README.md` for stand
 
 ## Cursor Cloud specific instructions
 
-This is a Vite + React + TypeScript SPA ("Selects" / ViewFindr). The dependency refresh is handled by the startup update script (`npm install`), so you should not need to reinstall by hand.
+This is a Vite + React + TypeScript SPA ("Selects" / ViewFindr). The environment is repo-managed via `.cursor/environment.json` (which takes priority over dashboard/snapshot settings), so there is no need to save a Cloud environment snapshot in the UI. That file runs `npm install` as the install step and launches `npm run dev -- --host` (the `--host` flag is required for the port to be reachable inside the Cloud VM) on port `5173`.
 
 Primary service — the web app:
 - Run dev: `npm run dev` (Vite, serves on `http://localhost:5173/`).
