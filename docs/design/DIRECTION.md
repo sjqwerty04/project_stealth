@@ -223,6 +223,25 @@ This is what the ring could not do.
 The sprocket-detent date strip you asked for falls out of the mark rather than being designed
 separately.
 
+### Handing it to someone else
+
+The full kit is on the `06 Brand kit` page of the Figma file — clear space, minimum sizes, the
+misuse grid, icon and avatar crops, and an inventory of the SVGs in `public/brand`. It instances
+the mark components rather than redrawing them, so it cannot drift.
+
+The rules an outside collaborator needs:
+
+- **Clear space is one bar width on every side.** At the drawn size the bar is 14 units in a
+  100-unit square, so clear space is 14% of the mark's width. It scales with the mark and is never
+  smaller. Nothing enters that box — not type, not a crop edge, not another logo.
+- **60px is the floor for the five-bar mark.** Below 48px it smears. Swap to the three-bar icon
+  rather than shrinking further; that is what the icon exists for.
+- **Six things break it:** rotation, a plate behind it, recolouring, non-proportional scaling,
+  outlining, and any shadow. Every one destroys the high-contrast diagonal geometry that makes it
+  legible small, which is the only reason it works at all.
+- **Never redraw it.** The SVGs in `public/brand` are the source. Never re-export from a
+  screenshot, never trace it, never rebuild it in another tool.
+
 ---
 
 ## 5. Colour
@@ -241,6 +260,12 @@ The shell stays out of the way. **All chroma comes from the films, and it moves.
 | `--select` | `#FF3B14` | the lit bar, and one live state per screen |
 | `--film` | *runtime* | dominant colour of whatever film is on screen |
 | `--film-2` | *runtime* | secondary poster colour, for the flare |
+| `--yours` | *runtime* | the user's own colour — the OKLab chroma centroid of every poster they have logged. See [NEGATIVE.md](NEGATIVE.md) section 2 |
+
+The last three are slots, not colours. They resolve at runtime and they are the only values in the
+system nobody gets to pick — `--film` comes from the film on screen, `--yours` comes from
+everything the user has ever watched. A second user's colour cannot resolve to the same slot, so
+anywhere two people appear side by side (the match screen) one of them is a literal.
 
 **The reactive field.** The Gemini behaviour you pointed at, sourced from films instead of a
 brand palette: `--film` and `--film-2` bloom softly under the thumb and settle when released.
@@ -453,8 +478,14 @@ never acknowledge each other.
 | `drift` | 8s linear ∞ | hero carousel, Assembly idle |
 | `arc` | 620ms · `cubic-bezier(.65,0,.35,1)` | a dot travelling an edge |
 | `clap` | 380ms spring 500 / 22 | the launch mark |
+| `develop` | 1400ms · `cubic-bezier(.16,1,.3,1)` · 8ms stagger per node | the dot cloud resolving into the Negative |
 
 Nothing changes state instantly except text already on screen.
+
+`develop` is named for the process: a negative is exposed, then developed. It is the slowest token
+in the system on purpose — it is the only moment where the app is visibly doing work the user
+cannot do themselves, and rushing it wastes the one time impatience is an asset. Idle drift on the
+Negative reuses `drift`; entering a node from an insight card reuses `arc`.
 
 ### Canonical moments
 

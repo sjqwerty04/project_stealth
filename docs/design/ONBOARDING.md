@@ -1,8 +1,11 @@
-# Onboarding — five screens, one armature
+# Onboarding — eight screens, one armature
 
 Built on the `03 Onboarding` page of the
 [Selects Design](https://www.figma.com/design/s5r0lZNKa9d92r2W5z6akU/Selects-Design) file, wired
 as a clickable Smart Animate prototype starting at `00 Splash`.
+
+Five screens ask the questions; three more hand back what the answers bought. Those last three are
+specified in **[NEGATIVE.md](NEGATIVE.md)** and summarised in section 6 below.
 
 ![The onboarding flow](figma/onboarding-flow.png)
 
@@ -28,6 +31,7 @@ assembling and reassembling itself**, and the user watches the mark become each 
 | `02 Everyone but you` | `broken` | Four bone bars hold the line; the red bar breaks out of it. |
 | `03 What you go for` | `fan` | The bars fan into a spread — weighting, not picking. |
 | `04 Letterboxd` | `stack` | The bars compress into a dense inbound stack. |
+| `05 Reading` | — | The stack blooms out and the bars become a 64-dot cloud. |
 
 `02` is the one worth pointing at. The question is *what did everyone love that never landed for
 you?* — and the graphic is four bars in formation with one breaking ranks. The question is drawn,
@@ -107,14 +111,39 @@ instantly; the CSV gets everything.
 
 ---
 
+## 6. The payoff — 05 to 07
+
+Five screens of questions with nothing handed back is a form. These three are the reason the
+questions were worth answering, and they are specified in full in **[NEGATIVE.md](NEGATIVE.md)**.
+
+![The Negative](figma/negative-flow.png)
+
+**05 Reading.** The compressed bar stack blooms out and becomes a 64-dot cloud on a golden-angle
+spiral — even, and with no structure, because at this point there genuinely is none. Carries
+`856 films read`. The only screen in the app allowed to look like it is thinking.
+
+**06 The Negative.** The cloud resolves into their constellation, in a colour computed from every
+poster they have logged, under a one-word read. One primary action.
+
+**07 Insights.** Ten cards, eight warm and two sharp, each shareable alone.
+
+The cloud is a single component with three density states — `cloud`, `developing`, `struck` — and
+64 nodes named `n-00` to `n-63` in all three, so the same trick that morphs the bars resolves the
+constellation. `05 → 06` runs on a 1.4s custom bezier rather than the spring, because developing
+a negative is slower than a screen transition and should feel like it.
+
+---
+
 ## Prototype
 
 Each screen carries one `ON_CLICK` reaction to the next, `SMART_ANIMATE` with Figma's `GENTLE`
-spring, matching the `settle` token in [DIRECTION.md](DIRECTION.md) section 10. The flow starting
-point is set, so presentation mode opens on the splash and the morph plays on every advance.
+spring, matching the `settle` token in [DIRECTION.md](DIRECTION.md) section 10 — except `05 → 06`,
+which uses the `develop` token. The flow starting point is set, so presentation mode opens on the
+splash and the morph plays on every advance.
 
 ```
-00 Splash → 01 Your theatre → 01 after first pick → 02 Everyone but you → 03 What you go for → 04 Letterboxd
+00 Splash → 01 Your theatre → 01 after first pick → 02 Everyone but you → 03 What you go for
+          → 04 Letterboxd → 05 Reading → 06 The Negative → 07 Insights → the Assembly
 ```
 
 ---

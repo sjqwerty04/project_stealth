@@ -9,10 +9,13 @@ converted into locked decisions, and the system that follows from them.
 | **[DIRECTION.md](DIRECTION.md)** | The system: mark, colour, type, voice, motion, and the two objects that close the loop. |
 | **[VOCABULARY.md](VOCABULARY.md)** | The taste vocabulary — what Letterboxd's nanogenres actually are, where they're weak, and the mining pipeline that replaces hand-writing it. |
 | **[AUDIT.md](AUDIT.md)** | The original audit. Hook Model score, feature teardown, and 38 defects with `file:line`. Findings stand; three recommendations are annotated as superseded. |
-| **[ONBOARDING.md](ONBOARDING.md)** | The five-screen onboarding flow: the morph armature, the copy, the wall seeding rules, and what each question buys the taste model. |
+| **[ONBOARDING.md](ONBOARDING.md)** | The eight-screen onboarding flow: the morph armature, the copy, the wall seeding rules, and what each question buys the taste model. |
+| **[NEGATIVE.md](NEGATIVE.md)** | The Negative — the taste artifact. The naming, the computed per-user colour, the one-word read, and the ten-card insight catalogue. |
 | **[QUESTIONS.md](QUESTIONS.md)** | Round 2, now answered. |
 | **[direction-board.html](direction-board.html)** | The visual version. Live HTML/CSS with the fonts self-hosted — open it and edit it. |
 | **[onboarding-board.html](onboarding-board.html)** | The onboarding flow, live. Same tokens, same geometry as the Figma components. |
+| **[negative-board.html](negative-board.html)** | The Negative, live. Runs the same seeded generator as the Figma component, so the shapes are identical. |
+| **[product-board.html](product-board.html)** | Home and the film page, live, including both Focus states. |
 
 ---
 
@@ -120,6 +123,38 @@ you?* — and the graphic is four bars holding formation while the red one break
 ![The onboarding flow](figma/onboarding-flow.png)
 
 Full spec, copy and seeding rules in **[ONBOARDING.md](ONBOARDING.md)**.
+
+---
+
+## The Negative
+
+Five questions with nothing handed back is a form. So onboarding ends by giving them an object:
+**the Negative** — the thing every Print is struck from, which is exactly what this is.
+
+Its shape is a deterministic hash of their Wallet and facet weights, so it is stable for one person
+and different between two. Its **colour is computed, not assigned** — the OKLab chroma centroid of
+every poster they have logged, which drifts as they log. Most apps in this category hand out a
+random personality colour; this one is a fact about what you have actually watched.
+
+![The Negative](figma/negative-flow.png)
+
+The one-word read is chosen by **lift over baseline, not volume** — counting would label half the
+userbase `PROCEDURALIST`. And if nothing clears the threshold there is no word at all, because a
+bland one costs more trust than a blank space. Full spec in **[NEGATIVE.md](NEGATIVE.md)**.
+
+---
+
+## Home and the film page
+
+Focus is never a dial. The two home states below differ only in how legible the film art is — the
+image *is* the metric, and you can read it from across the room.
+
+![Home and the film page](figma/product-mocks.png)
+
+On the film page, four things were already being generated and thrown away: the verdict was buried
+under three rows of buttons, `vibeDescription` was rendered nowhere, the IMDb tech-specs response
+was reduced to two booleans, and every similar film's reason was computed and discarded. This
+renders all four.
 
 ---
 

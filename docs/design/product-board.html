@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Selects — home and the film page</title>
+<style>
+  @font-face { font-family: "Archivo"; src: url("fonts/archivo-latin.woff2") format("woff2"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Martian Mono"; src: url("fonts/martianmono-latin.woff2") format("woff2"); font-weight: 100 800; font-display: block; }
+
+  :root { --base: #0a0a0b; --raised: #141416; --card: #1d1d20; --line: #2b2b2f;
+    --fg: #efede9; --dim: #b9b6b0; --grey: #7c7a76; --select: #ff3b14; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 70px 60px 90px; background: var(--base); color: var(--fg);
+    font-family: "Archivo", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .kicker { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); text-transform: uppercase; }
+  h1 { font-size: 46px; font-weight: 800; letter-spacing: -.045em; line-height: .95; margin: 12px 0 10px; }
+  .lede { color: var(--dim); font-size: 15px; line-height: 1.55; max-width: 780px; margin: 0 0 54px; }
+  .rule { border-top: 1px solid var(--line); margin: 0 0 28px; padding-top: 22px; }
+  .row { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 58px; }
+  .slot { width: 257px; }
+  .stage { width: 257px; overflow: hidden; }
+  .screen { width: 390px; background: var(--base); position: relative; overflow: hidden;
+    transform: scale(.6595); transform-origin: 0 0; border: 1px solid var(--line); }
+  .cap b { display: block; font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; margin: 16px 0 6px; }
+  .cap span { display: block; font-family: "Martian Mono", monospace; font-weight: 400; font-size: 9px;
+    line-height: 1.85; color: var(--grey); letter-spacing: .03em; white-space: pre-line; }
+
+  .lbl { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px; letter-spacing: .09em; color: var(--grey); }
+  .abs { position: absolute; }
+
+  /* hero */
+  .hero { position: relative; width: 390px; overflow: hidden;
+    background: linear-gradient(#1c3348, #0a0f17); }
+  .hero.detail { background: linear-gradient(#1c2b3d, #0a0d12); }
+  .art { position: absolute; inset: 0; }
+  .art i { position: absolute; border-radius: 50%; filter: blur(9px); display: block; }
+  .soft .art { filter: blur(13px); }
+  .hlogo { position: absolute; color: #fff; font-weight: 800; letter-spacing: -.04em; }
+  .hmeta { position: absolute; font-family: "Martian Mono", monospace; font-weight: 500;
+    font-size: 10px; letter-spacing: .09em; color: rgba(255,255,255,.72); }
+  .fnum { position: absolute; right: 28px; font-family: "Martian Mono", monospace; font-weight: 600;
+    font-size: 22px; letter-spacing: -.05em; color: #fff; font-variant-numeric: tabular-nums; }
+  .fst { position: absolute; right: 28px; font-family: "Martian Mono", monospace; font-weight: 500;
+    font-size: 10px; letter-spacing: .09em; color: rgba(255,255,255,.7); }
+
+  /* strip */
+  .strip { position: absolute; display: flex; gap: 8px; }
+  .strip div { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .strip b { width: 16px; height: 40px; display: block;
+    clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%); }
+  .strip s { font-family: "Martian Mono", monospace; font-size: 8px; text-decoration: none; color: var(--grey); }
+
+  /* ticket */
+  .stub { position: relative; background: var(--card); border: 1px solid var(--line);
+    padding: 12px 12px 0; display: flex; gap: 12px; }
+  .stub .plate { width: 46px; height: 69px; border-radius: 2px; flex: none; }
+  .soft .stub .plate { filter: blur(4px); }
+  .stub b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -.03em; margin-bottom: 7px; }
+  .stub p { margin: 0; font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; line-height: 1.75; color: var(--grey); }
+  .perf { display: flex; gap: 3px; padding: 8px 0 5px; }
+  .perf i { width: 3px; height: 5px; background: var(--line); display: block;
+    clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%); }
+  .nudge { position: absolute; left: 28px; width: 334px; height: 56px; background: var(--card);
+    border: 1px solid var(--select); display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; }
+  .nudge b { font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+  .nudge s { display: block; text-decoration: none; font-family: "Martian Mono", monospace;
+    font-weight: 500; font-size: 10px; letter-spacing: .09em; color: var(--grey); }
+  .ring { width: 26px; height: 26px; border: 2px solid var(--select); border-radius: 50%;
+    border-right-color: transparent; border-bottom-color: transparent; }
+
+  /* year grid */
+  .year { position: absolute; display: grid; grid-template-rows: repeat(7, 10px); grid-auto-flow: column;
+    grid-auto-columns: 4px; gap: 2px 1.75px; }
+  .year i { display: block; width: 4px; height: 10px;
+    clip-path: polygon(35% 0, 100% 0, 65% 100%, 0 100%); }
+
+  /* detail */
+  .chip { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 11px;
+    letter-spacing: .08em; border: 1px solid var(--line); padding: 4px 7px; display: inline-block; }
+  .spec { display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--line); padding: 9px 0 10px; }
+  .spec b { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); }
+  .spec s { text-decoration: none; font-family: "Martian Mono", monospace; font-size: 13px; }
+  .btn { flex: 1; height: 48px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+  .btn.p { background: var(--fg); color: var(--base); }
+  .btn.s { border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<div class="kicker">Selects · product · home and the film page</div>
+<h1>The same three objects, everywhere.</h1>
+<p class="lede">Focus, the Ticket and the Strip. Focus is never a dial — it is rendered as literal
+sharpness, so the two home states below differ only in how legible the film art is. Everything on
+the film page is data the app already generates and currently throws away.</p>
+
+<div class="rule"><div class="kicker">Home · the same screen at Focus 82 and Focus 31</div></div>
+<div class="row" id="homes"></div>
+
+<div class="rule"><div class="kicker">The film page · verdict first</div></div>
+<div class="row" id="detail"></div>
+
+<script>
+const FILM = ['#1D5B8A','#8A3A1D','#2B4A2E','#3A1E4A','#6B5A1D','#1D4A5B','#7A2A2A','#2A3A5B','#3A5B2A','#5B2A4A'];
+const LIGHTS = [[36,42,30,'#F0A030',.5],[128,22,18,'#F0C060',.38],[300,58,44,'#3FC4E0',.3],
+  [352,30,22,'#F0A030',.42],[212,96,26,'#3FC4E0',.22],[78,120,20,'#F0A030',.26]];
+const art = ls => `<div class="art">${ls.map(([x,y,d,c,o]) =>
+  `<i style="left:${x}px;top:${y}px;width:${d}px;height:${d}px;background:${c};opacity:${o}"></i>`).join('')}</div>`;
+
+const DAYS = [['#1D5B8A',12],['#8A3A1D',13],[null,14],['#2B4A2E',15],['#1D4A5B',16],[null,17],[null,18],
+  ['#3A1E4A',19],['#7A2A2A',20],['#6B5A1D',21],[null,22],['#2A3A5B',23],['#1D5B8A',24],['#8A3A1D',25]];
+const strip = `<div class="strip" style="left:28px;top:240px">${DAYS.map(([c,d]) =>
+  `<div><b style="background:${c || '#2b2b2f'}"></b><s style="color:${c ? '#b9b6b0' : '#7c7a76'}">${d}</s></div>`).join('')}</div>`;
+
+const STUBS = [
+  ['Thief','#1D5B8A','FOUR FILMS INTO HEIST PROCEDURALS. THE ONE THEY WERE COPYING.'],
+  ['Le Samouraï','#2A3A5B','IT’S RAINING AND YOU HAVE TWO HOURS.'],
+  ['Blade Runner','#8A3A1D','70MM. FOUR BLOCKS AWAY. SUNDAY, 7:40.']
+];
+const ticket = `<div style="position:absolute;left:28px;top:376px;width:334px;display:flex;flex-direction:column;gap:12px">
+  ${STUBS.map(([t,c,r]) => `<div class="stub"><div class="plate" style="background:${c}"></div>
+    <div><b>${t}</b><p>${r}</p></div>
+    <div class="perf" style="position:absolute;left:12px;right:12px;bottom:0">${Array(28).fill('<i></i>').join('')}</div>
+  </div>`).join('')}</div>`;
+
+const home = (focus, state, label, soft) => `
+  <div class="screen ${soft ? 'soft' : ''}" style="height:844px">
+    <div class="hero" style="height:208px">${art(LIGHTS)}
+      <div class="hlogo" style="left:28px;top:126px;font-size:38px">COLLATERAL</div>
+      <div class="hmeta" style="left:28px;top:178px">2004  ·  120 MIN  ·  MANN</div>
+    </div>
+    <svg class="abs" style="left:28px;top:24px" width="30" height="30" viewBox="0 0 100 100">
+      <path d="M7 0H21L0 87.5V29.17Z" fill="#efede9"/><path d="M31 0H45L21 100H7Z" fill="#efede9"/>
+      <path d="M55 0H69L45 100H31Z" fill="#ff3b14"/><path d="M79 0H93L69 100H55Z" fill="#efede9"/>
+      <path d="M79 100L100 12.5V70.83L93 100Z" fill="#efede9"/></svg>
+    <div class="fnum" style="top:24px">${focus}</div>
+    <div class="fst" style="top:50px">FOCUS · ${state}</div>
+    ${strip}
+    <div class="lbl abs" style="left:28px;top:314px">TUESDAY 25  ·  41 THIS YEAR</div>
+    <div class="lbl abs" style="left:28px;top:352px;color:${soft ? '#efede9' : '#efede9'}">${label}</div>
+    ${ticket}
+    <div class="nudge" style="top:764px"><div><b>Three deep in sodium-lit crime.</b><s>LEAVE THE CITY?</s></div><div class="ring"></div></div>
+  </div>`;
+
+let s = 0x51ED2701;
+const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+let cells = '';
+for (let i = 0; i < 364; i++) {
+  const on = rnd() > 0.42;
+  cells += `<i style="background:${on ? FILM[Math.floor(rnd() * FILM.length)] : '#2b2b2f'}"></i>`;
+}
+const year = `<div class="screen" style="height:844px">
+  <div class="lbl abs" style="left:28px;top:52px">THE STRIP</div>
+  <div class="abs" style="left:28px;top:74px;font-family:'Martian Mono';font-weight:600;font-size:48px;letter-spacing:-.05em">2025</div>
+  <div class="lbl abs" style="left:28px;top:136px">312 FILMS  ·  581 HOURS</div>
+  <div class="abs" style="left:28px;top:166px;width:334px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;display:flex;gap:10px">
+    <span class="lbl">DAY</span><span class="lbl">MONTH</span><span class="lbl" style="color:var(--select)">YEAR</span><span class="lbl">EVERYTHING</span></div>
+  <div class="abs" style="left:28px;top:226px;display:flex;gap:18.8px">${'JFMAMJJASOND'.split('').map(m => `<span style="font-family:'Martian Mono';font-size:7.5px;color:#7c7a76">${m}</span>`).join('')}</div>
+  <div class="year" style="left:28px;top:246px">${cells}</div>
+  <div class="lbl abs" style="left:28px;top:350px">ONE BAR PER DAY, IN ITS FILM’S COLOUR</div>
+  <div class="abs" style="left:28px;top:386px;width:334px;font-size:15px;line-height:1.5;color:var(--dim)">The same bar as the mark, 364 times. At this zoom the year has a texture, and a bad month is visible from across the room.</div>
+  <div class="abs" style="left:28px;top:500px;width:334px;border-top:1px solid var(--line);padding-top:24px">
+    <div class="lbl">NEXT MILESTONE  ·  400</div>
+    <div style="display:flex;gap:4px;margin:16px 0">${Array(24).fill(0).map((_, i) => `<b style="display:block;width:10px;height:26px;background:${i < 19 ? '#efede9' : '#2b2b2f'};clip-path:polygon(30% 0,100% 0,70% 100%,0 100%)"></b>`).join('')}</div>
+    <div style="font-size:19px;font-weight:500;letter-spacing:-.02em">88 films from an early Cut.</div>
+    <div class="lbl" style="margin-top:10px">COSTS NOTHING. CARRIES THE LOOP.</div>
+  </div>
+</div>`;
+
+const HOMES = [
+  [home(82, 'SHARP', 'TUESDAY’S TICKET', false), 'HOME · FOCUS 82', 'Clean art. The accent appears\nexactly once: the Nudge ring.'],
+  [home(31, 'SOFT', 'FOCUS IS SOFT TODAY. THESE ARE REACHES.', true), 'HOME · FOCUS 31', 'The practicals bloom and the\nstub art defocuses. The logo\nand the why-today line stay\nlegible at any Focus.'],
+  [year, 'THE STRIP · YEAR', 'Pinch out and the year has a\ntexture. Milestones that cost\nnothing carry the loop.']
+];
+document.getElementById('homes').innerHTML = HOMES.map(([h, t, c]) => `
+  <div class="slot"><div class="stage" style="height:565px">${h}</div>
+  <div class="cap"><b>${t}</b><span>${c}</span></div></div>`).join('');
+
+/* the film page */
+const FACETS = ['sodium-and-cyan night','locked-off','procedural','competence porn','synth pulse','rain-slick city night','two-hander','1.85 spherical'];
+const SPECS = [['ASPECT RATIO','1.85 : 1'],['NEGATIVE FORMAT','35 mm'],['CAMERA','Panavision Panaflex'],['CINEMATOGRAPHER','Donald Thorin'],['SOUND','Dolby Stereo']];
+const SIM = [['Le Samouraï','1967','#2A3A5B','The professional as monk. Both men are alone by choice.'],
+  ['To Live and Die in L.A.','1985','#8A3A1D','Synth pulse, sodium light, and a city that does the talking.'],
+  ['Collateral','2004','#123048','Mann again, same city logic, twenty-three years later.']];
+const detail = `<div class="screen" style="height:1900px">
+  <div class="hero detail" style="height:296px">${art([[40,54,34,'#F0A030',.42],[300,40,46,'#3FC4E0',.26],[150,96,22,'#F0C060',.3],[352,130,26,'#F0A030',.3],[86,168,18,'#3FC4E0',.2]])}
+    <div class="hlogo" style="left:28px;top:190px;font-size:62px;letter-spacing:-.045em">THIEF</div>
+    <div class="hmeta" style="left:28px;top:260px">1981  ·  123 MIN  ·  MANN</div>
+  </div>
+  <div style="padding:30px 28px 44px;display:flex;flex-direction:column;gap:30px">
+    <div><div class="lbl" style="margin-bottom:12px">WHY YOU WATCH THIS</div>
+      <div style="font-size:34px;font-weight:800;letter-spacing:-.045em;line-height:.95">Mann’s first, and the blueprint every heist since has been copying.</div></div>
+    <div style="display:flex;gap:18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0">
+      ${['IMDB 7.4','RT 94%','LETTERBOXD 4.0'].map(r => `<span style="font-family:'Martian Mono';font-size:11px;color:var(--dim)">${r}</span>`).join('')}</div>
+    <div style="display:flex;gap:10px"><div class="btn p">Tear</div><div class="btn s">Log it</div><div class="btn s">Save</div></div>
+    <div><div class="lbl" style="margin-bottom:14px">EIGHT AXES  ·  TAP ONE TO OPEN THE ROOM</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">${FACETS.map(f => `<span class="chip">${f}</span>`).join('')}</div></div>
+    <div><div class="lbl" style="margin-bottom:13px">THE READ  ·  WRITTEN FOR YOU</div>
+      <div style="font-size:19px;font-weight:500;letter-spacing:-.02em;line-height:1.35;margin-bottom:13px">A professional who is very good at his job tries to buy a normal life with one more score, and the city takes it back.</div>
+      <div style="font-size:15px;line-height:1.5;color:var(--dim)">You have logged four films that are downstream of this one. This is where the sodium light and the synth start.</div></div>
+    <div><div class="lbl" style="margin-bottom:12px">SHOT ON</div>
+      ${SPECS.map(([k, v]) => `<div class="spec"><b>${k}</b><s>${v}</s></div>`).join('')}</div>
+    <div style="background:var(--raised);border:1px solid var(--line);padding:18px">
+      <div class="lbl" style="margin-bottom:11px">CANON</div>
+      <div style="font-size:15px;line-height:1.5">Mann had working Chicago thieves on set. The safecracking is the actual method, done properly, in real time.</div></div>
+    <div><div class="lbl" style="margin-bottom:16px">BECAUSE OF THE NIGHT</div>
+      <div style="display:flex;flex-direction:column;gap:16px">${SIM.map(([t, y, c, r]) => `
+        <div style="display:flex;gap:14px"><div style="width:46px;height:69px;border-radius:2px;background:${c};flex:none"></div>
+        <div><div style="font-size:15px;margin-bottom:6px">${t}  ${y}</div><div class="lbl">${r}</div></div></div>`).join('')}</div></div>
+    <div style="background:var(--card);border:1px solid var(--select);padding:18px">
+      <div class="lbl" style="color:var(--select);margin-bottom:10px">RABBIT HOLE</div>
+      <div style="font-size:15px;margin-bottom:10px">Mann to Thorin to the whole 1980s Chicago run.</div>
+      <div class="lbl">OPEN IN THE ASSEMBLY →</div></div>
+    <div><div class="lbl" style="margin-bottom:12px">CAST</div>
+      <div style="font-family:'Martian Mono';font-size:13px;color:var(--dim)">James Caan  ·  Tuesday Weld  ·  James Belushi</div></div>
+  </div></div>`;
+document.getElementById('detail').innerHTML = `
+  <div class="slot"><div class="stage" style="height:1260px">${detail}</div>
+  <div class="cap"><b>THE FILM PAGE</b><span>Four things were already being\ngenerated and thrown away.\nThis renders them.</span></div></div>
+  <div style="max-width:520px;padding-top:6px">
+    <div class="lbl" style="color:var(--select)">WHAT MOVED</div>
+    <div style="font-size:15px;line-height:1.6;color:var(--dim);margin-top:14px">
+      <p style="margin:0 0 14px"><b style="color:var(--fg)">The verdict</b> was at <code style="font-family:'Martian Mono';font-size:12px">MovieDetailScreen.tsx:478</code>, under three rows of buttons. It is the most important thing on the page and it now opens it.</p>
+      <p style="margin:0 0 14px"><b style="color:var(--fg)">The read</b> is <code style="font-family:'Martian Mono';font-size:12px">vibeDescription</code>, built at <code style="font-family:'Martian Mono';font-size:12px">useMovieDetails.ts:252</code> and rendered nowhere.</p>
+      <p style="margin:0 0 14px"><b style="color:var(--fg)">Shot on</b> is the <code style="font-family:'Martian Mono';font-size:12px">imdb-techspecs</code> response, which is fetched in full and reduced to two booleans.</p>
+      <p style="margin:0 0 14px"><b style="color:var(--fg)">Because of the night</b> gives each similar film its reason as a sentence. The reason is computed today and discarded.</p>
+      <p style="margin:0">Eight facet chips replace nineteen TMDB genres, and each one is a room you can walk into.</p>
+    </div>
+  </div>`;
+</script>
+</body>
+</html>
