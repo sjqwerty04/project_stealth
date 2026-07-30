@@ -11,11 +11,13 @@ converted into locked decisions, and the system that follows from them.
 | **[AUDIT.md](AUDIT.md)** | The original audit. Hook Model score, feature teardown, and 38 defects with `file:line`. Findings stand; three recommendations are annotated as superseded. |
 | **[ONBOARDING.md](ONBOARDING.md)** | The eight-screen onboarding flow: the morph armature, the copy, the wall seeding rules, and what each question buys the taste model. |
 | **[NEGATIVE.md](NEGATIVE.md)** | The Negative — the taste artifact. The naming, the computed per-user colour, the one-word read, and the ten-card insight catalogue. |
+| **[ORBIT.md](ORBIT.md)** | Where the graph lives. Orbit is search, DNA is the film's own counterparty view, the Assembly is yours, and Rabbit Hole is a session state. Also settles the compass and names On Location. |
 | **[QUESTIONS.md](QUESTIONS.md)** | Round 2, now answered. |
 | **[direction-board.html](direction-board.html)** | The visual version. Live HTML/CSS with the fonts self-hosted — open it and edit it. |
 | **[onboarding-board.html](onboarding-board.html)** | The onboarding flow, live. Same tokens, same geometry as the Figma components. |
 | **[negative-board.html](negative-board.html)** | The Negative, live. Runs the same seeded generator as the Figma component, so the shapes are identical. |
 | **[product-board.html](product-board.html)** | Home and the film page, live, including both Focus states. |
+| **[orbit-board.html](orbit-board.html)** | The DNA canopy and the counterparty tables, live. Same bezier geometry as the Figma component. |
 
 ---
 
@@ -155,6 +157,29 @@ On the film page, four things were already being generated and thrown away: the 
 under three rows of buttons, `vibeDescription` was rendered nowhere, the IMDb tech-specs response
 was reduced to two booleans, and every similar film's reason was computed and discarded. This
 renders all four.
+
+---
+
+## Orbit is search
+
+Three features were doing one job badly. Orbit told you three different stories about its own
+compass — the engine says visual/balanced/storytelling/emotional, the card overlays say
+Vibe/Auteur/Aesthetic, the onboarding says something else again. DNA duplicated half of Orbit
+through a different door. The constellation drew the result twice.
+
+`DIRECTION.md` §8 had already written the fix without noticing: *search is the graph with a query
+at the centre.* So **Orbit is search** and takes the nav slot; **DNA** is the film's own
+neighbourhood on its own page; **the Assembly** stays yours; **Rabbit Hole** is what a long Orbit
+session becomes, and it pays out on the way out.
+
+DNA is built on the Bloomberg counterparty model — what the film bought from, what bought from it,
+and the common link, which is **hands as pairs rather than people**. One person is a filmography;
+two is a signature.
+
+![Orbit and DNA](figma/orbit-dna.png)
+
+Full reasoning, the settled compass, and the naming of **On Location** in
+**[ORBIT.md](ORBIT.md)**.
 
 ---
 
