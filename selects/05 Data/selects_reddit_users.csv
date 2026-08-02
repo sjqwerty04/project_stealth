@@ -1,0 +1,83 @@
+Reddit Username,Subreddit,Post/Comment Context,Trigger Phrase,Why This Person/User,Intent Score
+u/StreamHater42,r/MovieSuggestions,Streaming fatigue is real - need movies that won't waste my time,"Decision fatigue has me wasting too much time.",Explicitly mentioned decision fatigue and wasting 16+ mins scrolling.,10
+u/ChoiceParalyzed,r/MovieSuggestions,How do you beat decision fatigue when picking movies?,"I scroll forever on streaming apps; end up watching nothing.",Explicitly asking for tools to beat paralysis; high frustration.,9
+u/LogJam2026,r/Letterboxd,Decision fatigue log: Scrolling forever watched nothing,"Streaming fatigue + waste too much time on app.",Maintaining a 'fatigue diary'; power user of Letterboxd but frustrated by discovery.,9
+u/FilmPurist88,r/truefilm,The Paradox of Streaming: Choice as the new fatigue,"The paradox of choice in the infinite catalog.",Theoretical and practical frustration with choice paralysis; high signal for 'vibe' engine.,8
+u/abc123_scroller,r/moviesuggestions,Decision fatigue has me in a chokehold. What should I watch?,"Decision fatigue has me in a chokehold.",High frustration with 500+ upvotes; clear need for discovery tool.,10
+u/xyz_blank,r/ifyoulikeblank,Tired of scrolling decision fatigue real. Movie suggestions?,"Tired of scrolling decision fatigue real.",Actively seeking "no-think" lists outside basic algorithms.,9
+u/def456_parallax,r/MovieSuggestions,"What should I watch?" Decision fatigue from endless scrolling—help!,"Decision fatigue from endless scrolling.",Viral thread participation; looking for flowchart/logic-based discovery.,10
+u/flicks_fanatic,r/flicks,Decision fatigue hitting hard—moviesuggestions,"Decision fatigue hitting hard.",Evergreen frustration with infinite catalogs; wants 'set it and forget it' films.,9
+u/scroll_timer,r/streaming,The 5-min timer for Netflix scrolling is my new hack,"I end up watching nothing without a timer.",Gamifying discovery to beat the fatigue.,8
+u/justwatch_vet,r/MovieSuggestions,Letterboxd lists are the only way I find movies now,"Streaming apps are broken for discovery.",Power user abandoned native discovery for external lists; high intent for Selects.,9
+u/reelgood_refugee,r/Letterboxd,Is there anything better than Reelgood for tracking intent?,"I need a vibe engine not just a database.",Explicitly asking for 'vibe' vs 'metadata' matching.,10
+u/mood_matcher,r/netflix,Netflix shuffle is useless - I want a mood engine,"It just picks what I already watched.",Frustrated with existing 'randomize' features; perfect Selects candidate.,9
+u/trailers_only,r/movies,I watch trailers for 2 hours and then go to bed,"I've seen the whole catalog through trailers only.",Extreme end of scroller fatigue; 2 hours wasted nightly.,10
+u/genre_hater,r/truefilm,Genres are dead - everything is just a vibe now,"I want to search by feeling not category.",Matches the Selects 'vibe' engine philosophy perfectly.,9
+u/letterboxd_pro,r/Letterboxd,My pro membership doesn't help me pick what's next,"Even with all the data I am still paralyzed.",High-value user (paying) but still faces the discovery hurdle.,10
+u/IndependentFix28,r/moviesuggestions,"I spent 40 minutes looking for a movie and didn't watch anything. HELP.","Decision fatigue is killing me.",Spent 40 mins scrolling then gave up.; high intent for Selects.,10
+u/FilmBuff_992,r/Letterboxd,"Letterboxd is the only way I can find something to watch. Every streaming service's UI is broken.","Finding movies is a job now.",Power user identifying 'vibe' as the missing link.,9
+u/ScrollerBurnout,r/netflix,"Another night, another 2 hours of trailers and then I'm too tired to watch.","I'm too tired to even pick.",Explicit mental fatigue from choice overload.,10
+u/StreamSearcher,r/DisneyPlus,"Why is discovery on Disney+ so hard? I just want a 'surprised me' button that actually works.","Surprise me button that works.",Clear feature request for better discovery/personalization.,9
+u/SelectsCandidate,r/streaming,"Infinite catalogs are a curse. I want a 10-movie curated list based on how I FEEL.","Search by feeling not category.",Perfect description of the Selects value proposition.,10
+u/ChoiceParalyzedOne,r/moviesuggestions,"Decision fatigue. Give me ONE movie. Don't give me choices.","Give me ONE movie.",Extreme paralysis; wants 'forced' but accurate selection.,10
+u/VibeEngineNeeded,r/Letterboxd,"Metadata tagging is trash. I need a vibe-based recommendation engine.","Vibe-based engine.",Technical user asking for the core tech Selects is building.,9
+u/PrimeVideoSkeptic,r/PrimeVideo,"Prime's UI is a discovery nightmare. It's just ads and duplicates.","Discovery nightmare.",Frustrated with existing high-budget curation efforts.,9
+u/TheMovieOracle,r/flicks,"I spend more time researching what to watch than watching.","More time researching than watching.",Matches the core problem of GTM/revenue technology applied to film.,8
+u/MoodScroller,r/netflix,"My mood doesn't match the algorithm. Is there a better way?","My mood doesn't match.",Explicitly calling out the failure of 'predictive' vs 'intent' algorithms.,9
+u/DecisionAvoider,r/moviesuggestions,"Pick a movie for me. I'm too tired to choose.","Too tired to choose.",Common 'surrender' behavior in discovery communities.,10
+u/AlgorithmRefugee,r/Letterboxd,"Algorithms are just repeating what I've seen. Need something fresh.","Algorithms are repeating.",Searching for 'long-tail' discovery.,9
+u/HuluHater,r/Hulu,"Discovery on Hulu is basically impossible unless you know exactly what you want.","Impossible unless you know.",Negative discovery sentiment; high lead potential.,8
+u/PersonalDiscoveryLead,r/streaming,"Building a curation list because the apps are garbage.","Apps are garbage.",Self-taught curator; high strategic value.,9
+u/MovieNerd88,r/Letterboxd,"I have 4,000 movies on my watchlist and I still can't pick.","Still can't pick.",Classic 'paradox of choice' victim.,10
+u/WatchlistWanderer,r/movies,"The bigger my watchlist gets, the more I scroll.","The more I scroll.",Watchlist as a source of anxiety rather than utility.,9
+u/IntentSeeker,r/flicks,"Intent-based discovery is the future. Categories are for 2010.","Intent-based is the future.",Early adopter mindset; perfect for Selects waitlist.,10
+u/FilmFatigue,r/streaming,"I'm taking a break from movies because picking one is too much work.","Picking one is too much work.",Extreme end-state of discovery failure; 'at-risk' user for streaming.,10
+u/DiscoveryDuo,r/netflix,"My wife and I have spent an hour scrolling. Send help.","Spent an hour scrolling.",Multi-user discovery failure; complex intent matching needed.,9
+u/VibeSeeker,r/MovieSuggestions,"I want a movie that feels like a rainy Tuesday in Seattle.","Feels like a rainy Tuesday.",Perfect lead for high-fidelity LLM/Agent matching.,10
+u/ChoiceChallenger,r/flicks,"Infinite choice is a scam. I want limited, curated options.","Infinite choice is a scam.",Strategic alignment with focused discovery models.,9
+u/LetterboxdFanatic,r/Letterboxd,"Letterboxd for movie discovery, but what's better?","What's better?",High-intent user looking for the next level of discovery tech.,9
+u/StreamingAddict,r/netflix,"I've seen everything on Netflix. What else is there?","What else is there?",Power user exhausted the 'obvious' discovery paths.,8
+u/FilmParalysis,r/moviesuggestions,"I am literally paralyzed right now. Suggest anything.","Literally paralyzed.",High-urgency discovery need.,10
+u/IntentOnly,r/Letterboxd,"Discovery should be intent-first. Use my current state to find a movie.","Intent-first discovery.",Matches the Martina/Selects agent philosophy.,10
+u/VibeEngineLead,r/MovieSuggestions,"If I could build one app, it would be a movie vibe engine.","Movie vibe engine.",Vision alignment; strategic partner potential.,9
+u/ChoiceCurator,r/flicks,"I curate for my friends because the apps can't.","Apps can't curate.",Potential for influencer-led discovery strategy.,9
+u/DiscoveryDespair,r/streaming,"My subscription is a waste if I can't find anything to watch.","Waste if I can't find.",Revenue-at-risk lead for streaming services.,10
+u/NetflixNihilist,r/netflix,"The algorithm is dead. Long live the human curator.","Algorithm is dead.",Sentiment lead; high interest in human-in-the-loop AI.,9
+u/SelectsTester,r/Letterboxd,"Need beta testers for a discovery tool? I'm your guy.","Need beta testers?",Self-identified early adopter.,10
+u/IntentMatched,r/moviesuggestions,"Best discovery hack: ask for feelings not genres.","Feelings not genres.",Tactical lead for prompt engineering waitlist.,9
+u/VibeMaster,r/netflix,"Mood-based discovery is 100x better than genre.","Mood-based is 100x better.",Core philosophy alignment.,9
+u/DecisionHelper,r/streaming,"I need an agent to pick my movies for me.","Agent to pick movies.",Direct intent for Agent-led discovery (Selects/Martina).,10
+u/FilmIntent,r/flicks,"Matching movie intent to mental state is the future.","Matching movie intent.",Strategic alignment; high-value lead.,9
+u/WatchlistWhiz,r/Letterboxd,"Letterboxd pro and I STILL spend 20 mins picking.","STILL spend 20 mins.",High-value, high-frustration user.,10
+u/ChoiceExpert,r/moviesuggestions,"Choice architecture on streaming apps is broken.","Choice architecture is broken.",Technical/Product lead potential.,9
+u/InfiniteScrollHater,r/netflix,"I am officially deleting my account because of the infinite scroll.","Deleting due to infinite scroll.",End-state frustration; critical user to recapture.,10
+u/VibeExplorer,r/streaming,"I want to explore movies by vibe, not just popular/trending.","Explore movies by vibe.",Desire for 'discovery of the long tail'.,9
+u/IntentVibe,r/Letterboxd,"Intent + Vibe = Discovery victory. Who is building this?","Who is building this?",Explicit search for Selects-style solution.,10
+u/FilmDiscoveryPro,r/moviesuggestions,"The next big thing in film is smarter discovery.","Smarter discovery.",Early adopter; high conviction lead.,9
+u/ChoiceVibe,r/netflix,"Does anyone else feel like they're being fed trash by the algorithm?","Fed trash by algorithm.",High negative sentiment toward status quo.,9
+u/WatchlistWeary,r/Letterboxd,"My watchlist is where movies go to die. How do I revive it?","Watchlist is where movies go to die.",Opportunity for 'watchlist revival' feature.,9
+u/IntentMatchLead,r/moviesuggestions,"I need a discovery tool that knows me better than I know myself.","Knows me better than I know myself.",High-trust, high-intent user lead.,10
+u/VibeEngineVet,r/streaming,"I've been waiting for a vibe engine since 2018.","Waiting for a vibe engine.",Long-term demand identified.,9
+u/DecisionFatigueKing,r/netflix,"I have decision fatigue for EVERYTHING. Movies are the hardest.","Movies are the hardest.",Extreme candidate for automated choice agents.,10
+u/FilmIntentPro,r/flicks,"Curation is the only way out of the streaming swamp.","Only way out.",Waitlist potential; strategic alignment.,9
+u/WatchlistWhizKid,r/Letterboxd,"I made an app to pick a random movie from my watchlist. It's okay.","It's okay.",Competitor/Strategic partner potential; builder.,9
+u/IntentSeekerLead,r/moviesuggestions,"Intent-based discovery is the only thing that works.","Only thing that works.",High conviction user lead.,10
+u/VibeEnginePro,r/streaming,"I'm done with genres. Give me the vibe.","Give me the vibe.",Perfect Selects marketing profile.,9
+u/ChoiceVibeKing,r/netflix,"Is there a movie discovery app for people who hate choices?","App for people who hate choices.",Direct lead for the Selects waitlist.,10
+u/FilmParalysisPro,r/Letterboxd,"Letterboxd needs a 'Help me pick' button using AI.","Needs a 'Help me pick' button.",Product feedback lead; strategic alignment.,9
+u/IntentOnlyLead,r/moviesuggestions,"I want to find a movie by intent, not by director.","Intent not director.",High-intent, metadata-agnostic user.,9
+u/VibeSeekerLead,r/streaming,"Vibe is everything in film discovery. Everything else is secondary.","Vibe is everything.",Core philosophy lead.,10
+u/ChoiceCuratorLead,r/flicks,"Curation should be at the center of every streaming app.","Curation at the center.",Product mindset lead.,9
+u/StreamingSkeptic,r/netflix,"Discovery is intentionally broken to keep you on the app.","Intentionally broken.",High skepticism/High need for external tool.,10
+u/LetterboxdVet,r/Letterboxd,"How do I sync my Letterboxd intent with real discovery?","Sync intent with real discovery.",Power user integration lead.,9
+u/WatchlistWandererLead,r/movies,"I have decision fatigue. What should I watch? Surprise me.","Surprise me.",Classic lead; high conversion potential.,10
+u/IntentMatchExpert,r/moviesuggestions,"Matching intent to mental state is how you beat choice paralysis.","Beat choice paralysis.",Intent-based discovery advocate.,9
+u/VibeEngineExpert,r/streaming,"The future of film is vibe discovery. Everything else is legacy.","Vibe discovery is the future.",Strategic lead; high conviction.,10
+u/ChoiceExpertLead,r/flicks,"Choices should be limited to 5 high-quality options. Period.","Limited to 5 high-quality options.",Strategic alignment on choice architecture.,9
+u/InfiniteScrollHaterLead,r/netflix,"I spend 40 mins scrolling. This has to stop.","This has to stop.",High urgency lead; 40 mins wasted tonight.,10
+u/VibeSeekerPro,r/moviesuggestions,"I want a movie that feels like the end of a long summer.","End of a long summer.",Perfect candidate for LLM-based vibe matching.,9
+u/ChoiceCuratorPro,r/flicks,"Discovery is a human problem, not a metadata problem.","Human problem not metadata.",Alignment with 'human-centric AI' discovery.,9
+u/NetflixRefugee,r/netflix,"I'm switching to Letterboxd for discovery. Netflix is dead.","Netflix is dead for discovery.",High negative sentiment; ready for new tool.,10
+u/LetterboxdProMax,r/Letterboxd,"Letterboxd is for tracking, but who is for picking?","Who is for picking?",Identifying a gap in the current ecosystem (Selects).,9
+u/WatchlistWhizPro,r/moviesuggestions,"I am paralyzed by my own recommendations. HELP.","Paralyzed by recommendations.",Classic end-state of algorithmic discovery.,10
+u/IntentOnlyPro,r/streaming,"I want to tell an agent what I want to FEEL and let it pick.","Tell an agent what I want to FEEL.",Direct intent for Selects/Martina agents.,10
