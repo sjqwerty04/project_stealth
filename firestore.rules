@@ -43,6 +43,20 @@ service cloud.firestore {
       match /saved_vibes/{vibeId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Pre-generated recommendation queue, so opening the app costs a read
+      // rather than a model call.
+      match /queues/{queueId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Behavioural event log. Append-only by design: analytics that a client
+      // can rewrite after the fact is not analytics.
+      match /events/{eventId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
     }
 
     // Shared watchlists - collaborative lists with multiple members

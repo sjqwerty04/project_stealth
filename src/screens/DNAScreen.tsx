@@ -4,9 +4,9 @@ import { ArrowLeft, ChevronRight, Loader2, User, Film, ExternalLink } from 'luci
 import { useDNAStore, nodeId } from '../stores/dnaStore';
 import type { DNANode, DNAMovie, DNAPerson } from '../stores/dnaStore';
 import { getMovieDNA, getPersonFilms } from '../lib/dnaEngine';
+import { imageUrlOrNull, type PosterSize } from '../lib/tmdb';
 
-const img = (path: string | null, size: 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'w342') =>
-  path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+const img = (path: string | null, size: PosterSize = 'w342') => imageUrlOrNull(path, size);
 
 type Dots = { people?: DNAPerson[]; films?: DNAMovie[] };
 

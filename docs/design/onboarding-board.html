@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Selects — onboarding flow</title>
+<style>
+  @font-face { font-family: "Archivo"; src: url("fonts/archivo-latin.woff2") format("woff2"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Martian Mono"; src: url("fonts/martianmono-latin.woff2") format("woff2"); font-weight: 100 800; font-display: block; }
+
+  :root {
+    --ink: #0a0a0b;
+    --raised: #141416;
+    --card: #1d1d20;
+    --line: #2b2b2f;
+    --bone: #efede9;
+    --dim: #b9b6b0;
+    --grey: #7c7a76;
+    --select: #ff3b14;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 72px 60px 90px;
+    background: var(--ink); color: var(--bone);
+    font-family: "Archivo", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .kicker {
+    font-family: "Martian Mono", monospace; font-weight: 500;
+    font-size: 10px; letter-spacing: .09em; color: var(--grey);
+    text-transform: uppercase;
+  }
+  h1 { font-size: 46px; font-weight: 800; letter-spacing: -.045em; line-height: .95; margin: 12px 0 10px; }
+  .lede { color: var(--dim); font-size: 15px; line-height: 1.55; max-width: 720px; margin: 0 0 56px; }
+
+  .rule { border-top: 1px solid var(--line); margin: 0 0 30px; padding-top: 22px; }
+
+  /* ── armature row ───────────────────────────────── */
+  .arms { display: flex; gap: 26px; margin: 0 0 64px; }
+  .arm { flex: 1; }
+  .arm svg { display: block; width: 100%; height: auto; }
+  .arm .nm { margin-top: 14px; }
+  .arm .nm b { display: block; font-size: 13px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 5px; }
+  .arm .nm span { font-family: "Martian Mono", monospace; font-weight: 400; font-size: 9px; line-height: 1.85; color: var(--grey); letter-spacing: .04em; display: block; white-space: pre-line; }
+
+  /* ── screens row ────────────────────────────────── */
+  .flow { display: flex; gap: 22px; align-items: flex-start; }
+  .slot { width: 257px; }
+  .stage { width: 257px; height: 557px; overflow: hidden; }
+  .screen {
+    width: 390px; height: 844px; background: var(--ink);
+    position: relative; overflow: hidden;
+    transform: scale(.6595); transform-origin: 0 0;
+    border: 1px solid var(--line);
+  }
+  .prog { position: absolute; left: 28px; top: 52px; display: flex; gap: 6px; }
+  .prog i { display: block; width: 20px; height: 5px; background: #2b2b2f;
+    clip-path: polygon(24% 0, 100% 0, 76% 100%, 0 100%); }
+  .prog i.on { background: var(--select); }
+  .tag { position: absolute; left: 28px; top: 70px; font-family: "Martian Mono", monospace;
+    font-weight: 500; font-size: 10px; letter-spacing: .09em; color: var(--select); }
+  .tag.mute { color: var(--grey); }
+  .q { position: absolute; left: 28px; top: 294px; width: 334px; font-size: 26px;
+    font-weight: 800; letter-spacing: -.04em; line-height: 1.08; }
+  .armslot { position: absolute; left: 30px; top: 100px; width: 330px; height: 172px; }
+  .armslot svg { width: 100%; height: 100%; display: block; }
+  .search { position: absolute; left: 28px; top: 400px; width: 334px; height: 44px;
+    background: var(--card); border: 1px solid var(--line); display: flex; align-items: center;
+    padding: 0 14px; font-family: "Martian Mono", monospace; font-weight: 500; font-size: 12px;
+    letter-spacing: .02em; color: var(--grey); }
+  .note { position: absolute; left: 28px; top: 452px; font-family: "Martian Mono", monospace;
+    font-weight: 500; font-size: 10px; letter-spacing: .09em; color: var(--grey); }
+  .wall { position: absolute; left: 28px; top: 474px; width: 334px; height: 280px;
+    overflow: hidden; display: grid; grid-template-columns: repeat(3, 106px); gap: 8px; }
+  .tile { width: 106px; height: 159px; border-radius: 2px; position: relative; overflow: hidden; }
+  .tile::after { content: ""; position: absolute; inset: auto 0 0 0; height: 80px;
+    background: linear-gradient(to bottom, transparent, rgba(0,0,0,.78)); }
+  .tile b { position: absolute; left: 9px; bottom: 10px; z-index: 2; color: #fff;
+    font-size: 11px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; width: 88px; }
+  .cta { position: absolute; left: 28px; top: 772px; width: 334px; height: 52px;
+    background: var(--bone); color: var(--ink); display: flex; align-items: center;
+    justify-content: center; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+  .skip { position: absolute; left: 28px; top: 738px; width: 334px; text-align: center;
+    font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); }
+
+  .nowshow { position: absolute; left: 57px; top: 122px; width: 276px; height: 128px;
+    border-radius: 2px; background: #123048; overflow: hidden; }
+  .nowshow b { position: absolute; left: 12px; bottom: 12px; font-size: 19px; font-weight: 800;
+    letter-spacing: -.035em; color: #fff; }
+
+  .word { position: absolute; left: 28px; top: 536px; width: 334px; text-align: center;
+    font-size: 40px; font-weight: 800; letter-spacing: -.02em; }
+  .taglin { position: absolute; left: 28px; top: 592px; width: 334px; text-align: center;
+    font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); }
+
+  .prefs { position: absolute; left: 28px; top: 400px; width: 334px; display: flex;
+    flex-direction: column; gap: 12px; }
+  .pref { background: var(--card); border: 1px solid var(--line); padding: 18px; }
+  .pref.on { border: 2px solid var(--select); }
+  .pref b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -.03em; margin-bottom: 7px; }
+  .pref span { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); }
+  .pref.on span { color: var(--select); }
+  .why { position: absolute; left: 28px; top: 470px; width: 334px; font-size: 14px;
+    line-height: 1.6; color: var(--dim); }
+
+  /* ── annotation ─────────────────────────────────── */
+  .anno { margin-top: 18px; background: var(--raised); border: 1px solid var(--line);
+    padding: 16px 16px 18px; }
+  .anno em { display: block; font-style: normal; font-family: "Martian Mono", monospace;
+    font-weight: 500; font-size: 9px; letter-spacing: .09em; color: var(--select); margin-bottom: 7px; }
+  .anno strong { display: block; font-family: "Martian Mono", monospace; font-weight: 500;
+    font-size: 9px; letter-spacing: .09em; color: var(--bone); margin-bottom: 10px; line-height: 1.6; }
+  .anno p { margin: 0; font-family: "Martian Mono", monospace; font-weight: 400; font-size: 8.5px;
+    line-height: 1.95; letter-spacing: .02em; color: var(--grey); white-space: pre-line; }
+</style>
+</head>
+<body>
+
+<div class="kicker">Selects · onboarding · five screens, one armature</div>
+<h1>The mark becomes the question.</h1>
+<p class="lede">Smart Animate tweens position, rotation, scale, colour and opacity — never vector
+paths. So nothing here changes shape. Every graphic is the same five bars, named identically in
+every frame, only rearranged. The limitation became the idea.</p>
+
+<div class="rule"><div class="kicker">One armature · five arrangements</div></div>
+<div class="arms" id="arms"></div>
+
+<div class="rule"><div class="kicker">The flow · positive, negative, neutral, then the import</div></div>
+<div class="flow" id="flow"></div>
+
+<script>
+/* Bar geometry mirrors the Figma component exactly:
+   parallelogram of width W and height H, sheared S over H. */
+const bar = (W, H, S, x, y, rot, fill) => {
+  const d = `M ${S} 0 L ${S + W} 0 L ${W} ${H} L 0 ${H} Z`;
+  const cx = x + (S + W) / 2, cy = y + H / 2;
+  const t = `translate(${x} ${y})` + (rot ? ` rotate(${rot} ${(S + W) / 2} ${H / 2})` : '');
+  return `<path d="${d}" transform="${t}" fill="${fill}"/>`;
+};
+const BONE = '#efede9', SEL = '#ff3b14';
+const f = i => (i === 2 ? SEL : BONE);
+
+const ARR = {
+  mark:   () => [0,1,2,3,4].map(k => bar(20, 100, 24, 75 + 34 * k, 50, 0, f(k))).join(''),
+  screen: () => [0,1,2,3,4].map(k => bar(50, 112, 24, 16 + 56 * k, 40, 0, f(k))).join(''),
+  broken: () => { const X = [75,109,145,177,211];
+    return [0,1,2,3,4].map(k => bar(20, 100, 24, X[k], k === 2 ? 78 : 50, k === 2 ? -26 : 0, f(k))).join(''); },
+  fan:    () => { const R = [-24,-12,0,12,24], Y = [62,54,50,54,62];
+    return [0,1,2,3,4].map(k => bar(20, 100, 24, 75 + 34 * k, Y[k], R[k], f(k))).join(''); },
+  stack:  () => [0,1,2,3,4].map(k => bar(10, 76, 10, 127 + 14 * k, 62, 0, f(k))).join('')
+};
+const svg = name => `<svg viewBox="0 0 330 200" xmlns="http://www.w3.org/2000/svg">${ARR[name]()}</svg>`;
+
+document.getElementById('arms').innerHTML = [
+  ['mark', 'mark', 'SPLASH\nThe clapstick. Five takes,\none selected.'],
+  ['screen', 'screen', 'POSITIVE\nBars widen and spread into\na cinema screen.'],
+  ['broken', 'broken', 'NEGATIVE\nFour hold the line. The red\nbar breaks out of it.'],
+  ['fan', 'fan', 'NEUTRAL\nA three-way spread —\nweighting, not picking.'],
+  ['stack', 'stack', 'THE IMPORT\nCompressed. Eight hundred\nfilms rushing in.']
+].map(([k, n, c]) => `<div class="arm">${svg(k)}<div class="nm"><b>state=${n}</b><span>${c}</span></div></div>`).join('');
+
+const tiles = list => list.map(([t, c]) =>
+  `<div class="tile" style="background:${c}"><b>${t}</b></div>`).join('');
+
+const Q1 = [['HEAT','#123048'],['GOODFELLAS','#2b1a10'],['IN THE MOOD FOR LOVE','#3b1021'],
+  ['INTERSTELLAR','#101a2b'],['PULP FICTION','#2b140d'],['PARASITE','#142219']];
+const Q1B = [['THIEF','#123048'],['COLLATERAL','#2b1a10'],['THE INSIDER','#3b1021'],
+  ['MANHUNTER','#101a2b'],['SICARIO','#2b140d'],['ZODIAC','#142219']];
+const Q2 = [['DUNE','#332618'],['DUNE PART TWO','#2b1f10'],['SHREK','#1a2b12'],
+  ['LA LA LAND','#171a3d'],['TITANIC','#0d1c30'],['JOKER','#211024']];
+
+const progBar = on => [0,1,2,3].map(i => `<i class="${i < on ? 'on' : ''}"></i>`).join('');
+
+const SCREENS = [
+  { anno: ['SPLASH', 'THE CLAPSTICK CLAPS SHUT',
+      'Five bars, one lit.\n\nEverything after this screen is\nthose same five bars\nrearranging.'],
+    html: `<div class="armslot" style="top:300px">${svg('mark')}</div>
+      <div class="word">SELECTS</div><div class="taglin">THE TAKE WORTH KEEPING</div>` },
+
+  { anno: ['POSITIVE PROFILE', 'THE STRONGEST ANCHOR THERE IS',
+      'SIGNAL\nFilms they would rewatch\nforever. Highest-confidence\ntaste data available.\n\nINFERS\nlook · tempo · weather · world\n\nFOCUS\n+Depth, +Clarity on convergence'],
+    html: `<div class="prog">${progBar(1)}</div><div class="tag">BUILDING · POSITIVE PROFILE</div>
+      <div class="armslot">${svg('screen')}</div>
+      <div class="q">If you could rent a theatre and watch one film in it forever — what is it?</div>
+      <div class="search">search any film</div>
+      <div class="wall" style="top:462px;height:292px">${tiles(Q1)}</div>
+      <div class="cta">Pick at least one</div>` },
+
+  { anno: ['POSITIVE · AFTER PICK', 'THE WALL EARNS ITS KEEP',
+      'The second block is drawn from\nthe facet overlap of the first\npick, so every extra pick costs\nless effort than the last.\n\nThe poster flies onto the screen.\nSame layer, two positions.'],
+    html: `<div class="prog">${progBar(1)}</div><div class="tag">BUILDING · POSITIVE PROFILE</div>
+      <div class="armslot">${svg('screen')}</div>
+      <div class="nowshow"><b>HEAT</b></div>
+      <div class="q">If you could rent a theatre and watch one film in it forever — what is it?</div>
+      <div class="search">search any film</div>
+      <div class="note">RE-SORTED AROUND YOUR PICK</div>
+      <div class="wall">${tiles(Q1B)}</div>
+      <div class="cta">Next · 1 picked</div>` },
+
+  { anno: ['NEGATIVE PROFILE', 'EXCLUSIONS CARVE THE GRAPH',
+      'SIGNAL\nA dislike only informs if they\nhave definitely seen it. Hence\nthe seeding rule.\n\nEFFECT\nShared facets get down-weighted,\nnever removed — taste is not\na blocklist.\n\nFOCUS\n+Clarity'],
+    html: `<div class="prog">${progBar(2)}</div><div class="tag">BUILDING · NEGATIVE PROFILE</div>
+      <div class="armslot">${svg('broken')}</div>
+      <div class="q">What did everyone love that never landed for you?</div>
+      <div class="search">search the ones you resisted</div>
+      <div class="note">HIGH RECOGNITION · REGIONALLY WEIGHTED</div>
+      <div class="wall">${tiles(Q2)}</div>
+      <div class="cta">Next · or skip</div>` },
+
+  { anno: ['NEUTRAL PROFILE', 'WHICH AXES TO WEIGHT',
+      'SIGNAL\nNot what they like — how they\njudge.\n\nScreenplay-led weights shape and\nweather. Projection-led weights\nlook and format, which decides\nwhether specs are worth surfacing\nat all.\n\nFOCUS\n+Context'],
+    html: `<div class="prog">${progBar(3)}</div><div class="tag">BUILDING · NEUTRAL PROFILE</div>
+      <div class="armslot">${svg('fan')}</div>
+      <div class="q">What are you actually there for?</div>
+      <div class="note" style="top:376px">PICK AS MANY AS ARE TRUE</div>
+      <div class="prefs">
+        <div class="pref on"><b>A flawless screenplay</b><span>STRUCTURE · DIALOGUE · THE WRITING</span></div>
+        <div class="pref on"><b>The room and the projection</b><span>70MM · THE CROWD · THE DARK</span></div>
+        <div class="pref"><b>Both, depending on the night</b><span>AND I WILL TELL YOU WHICH</span></div>
+      </div>
+      <div class="cta">Into the app</div>` },
+
+  { anno: ['THE IMPORT', 'DEPTH IN ONE CALL',
+      'Username gets the public diary\nwith ratings, instantly. The CSV\ngets everything.\n\nUsername first because it is\nfrictionless and it earns the\nright to ask for the CSV\nafterwards.\n\nFOCUS\nDepth jumps hard. Freshness\nresets.'],
+    html: `<div class="prog">${progBar(4)}</div><div class="tag mute">OPTIONAL · STRONGLY RECOMMENDED</div>
+      <div class="armslot">${svg('stack')}</div>
+      <div class="q">I can read your last fifty in four seconds.</div>
+      <div class="search" style="height:50px">letterboxd username</div>
+      <div class="why">Your username is enough. Everything you have already logged becomes the floor your recommendations start from — and the map fills in as you go.</div>
+      <div class="skip">SKIP FOR NOW</div>
+      <div class="cta">Read my Letterboxd</div>` }
+];
+
+document.getElementById('flow').innerHTML = SCREENS.map(s => `
+  <div class="slot">
+    <div class="stage"><div class="screen">${s.html}</div></div>
+    <div class="anno"><em>${s.anno[0]}</em><strong>${s.anno[1]}</strong><p>${s.anno[2]}</p></div>
+  </div>`).join('');
+</script>
+</body>
+</html>

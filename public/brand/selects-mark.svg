@@ -1,0 +1,13 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Selects">
+  <title>Selects</title>
+  <!-- Clapstick. Five takes, one selected.
+       Bar width 14, pitch 24, shear 24 over 100 (13.5deg), first bar at x=7.
+       x=7 is the only value that puts the lit bar's midpoint at x=50 and makes
+       the composition symmetric under 180-degree rotation about (50,50).
+       Edge bars are cut by the frame on purpose - the strip continues. -->
+  <path d="M7 0H21L0 87.5V29.17Z" fill="#EFEDE9"/>
+  <path d="M31 0H45L21 100H7Z" fill="#EFEDE9"/>
+  <path d="M55 0H69L45 100H31Z" fill="#FF3B14"/>
+  <path d="M79 0H93L69 100H55Z" fill="#EFEDE9"/>
+  <path d="M79 100L100 12.5V70.83L93 100Z" fill="#EFEDE9"/>
+</svg>

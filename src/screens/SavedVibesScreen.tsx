@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Trash2, Loader2, ChevronRight, X } from 'lucide-react';
 import { collection, getDocs, deleteDoc, doc, orderBy, query, limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
+import { imageUrlOrNull, type PosterSize } from '../lib/tmdb';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -18,10 +19,7 @@ type SavedVibe = {
   createdAt: any;
 };
 
-const buildImageUrl = (path: string | null, size: 'w200' | 'w500' = 'w200') => {
-  if (!path) return null;
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+const buildImageUrl = (path: string | null, size: PosterSize = 'w200') => imageUrlOrNull(path, size);
 
 const PAGE_SIZE = 10;
 

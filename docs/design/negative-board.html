@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Selects — the Negative</title>
+<style>
+  @font-face { font-family: "Archivo"; src: url("fonts/archivo-latin.woff2") format("woff2"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Martian Mono"; src: url("fonts/martianmono-latin.woff2") format("woff2"); font-weight: 100 800; font-display: block; }
+
+  :root {
+    --base: #0a0a0b; --raised: #141416; --card: #1d1d20; --line: #2b2b2f;
+    --fg: #efede9; --dim: #b9b6b0; --grey: #7c7a76; --select: #ff3b14;
+    --yours: #3a6e85;
+    /* print mode */
+    --p-base: #efede9; --p-line: #c4c0b8; --p-fg: #0a0a0b; --p-grey: #6e6c68;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 70px 60px 90px; background: var(--base); color: var(--fg);
+    font-family: "Archivo", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .kicker { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); text-transform: uppercase; }
+  h1 { font-size: 46px; font-weight: 800; letter-spacing: -.045em; line-height: .95; margin: 12px 0 10px; }
+  .lede { color: var(--dim); font-size: 15px; line-height: 1.55; max-width: 760px; margin: 0 0 54px; }
+  .rule { border-top: 1px solid var(--line); margin: 0 0 28px; padding-top: 22px; }
+
+  .trip { display: flex; gap: 30px; margin-bottom: 60px; }
+  .trip > div { flex: 1; }
+  .trip svg { display: block; width: 100%; height: auto; background: var(--base); }
+  .cap { margin-top: 14px; }
+  .cap b { display: block; font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; margin-bottom: 6px; }
+  .cap span { display: block; font-family: "Martian Mono", monospace; font-weight: 400; font-size: 9px;
+    line-height: 1.85; color: var(--grey); letter-spacing: .03em; white-space: pre-line; }
+
+  .flow { display: flex; gap: 22px; align-items: flex-start; }
+  .slot { width: 257px; }
+  .stage { width: 257px; height: 557px; overflow: hidden; }
+  .screen { width: 390px; height: 844px; background: var(--base); position: relative;
+    overflow: hidden; transform: scale(.6595); transform-origin: 0 0; border: 1px solid var(--line); }
+  .lbl { position: absolute; font-family: "Martian Mono", monospace; font-weight: 500; font-size: 10px;
+    letter-spacing: .09em; color: var(--grey); }
+  .num { position: absolute; font-family: "Martian Mono", monospace; font-weight: 600;
+    letter-spacing: -.05em; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .lead { position: absolute; font-size: 19px; font-weight: 500; letter-spacing: -.02em;
+    line-height: 1.35; color: var(--dim); }
+  .read { position: absolute; font-size: 40px; font-weight: 800; letter-spacing: -.045em;
+    line-height: .95; color: var(--yours); }
+  .cta { position: absolute; left: 28px; width: 334px; height: 52px; background: var(--fg);
+    color: var(--base); display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+  .swatch { position: absolute; width: 26px; height: 26px; background: var(--yours); }
+  .hair { position: absolute; left: 28px; width: 334px; border-top: 1px solid var(--line); }
+  .icard { position: absolute; left: 28px; width: 334px; background: var(--card);
+    border: 1px solid var(--line); padding: 22px; }
+  .icard.sharp { border: 1px solid var(--select); }
+  .icard em { display: block; font-style: normal; font-family: "Martian Mono", monospace;
+    font-weight: 500; font-size: 10px; letter-spacing: .09em; color: var(--grey); margin-bottom: 13px; }
+  .icard.sharp em { color: var(--select); }
+  .icard b { display: block; font-size: 19px; font-weight: 500; letter-spacing: -.02em;
+    line-height: 1.35; margin-bottom: 13px; }
+  .icard b.n { font-family: "Martian Mono", monospace; font-weight: 600; font-size: 32px;
+    letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+  .icard p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--dim); }
+  .dots { position: absolute; left: 28px; display: flex; gap: 5px; }
+  .dots i { width: 16px; height: 4px; background: var(--line);
+    clip-path: polygon(24% 0, 100% 0, 76% 100%, 0 100%); }
+  .dots i.on { background: var(--select); }
+
+  /* the Print — two ink, on paper */
+  .print { width: 540px; height: 675px; background: var(--p-base); color: var(--p-fg);
+    position: relative; overflow: hidden; }
+  .print .pk { position: absolute; font-family: "Martian Mono", monospace; font-weight: 500;
+    font-size: 11px; letter-spacing: .09em; color: var(--p-grey); }
+  .print h2 { position: absolute; margin: 0; font-size: 125px; font-weight: 800;
+    letter-spacing: -.06em; line-height: .84; }
+  .print .who { position: absolute; font-size: 34px; font-weight: 800; letter-spacing: -.045em;
+    line-height: .96; }
+  .pstrip { position: absolute; display: flex; gap: 3px; }
+  .pstrip i { width: 10px; height: 42px; background: var(--p-line);
+    clip-path: polygon(33% 0, 100% 0, 67% 100%, 0 100%); }
+  .pchips { position: absolute; display: flex; flex-wrap: wrap; gap: 7px; width: 456px; }
+  .pchips span { font-family: "Martian Mono", monospace; font-weight: 500; font-size: 11px;
+    letter-spacing: .08em; border: 1px solid var(--p-line); padding: 4px 7px; color: var(--p-fg); }
+  .pink { position: absolute; width: 26px; height: 26px; background: var(--yours); }
+  .lock { display: flex; align-items: center; gap: 12px; }
+  .lock svg { display: block; }
+  .lock b { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+</style>
+</head>
+<body>
+
+<div class="kicker">Selects · the Negative · onboarding screens 05 to 07</div>
+<h1>The object every Print is struck from.</h1>
+<p class="lede">Node positions are a deterministic hash of the Wallet plus the facet weight vector, so
+the shape is stable for one person and different between two. The colour is the OKLab chroma
+centroid of every poster they have logged — computed, never assigned, and it drifts as they log.</p>
+
+<div class="rule"><div class="kicker">One armature · three densities · Smart Animate moves the dots</div></div>
+<div class="trip" id="trip"></div>
+
+<div class="rule"><div class="kicker">The screens</div></div>
+<div class="flow" id="flow"></div>
+
+<div class="rule" style="margin-top:64px"><div class="kicker">The Print · two ink, so it screen-prints</div></div>
+<div id="print"></div>
+
+<script>
+/* ── the constellation ─────────────────────────────────────────────
+   This is the same generator that built the Figma component: same seed,
+   same clusters, same k-nearest edge rule. The shapes are identical. */
+const FILM = ['#1D5B8A','#8A3A1D','#2B4A2E','#3A1E4A','#6B5A1D','#1D4A5B','#7A2A2A','#2A3A5B'];
+const CLUSTERS = [
+  { cx: 150, cy: 126, r: 48, n: 18 },
+  { cx: 86,  cy: 226, r: 42, n: 14 },
+  { cx: 252, cy: 208, r: 40, n: 13 },
+  { cx: 246, cy: 82,  r: 32, n: 9 }
+];
+
+function build() {
+  let s = 0x9E3779B9;
+  const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const pts = [];
+  CLUSTERS.forEach((c, ci) => {
+    for (let j = 0; j < c.n; j++) {
+      const a = rnd() * Math.PI * 2, rr = c.r * Math.sqrt(rnd());
+      const anchor = ci === 0 && j < 3;
+      pts.push({ x: c.cx + Math.cos(a) * rr, y: c.cy + Math.sin(a) * rr,
+        anchor, seen: true, d: anchor ? 19 : 7 + rnd() * 5 });
+    }
+  });
+  const seenCount = pts.length;
+  for (let j = 0; j < 10; j++) {
+    const a = (j / 10) * Math.PI * 2 + rnd() * 0.4, rr = 126 + rnd() * 30;
+    pts.push({ x: 167 + Math.cos(a) * rr * 0.98, y: 160 + Math.sin(a) * rr * 0.8,
+      anchor: false, seen: false, d: 9 });
+  }
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const keys = new Set(), edges = [];
+  const add = (i, j, w, dashed) => {
+    const k = Math.min(i, j) + ':' + Math.max(i, j);
+    if (keys.has(k)) return; keys.add(k); edges.push({ i, j, w, dashed });
+  };
+  for (let i = 0; i < seenCount; i++) {
+    const near = [];
+    for (let j = 0; j < seenCount; j++) if (j !== i) near.push({ j, d: dist(pts[i], pts[j]) });
+    near.sort((a, b) => a.d - b.d);
+    for (let k = 0; k < 2; k++) if (near[k] && near[k].d < 46)
+      add(i, near[k].j, 0.5 + (1 - near[k].d / 46) * 1.1, false);
+  }
+  add(0, 18, 1.4, false); add(0, 32, 1.2, false); add(2, 45, 1.0, false);
+  for (let i = seenCount; i < pts.length; i++) {
+    let best = 0, bd = 1e9;
+    for (let j = 0; j < seenCount; j++) { const d = dist(pts[i], pts[j]); if (d < bd) { bd = d; best = j; } }
+    add(i, best, 0.6, true);
+  }
+  return { pts, edges, seenCount };
+}
+
+const G = build();
+const N = G.pts.length;
+const cloudPos = i => { const r = 130 * Math.sqrt(i / 64), t = i * 2.39996;
+  return { x: 167 + Math.cos(t) * r, y: 160 + Math.sin(t) * r * 0.82 }; };
+
+function draw(k, edgeOpacity, nodeOpacity, grey) {
+  const pos = G.pts.map((p, i) => {
+    const t = cloudPos(i);
+    return { x: p.x + (t.x - p.x) * k, y: p.y + (t.y - p.y) * k,
+      d: p.d + (6 - p.d) * k, seen: p.seen, anchor: p.anchor };
+  });
+  let out = '';
+  for (const e of G.edges) {
+    const a = pos[e.i], b = pos[e.j];
+    out += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"
+      stroke="#2b2b2f" stroke-width="${e.w.toFixed(2)}" opacity="${e.dashed ? edgeOpacity * 0.55 : edgeOpacity}"
+      ${e.dashed ? 'stroke-dasharray="3 4"' : ''}/>`;
+  }
+  pos.forEach((p, i) => {
+    const r = (p.d / 2).toFixed(2);
+    if (grey) {
+      out += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="#7c7a76" opacity="${nodeOpacity}"/>`;
+    } else if (p.seen) {
+      out += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${FILM[i % FILM.length]}"
+        opacity="${nodeOpacity}" ${p.anchor ? 'stroke="#efede9" stroke-opacity=".55" stroke-width="1.5"' : ''}/>`;
+    } else {
+      out += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="none"
+        stroke="#7c7a76" stroke-width="1" opacity="${nodeOpacity * 0.55}"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 334 320" xmlns="http://www.w3.org/2000/svg">${out}</svg>`;
+}
+
+const CLOUD = draw(1, 0, .75, true);
+const DEV   = draw(.45, .22, .6, false);
+const STRUCK = draw(0, .9, 1, false);
+
+document.getElementById('trip').innerHTML = [
+  [CLOUD, 'state=cloud', 'A golden-angle disc. Even, and with\nno structure, because at this point\nthere genuinely is none.'],
+  [DEV, 'state=developing', 'Forty-five percent of the way.\nEdges arriving, colour arriving.'],
+  [STRUCK, 'state=struck', 'Four dense regions, three deliberate\nbridges, dashed edges out to films\nnot seen yet.']
+].map(([svg, n, c]) => `<div>${svg}<div class="cap"><b>${n}</b><span>${c}</span></div></div>`).join('');
+
+/* ── the three screens ─────────────────────────────────────────── */
+const scr = [
+  `<div class="lbl" style="left:28px;top:52px">READING</div>
+   <div class="num" style="left:28px;top:76px;font-size:56px">856</div>
+   <div class="lbl" style="left:28px;top:142px">FILMS READ</div>
+   <div style="position:absolute;left:28px;top:168px;width:334px">${CLOUD}</div>
+   <div class="lead" style="left:28px;top:540px;width:334px">Sampling every poster you have ever logged. This is the only screen allowed to look like it is thinking, because it is.</div>
+   <div class="lbl" style="left:28px;top:660px">POSTERS SAMPLED  ·  731 / 856</div>`,
+
+  `<div class="lbl" style="left:28px;top:52px">THE NEGATIVE</div>
+   <div class="lbl" style="left:28px;top:72px">STRUCK FROM 856 FILMS  ·  IT WILL CHANGE</div>
+   <div style="position:absolute;left:28px;top:168px;width:334px">${STRUCK}</div>
+   <div class="read" style="left:28px;top:500px;width:334px">NOCTURNALIST</div>
+   <div class="lead" style="left:28px;top:552px;width:334px">You watch at night, and you go back to the same six people.</div>
+   <div class="hair" style="top:640px"></div>
+   <div class="swatch" style="left:28px;top:654px"></div>
+   <div class="lbl" style="left:66px;top:661px">YOUR COLOUR</div>
+   <div class="lbl" style="left:172px;top:661px;color:var(--fg);font-family:'Martian Mono';font-size:13px;letter-spacing:0">#3A6E85</div>
+   <div class="lbl" style="left:28px;top:694px">OKLAB AVERAGE OF 856 POSTERS</div>
+   <div class="lbl" style="left:28px;top:722px">LONG-PRESS TO SHARE</div>
+   <div class="cta" style="top:772px">Insights</div>`,
+
+  `<div class="lbl" style="left:28px;top:52px">INSIGHTS  ·  10 READS</div>
+   <div class="dots" style="top:76px">${[0,1,2,3,4,5,6,7,8,9].map(i => `<i class="${i < 3 ? 'on' : ''}"></i>`).join('')}</div>
+   <div class="icard" style="top:108px"><em>THE COUNT</em><b class="n">856</b><p>films read. 1,598 hours — Sátántangó, end to end, 218 times.</p></div>
+   <div class="icard" style="top:300px"><em>THE HOUR</em><b>You watch late.</b><p>61% of your logs start after 10pm. Nobody told you that.</p></div>
+   <div class="icard sharp" style="top:474px"><em>ONE IN FIVE</em><b>You have never rewatched anything you gave five stars.</b><p>Make of that what you like.</p></div>
+   <div class="lbl" style="left:28px;top:698px">FOUR IN FIVE WARM. ONE SHARP.</div>
+   <div class="lbl" style="left:28px;top:722px">LONG-PRESS ANY CARD TO SHARE IT</div>
+   <div class="cta" style="top:772px">Open the Assembly</div>`
+];
+const caps = [
+  ['05 READING', 'The bar stack blooms into the cloud.\nEvery poster sampled once.'],
+  ['06 THE NEGATIVE', 'The shape, the colour, the read.\nOne primary action, nothing\ncompeting with it.'],
+  ['07 INSIGHTS', 'Eight warm, two sharp. The accent\nborder is the only marker the\nsharp card gets.']
+];
+document.getElementById('flow').innerHTML = scr.map((h, i) => `
+  <div class="slot">
+    <div class="stage"><div class="screen">${h}</div></div>
+    <div class="cap" style="margin-top:16px"><b>${caps[i][0]}</b><span>${caps[i][1]}</span></div>
+  </div>`).join('');
+
+/* ── the Print ─────────────────────────────────────────────────── */
+const MARK = `<svg width="34" height="34" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path d="M7 0H21L0 87.5V29.17Z" fill="#0a0a0b"/><path d="M31 0H45L21 100H7Z" fill="#0a0a0b"/>
+  <path d="M55 0H69L45 100H31Z" fill="#ff3b14"/><path d="M79 0H93L69 100H55Z" fill="#0a0a0b"/>
+  <path d="M79 100L100 12.5V70.83L93 100Z" fill="#0a0a0b"/></svg>`;
+const DENS = [0,.9,.5,0,.7,1,.4,.2,0,.8,.6,0,.3,.9,1,.5,0,.7,.4,0,.9,.6,.3,1,.8,0,.5,.7,.2,.9,.6];
+document.getElementById('print').innerHTML = `<div class="print">
+  <div class="pk" style="left:42px;top:48px">THE PRINT  ·  ONE MONTH</div>
+  <h2 style="left:38px;top:66px">JULY</h2>
+  <div class="pk" style="left:42px;top:186px">24 FILMS  ·  47 HOURS  ·  9 FIRST TIMES</div>
+  <div class="pstrip" style="left:42px;top:220px">${DENS.map(d => d === 0
+    ? '<i></i>'
+    : `<i style="background:var(--yours);opacity:${(0.25 + d * 0.75).toFixed(2)}"></i>`).join('')}</div>
+  <div class="pk" style="left:42px;top:290px">WHAT JULY WAS MADE OF</div>
+  <div class="pchips" style="left:42px;top:310px">${['sodium-and-cyan night','competence porn','procedural','nobody wins','synth pulse','rain-slick city night'].map(f => `<span>${f}</span>`).join('')}</div>
+  <div class="who" style="left:42px;top:410px;width:456px">A month of men who are very good at their jobs and lose anyway.</div>
+  <div class="pink" style="left:42px;top:574px"></div>
+  <div class="pk" style="left:78px;top:582px">BONE + #3A6E85</div>
+  <div style="position:absolute;right:42px;top:568px" class="lock">${MARK}<b>SELECTS</b></div>
+</div>`;
+</script>
+</body>
+</html>

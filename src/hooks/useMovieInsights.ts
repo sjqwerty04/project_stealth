@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/apiClient';
 
 export type MovieSnippet = { text: string; score: number; url: string };
 
@@ -28,7 +29,7 @@ export function useMovieInsights(
     setInsights(EMPTY);
 
     const params = new URLSearchParams({ title, year: year || '', genres: genres.join(', ') });
-    fetch(`/api/reddit-context?${params.toString()}`)
+    apiFetch(`/api/reddit-context?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : EMPTY))
       .then((data) => {
         if (cancelled) return;

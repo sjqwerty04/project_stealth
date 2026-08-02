@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Orbit, X, ThumbsUp, ThumbsDown, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useMovieDetails } from '../hooks/useMovieDetails';
+import { buildImageUrl as tmdbImageUrl, imageUrlOrNull, type PosterSize } from '../lib/tmdb';
 import { useSimilarVibes } from '../hooks/useSimilarVibes';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useCalendarLogs } from '../hooks/useCalendarLogs';
@@ -10,6 +11,8 @@ import MovieActions from '../components/MovieActions';
 import PatternAssistant from '../components/PatternAssistant';
 import RatingBadges from '../components/RatingBadges';
 import TechBadges from '../components/TechBadges';
+import WhereToWatch from '../components/WhereToWatch';
+import AttributionNotice from '../components/AttributionNotice';
 import StarterPrompts from '../components/StarterPrompts';
 import MovieChatSheet from '../components/MovieChatSheet';
 import { useMovieInsights } from '../hooks/useMovieInsights';
@@ -20,10 +23,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { logActivity } from '../lib/activityLogger';
 
-const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
-  if (!path) return null;
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+const buildImageUrl = (path: string | null, size: PosterSize = 'w500') => imageUrlOrNull(path, size);
 
 export default function MovieDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -391,7 +391,7 @@ export default function MovieDetailScreen() {
         <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2 px-8 z-10">
           {details.logoPath ? (
             <img
-              src={`https://image.tmdb.org/t/p/w500${details.logoPath}`}
+              src={tmdbImageUrl(details.logoPath, 'w500')}
               alt={details.title}
               className="max-h-20 w-auto max-w-[70%] object-contain drop-shadow-2xl"
             />
@@ -427,6 +427,9 @@ export default function MovieDetailScreen() {
           />
         )}
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
+
+        {/* Where to Watch — before the actions, so availability informs the decision */}
+        <WhereToWatch providers={details.watchProviders} />
 
         {/* Action Buttons */}
         <MovieActions
@@ -511,7 +514,7 @@ export default function MovieDetailScreen() {
                   <div className="w-16 h-16 rounded-full overflow-hidden bg-[#27272a] border border-white/10 mb-1.5">
                     {c.profilePath ? (
                       <img
-                        src={`https://image.tmdb.org/t/p/w185${c.profilePath}`}
+                        src={tmdbImageUrl(c.profilePath, 'w185')}
                         alt={c.name}
                         className="w-full h-full object-cover"
                       />
@@ -604,6 +607,8 @@ export default function MovieDetailScreen() {
             </button>
           )}
         </div>
+
+        <AttributionNotice />
 
         {/* Spacer so floating chips don't cover last content */}
         <div className="h-24" />

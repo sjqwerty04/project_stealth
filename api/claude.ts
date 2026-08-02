@@ -1,22 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { guard } from './_lib/http';
+import { AI_LIMIT } from './_lib/rateLimit';
 
-const CLAUDE_API_KEY = process.env.VITE_CLAUDE_API_KEY || '';
+// VITE_ is read as a fallback so an existing deployment keeps working; the
+// prefix is wrong here because it marks a variable as safe to inline into the
+// client bundle, which an Anthropic key never is.
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY || process.env.VITE_CLAUDE_API_KEY || '';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers for the client app
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const auth = await guard(req, res, { methods: ['POST'], rateLimit: AI_LIMIT });
+  if (!auth.ok) return;
 
   const { prompt, systemPrompt, model = 'claude-sonnet-4-5' } = req.body;
 
@@ -25,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!CLAUDE_API_KEY) {
-    console.error('VITE_CLAUDE_API_KEY not set in environment');
+    console.error('CLAUDE_API_KEY not set in environment');
     return res.status(500).json({ error: 'API key not configured' });
   }
 

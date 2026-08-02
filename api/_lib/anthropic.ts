@@ -1,5 +1,8 @@
 // Minimal server-side Anthropic Messages helper for serverless routes.
-const CLAUDE_API_KEY = process.env.VITE_CLAUDE_API_KEY || '';
+// VITE_ is read as a fallback so an existing deployment keeps working; the
+// prefix is wrong here because it marks a variable as safe to inline into the
+// client bundle, which an Anthropic key never is.
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY || process.env.VITE_CLAUDE_API_KEY || '';
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -10,7 +13,7 @@ export async function callAnthropic(opts: {
   model?: string;
   maxTokens?: number;
 }): Promise<string> {
-  if (!CLAUDE_API_KEY) throw new Error('VITE_CLAUDE_API_KEY not configured');
+  if (!CLAUDE_API_KEY) throw new Error('CLAUDE_API_KEY not configured');
 
   const body: any = {
     model: opts.model || DEFAULT_MODEL,
@@ -43,9 +46,12 @@ export function extractJSON<T = any>(text: string): T | null {
   const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   let jsonStr = codeBlock ? codeBlock[1] : null;
   if (!jsonStr) {
-    const obj = text.match(/\{[\s\S]*\}/);
-    const arr = text.match(/\[[\s\S]*\]/);
-    jsonStr = obj?.[0] || arr?.[0] || null;
+    // Whichever bracket opens first decides the container. Preferring the object
+    // match unconditionally turns an array of objects into `{...}, {...}`.
+    const objectStart = text.indexOf('{');
+    const arrayStart = text.indexOf('[');
+    const isArray = arrayStart !== -1 && (objectStart === -1 || arrayStart < objectStart);
+    jsonStr = (isArray ? text.match(/\[[\s\S]*\]/) : text.match(/\{[\s\S]*\}/))?.[0] || null;
   }
   if (!jsonStr) return null;
   try {

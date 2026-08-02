@@ -1,18 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { callClaude } from '../lib/claude';
+import { genreNames } from '../lib/tmdb';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Genre ID to name mapping
-const GENRE_MAP: Record<number, string> = {
-  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
-  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
-  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
-  10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
-};
+
 
 export type SimilarMovie = {
   id: number;
@@ -156,7 +151,7 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
               year: tmdb.release_date?.slice(0, 4) || s.year,
               posterPath: tmdb.poster_path,
               backdropPath: tmdb.backdrop_path,
-              genres: (tmdb.genre_ids || []).map((gid: number) => GENRE_MAP[gid]).filter(Boolean),
+              genres: genreNames(tmdb.genre_ids),
               overview: tmdb.overview || '',
               voteAverage: tmdb.vote_average || 0,
             };
@@ -215,7 +210,7 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
           year: m.release_date?.slice(0, 4) || '',
           posterPath: m.poster_path,
           backdropPath: m.backdrop_path,
-          genres: (m.genre_ids || []).map((gid: number) => GENRE_MAP[gid]).filter(Boolean),
+          genres: genreNames(m.genre_ids),
           overview: m.overview || '',
           voteAverage: m.vote_average || 0,
         }));
@@ -228,7 +223,7 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
           year: m.release_date?.slice(0, 4) || '',
           posterPath: m.poster_path,
           backdropPath: m.backdrop_path,
-          genres: (m.genre_ids || []).map((gid: number) => GENRE_MAP[gid]).filter(Boolean),
+          genres: genreNames(m.genre_ids),
           overview: m.overview || '',
           voteAverage: m.vote_average || 0,
         }));

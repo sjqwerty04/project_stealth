@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Check } from 'lucide-react';
+import { buildImageUrl } from '../lib/tmdb';
 
 interface Film {
   id: number;
@@ -15,7 +16,6 @@ interface FilmPickerScrollProps {
 }
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY as string;
-const IMG_BASE = 'https://image.tmdb.org/t/p/w200';
 
 function tmdbResultToFilm(r: any): Film {
   return {
@@ -129,7 +129,7 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
                 >
                   {film.posterPath ? (
                     <img
-                      src={`${IMG_BASE}${film.posterPath}`}
+                      src={buildImageUrl(film.posterPath, 'w200')}
                       alt={film.title}
                       className="w-full h-full object-cover"
                       loading="lazy"

@@ -1,16 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { guard } from './_lib/http';
+import { AI_LIMIT } from './_lib/rateLimit';
 import { fetchRedditContext, snippetsToPromptBlock } from './_lib/reddit';
 import { callAnthropic, extractJSON } from './_lib/anthropic';
 
 const INSIGHTS_SYSTEM = `You are a film-savvy editor who reads Reddit movie discussions and distills what a film is *actually* known for among real viewers — directorial debuts, cultural moments, standout performances, controversies, "wait what happened" moments. You never spoil endings.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  const auth = await guard(req, res, { methods: ['GET'], rateLimit: AI_LIMIT });
+  if (!auth.ok) return;
 
   const title = typeof req.query.title === 'string' ? req.query.title : '';
   const year = typeof req.query.year === 'string' ? req.query.year : '';

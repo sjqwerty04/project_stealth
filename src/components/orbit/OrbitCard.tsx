@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Star, Bookmark, BookmarkCheck, Info } from 'lucide-react';
 import type { OrbitMovie } from '../../stores/orbitStore';
+import { imageUrlOrNull, type PosterSize } from '../../lib/tmdb';
 
 interface OrbitCardProps {
   movie: OrbitMovie;
@@ -11,10 +12,7 @@ interface OrbitCardProps {
   isActive?: boolean;
 }
 
-const buildImageUrl = (path: string | null, size: 'w500' | 'w780' | 'original' = 'w500') => {
-  if (!path) return null;
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+const buildImageUrl = (path: string | null, size: PosterSize = 'w500') => imageUrlOrNull(path, size);
 
 export default function OrbitCard({
   movie,

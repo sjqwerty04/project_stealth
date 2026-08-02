@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { guard } from './_lib/http';
+import { SCRAPE_LIMIT } from './_lib/rateLimit';
 
 const LB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -39,12 +41,8 @@ async function fetchWithLbHeaders(url: string): Promise<Response> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  const auth = await guard(req, res, { methods: ['GET'], rateLimit: SCRAPE_LIMIT });
+  if (!auth.ok) return;
 
   const tmdbId = typeof req.query.tmdbId === 'string' ? req.query.tmdbId : '';
   const title = typeof req.query.title === 'string' ? req.query.title : '';

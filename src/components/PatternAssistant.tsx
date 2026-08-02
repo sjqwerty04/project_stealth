@@ -1,4 +1,5 @@
 import { Sparkles, Loader2, Bookmark, ArrowRight, Check } from 'lucide-react';
+import { buildImageUrl } from '../lib/tmdb';
 
 type PatternAssistantProps = {
   insight: string;
@@ -49,7 +50,7 @@ export default function PatternAssistant({
                 <div key={movie.id} className="flex-shrink-0">
                   {movie.posterPath ? (
                     <img
-                      src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                      src={buildImageUrl(movie.posterPath, 'w200')}
                       alt={movie.title}
                       className="w-10 h-[60px] rounded object-cover border border-gray-700"
                       title={movie.title}
@@ -135,7 +136,7 @@ export default function PatternAssistant({
                   >
                     {movie.posterPath ? (
                       <img
-                        src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                        src={buildImageUrl(movie.posterPath, 'w200')}
                         alt={movie.title}
                         className="w-14 h-20 rounded object-cover border border-gray-700 group-hover:border-purple-400 transition-colors"
                       />
@@ -178,7 +179,7 @@ export default function PatternAssistant({
               <div key={movie.id} className="flex-shrink-0">
                 {movie.posterPath ? (
                   <img
-                    src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                    src={buildImageUrl(movie.posterPath, 'w200')}
                     alt={movie.title}
                     className="w-10 h-[60px] rounded object-cover border border-purple-500/30"
                     title={movie.title}
@@ -267,7 +268,7 @@ export default function PatternAssistant({
                 >
                   {movie.posterPath ? (
                     <img
-                      src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                      src={buildImageUrl(movie.posterPath, 'w200')}
                       alt={movie.title}
                       className="w-20 h-28 rounded-lg object-cover border border-purple-500/30 group-hover:border-purple-400 transition-colors"
                     />

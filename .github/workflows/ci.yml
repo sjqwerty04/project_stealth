@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, features]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Not gating on lint yet: the existing codebase has ~170 outstanding
+      # violations, so a hard failure here would block every PR. Reported only
+      # until that backlog is paid down.
+      - name: Lint (report only)
+        run: npm run lint
+        continue-on-error: true

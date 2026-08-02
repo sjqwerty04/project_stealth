@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 // Persistent cache using localStorage for longer-term storage
 const CACHE_PREFIX = 'claude_cache_';
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
@@ -93,19 +95,16 @@ export const extractJSON = (text: string): any | null => {
     jsonStr = codeBlockMatch[1].trim();
   }
   
-  // Strategy 2: Look for raw JSON object
+  // Strategy 2: raw JSON, object or array. Which container the response uses is
+  // decided by whichever bracket appears first — matching `{...}` unconditionally
+  // would mangle an array of objects into `{...}, {...}`.
   if (!jsonStr) {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[0];
-    }
-  }
-  
-  // Strategy 3: Look for JSON array
-  if (!jsonStr) {
-    const arrayMatch = text.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      jsonStr = arrayMatch[0];
+    const objectStart = text.indexOf('{');
+    const arrayStart = text.indexOf('[');
+    const isArray = arrayStart !== -1 && (objectStart === -1 || arrayStart < objectStart);
+    const match = isArray ? text.match(/\[[\s\S]*\]/) : text.match(/\{[\s\S]*\}/);
+    if (match) {
+      jsonStr = match[0];
     }
   }
   
@@ -175,7 +174,7 @@ export const callClaude = async (
     }
 
     // Call our Vercel serverless proxy instead of Anthropic directly (avoids CORS)
-    const response = await fetch('/api/claude', {
+    const response = await apiFetch('/api/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, systemPrompt, model }),

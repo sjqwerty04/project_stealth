@@ -29,6 +29,7 @@ import RecommendationCard from '../components/RecommendationCard';
 import ProfileDropdown from '../components/ProfileDropdown';
 import type { RecommendationResult } from '../hooks/useRecommendation';
 import { callClaude } from '../lib/claude';
+import { buildImageUrl as tmdbImageUrl, type PosterSize } from '../lib/tmdb';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -66,12 +67,8 @@ type AccentColors = {
   text: string;
 };
 
-const buildImageUrl = (path: string | null | undefined, size: 'w200' | 'w500' | 'w780' = 'w200') => {
-  if (!path) {
-    return size === 'w200' ? TMDB_POSTER_PLACEHOLDER : TMDB_BACKDROP_PLACEHOLDER;
-  }
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+const buildImageUrl = (path: string | null | undefined, size: PosterSize = 'w200') =>
+  tmdbImageUrl(path, size, size === 'w200' ? TMDB_POSTER_PLACEHOLDER : TMDB_BACKDROP_PLACEHOLDER);
 
 const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
   r /= 255;

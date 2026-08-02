@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react';
+import { imageUrlOrNull, type PosterSize } from '../lib/tmdb';
 
 type SearchResultCardProps = {
   movieId: number;
@@ -10,10 +11,7 @@ type SearchResultCardProps = {
   onClick: () => void;
 };
 
-const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'w1280' = 'w500') => {
-  if (!path) return null;
-  return `https://image.tmdb.org/t/p/${size}${path}`;
-};
+const buildImageUrl = (path: string | null, size: PosterSize = 'w500') => imageUrlOrNull(path, size);
 
 export default function SearchResultCard({
   title,

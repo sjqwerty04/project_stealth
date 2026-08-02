@@ -1,0 +1,70 @@
+/* Selects design tokens
+ * Generated to match the variables in the Figma file "Selects Design".
+ * Source of truth is Figma page 08 Handoff, which is itself generated from the
+ * live variable collections. If these drift, Figma wins.
+ *
+ * Deliberately NOT tokens: line-height and letter-spacing. Figma resolves bound
+ * lineHeight/letterSpacing in pixels regardless of the style's unit, which
+ * silently collapses type. Ratios live on the text style / class below.
+ */
+
+:root {
+  /* colour · Screen mode */
+  --base: #0A0A0B;      /* Surface/base   — the shell, near-neutral so it never tints poster colour */
+  --base-2: #141416;    /* Surface/raised — sheets */
+  --base-3: #1D1D20;    /* Surface/card   — cards, inputs, chip fills */
+  --line: #2B2B2F;      /* Surface/line   — hairlines, chip borders */
+  --fg: #EFEDE9;        /* Text/primary */
+  --fg-2: #B9B6B0;      /* Text/secondary — clears AA on --base */
+  --fg-3: #7C7A76;      /* Text/tertiary  — mono labels */
+  --select: #FF3B14;    /* Accent/select  — the lit bar. ONE use per screen */
+
+  /* runtime — extracted from the current poster. Values here are placeholders. */
+  --film: #1D5B8A;
+  --film-2: #8A3A1D;
+
+  /* type */
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-condensed: 'Archivo Narrow', system-ui, sans-serif;
+  --font-spec: 'Martian Mono', ui-monospace, monospace;
+
+  --size-verdict: 34px;
+  --size-title: 26px;
+  --size-lead: 19px;
+  --size-body: 15px;
+  --size-meta: 13px;
+  --size-chip: 11px;
+  --size-label: 10px;
+  --size-numeral: 32px;
+
+  /* space · 4pt scale */
+  --space-2: 2px;   --space-4: 4px;   --space-8: 8px;   --space-12: 12px;
+  --space-16: 16px; --space-20: 20px; --space-24: 24px; --space-32: 32px;
+  --space-40: 40px; --space-48: 48px; --space-64: 64px; --space-80: 80px;
+
+  /* radius · zero is the default */
+  --radius-none: 0px;
+  --radius-poster: 2px;
+  --radius-icon: 22px;
+}
+
+/* colour · Print mode. Two ink, so it screen-prints. */
+[data-mode='print'] {
+  --base: #EFEDE9;
+  --base-2: #E4E1DB;
+  --base-3: #D8D5CE;
+  --line: #C4C0B8;
+  --fg: #0A0A0B;
+  --fg-2: #3A3A3C;
+  --fg-3: #6E6C68;
+}
+
+/* type ramp — ratios live here, not in variables */
+.t-verdict { font-family: var(--font-display); font-weight: 800; font-size: var(--size-verdict); line-height: .95;  letter-spacing: -.045em; }
+.t-title   { font-family: var(--font-display); font-weight: 800; font-size: var(--size-title);   line-height: 1.05; letter-spacing: -.04em; }
+.t-lead    { font-family: var(--font-display); font-weight: 500; font-size: var(--size-lead);    line-height: 1.35; letter-spacing: -.02em; }
+.t-body    { font-family: var(--font-display); font-weight: 400; font-size: var(--size-body);    line-height: 1.5;  letter-spacing: -.005em; }
+.t-meta    { font-family: var(--font-spec);    font-weight: 400; font-size: var(--size-meta);    line-height: 1.4; }
+.t-chip    { font-family: var(--font-spec);    font-weight: 500; font-size: var(--size-chip);    line-height: 1;    letter-spacing: .08em; }
+.t-label   { font-family: var(--font-spec);    font-weight: 500; font-size: var(--size-label);   line-height: 1;    letter-spacing: .09em; text-transform: uppercase; }
+.t-numeral { font-family: var(--font-spec);    font-weight: 600; font-size: var(--size-numeral); line-height: 1;    letter-spacing: -.05em; font-variant-numeric: tabular-nums; }

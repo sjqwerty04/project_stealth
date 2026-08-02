@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Send, Loader2, Sparkles } from 'lucide-react';
 import { useMovieChat, type ChatMovie } from '../hooks/useMovieChat';
 import type { MovieSnippet } from '../hooks/useMovieInsights';
+import { imageUrlOrNull } from '../lib/tmdb';
 
 type MovieChatSheetProps = {
   open: boolean;
@@ -15,7 +16,7 @@ type MovieChatSheetProps = {
   onSeedConsumed?: () => void;
 };
 
-const tmdbImg = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w185${path}` : null);
+const tmdbImg = (path: string | null) => imageUrlOrNull(path, 'w185');
 
 // Movie-scoped chat that slides up from the bottom. Generic over `movie` so it can
 // be mounted on any screen.

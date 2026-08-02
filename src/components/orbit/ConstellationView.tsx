@@ -1,11 +1,9 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useOrbitStore, type ConnectionType } from '../../stores/orbitStore';
+import { imageUrlOrNull } from '../../lib/tmdb';
 
-const buildImageUrl = (path: string | null) => {
-  if (!path) return null;
-  return `https://image.tmdb.org/t/p/w200${path}`;
-};
+const buildImageUrl = (path: string | null) => imageUrlOrNull(path, 'w200');
 
 // Connection colors - updated for new types
 // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
