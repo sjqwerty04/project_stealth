@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Selects — Direction Board · rev C</title>
+<style>
+@font-face{font-family:'Archivo';src:url('fonts/archivo-latin.woff2') format('woff2');font-weight:400 800;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'Martian Mono';src:url('fonts/martianmono-latin.woff2') format('woff2');font-weight:300 700;font-stretch:75% 112.5%;font-display:swap}
+
+:root{
+  --base:#0A0A0B; --base2:#141416; --base3:#1D1D20; --line:#2B2B2F;
+  --fg:#EFEDE9; --fg2:#B9B6B0; --fg3:#7C7A76;
+  --select:#FF3B14;
+  --d:'Archivo','Inter',system-ui,sans-serif;
+  --m:'Martian Mono','JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--base)}
+body{background:var(--base);color:var(--fg);font-family:var(--d);font-weight:400;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px 130px}
+
+/* type */
+.lbl{font-family:var(--m);font-weight:500;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg3)}
+.meta{font-family:var(--m);font-size:11.5px;color:var(--fg2);font-variant-numeric:tabular-nums}
+.verdict{font-weight:800;font-stretch:112%;letter-spacing:-.045em;line-height:.95}
+.title{font-weight:800;letter-spacing:-.04em;line-height:1.05}
+.lead{font-size:18.5px;line-height:1.4;letter-spacing:-.02em;color:var(--fg2)}
+.body{font-size:14.5px;line-height:1.55;letter-spacing:-.005em;color:var(--fg2)}
+.body b{font-weight:700;color:var(--fg)}
+.hot{color:var(--select)}
+i.code{font-family:var(--m);font-style:normal;font-size:.9em;color:var(--fg2)}
+
+section{padding:72px 0;border-top:1px solid var(--line)}
+.shead{display:flex;align-items:baseline;gap:18px;margin-bottom:32px}
+.snum{font-family:var(--m);font-size:10px;letter-spacing:.09em;color:var(--select)}
+.shead h2{font-size:29px;font-weight:800;font-stretch:105%;letter-spacing:-.042em}
+.shead p{margin-left:auto;max-width:355px;font-size:13px;line-height:1.5;color:var(--fg3);text-align:right}
+
+header{padding:60px 0 40px;display:flex;align-items:flex-end;gap:26px}
+header h1{font-size:54px;font-weight:800;font-stretch:118%;letter-spacing:-.05em;line-height:.88}
+header .right{margin-left:auto;text-align:right}
+
+/* decision strip */
+.dstrip{display:grid;grid-template-columns:auto repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.dstrip>div{background:var(--base);padding:18px 20px}
+.dstrip .big{background:var(--base2);display:flex;flex-direction:column;justify-content:center;grid-row:span 2}
+.dstrip .big b{font-family:var(--m);font-size:40px;font-weight:700;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums}
+.dstrip h4{font-size:14px;font-weight:800;letter-spacing:-.03em;margin:8px 0 6px}
+.dstrip p{font-size:12px;line-height:1.45;color:var(--fg3)}
+.dstrip .was{color:var(--fg3);text-decoration:line-through;text-decoration-color:var(--select)}
+
+.cols{display:grid;gap:26px}
+.c2{grid-template-columns:1fr 1fr}.c3{grid-template-columns:repeat(3,1fr)}.c4{grid-template-columns:repeat(4,1fr)}
+.fig{flex:none}.note{flex:1;min-width:225px;max-width:305px}
+.row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+
+/* phone */
+.phone{border:1px solid var(--line);border-radius:24px;overflow:hidden;background:var(--base);position:relative}
+.phone img{display:block;width:100%}
+.pcap{margin-top:11px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tag{font-family:var(--m);font-size:9px;letter-spacing:.09em;text-transform:uppercase;padding:3px 6px;border:1px solid var(--line);color:var(--fg3)}
+.tag.now{border-color:#4a2018;color:#c25a45}.tag.next{border-color:var(--select);color:var(--select)}
+.pcap span{font-size:12px;color:var(--fg3)}
+
+/* chips */
+.chip{display:inline-block;font-family:var(--m);font-size:9.5px;letter-spacing:.02em;padding:4px 7px;border:1px solid var(--line);color:var(--fg2);white-space:nowrap}
+.chip.on{border-color:var(--select);color:var(--fg)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+
+/* poster plate */
+.plate{position:relative;aspect-ratio:2/3;display:flex;flex-direction:column;justify-content:flex-end;padding:10px;overflow:hidden}
+.plate b{font-size:13px;font-weight:800;letter-spacing:-.035em;line-height:1;color:#fff}
+.plate em{font-family:var(--m);font-style:normal;font-size:8.5px;letter-spacing:.05em;color:rgba(255,255,255,.65);margin-top:4px}
+.plate::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7),transparent 60%)}
+.plate>*{position:relative;z-index:1}
+.plate.ghost{background:none!important;border:1px dashed var(--line)}
+.plate.ghost::after{display:none}
+
+/* THE BAR — system atom */
+.bar{transform:skewX(-13.5deg)}
+.barset{display:flex;gap:6px;height:78px}
+.barset .bar{width:15px;background:var(--fg);border-radius:1px}
+.barset .bar.lit{background:var(--select)}
+.strip{display:flex;gap:3px;height:52px;align-items:flex-end}
+.strip .bar{width:9px;border-radius:1px;background:var(--base3)}
+.yr{display:flex;gap:1.5px;height:34px}
+.yr .bar{width:2.5px;background:var(--base3);border-radius:.5px}
+
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:11px 14px;border-top:1px solid var(--line);font-size:13px;vertical-align:top}
+th{font-family:var(--m);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg3);border-top:0}
+td.m{font-family:var(--m);font-size:11px;color:var(--fg2);white-space:nowrap}
+td.was{color:var(--fg3)}
+
+.sw{border:1px solid var(--line)}.sw .box{height:74px}
+.sw .txt{padding:9px 11px;border-top:1px solid var(--line)}
+.sw .txt b{display:block;font-family:var(--m);font-size:10.5px;letter-spacing:.03em;font-weight:500}
+.sw .txt span{display:block;font-family:var(--m);font-size:9.5px;color:var(--fg3);margin-top:3px}
+
+.springboard{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 14px;padding:20px 16px;background:linear-gradient(160deg,#232326,#0b0b0c)}
+.appicon{aspect-ratio:1;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--base)}
+.appicon img{width:100%}
+.aname{font-size:8.5px;text-align:center;margin-top:5px;color:#d9d6d1}
+
+/* ticket stub */
+.stub{position:relative;background:var(--base2);border:1px solid var(--line);display:flex;gap:11px;padding:11px;overflow:hidden}
+.stub .pl{width:44px;flex:none;aspect-ratio:2/3}
+.stub .why{font-family:var(--m);font-size:8.5px;letter-spacing:.03em;color:var(--fg3);line-height:1.5;margin-top:5px}
+.stub h5{font-size:16px;font-weight:800;letter-spacing:-.035em;line-height:1}
+.stub .perf{position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 8px)}
+.trow{display:grid;grid-template-columns:145px 1fr;gap:22px;padding:18px 0;border-top:1px solid var(--line);align-items:baseline}
+.trow:first-child{border-top:0}
+.graphbox{border:1px solid var(--line);background:var(--base2);overflow:hidden}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="clap" viewBox="0 0 100 100">
+    <clipPath id="cc"><rect width="100" height="100"/></clipPath>
+    <g clip-path="url(#cc)">
+      <path fill="currentColor" d="M0 0H14L-10 100H-24Z"/>
+      <path fill="currentColor" d="M24 0H38L14 100H0Z"/>
+      <path fill="var(--select)" d="M48 0H62L38 100H24Z"/>
+      <path fill="currentColor" d="M72 0H86L62 100H48Z"/>
+      <path fill="currentColor" d="M96 0H110L86 100H72Z"/>
+      <path fill="currentColor" d="M120 0H134L110 100H96Z"/>
+    </g>
+  </symbol>
+</svg>
+
+<div class="wrap">
+
+<header>
+  <svg style="width:64px;height:64px;color:var(--fg);flex:none"><use href="#clap"/></svg>
+  <div>
+    <div class="lbl" style="margin-bottom:11px">Direction board · rev C · rounds 1 &amp; 2 locked</div>
+    <h1>SELECTS</h1>
+  </div>
+  <div class="right">
+    <div class="lbl">Rounds 1 &amp; 2</div>
+    <div class="meta">36 answered · 6 reversals · 0 deletions</div>
+  </div>
+</header>
+
+<div class="dstrip">
+  <div class="big">
+    <div class="lbl">Reversals</div>
+    <b>6</b>
+    <p style="margin-top:7px">Where you overruled me, across both rounds.</p>
+  </div>
+  <div>
+    <div class="lbl">Q17 · the mark</div>
+    <h4><span class="was">the ring</span> → the clapstick</h4>
+    <p>Criterion owns a circle. Your clapstick instinct also gave the whole system its atom.</p>
+  </div>
+  <div>
+    <div class="lbl">Q10 · the home screen</div>
+    <h4><span class="was">demote it</span> → keep it</h4>
+    <p>The calendar stays, enhanced. You were describing HomeV2 — which you already built.</p>
+  </div>
+  <div>
+    <div class="lbl">Q21 · the monthly</div>
+    <h4><span class="was">poster only</span> → a ladder</h4>
+    <p>Print for everyone. The Cut earned by logging. The Year in December.</p>
+  </div>
+  <div>
+    <div class="lbl">Q24 · scope</div>
+    <h4><span class="was">delete</span> → promote</h4>
+    <p>Every surface keeps its route and gets a job inside one system.</p>
+  </div>
+  <div>
+    <div class="lbl">R2 · Q2 · push</div>
+    <h4><span class="was">daily</span> → 2–3 a week</h4>
+    <p>The Ticket is there every day. It's only pushed a few times. Verdicts sit outside the budget.</p>
+  </div>
+  <div>
+    <div class="lbl">R2 · Q6 · the words</div>
+    <h4><span class="was">hand-written</span> → mined</h4>
+    <p>You approve ~600 ranked clusters rather than author from a blank page.</p>
+  </div>
+</div>
+
+<!-- 01 -->
+<section>
+  <div class="shead"><span class="snum">01</span><h2>The mark</h2>
+    <p>Six takes. One selected. The clapstick's stripes, abstracted — never a clapperboard.</p></div>
+
+  <div class="cols c3">
+    <div>
+      <div class="lbl" style="margin-bottom:14px">Lockup</div>
+      <div style="border:1px solid var(--line);padding:34px 28px;display:flex;align-items:center;gap:20px">
+        <svg style="width:48px;height:48px;color:var(--fg);flex:none"><use href="#clap"/></svg>
+        <div style="font-size:33px;font-weight:800;font-stretch:110%;letter-spacing:-.03em">SELECTS</div>
+      </div>
+      <p class="body" style="margin-top:16px">Six parallelograms, pitch 24, sheared exactly one pitch so each bar's foot sits under the previous bar's head. SVG only. Never on a plate.</p>
+      <p class="body" style="margin-top:12px"><b>The lit bar is the whole idea</b> — six takes, one kept. The name, drawn.</p>
+    </div>
+
+    <div>
+      <div class="lbl" style="margin-bottom:14px">At 60px, against what ships</div>
+      <div class="springboard">
+        <div><div class="appicon"><svg style="width:78%;height:78%;color:var(--fg)"><use href="#clap"/></svg></div><div class="aname">Selects</div></div>
+        <div><div class="appicon"><img src="assets/current-app-icon.png" alt="current icon"></div><div class="aname" style="color:#86837e">current</div></div>
+        <div><div class="appicon" style="background:#1c3a5e"></div><div class="aname" style="color:#86837e">—</div></div>
+        <div><div class="appicon" style="background:#2d2b28"></div><div class="aname" style="color:#86837e">—</div></div>
+      </div>
+      <p class="body" style="margin-top:16px">The shipped icon is dark-grey sprockets on pure black — on a home screen it reads as an empty rectangle. Pure high-contrast diagonal survives anywhere.</p>
+    </div>
+
+    <div>
+      <div class="lbl" style="margin-bottom:14px">Why it beat the ring</div>
+      <table>
+        <tr><td class="m">ring</td><td class="was">Criterion owns a circle. Crowded category. Decorative only — it had one job.</td></tr>
+        <tr><td class="m">clapstick</td><td>Cinema at a glance. Unmistakable at 60px. And the bar becomes the atom of the entire system — seven jobs, next panel.</td></tr>
+      </table>
+      <div style="border:1px solid var(--line);padding:18px;margin-top:18px">
+        <div class="lbl" style="margin-bottom:9px">Launch</div>
+        <div class="barset" style="height:44px;gap:5px">
+          <div class="bar" style="height:100%"></div>
+          <div class="bar" style="height:100%"></div>
+          <div class="bar lit" style="height:100%"></div>
+          <div class="bar" style="height:100%"></div>
+          <div class="bar" style="height:100%"></div>
+        </div>
+        <p class="body" style="margin-top:12px;font-size:13px">The bars clap shut and rebound. 380ms, spring 500/22, one heavy haptic. The brand in a gesture.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section>
+  <div class="shead"><span class="snum">02</span><h2>The bar is the atom</h2>
+    <p>This is what the ring could not do. One shape, seven jobs — and your sprocket date strip falls out of the logo instead of being designed separately.</p></div>
+
+  <div class="cols c3">
+    <div style="border:1px solid var(--line);padding:20px">
+      <div class="lbl" style="margin-bottom:14px">A day — the strip</div>
+      <div class="strip">
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:60%;background:#123048"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:100%;background:#2b1a10"></div>
+        <div class="bar" style="height:60%;background:#301a24"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:78%;background:var(--fg)"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:60%;background:#1a2418"></div>
+        <div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:60%"></div>
+      </div>
+      <p class="body" style="margin-top:14px;font-size:13px">One bar per day. Each carries the colour of what you watched. One detent and one <i class="code">selection</i> haptic per bar.</p>
+    </div>
+
+    <div style="border:1px solid var(--line);padding:20px">
+      <div class="lbl" style="margin-bottom:14px">A year — the Strip zoomed out</div>
+      <div class="yr" id="yr"></div>
+      <p class="body" style="margin-top:14px;font-size:13px">365 bars. The contribution-graph texture you described, except every mark is a real film in its own colour. Zooms like iPhone Photos: day → month → year.</p>
+    </div>
+
+    <div style="border:1px solid var(--line);padding:20px">
+      <div class="lbl" style="margin-bottom:14px">And also</div>
+      <div style="display:flex;gap:26px;align-items:flex-end;height:56px">
+        <div>
+          <div class="barset" style="height:30px;gap:4px">
+            <div class="bar" style="width:11px;height:100%;background:var(--fg)"></div>
+            <div class="bar" style="width:11px;height:100%;background:var(--fg)"></div>
+            <div class="bar" style="width:11px;height:100%;background:var(--fg)"></div>
+            <div class="bar" style="width:11px;height:100%;background:var(--fg)"></div>
+            <div class="bar" style="width:11px;height:100%;background:var(--base3)"></div>
+          </div>
+          <div class="lbl" style="margin-top:8px">rating</div>
+        </div>
+        <div>
+          <div class="barset" style="height:30px;gap:3px">
+            <div class="bar" style="width:7px;height:100%;background:var(--select)"></div>
+            <div class="bar" style="width:7px;height:100%;background:var(--select)"></div>
+            <div class="bar" style="width:7px;height:100%;background:var(--select)"></div>
+            <div class="bar" style="width:7px;height:100%;background:var(--base3)"></div>
+            <div class="bar" style="width:7px;height:100%;background:var(--base3)"></div>
+            <div class="bar" style="width:7px;height:100%;background:var(--base3)"></div>
+          </div>
+          <div class="lbl" style="margin-top:8px">progress</div>
+        </div>
+      </div>
+      <div style="margin-top:18px">
+        <div class="barset" style="height:9px;gap:3px">
+          <script>document.write(Array.from({length:26},()=>'<div class="bar" style="width:4px;height:100%;background:var(--line)"></div>').join(''))</script>
+        </div>
+        <div class="lbl" style="margin-top:8px">a rule, instead of a hairline</div>
+      </div>
+      <p class="body" style="margin-top:16px;font-size:13px">Plus the perforation on a Ticket stub. Same shape, everywhere, at every scale.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 -->
+<section>
+  <div class="shead"><span class="snum">03</span><h2>Focus, and the Ticket</h2>
+    <p>The readiness score, made honest — and the daily three. Together they close the loop that has been open since the first commit.</p></div>
+
+  <div class="row">
+    <div class="fig" style="width:216px">
+      <div class="phone">
+        <div style="padding:15px 15px 0"><div class="lbl">Focus</div></div>
+        <div style="position:relative;height:186px;margin:11px 15px;overflow:hidden;background:linear-gradient(150deg,#123048,#0a1a26);filter:blur(6px) saturate(.55);opacity:.8">
+          <div style="position:absolute;left:11px;bottom:11px;right:11px">
+            <div class="verdict" style="font-size:19px;color:#fff">Two professionals,<br>one city,<br>nobody wins.</div>
+          </div>
+        </div>
+        <div style="padding:0 15px 16px;margin-top:-4px">
+          <div class="meta" style="font-size:31px;font-weight:700;letter-spacing:-.05em;color:var(--fg3)">38</div>
+          <p class="body" style="font-size:12.5px;margin-top:5px"><b>Soft.</b> You haven't logged in nine days.</p>
+        </div>
+      </div>
+      <div class="pcap"><span class="tag">low</span><span>Freshness has decayed.</span></div>
+    </div>
+
+    <div class="fig" style="width:216px">
+      <div class="phone">
+        <div style="padding:15px 15px 0"><div class="lbl">Focus</div></div>
+        <div style="position:relative;height:186px;margin:11px 15px;overflow:hidden;background:linear-gradient(150deg,#123048,#0a1a26)">
+          <div style="position:absolute;inset:0;opacity:.16;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9'/%3E%3C/filter%3E%3Crect width='90' height='90' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
+          <div style="position:absolute;left:11px;bottom:11px;right:11px">
+            <div class="verdict" style="font-size:19px;color:#fff">Two professionals,<br>one city,<br>nobody wins.</div>
+          </div>
+        </div>
+        <div style="padding:0 15px 16px;margin-top:-4px">
+          <div class="meta" style="font-size:31px;font-weight:700;letter-spacing:-.05em;color:var(--fg)">91</div>
+          <p class="body" style="font-size:12.5px;margin-top:5px"><b>Sharp.</b> Two logs did that.</p>
+        </div>
+      </div>
+      <div class="pcap"><span class="tag next">high</span><span>The image <b>is</b> the metric.</span></div>
+    </div>
+
+    <div class="fig" style="width:236px">
+      <div class="phone" style="padding:15px 14px 17px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <svg style="width:15px;height:15px;color:var(--fg)"><use href="#clap"/></svg>
+          <div class="lbl">Tuesday's ticket</div>
+          <div class="lbl" style="margin-left:auto;color:var(--select)">3</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div class="stub">
+            <div class="pl plate" style="background:linear-gradient(150deg,#123048,#0a1a26)"></div>
+            <div><h5>Heat</h5><div class="why">FOUR FILMS INTO HEIST<br>PROCEDURALS. THE ONE<br>THEY WERE COPYING.</div></div>
+            <div class="perf"></div>
+          </div>
+          <div class="stub">
+            <div class="pl plate" style="background:linear-gradient(150deg,#2b1a10,#140b06)"></div>
+            <div><h5>Wages of Fear</h5><div class="why">IT'S RAINING AND YOU<br>HAVE TWO HOURS.</div></div>
+            <div class="perf"></div>
+          </div>
+          <div class="stub" style="border-color:var(--select)">
+            <div class="pl plate" style="background:linear-gradient(150deg,#301a24,#150a10)"></div>
+            <div><h5>The Conversation</h5><div class="why">70MM. FOUR BLOCKS<br>AWAY. SUNDAY, 7:40.</div></div>
+            <div class="perf"></div>
+          </div>
+        </div>
+        <div class="lbl" style="margin-top:13px;text-align:center;color:var(--line)">drag a stub down to tear</div>
+      </div>
+      <div class="pcap"><span class="tag next">daily</span><span>Three. One of them a reach.</span></div>
+    </div>
+
+    <div class="note">
+      <div class="lbl" style="margin-bottom:12px">Why it's honest</div>
+      <p class="body">Focus doesn't measure whether <i>you</i> are ready — you always are. It measures <b>how sharply Selects has you in focus.</b> That's computable, it's decomposable, and critically it <b>decays</b>.</p>
+      <table style="margin-top:14px">
+        <tr><td class="m">Depth</td><td class="was">imports and logs. Your floor — never decays.</td></tr>
+        <tr><td class="m">Freshness</td><td class="was">days since your last log. <b style="color:var(--select)">This is the loop.</b></td></tr>
+        <tr><td class="m">Clarity</td><td class="was">do your recent picks share facets, or are you scattered?</td></tr>
+        <tr><td class="m">Context</td><td class="was">time, weather, showtimes near you, hours free.</td></tr>
+      </table>
+      <p class="body" style="margin-top:14px">Freshness decaying is the first thing in the product where <b>investment loads the next trigger</b> — the Hook row that scored 0.</p>
+      <p class="body" style="margin-top:12px">And the torn stub is the only feature that tells you <b>when someone is inside a film</b> — which is what makes 11:40pm possible.</p>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:34px;padding-top:30px;border-top:1px solid var(--line)">
+    <div class="fig" style="width:330px">
+      <div class="lbl" style="margin-bottom:13px">Four actions on a stub</div>
+      <table>
+        <tr><td class="m" style="color:var(--fg)">Tear</td><td>I'm watching this — and it starts the 11:40pm timer</td></tr>
+        <tr><td class="m" style="color:var(--fg)">Seen it</td><td>logs the film, swaps in a replacement stub</td></tr>
+        <tr><td class="m" style="color:var(--fg)">Not tonight</td><td>held over, re-pitched later — a <b>context</b> miss</td></tr>
+        <tr><td class="m" style="color:var(--select)">Wrong read</td><td>retired immediately — a <b>taste</b> miss</td></tr>
+      </table>
+      <p class="body" style="margin-top:14px;font-size:13.5px"><b>The last two must stay separate.</b> One says bad timing, the other says you don't know me. Collapsing them throws away the difference between a scheduling problem and a model problem.</p>
+    </div>
+
+    <div class="fig" style="width:300px">
+      <div class="lbl" style="margin-bottom:13px">Held over — re-pitched, not discarded</div>
+      <div style="border:1px solid var(--line);padding:16px">
+        <div style="display:flex;gap:9px;align-items:flex-start">
+          <div class="plate" style="width:52px;background:linear-gradient(150deg,#2b1a10,#140b06)"></div>
+          <div style="font-size:22px;color:var(--fg3);align-self:center">&rarr;</div>
+          <div class="plate" style="width:52px;background:linear-gradient(30deg,#0f3a34,#06120f)"></div>
+          <div style="flex:1">
+            <div class="lbl" style="line-height:1.6">TUE 11PM<br><span style="color:var(--select)">SUN 3PM</span></div>
+          </div>
+        </div>
+        <div class="barset" style="height:4px;gap:3px;margin:14px 0">
+          <script>document.write(Array.from({length:24},(_,i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i<8?'select':'line'})"></div>`).join(''))</script>
+        </div>
+        <p class="body" style="font-size:12.5px">Different poster. Different reason, from a different facet. Three passes and it retires as a real negative signal.</p>
+      </div>
+      <p class="body" style="margin-top:14px;font-size:13.5px">Free: TMDB's <i class="code">images</i> endpoint already returns many posters per film and the app uses one. <b>A film passed at 11pm Tuesday is not the same film on Sunday afternoon.</b></p>
+    </div>
+
+    <div class="fig" style="width:300px">
+      <div class="lbl" style="margin-bottom:13px">Behind the tear</div>
+      <table>
+        <tr><td class="m" style="color:var(--fg)">Canon</td><td class="was">common &middot; feeling smart</td></tr>
+        <tr><td class="m" style="color:var(--fg)">B-side</td><td class="was">common &middot; a mixtape</td></tr>
+        <tr><td class="m" style="color:var(--fg)">Taste note</td><td class="was">occasional &middot; being understood</td></tr>
+        <tr><td class="m" style="color:var(--select)">A room opens</td><td class="was">rare &middot; discovery</td></tr>
+      </table>
+      <div style="border-left:2px solid var(--select);padding-left:13px;margin-top:15px">
+        <p class="body" style="font-size:13.5px"><b>The app comments on the map, never the person.</b></p>
+        <p class="body" style="font-size:13px;margin-top:7px">“This corner is getting dense enough to have a name.” &mdash; the map.<br>“You keep choosing men who lose.” &mdash; the person.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="cols c2" style="gap:30px;margin-top:26px;padding-top:22px;border-top:1px solid var(--line)">
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div class="barset" style="height:30px;gap:4px;flex:none">
+        <div class="bar" style="width:9px;height:100%;background:var(--fg)"></div>
+        <div class="bar" style="width:9px;height:100%;background:var(--select)"></div>
+        <div class="bar" style="width:9px;height:100%;background:var(--fg)"></div>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:7px">Another take</div>
+        <p class="body">One refresh per 24 hours. The clapstick claps and three new stubs are struck &mdash; cutting-room language, and the mark animates it.</p>
+      </div>
+    </div>
+    <div>
+      <div class="lbl" style="margin-bottom:7px">Push, corrected</div>
+      <p class="body">Two to three scheduled pushes a <b>week</b>, not one a day. The Ticket is there daily; it is only <i>pushed</i> a few times, and the widget carries the rest. Verdict pushes sit outside the budget &mdash; they're a reply, not an interruption.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="shead"><span class="snum">04</span><h2>The shell disappears. The films light it.</h2>
+    <p>You rejected warm-versus-cool and described something better: dark, multi-coloured, colour-agnostic, reacting to touch.</p></div>
+
+  <div class="cols c4" style="gap:14px">
+    <div class="sw"><div class="box" style="background:#0A0A0B"></div><div class="txt"><b>--base</b><span>#0A0A0B · neutral</span></div></div>
+    <div class="sw"><div class="box" style="background:#1D1D20"></div><div class="txt"><b>--base-3</b><span>#1D1D20 · cards</span></div></div>
+    <div class="sw"><div class="box" style="background:#EFEDE9"></div><div class="txt"><b>--fg</b><span>#EFEDE9</span></div></div>
+    <div class="sw"><div class="box" style="background:#B9B6B0"></div><div class="txt"><b>--fg-2</b><span>#B9B6B0 · clears AA</span></div></div>
+    <div class="sw"><div class="box" style="background:#FF3B14"></div><div class="txt"><b>--select</b><span>the lit bar. once per screen</span></div></div>
+    <div class="sw"><div class="box" style="background:radial-gradient(circle at 30% 40%,#1d5b8a,transparent 60%),radial-gradient(circle at 70% 65%,#8a3a1d,transparent 60%),#0A0A0B"></div><div class="txt"><b>--film</b><span>runtime · from the poster</span></div></div>
+    <div class="sw" style="border-style:dashed;opacity:.4"><div class="box" style="background:linear-gradient(90deg,#2563eb,#9333ea,#f59e0b,#22c55e)"></div><div class="txt"><b>gone</b><span>blue purple amber green</span></div></div>
+    <div class="sw" style="border-style:dashed;opacity:.4"><div class="box" style="background:#09090b"></div><div class="txt"><b>gone</b><span>#09090b zinc-950</span></div></div>
+  </div>
+
+  <div class="row" style="margin-top:30px">
+    <div class="note" style="max-width:520px">
+      <p class="lead">The Gemini behaviour you pointed at, sourced from films instead of a brand palette. Poster colour blooms under your thumb and settles when you let go.</p>
+      <p class="body" style="margin-top:14px"><i class="code">extractDominantColor</i> already exists in <i class="code">OrbitScreen.tsx</i> and currently powers exactly one background wash. It becomes the whole palette: the Ticket is lit by the film it's offering, a day in the Strip carries what you watched, and the Assembly is lit entirely by the films inside it.</p>
+      <p class="body" style="margin-top:14px"><b>Purple has to go.</b> It is the universal “an LLM lives here” signal and it is currently on the onboarding selection state, every Orbit surface and the chat — alongside a <i class="code">Sparkles</i> icon and a button that says <i class="code">Ask AI</i>.</p>
+    </div>
+    <div class="fig" style="width:300px">
+      <div style="border:1px solid var(--line);height:186px;position:relative;overflow:hidden;background:var(--base)">
+        <div style="position:absolute;left:-8%;top:-22%;width:78%;height:120%;background:radial-gradient(ellipse at center,#1d5b8a55,transparent 62%)"></div>
+        <div style="position:absolute;right:-14%;bottom:-32%;width:74%;height:120%;background:radial-gradient(ellipse at center,#8a3a1d55,transparent 62%)"></div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--fg);opacity:.85"></div>
+        <div class="lbl" style="position:absolute;left:14px;bottom:12px">thumb down · --film blooms</div>
+      </div>
+      <div class="pcap"><span class="tag next">reactive</span><span>Never a brand gradient.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section>
+  <div class="shead"><span class="snum">05</span><h2>Archivo &amp; Martian Mono — and the film's logo outranks both</h2>
+    <p>Free, variable, shipping today. Criterion sleeve × techno flyer. The lab report is dead.</p></div>
+
+  <div class="trow"><div class="lbl">Verdict · 34 · 800 · exp</div><div class="verdict" style="font-size:34px">Two professionals, one city, nobody wins.</div></div>
+  <div class="trow"><div class="lbl">Title · 26 · 800</div><div class="title" style="font-size:26px">The Wages of Fear</div></div>
+  <div class="trow"><div class="lbl">Lead · 18.5 · 500</div><div class="lead">You have watched forty-one films shot by six cinematographers. This is the one that started it.</div></div>
+  <div class="trow"><div class="lbl">Meta · mono 11.5</div><div class="meta">1995 · 170 MIN · MICHAEL MANN · DANTE SPINOTTI</div></div>
+  <div class="trow"><div class="lbl">Chip · mono 9.5</div><div class="chips"><span class="chip on">sodium-and-cyan night</span><span class="chip">procedural</span><span class="chip">competence porn</span><span class="chip">2.39 anamorphic</span></div></div>
+  <div class="trow"><div class="lbl">Numerals · tabular</div><div class="meta" style="font-size:28px;font-weight:700;letter-spacing:-.05em">41 · 1.43:1 · 70MM · 8.3</div></div>
+  <div class="trow"><div class="lbl">Width axis</div><div>
+    <div style="font-size:26px;font-weight:800;font-stretch:62%;letter-spacing:-.03em">CONDENSED FOR DENSE META</div>
+    <div style="font-size:26px;font-weight:800;font-stretch:125%;letter-spacing:-.045em;margin-top:4px">EXPANDED FOR VERDICTS</div>
+  </div></div>
+
+  <div class="row" style="margin-top:26px">
+    <div class="note" style="max-width:560px">
+      <p class="body"><b>Archivo's width axis is the reason to pick it over Inter.</b> One variable file goes condensed to expanded — that's the poster move, and it doesn't read as a default. Both families are free and self-hosted here at 128KB total. Budget Diatype or Söhne for the rebrand pass.</p>
+      <p class="body" style="margin-top:12px"><b>Mono is demoted from rev A.</b> You rejected the lab-report register — it survives on specs and facet chips only and never carries body copy.</p>
+    </div>
+    <div class="note" style="max-width:340px;border-left:1px solid var(--line);padding-left:22px">
+      <div class="lbl" style="margin-bottom:9px">The rule you wrote yourself</div>
+      <p class="lead" style="font-size:17px">“The movie logo is doing most of the talking, because that's what it's meant to do.”</p>
+      <p class="body" style="margin-top:12px"><b>Selects is the mount, not the picture.</b> Wherever a film has a logo, the logo <i>is</i> the title — the app never re-sets <i>Mission: Impossible</i> in Archivo. That's how maximalism and minimalism coexist: the maximalism is borrowed, the restraint is ours. TMDB serves the logos and <i class="code">useMovieDetails</i> already fetches them.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section>
+  <div class="shead"><span class="snum">06</span><h2>Two layers, and every facet is a room</h2>
+    <p>The hybrid you asked for: one vocabulary that never drifts, phrased differently for every user.</p></div>
+
+  <div class="cols c2" style="gap:36px">
+    <div>
+      <div style="border:1px solid var(--line);padding:20px">
+        <div class="lbl" style="margin-bottom:11px">Layer 1 · the ground truth</div>
+        <p class="body">Every film tagged <b>once</b>, cached forever, <b>identical for everyone</b>. Eight closed axes. Generated with ~300–500 hand-tagged canonical films pasted in as examples so the wording never drifts. This is what the graph computes on.</p>
+        <div class="chips" style="margin-top:12px"><span class="chip">look</span><span class="chip">camera</span><span class="chip">tempo</span><span class="chip">weather</span><span class="chip">sound</span><span class="chip">world</span><span class="chip">shape</span><span class="chip">format</span></div>
+      </div>
+      <div style="border:1px solid var(--line);border-top:0;padding:20px">
+        <div class="lbl" style="margin-bottom:11px">Layer 2 · your words</div>
+        <p class="body">How those facets get <b>named and phrased for you</b>, learned from your behaviour and your language. Two users read two different sentences off the identical edge. This is where the personalisation you insisted on lives — without the maths ever turning to mush.</p>
+      </div>
+      <div style="border:1px solid var(--line);border-top:0;padding:20px">
+        <div class="lbl" style="margin-bottom:11px">Feedback</div>
+        <p class="body">Long-press any facet: <i>wrong / not why I liked it.</i> Repairs the tag — and the correction is the best signal in the product, because the user is telling you <b>why</b> rather than what.</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl" style="margin-bottom:13px">Every facet is a place you can go</div>
+      <div style="border:1px solid var(--line);padding:20px">
+        <div class="chips" style="margin-bottom:14px">
+          <span class="chip on">sodium-and-cyan night</span><span class="chip on">procedural</span><span class="chip">+ nobody wins</span>
+        </div>
+        <div class="verdict" style="font-size:23px">Cities that win.</div>
+        <div class="lbl" style="margin-top:7px">31 films · 6 you haven't seen</div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:14px">
+          <div class="plate" style="background:#123048"></div><div class="plate" style="background:#1d2b34"></div>
+          <div class="plate" style="background:#301a24"></div><div class="plate ghost"></div>
+          <div class="plate" style="background:#12202e"></div><div class="plate ghost"></div>
+        </div>
+      </div>
+      <p class="body" style="margin-top:15px">Tap one facet and you're in a room. Tap two and you're in a subset. Tap three and you're somewhere nobody else is — <b>the subsets of subsets of subsets</b>, and the Spotify-daylist mechanic applied to film.</p>
+      <p class="body" style="margin-top:12px">Today the only taste vocabulary reaching any prompt is TMDB's <i class="code">GENRE_MAP</i> — nineteen strings. That is the entire root cause of the genericness.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:36px;border:1px solid var(--line);padding:28px">
+    <div class="lbl" style="margin-bottom:22px">Your test case — “Heat and Dark Knight are related, but visible in a non-geek natural way”</div>
+    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+      <div class="plate" style="width:100px;background:linear-gradient(150deg,#123048,#0a1a26)"><b>HEAT</b><em>1995 · 2.39</em></div>
+      <div style="flex:1;min-width:280px;text-align:center">
+        <div class="barset" style="height:5px;gap:3px;justify-content:center;margin-bottom:15px">
+          <script>document.write(Array.from({length:22},(_, i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i%7===3?'select':'line'})"></div>`).join(''))</script>
+        </div>
+        <div class="chips" style="justify-content:center">
+          <span class="chip on">sodium-and-cyan night</span><span class="chip on">procedural</span>
+          <span class="chip on">competence porn</span><span class="chip on">rain-slick city night</span>
+        </div>
+        <p class="lead" style="margin-top:14px;font-size:16.5px">the city is the antagonist and both men are good at their jobs</p>
+        <div class="barset" style="height:5px;gap:3px;justify-content:center;margin-top:15px">
+          <script>document.write(Array.from({length:22},(_, i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i%7===3?'select':'line'})"></div>`).join(''))</script>
+        </div>
+      </div>
+      <div class="plate" style="width:100px;background:linear-gradient(150deg,#1d2b34,#08131a)"><b>THE DARK KNIGHT</b><em>2008 · IMAX</em></div>
+    </div>
+    <p class="body" style="margin-top:22px;text-align:center;max-width:620px;margin-inline:auto">The edge is a <b>sentence made of the overlap</b>. Weight is TF-IDF over the corpus — rarer facets count more, so <i class="code">heist procedural</i> outranks <i class="code">drama</i>. Strength drives line weight. <b>0.87 is never shown to anyone.</b></p>
+  </div>
+</section>
+
+
+<!-- 07 vocabulary -->
+<section>
+  <div class="shead"><span class="snum">07</span><h2>Nanocrowd tags the film. We tag the edge.</h2>
+    <p>I looked at what Letterboxd is actually doing. The gap it leaves is structural, not incidental — which makes it defensible.</p></div>
+
+  <div class="cols c2" style="gap:36px">
+    <div>
+      <div class="lbl" style="margin-bottom:13px">What Letterboxd ships &mdash; Nanocrowd, ~20,000 titles</div>
+      <table>
+        <tr><td class="m" style="white-space:normal">Zero Dark<br>Thirty</td><td><span class="chip" style="opacity:.55">Terrorism, Government, Cia</span> <span class="chip" style="opacity:.55">Disturbing, Gripping, Riveting</span> <span class="chip" style="opacity:.55">Blood, Brutal, Extreme</span></td></tr>
+        <tr><td class="m" style="white-space:normal">Fast &amp;<br>Furious</td><td><span class="chip" style="opacity:.55">Driving, Chases, Action-Packed</span> <span class="chip" style="opacity:.55">Explosives, Mindless, Excitement</span> <span class="chip" style="opacity:.55">Jokes, Guns, Cool</span></td></tr>
+        <tr><td class="m" style="white-space:normal">(500) Days<br>of Summer</td><td><span class="chip" style="opacity:.55">Witty, Cute, Intelligent</span> <span class="chip" style="opacity:.55">Feelings, Cute, Formulaic</span> <span class="chip" style="opacity:.55">Jokes, Delightful, Cute</span></td></tr>
+      </table>
+      <p class="body" style="margin-top:15px">Three comma-separated words, clustered from emotive language in audience reviews. Identical for every user; personalisation is a <i>hide watched</i> checkbox.</p>
+      <p class="body" style="margin-top:11px">Low-information and repeating &mdash; four of <i>Fast &amp; Furious</i>'s ten contain “Action-Packed” or “Excitement”. And it reads like output: “Cia”, “Chick-Flick”.</p>
+      <div style="border-left:2px solid var(--select);padding-left:14px;margin-top:17px">
+        <p class="body"><b>Across every visible example, not one term describes craft.</b> No camera, no structure, no format. That isn't sloppiness &mdash; audience reviews don't contain that language, so a review-mining system <b>cannot</b> produce it.</p>
+      </div>
+      <p class="body" style="margin-top:14px">Which reframes your instruction. Blending vernacular with critics isn't a stylistic preference: <b>the vernacular corpus is the only place feeling lives, and the critic corpus is the only place craft lives.</b> Your user zero &mdash; the one who cares what format a film was shot on &mdash; is invisible to Nanocrowd by construction.</p>
+    </div>
+
+    <div>
+      <div class="lbl" style="margin-bottom:13px">The register ladder &mdash; one quality in <i>Heat</i>, four ways</div>
+      <div style="border:1px solid var(--line)">
+        <div style="padding:15px 17px;border-bottom:1px solid var(--line)">
+          <div class="lbl" style="margin-bottom:6px">Reddit / Letterboxd</div>
+          <div style="font-size:16px;letter-spacing:-.02em;color:var(--fg2)">“this movie has no business going that hard”</div>
+          <div class="lbl" style="margin-top:6px;color:var(--fg3)">fun &middot; zero information &middot; partitions nothing</div>
+        </div>
+        <div style="padding:15px 17px;border-bottom:1px solid var(--line)">
+          <div class="lbl" style="margin-bottom:6px">Nanocrowd</div>
+          <div class="meta" style="font-size:14px">Suspense, Guns, Action-Packed</div>
+          <div class="lbl" style="margin-top:6px;color:var(--fg3)">machine-readable &middot; says nothing</div>
+        </div>
+        <div style="padding:15px 17px;border-bottom:1px solid var(--line)">
+          <div class="lbl" style="margin-bottom:6px">Critic / trade</div>
+          <div style="font-size:15px;letter-spacing:-.02em;color:var(--fg2)">“Spinotti's available-light nocturnes and Mann's elliptical cross-cutting”</div>
+          <div class="lbl" style="margin-top:6px;color:var(--fg3)">precise &middot; makes a regular reader feel stupid</div>
+        </div>
+        <div style="padding:17px;background:var(--base2)">
+          <div class="lbl" style="margin-bottom:8px;color:var(--select)">Selects</div>
+          <div class="chips"><span class="chip on">sodium-lit and shot wide</span><span class="chip on">nobody wins</span><span class="chip on">both men are good at their jobs</span></div>
+          <div class="lbl" style="margin-top:9px">precise about craft &middot; casual in register</div>
+        </div>
+      </div>
+      <p class="body" style="margin-top:15px">A facet has to be something a person could say out loud at a bar and be understood, while still carrying real information about how the film was made. Which is your own answer to “what should this feel like” &mdash; <b>a regular user feels smart</b>. Not is told they're smart: <i>feels</i> smart, because they now have words for something they'd only ever felt.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:36px;border:1px solid var(--line);padding:26px">
+    <div class="lbl" style="margin-bottom:20px">Where each axis actually comes from</div>
+    <div class="cols c4" style="gap:20px">
+      <div>
+        <div class="chips" style="margin-bottom:9px"><span class="chip">tempo</span><span class="chip">weather</span><span class="chip">world</span></div>
+        <div class="lbl" style="color:var(--fg2)">Audience reviews</div>
+        <p class="body" style="font-size:12.5px;margin-top:5px">Letterboxd, r/TrueFilm, r/movies. This is what viewers actually talk about.</p>
+      </div>
+      <div>
+        <div class="chips" style="margin-bottom:9px"><span class="chip on">camera</span><span class="chip on">shape</span><span class="chip">look</span><span class="chip">sound</span></div>
+        <div class="lbl" style="color:var(--fg2)">Critics &amp; trade</div>
+        <p class="body" style="font-size:12.5px;margin-top:5px">Essentially unrecoverable from audience language. This is the half Nanocrowd cannot reach.</p>
+      </div>
+      <div>
+        <div class="chips" style="margin-bottom:9px"><span class="chip on">format</span></div>
+        <div class="lbl" style="color:var(--fg2)">Structured metadata &mdash; free</div>
+        <p class="body" style="font-size:12.5px;margin-top:5px"><i class="code">api/imdb-techspecs.ts</i> already fetches the specs page and keeps <b>two booleans</b>. Ratio, negative, camera and lens are in the same response.</p>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:9px;color:var(--select)">Ships first</div>
+        <p class="body" style="font-size:12.5px"><b>format</b>, because it needs no mining, the endpoint exists, and it's the axis your user zero notices immediately.</p>
+      </div>
+    </div>
+
+    <div class="barset" style="height:4px;gap:3px;margin:26px 0 20px">
+      <script>document.write(Array.from({length:80},(_,i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i%13===5?'select':'line'})"></div>`).join(''))</script>
+    </div>
+
+    <div class="cols c3" style="gap:24px">
+      <div>
+        <div class="lbl" style="margin-bottom:9px">The pipeline</div>
+        <p class="body" style="font-size:13px"><b>1.</b> A spine of ~2,000 films across eras, movements and budgets — <i>not</i> the top 2,000 by popularity, or the vocabulary comes out shaped like a multiplex.<br><b>2.</b> Harvest reviews.<br><b>3.</b> Extract 2–5 word phrases.</p>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:9px">The step that matters</div>
+        <p class="body" style="font-size:13px"><b>4.</b> Score TF-IDF against a <i>film-writing</i> baseline, so “the cinematography was beautiful” dies and “sodium-lit” survives. Then a <b>partition score</b>: a phrase attached to 40% of films is worthless however filmic it sounds. This is the step that kills “Action-Packed”.</p>
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:9px;color:var(--select)">Your part</div>
+        <p class="body" style="font-size:13px"><b>5.</b> Cluster into the eight axes. <b>6.</b> Polish.<br><br>You get ~600 ranked clusters, each with its best phrasings and twenty example films. You pick one per cluster and kill the wrong ones. <b>Approve, don't author</b> — a couple of hours, not a blank page.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="lead" style="margin-top:30px;max-width:780px">A nanogenre tells you <i>Heat</i> is <span class="meta">Suspense, Guns, Action-Packed</span>. It cannot tell you that <i>Heat</i> and <i>The Dark Knight</i> are joined because <b style="color:var(--fg)">the city is the antagonist and both men are good at their jobs</b>. That sentence is the product.</p>
+</section>
+
+<!-- 08 -->
+<section>
+  <div class="shead"><span class="snum">08</span><h2>The Assembly</h2>
+    <p>Rabbit Hole is the Assembly in motion; the Assembly is Rabbit Hole at rest. One graph, two verbs — and nothing gets deleted to build it.</p></div>
+
+  <div class="row">
+    <div class="graphbox fig" style="width:600px;height:372px">
+      <svg viewBox="0 0 600 372" style="width:100%;height:100%">
+        <g stroke="#2B2B2F" fill="none">
+          <path d="M292 190 L146 92" stroke-width="5"/><path d="M292 190 L458 104" stroke-width="2.4"/>
+          <path d="M292 190 L124 282" stroke-width="3.4"/><path d="M292 190 L450 292" stroke-width="1.4"/>
+          <path d="M146 92 L124 282" stroke-width="1.4"/><path d="M458 104 L536 204" stroke-width="1.4"/>
+        </g>
+        <path d="M292 190 L146 92" stroke="#FF3B14" stroke-width="5" fill="none" opacity=".9"/>
+        <circle r="6.5" fill="#FF3B14"><animateMotion dur="2.6s" repeatCount="indefinite" path="M292 190 L146 92"/></circle>
+        <g font-family="Martian Mono, monospace" font-size="8.5" letter-spacing=".05em" fill="#7C7A76"
+           text-anchor="middle" stroke="#141416" stroke-width="3.2" paint-order="stroke">
+          <text transform="translate(226,132) rotate(33.9)" fill="#B9B6B0">SODIUM NIGHT</text>
+          <text transform="translate(370,137) rotate(-27.4)">AUTEUR</text>
+          <text transform="translate(202,227) rotate(-28.7)">NOBODY WINS</text>
+          <text transform="translate(378,231) rotate(32.8)">SAME DP</text>
+        </g>
+        <g>
+          <circle cx="292" cy="190" r="33" fill="#123048" stroke="#EFEDE9" stroke-width="2"/>
+          <circle cx="146" cy="92" r="26" fill="#1d2b34" stroke="#FF3B14" stroke-width="2"/>
+          <circle cx="124" cy="282" r="22" fill="#301a24" stroke="#2B2B2F" stroke-width="2"/>
+          <circle cx="458" cy="104" r="20" fill="none" stroke="#3a3a3f" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <circle cx="450" cy="292" r="16" fill="none" stroke="#3a3a3f" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <circle cx="536" cy="204" r="13" fill="none" stroke="#3a3a3f" stroke-width="1.5" stroke-dasharray="3 3"/>
+        </g>
+        <g font-family="Archivo, sans-serif" font-weight="800" font-size="9.5" letter-spacing="-.02em" text-anchor="middle">
+          <text x="292" y="194" fill="#EFEDE9">HEAT</text><text x="146" y="96" fill="#EFEDE9">TDK</text>
+          <text x="124" y="286" fill="#EFEDE9">SICARIO</text><text x="458" y="108" fill="#7C7A76">COLLAT.</text>
+          <text x="450" y="296" fill="#7C7A76">THIEF</text><text x="536" y="208" fill="#7C7A76">ZODIAC</text>
+        </g>
+        <g font-family="Martian Mono, monospace" font-size="8" letter-spacing=".09em" fill="#7C7A76">
+          <text x="20" y="350">SOLID = SEEN, IN ITS OWN COLOUR · DASHED = UNSEEN · LINE WEIGHT = SHARED FACET RARITY</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="note">
+      <p class="body"><b>Logging fills a node in.</b> Unseen films are dashed and colourless; the moment you log one it goes solid and takes its poster's colour. <b>Your map visibly grows when you log</b> — the reward the calendar has never paid.</p>
+      <p class="body" style="margin-top:13px"><b>Traversal is a dot on an edge</b>, and the label writes itself once as the dot moves. The only place in the app where progressive text is allowed, because here it maps to physical motion instead of imitating a chatbot.</p>
+      <p class="body" style="margin-top:13px"><b>Search is the Assembly with a query at the centre.</b> Your spherical web: typing a title drops you into the graph at that film with its neighbours around you. Same renderer, not a second build.</p>
+      <div class="lbl" style="margin:18px 0 9px">Promoted, not deleted</div>
+      <table>
+        <tr><td class="m">/orbit/:id</td><td class="was">→ Rabbit Hole</td></tr>
+        <tr><td class="m">/dna/:id</td><td class="was">→ a view inside the Assembly</td></tr>
+        <tr><td class="m">constellation</td><td class="was">→ the Assembly renderer</td></tr>
+        <tr><td class="m">Saved Vibes</td><td class="was">→ saved facet rooms</td></tr>
+        <tr><td class="m">PatternAssistant</td><td class="was">→ the Nudge</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 09 -->
+<section>
+  <div class="shead"><span class="snum">09</span><h2>11:40pm</h2>
+    <p>The strongest untapped trigger in the category — and the mechanism is already in your data.</p></div>
+
+  <div class="row" style="gap:20px">
+    <div class="fig" style="width:262px">
+      <div style="border:1px solid var(--line);background:var(--base2);padding:13px 14px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+          <svg style="width:12px;height:12px;color:var(--fg)"><use href="#clap"/></svg>
+          <div class="lbl">Selects</div><div class="lbl" style="margin-left:auto">now</div>
+        </div>
+        <div style="font-size:14.5px;font-weight:800;letter-spacing:-.03em">So. Did the ending earn it?</div>
+        <p class="body" style="font-size:12.5px;margin-top:3px">Heat · 170 min · you started at 9:15</p>
+      </div>
+      <div class="pcap"><span class="tag next">12:10am</span><span>Runtime maths. No guessing.</span></div>
+    </div>
+
+    <div class="fig" style="width:262px">
+      <div style="border:1px solid var(--line);padding:15px 14px">
+        <div class="lbl" style="margin-bottom:10px">One tap logs it</div>
+        <div class="barset" style="height:26px;gap:4px;margin-bottom:11px">
+          <div class="bar" style="width:12px;height:100%;background:var(--fg)"></div>
+          <div class="bar" style="width:12px;height:100%;background:var(--fg)"></div>
+          <div class="bar" style="width:12px;height:100%;background:var(--fg)"></div>
+          <div class="bar" style="width:12px;height:100%;background:var(--fg)"></div>
+          <div class="bar" style="width:12px;height:100%;background:var(--base3)"></div>
+        </div>
+        <div style="border:1px solid var(--line);padding:9px 10px">
+          <p class="body" style="font-size:12.5px;font-style:italic">“No F1 film exists without this. Nobody says that.”</p>
+        </div>
+        <div class="lbl" style="margin-top:9px">optional · one line</div>
+      </div>
+      <div class="pcap"><span class="tag next">the note</span><span>What the Cut is narrated by, later.</span></div>
+    </div>
+
+    <div class="fig" style="width:262px">
+      <div style="border:1px solid var(--line);padding:15px 14px">
+        <div class="lbl" style="margin-bottom:9px">Then the door</div>
+        <p class="lead" style="font-size:15px">That corridor shot is lifted from <i>Oldboy</i>.</p>
+        <div class="barset" style="height:4px;gap:3px;margin:13px 0">
+          <script>document.write(Array.from({length:20},(_, i)=>`<div class="bar" style="width:4px;height:100%;background:var(--${i<7?'select':'line'})"></div>`).join(''))</script>
+        </div>
+        <div class="lbl" style="margin-bottom:8px">Three more where the city is the antagonist</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+          <div class="plate" style="background:#1d2b34"></div><div class="plate" style="background:#2b1a10"></div><div class="plate" style="background:#12202e"></div>
+        </div>
+      </div>
+      <div class="pcap"><span class="tag next">into the Assembly</span><span>Not “similar films”.</span></div>
+    </div>
+
+    <div class="note">
+      <p class="body"><b>How the app knows.</b> The Ticket was torn at 9:15 and the runtime is 170 minutes — so the push fires at 12:10. Or a calendar log carries a start time. Or they tapped “watching now”. Three signals, no guessing, and runtime is already in the data.</p>
+      <p class="body" style="margin-top:13px">You were right that genre-adjacency is stale and everyone feels it. The three follow-ups come from shared facets, <b>with the reason stated</b> — which is the difference between a recommendation and a nearest neighbour.</p>
+      <p class="body" style="margin-top:13px">Then the collaborator paths: Hardy → Nolan → Murphy → Peaky Blinders. Or the questions — what does this signify, were they running, what did they forget.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section>
+  <div class="shead"><span class="snum">10</span><h2>Everything is named from the cutting room</h2>
+    <p>Because the app already was. Your origin story gave the product its vocabulary, not just its mark.</p></div>
+
+  <div class="row" style="gap:34px">
+    <div class="fig" style="width:600px">
+      <table>
+        <tr><th style="width:24%">Name</th><th style="width:40%">What it is</th><th>Today</th></tr>
+        <tr><td><b style="font-weight:800">the Ticket</b></td><td>your daily three</td><td class="was">new</td></tr>
+        <tr><td><b style="font-weight:800">Focus</b></td><td>how sharply the app has you</td><td class="was">new</td></tr>
+        <tr><td><b style="font-weight:800">the Strip</b></td><td>everything you've logged, zoomable</td><td class="m">MovieCalendarApp</td></tr>
+        <tr><td><b style="font-weight:800">the Assembly</b></td><td>your taste graph</td><td class="m">DNAScreen + constellation</td></tr>
+        <tr><td><b style="font-weight:800">Rabbit Hole</b></td><td>the deep session mode</td><td class="m">OrbitScreen</td></tr>
+        <tr><td><b style="font-weight:800">the Nudge</b></td><td>contextual, timed suggestion</td><td class="m">PatternAssistant</td></tr>
+        <tr><td><b style="font-weight:800">the Wallet</b></td><td>the films closest to you</td><td class="was">new</td></tr>
+        <tr><td><b style="font-weight:800">the Print</b></td><td>shareable still · monthly, everyone</td><td class="was">new</td></tr>
+        <tr><td><b style="font-weight:800">the Cut</b></td><td>your month as a slate trailer · <b>earned</b></td><td class="was">new</td></tr>
+      </table>
+      <p class="body" style="margin-top:16px">Making the Cut earned does two jobs at once: it controls render cost, and it turns logging into the thing that unlocks the artifact — a fixed-ratio reward on exactly the behaviour the product needs. Build it from trailers, stills and logos; feature footage is a rights problem.</p>
+    </div>
+
+    <div class="note">
+      <div class="lbl" style="margin-bottom:11px">The Nudge — your Cursor reference, built</div>
+      <div style="border:1px solid var(--select);background:var(--base2);padding:12px 13px">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div style="flex:1">
+            <div style="font-size:13.5px;font-weight:800;letter-spacing:-.03em">Three deep in heist procedurals.</div>
+            <div class="lbl" style="margin-top:3px">Rabbit hole?</div>
+          </div>
+          <div style="width:26px;height:26px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--select);flex:none"></div>
+        </div>
+      </div>
+      <p class="body" style="margin-top:13px">Five-second ring, acts if you don't dismiss it, gone if ignored. Text arrives <b>already written</b> and reacts to what you just did — it never types at you.</p>
+      <div class="lbl" style="margin:18px 0 9px">Push · one a day, two is the ceiling</div>
+      <p class="body">Zomato gets away with volume because the purchase is cheap and impulsive. A film is two hours, and a wrong nudge is expensive. The funny register only works because it's rare.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 11 -->
+<section>
+  <div class="shead"><span class="snum">11</span><h2>Motion, and the reward that isn't there</h2>
+    <p>The jank isn't easing. Elements teleport.</p></div>
+
+  <div class="row">
+    <div class="fig" style="width:222px">
+      <div class="phone"><img src="assets/current-logged-reward.jpg" alt="current logged day cell"></div>
+      <div class="pcap"><span class="tag now">now</span><span>Tap “Add to Calendar” → day 22 changes shade. That is the entire payoff.</span></div>
+    </div>
+
+    <div class="fig" style="width:222px">
+      <div style="border:1px solid var(--line);padding:18px">
+        <div class="strip" style="height:58px;gap:5px">
+          <div class="bar" style="width:14px;height:64%"></div>
+          <div class="bar" style="width:14px;height:64%"></div>
+          <div class="bar" style="width:14px;height:100%;background:linear-gradient(180deg,#1d5b8a,#123048)"></div>
+          <div class="bar" style="width:14px;height:64%"></div>
+          <div class="bar" style="width:14px;height:64%"></div>
+          <div class="bar" style="width:14px;height:64%;background:#2b1a10"></div>
+          <div class="bar" style="width:14px;height:64%"></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:18px">
+          <div class="meta" style="font-size:29px;font-weight:700;letter-spacing:-.05em;color:var(--fg)">41</div>
+          <div class="lbl">kept this year</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:9px">
+          <div class="meta" style="font-size:15px;font-weight:700;color:var(--select)">↑ 91</div>
+          <div class="lbl">focus · sharp</div>
+        </div>
+      </div>
+      <div class="pcap"><span class="tag next">next</span><span>Poster travels in. Haptic. Count rolls. Focus sharpens.</span></div>
+    </div>
+
+    <div class="fig" style="width:290px">
+      <div class="lbl" style="margin-bottom:12px">Tokens</div>
+      <table>
+        <tr><td class="m">swift</td><td class="was">140ms · taps</td></tr>
+        <tr><td class="m">travel</td><td class="was">spring 420/34 · shared element</td></tr>
+        <tr><td class="m">settle</td><td class="was">spring 260/28 · sheets</td></tr>
+        <tr><td class="m">tear</td><td class="was">260ms · the perforation</td></tr>
+        <tr><td class="m">arc</td><td class="was">620ms · a dot on an edge</td></tr>
+        <tr><td class="m">clap</td><td class="was">380ms spring 500/22 · launch</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <p class="body"><b>The one rule: the poster is the transition.</b> Framer Motion is already a dependency and is imported by no file in the home path. Every poster gets <i class="code">layoutId</i> and physically travels — swipe card → stub → hero → day bar → Assembly node → Print. Nothing cuts.</p>
+      <p class="body" style="margin-top:13px">Currently instant: onboarding steps, login steps, month change, logging a film, synopsis expand, DNA node change, every route change. Orbit is the one exception and proves the team can do this — real springs, a shatter transition, haptics per gesture. <b>Haptics fire only there.</b></p>
+      <p class="body" style="margin-top:13px">One centred spinner per screen is the strongest “generic web app” signal in the product. Replace every one with poster-coloured skeletons.</p>
+    </div>
+  </div>
+</section>
+
+<section style="padding-bottom:0">
+  <div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap">
+    <svg style="width:38px;height:38px;color:var(--line)"><use href="#clap"/></svg>
+    <div>
+      <div class="lbl">Read next</div>
+      <p class="body" style="margin-top:5px">DECISIONS.md — rounds 1 &amp; 2, locked · DIRECTION.md — the system in full · VOCABULARY.md — the Nanocrowd teardown and the mining pipeline · AUDIT.md — 38 findings with file:line</p>
+    </div>
+    <div class="lbl" style="margin-left:auto">Rev C · nothing deleted</div>
+  </div>
+</section>
+
+</div>
+
+<script>
+// a year of days, coloured where a film was logged
+(function(){
+  const el = document.getElementById('yr');
+  const cols = ['#123048','#1d2b34','#301a24','#2b1a10','#0f2420','#241f2e','#31201a','#12202e','#1a2418','#2a1622'];
+  let out = '';
+  for (let i = 0; i < 118; i++) {
+    const on = Math.random() < 0.34;
+    const c = on ? cols[i % cols.length] : 'var(--base3)';
+    const h = on ? 100 : 58;
+    out += `<div class="bar" style="height:${h}%;background:${c}"></div>`;
+  }
+  el.innerHTML = out;
+})();
+</script>
+</body>
+</html>

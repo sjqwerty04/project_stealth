@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Selects — Orbit and DNA</title>
+<style>
+  @font-face { font-family: "Archivo"; src: url("fonts/archivo-latin.woff2") format("woff2"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Martian Mono"; src: url("fonts/martianmono-latin.woff2") format("woff2"); font-weight: 100 800; font-display: block; }
+  :root { --base:#0a0a0b; --raised:#141416; --line:#2b2b2f; --fg:#efede9; --dim:#b9b6b0; --grey:#7c7a76; --select:#ff3b14; --film:#1d5b8a; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:70px 60px 90px; background:var(--base); color:var(--fg);
+    font-family:"Archivo",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .kicker { font-family:"Martian Mono",monospace; font-weight:500; font-size:10px;
+    letter-spacing:.09em; color:var(--grey); text-transform:uppercase; }
+  h1 { font-size:46px; font-weight:800; letter-spacing:-.045em; line-height:.95; margin:12px 0 10px; }
+  .lede { color:var(--dim); font-size:15px; line-height:1.55; max-width:800px; margin:0 0 54px; }
+  .rule { border-top:1px solid var(--line); margin:0 0 26px; padding-top:22px; }
+  .trip { display:flex; gap:28px; margin-bottom:56px; }
+  .trip > div { flex:1; }
+  .trip svg { display:block; width:100%; height:auto; }
+  .cap b { display:block; font-family:"Martian Mono",monospace; font-weight:500; font-size:10px;
+    letter-spacing:.09em; margin:12px 0 6px; }
+  .cap span { display:block; font-family:"Martian Mono",monospace; font-weight:400; font-size:9px;
+    line-height:1.85; color:var(--grey); letter-spacing:.03em; white-space:pre-line; }
+
+  .cols { display:flex; gap:44px; align-items:flex-start; }
+  .panel { width:420px; }
+  .ph { display:flex; justify-content:space-between; align-items:baseline;
+    font-family:"Martian Mono",monospace; font-weight:500; font-size:10px; letter-spacing:.09em; }
+  .ph b { color:var(--fg); } .ph i { font-style:normal; color:var(--grey); }
+  .row { border-top:1px solid var(--line); padding:11px 0 12px; display:flex;
+    justify-content:space-between; align-items:center; gap:12px; }
+  .row .n { font-size:15px; }
+  .row .y, .row .c { font-family:"Martian Mono",monospace; font-weight:500; font-size:10px;
+    letter-spacing:.09em; color:var(--grey); white-space:nowrap; }
+  .row .c.hot { color:var(--select); }
+  .reason { font-family:"Martian Mono",monospace; font-weight:500; font-size:9px;
+    letter-spacing:.09em; color:var(--grey); margin-top:5px; }
+  .stack { display:block; }
+  .meter { display:flex; gap:2px; }
+  .meter i { display:block; width:6px; height:11px; background:var(--line);
+    clip-path:polygon(33% 0,100% 0,67% 100%,0 100%); }
+  .meter i.on { background:var(--fg); }
+  .axis { display:flex; align-items:center; gap:10px; border-top:1px solid var(--line); padding:9px 0; }
+  .axis .k { width:62px; font-family:"Martian Mono",monospace; font-weight:500; font-size:8px;
+    letter-spacing:.09em; color:var(--grey); }
+  .axis .v { flex:1; font-family:"Martian Mono",monospace; font-size:11px; }
+  .axis .num { width:24px; text-align:right; font-family:"Martian Mono",monospace;
+    font-size:11px; color:var(--dim); }
+  .compass { display:flex; justify-content:space-between; border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line); padding:16px 0; margin:34px 0 18px; max-width:884px; }
+  .compass div { text-align:center; }
+  .compass em { display:block; font-style:normal; font-family:"Martian Mono",monospace;
+    font-size:15px; margin-bottom:7px; }
+  .compass s { display:block; text-decoration:none; font-family:"Martian Mono",monospace;
+    font-weight:500; font-size:9px; letter-spacing:.09em; color:var(--grey); }
+  .compass small { display:block; font-family:"Martian Mono",monospace; font-size:8px;
+    letter-spacing:.06em; color:var(--grey); opacity:.7; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="kicker">Selects · Orbit is search · DNA is the film's · the Assembly is yours</div>
+<h1>Three features were doing one job badly.</h1>
+<p class="lede">Orbit told you three different stories about its own compass, DNA duplicated half
+of it from a different door, and the constellation drew the result twice. The fix was already
+written down: search is the graph with a query at the centre. So Orbit is search, DNA is the
+film's own neighbourhood on its own page, and the Assembly stays yours.</p>
+
+<div class="rule"><div class="kicker">DNA · a canopy you travel, not a node map you pan</div></div>
+<div class="trip" id="trip"></div>
+
+<div class="compass">
+  <div><em>↑</em><s>LOOK</s><small>look + camera</small></div>
+  <div><em>↓</em><s>SHAPE</s><small>shape + tempo</small></div>
+  <div><em>←</em><s>WEATHER</s><small>weather + sound</small></div>
+  <div><em>→</em><s>HANDS</s><small>the people graph</small></div>
+</div>
+<div class="kicker" style="margin-bottom:52px">One compass, stated once. Back is the way you came — never a fixed side.</div>
+
+<div class="rule"><div class="kicker">The counterparty view · what it bought from, what bought from it, and the common link</div></div>
+<div class="cols" id="tables"></div>
+
+<script>
+/* Same bezier geometry as the Figma component, so these are the same shapes. */
+const TX = 167, TY = 244;
+const BRANCHES = [
+  { p1:[140,212], p2:[56,196],  p3:[26,124], side:'L', nodes:[['Manhunter','#2B4A2E'],['Drive','#3A1E4A'],['To Live and Die','#8A3A1D']] },
+  { p1:[152,192], p2:[88,124],  p3:[74,38],  side:'L', nodes:[['Le Cercle Rouge','#2A3A5B'],['The Killing','#1D4A5B']] },
+  { p1:[178,184], p2:[158,102], p3:[168,20], side:'C', nodes:[['Le Samouraï','#1D5B8A'],['Eddie Coyle','#6B5A1D'],['Point Blank','#7A2A2A']] },
+  { p1:[202,192], p2:[250,120], p3:[262,40], side:'R', nodes:[['Heat','#123048'],['Collateral','#1D5B8A']] },
+  { p1:[218,216], p2:[292,198], p3:[310,130], side:'R', nodes:[['The Insider','#2B4A2E'],['Miami Vice','#3A1E4A']] }
+];
+const bez = (p0,p1,p2,p3,t) => { const u=1-t; return {
+  x:u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0],
+  y:u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1] }; };
+
+function canopy(sway) {
+  const off = (bi,i) => Math.sin(sway*2.1 + bi*1.3 + i) * 5;
+  let out = '';
+  BRANCHES.forEach((br, bi) => {
+    const p0 = [TX,TY];
+    const p1 = [br.p1[0]+off(bi,0), br.p1[1]+off(bi,1)*0.5];
+    const p2 = [br.p2[0]+off(bi,1), br.p2[1]+off(bi,2)*0.7];
+    const p3 = [br.p3[0]+off(bi,2), br.p3[1]+off(bi,3)*0.8];
+    out += `<path d="M ${p0[0]} ${p0[1]} C ${p1[0]} ${p1[1]} ${p2[0]} ${p2[1]} ${p3[0]} ${p3[1]}"
+      fill="none" stroke="#2b2b2f" stroke-width="1.4" stroke-linecap="round"/>`;
+    const ts = [0.55, 0.8, 1.0];
+    br.nodes.forEach((nd, i) => {
+      const pt = bez(p0,p1,p2,p3,ts[i]);
+      const r = (13 - i*3) / 2;
+      out += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${r}"
+        fill="${nd[1]}" opacity="${(1 - i*0.28).toFixed(2)}"/>`;
+    });
+    const tip = bez(p0,p1,p2,p3,1.0);
+    const nd = br.nodes[br.nodes.length-1];
+    const anchor = br.side === 'L' ? 'start' : br.side === 'R' ? 'end' : 'middle';
+    const lx = br.side === 'L' ? tip.x - 2 : br.side === 'R' ? tip.x + 2 : tip.x;
+    out += `<text x="${lx.toFixed(1)}" y="${(tip.y - 12).toFixed(1)}" text-anchor="${anchor}"
+      font-family="Martian Mono" font-size="6.5" letter-spacing="0.35" fill="#7c7a76">${nd[0].toUpperCase()}</text>`;
+  });
+  out += `<circle cx="${TX}" cy="${TY}" r="19" fill="none" stroke="#ff3b14" stroke-width="1" opacity="${0.5 + sway*0.14}"/>`;
+  out += `<circle cx="${TX}" cy="${TY}" r="11" fill="#1d5b8a"/>`;
+  return `<svg viewBox="0 0 334 268" xmlns="http://www.w3.org/2000/svg">${out}</svg>`;
+}
+
+document.getElementById('trip').innerHTML = [
+  [0, 'state=t0', 'Five branches, forking and\nreceding. Depth is size and\nopacity.'],
+  [1, 'state=t1', 'Identical layer names, so\nSmart Animate moves the\nnodes rather than cutting.'],
+  [2, 'state=t2', 'Looped on AFTER_TIMEOUT.\nThe canopy breathes in\npresentation mode.']
+].map(([s,n,c]) => `<div>${canopy(s)}<div class="cap"><b>${n}</b><span>${c}</span></div></div>`).join('');
+
+const rows = (list) => list.map(([n,y,r]) =>
+  `<div class="row"><div class="stack"><div class="n">${n}</div><div class="reason">${r}</div></div><div class="y">${y}</div></div>`).join('');
+const pairs = (list) => list.map(([n,role,m,c,hot]) =>
+  `<div class="row"><div class="stack"><div class="n">${n}</div><div class="reason">${role}</div></div>
+   <div style="text-align:right"><div class="meter" style="justify-content:flex-end">${
+     [0,1,2,3,4].map(i => `<i class="${i<m?'on':''}"></i>`).join('')}</div>
+   <div class="c ${hot?'hot':''}" style="margin-top:6px">${c}</div></div></div>`).join('');
+const axes = (list) => list.map(([k,v,m,n]) =>
+  `<div class="axis"><div class="k">${k}</div><div class="v">${v}</div>
+   <div class="meter">${[0,1,2,3,4].map(i => `<i class="${i<m?'on':''}"></i>`).join('')}</div>
+   <div class="num">${n}</div></div>`).join('');
+
+document.getElementById('tables').innerHTML = `
+  <div class="panel">
+    <div class="ph"><b>UPSTREAM</b><i>WHAT IT TOOK FROM</i></div>
+    ${rows([['Le Samouraï','1967','THE PROFESSIONAL AS MONK'],
+            ['Le Cercle Rouge','1970','THE PROCEDURE IS THE PLOT'],
+            ['Point Blank','1967','ONE MAN, ONE DEBT, NOTHING ELSE']])}
+    <div class="ph" style="margin-top:34px"><b>DOWNSTREAM</b><i>WHAT TOOK FROM IT</i></div>
+    ${rows([['Heat','1995','MANN REBUILDING HIS OWN FILM'],
+            ['Collateral','2004','THE CITY AT NIGHT, AGAIN'],
+            ['Drive','2011','SYNTH, SILENCE, ONE GOOD JOB']])}
+  </div>
+  <div class="panel">
+    <div class="ph"><b>HANDS</b><i>PAIRS, NOT PEOPLE</i></div>
+    <div class="reason" style="margin:8px 0 12px">One person is a filmography. Two is a signature.</div>
+    ${pairs([['Michael Mann × Donald Thorin','DIR × DP',2,'2 FILMS',false],
+             ['Michael Mann × Tangerine Dream','DIR × SCORE',2,'2 FILMS',false],
+             ['James Caan × Michael Mann','LEAD × DIR',1,'1 FILM',false],
+             ['Mann × Dante Spinotti','DIR × DP',4,'4 · YOURS',true]])}
+    <div class="ph" style="margin-top:34px"><b>AXES</b><i>THE FILM / YOUR MAP</i></div>
+    ${axes([['LOOK','sodium-and-cyan night',4,'11'],['CAMERA','locked-off',2,'4'],
+            ['TEMPO','procedural',5,'19'],['WEATHER','competence porn',4,'12'],
+            ['SOUND','synth pulse',2,'6'],['WORLD','rain-slick city night',3,'9'],
+            ['SHAPE','two-hander',1,'2'],['FORMAT','1.85 spherical',3,'8']])}
+  </div>`;
+</script>
+</body>
+</html>
