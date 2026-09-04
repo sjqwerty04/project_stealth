@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import { Mark, Skeleton } from '../components/ui';
 
 export default function SplashScreen() {
   const { user, loading, isWhitelisted } = useAuth();
@@ -20,29 +20,15 @@ export default function SplashScreen() {
   }, [user, loading, isWhitelisted, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center">
-      <div className="text-center space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight text-white">
-            Selects
-          </h1>
-          <p className="text-sm text-gray-500 uppercase tracking-widest">
-            Your Personal Cinema Journal
-          </p>
-        </div>
-        
-        <div className="flex items-center justify-center gap-2 text-gray-400">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading...</span>
-        </div>
-      </div>
-      
-      <div className="absolute bottom-8 text-center">
-        <p className="text-xs text-gray-600">
-          Beta v0.1
-        </p>
-      </div>
+    <div className="min-h-screen bg-base flex flex-col items-center justify-center px-7">
+      <Mark variant="lockup" size={48} />
+      <p className="mt-6 max-w-sm text-center font-display text-lg text-fg leading-snug">
+        Selects reads you, and hands you the take worth keeping.
+      </p>
+      <Skeleton className="mt-10 h-2 w-24" />
+      <p className="absolute bottom-8 font-spec text-[10px] uppercase tracking-widest text-fg-3">
+        The take worth keeping
+      </p>
     </div>
   );
 }
-

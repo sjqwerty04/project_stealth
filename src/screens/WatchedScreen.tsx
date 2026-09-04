@@ -4,6 +4,8 @@ import { ArrowLeft, ThumbsUp, ThumbsDown, Loader2, Film, Plus, X, Upload, Calend
 import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport, detectImportType, type ImportType } from '../hooks/useIMDBImport';
+import LibraryHub from '../components/LibraryHub';
+import Skeleton from '../components/ui/Skeleton';
 
 // --- Timeline grouping helpers ---
 
@@ -223,13 +225,15 @@ export default function WatchedScreen() {
   const typeLabel = getImportTypeLabel();
 
   return (
-    <div className="min-h-screen bg-[#09090b] font-sans text-gray-100 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden border-x border-gray-800">
+    <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto overflow-hidden border-x border-line">
+      <LibraryHub />
       {/* Header */}
-      <div className="bg-[#09090b]/90 backdrop-blur-md px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-gray-800">
+      <div id="timeline" className="bg-base px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-line">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/app')}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition-colors"
+            className="p-2 min-h-11 min-w-11 text-fg-2 hover:text-fg"
+            aria-label="Go back"
           >
             <ArrowLeft size={20} />
           </button>
@@ -240,7 +244,7 @@ export default function WatchedScreen() {
         </div>
         <button
           onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-[#ff8000] hover:bg-[#e67300] text-white rounded-xl text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-3 min-h-11 bg-base-3 text-fg border border-line text-sm font-medium"
         >
           <Plus size={16} />
           <span className="hidden sm:inline">Import</span>
@@ -287,7 +291,7 @@ export default function WatchedScreen() {
       <div className="flex-1 overflow-y-auto">
         {eventsLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
+            <Skeleton className="w-24 h-8" />
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">

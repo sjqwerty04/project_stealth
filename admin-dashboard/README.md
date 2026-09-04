@@ -1,4 +1,4 @@
-# ViewFindr Admin Dashboard
+# Selects Admin Dashboard
 
 Streamlit dashboard for managing users and monitoring activity.
 

@@ -13,6 +13,7 @@ import ConstellationView from '../components/orbit/ConstellationView';
 import { useAuth } from '../hooks/useAuth';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { logActivity } from '../lib/activityLogger';
+import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -145,7 +146,22 @@ export default function OrbitScreen() {
         
       } catch (error) {
         console.error('Failed to initialize orbit:', error);
-        navigate('/app');
+        const film = fallbackById(movieId);
+        const entryMovie: OrbitMovie = {
+          id: film.id,
+          title: film.title,
+          year: film.year,
+          posterPath: film.posterPath,
+          backdropPath: film.backdropPath ?? null,
+          dominantHex: '#1D5B8A',
+          mediaType: 'movie',
+          director: undefined,
+          cinematographer: undefined,
+          genres: [],
+        };
+        enterOrbit(entryMovie);
+        setTransitionColor('#1D5B8A');
+        setIsLoading(false);
       }
     };
 
@@ -333,8 +349,7 @@ export default function OrbitScreen() {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <Loader2 className="w-12 h-12 text-white/70 animate-spin" />
-          <p className="text-white/50 text-sm">Entering orbit...</p>
+        <p className="font-spec text-[10px] uppercase tracking-widest text-white/50">Entering orbit</p>
         </motion.div>
       </div>
     );

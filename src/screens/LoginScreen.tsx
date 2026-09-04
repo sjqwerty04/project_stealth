@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Mail, Lock, Loader2, ArrowRight, Chrome, UserPlus, LogIn } from 'lucide-react';
+import { Mark, Button, Input } from '../components/ui';
 
 type Step = 'email' | 'choose' | 'signin' | 'signup';
 
@@ -13,7 +13,6 @@ export default function LoginScreen() {
   const isSafeNext = !!nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//');
   const goAfterAuth = (isNew = false) => {
     if (isNew) {
-      // New accounts always go through onboarding first; next resumes after.
       const dest = isSafeNext ? nextPath! : '/app';
       navigate(`/onboarding?next=${encodeURIComponent(dest)}`, { replace: true });
     } else {
@@ -40,13 +39,14 @@ export default function LoginScreen() {
 
     try {
       const whitelisted = await checkWhitelist(email);
-      const hasInvite = !!sessionStorage.getItem('pendingInviteCode') || !!sessionStorage.getItem('appInvite');
+      const hasInvite =
+        !!sessionStorage.getItem('pendingInviteCode') || !!sessionStorage.getItem('appInvite');
       if (whitelisted || hasInvite) {
         setStep('choose');
       } else {
         navigate('/waitlist', { replace: true });
       }
-    } catch (err) {
+    } catch {
       setError('Unable to verify access. Please try again.');
     } finally {
       setLoading(false);
@@ -59,16 +59,17 @@ export default function LoginScreen() {
       setError('Please enter your password');
       return;
     }
-
     setLoading(true);
     setError('');
-
     try {
       await signIn(email, password);
       goAfterAuth();
     } catch (err: any) {
-      console.log('Sign in error:', err.code, err.message);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      if (
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/user-not-found'
+      ) {
         setError('Invalid email or password. Try again or create a new account.');
       } else {
         setError('Sign in failed. Please try again.');
@@ -92,10 +93,8 @@ export default function LoginScreen() {
       setError('Password must be at least 6 characters');
       return;
     }
-
     setLoading(true);
     setError('');
-
     try {
       await signUp(email, password);
       goAfterAuth(true);
@@ -115,7 +114,6 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
-
     try {
       await signInWithGoogle();
       goAfterAuth();
@@ -131,228 +129,111 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-base flex flex-col items-center justify-center px-7">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-2">
-            <img
-              src="/selects-logo.png"
-              alt="Selects"
-              className="h-10 w-auto"
-            />
-          </div>
-          <p className="text-sm text-gray-500">
-            {step === 'email' && 'Enter your email to get started'}
-            {step === 'choose' && 'You\'re on the list! How would you like to continue?'}
-            {step === 'signin' && 'Welcome back! Enter your password'}
-            {step === 'signup' && 'Create your account'}
+        <div className="space-y-3">
+          <Mark variant="lockup" size={40} />
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">
+            The take worth keeping
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-900/20 border border-red-800 rounded-xl p-3 text-sm text-red-400 text-center">
+          <div className="border border-line p-3 font-spec text-xs text-fg-2" role="alert">
             {error}
           </div>
         )}
 
         {step === 'email' && (
-          <form onSubmit={handleCheckAccess} className="space-y-4">
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
-                autoFocus
-                autoComplete="email"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Check Access
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-800" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-[#09090b] px-4 text-gray-500">or</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all disabled:opacity-50"
-            >
-              <Chrome className="w-5 h-5" />
+          <form onSubmit={handleCheckAccess} className="space-y-3" data-testid="login-email">
+            <Input
+              type="email"
+              name="email"
+              placeholder="your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+              autoComplete="email"
+              aria-label="your email"
+            />
+            <Button type="submit" className="w-full" loading={loading}>
+              Continue
+            </Button>
+            <Button type="button" kind="secondary" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
               Continue with Google
-            </button>
+            </Button>
           </form>
         )}
 
         {step === 'choose' && (
-          <div className="space-y-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
-              <Mail className="text-gray-500 w-5 h-5" />
-              <span className="text-gray-300 text-sm">{email}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('email');
-                  setError('');
-                }}
-                className="ml-auto text-xs text-blue-400 hover:text-blue-300"
-              >
-                Change
-              </button>
-            </div>
-
-            <button
-              onClick={() => {
-                setStep('signup');
-                setError('');
-              }}
-              className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-4 rounded-xl flex items-center justify-center gap-3 transition-all"
-            >
-              <UserPlus className="w-5 h-5" />
+          <div className="space-y-3" data-testid="login-choose">
+            <p className="font-spec text-[10px] text-fg-3 uppercase tracking-widest">{email}</p>
+            <Button className="w-full" onClick={() => { setStep('signup'); setError(''); }}>
               Create New Account
-            </button>
-
-            <button
-              onClick={() => {
-                setStep('signin');
-                setError('');
-              }}
-              className="w-full bg-gray-900 hover:bg-gray-800 border border-gray-800 text-white font-medium py-4 rounded-xl flex items-center justify-center gap-3 transition-all"
-            >
-              <LogIn className="w-5 h-5" />
+            </Button>
+            <Button kind="secondary" className="w-full" onClick={() => { setStep('signin'); setError(''); }}>
               I Already Have an Account
-            </button>
+            </Button>
+            <Button kind="ghost" className="w-full" onClick={() => { setStep('email'); setError(''); }}>
+              Change email
+            </Button>
           </div>
         )}
 
         {step === 'signin' && (
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
-              <Mail className="text-gray-500 w-5 h-5" />
-              <span className="text-gray-300 text-sm">{email}</span>
-              <button
-                type="button"
-                onClick={() => setStep('choose')}
-                className="ml-auto text-xs text-blue-400 hover:text-blue-300"
-              >
-                Back
-              </button>
-            </div>
-
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
-                autoFocus
-                autoComplete="current-password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Sign In
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
+          <form onSubmit={handleSignIn} className="space-y-3" data-testid="login-signin">
+            <Input
+              type="password"
+              name="password"
+              placeholder="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              autoComplete="current-password"
+              aria-label="password"
+            />
+            <Button type="submit" className="w-full" loading={loading}>
+              Continue
+            </Button>
+            <Button kind="ghost" className="w-full" onClick={() => setStep('choose')}>
+              Back
+            </Button>
           </form>
         )}
 
         {step === 'signup' && (
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
-              <Mail className="text-gray-500 w-5 h-5" />
-              <span className="text-gray-300 text-sm">{email}</span>
-              <button
-                type="button"
-                onClick={() => setStep('choose')}
-                className="ml-auto text-xs text-blue-400 hover:text-blue-300"
-              >
-                Back
-              </button>
-            </div>
-
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
-              <input
-                type="password"
-                placeholder="Create a password (min 6 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
-                autoFocus
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
-              <input
-                type="password"
-                placeholder="Confirm password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Create Account
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
+          <form onSubmit={handleSignUp} className="space-y-3" data-testid="login-signup">
+            <Input
+              type="password"
+              name="password"
+              placeholder="password (min 6)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              autoComplete="new-password"
+              aria-label="password"
+            />
+            <Input
+              type="password"
+              name="confirm"
+              placeholder="confirm password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              aria-label="confirm password"
+            />
+            <Button type="submit" className="w-full" loading={loading}>
+              Continue
+            </Button>
+            <Button kind="ghost" className="w-full" onClick={() => setStep('choose')}>
+              Back
+            </Button>
           </form>
         )}
       </div>
-
-      <div className="absolute bottom-8 text-center">
-        <p className="text-xs text-gray-600">
-          Invite-only beta
-        </p>
-      </div>
+      <p className="absolute bottom-8 font-spec text-[10px] uppercase tracking-widest text-fg-3">
+        Invite only. For now.
+      </p>
     </div>
   );
 }

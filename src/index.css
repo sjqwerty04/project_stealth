@@ -1,40 +1,82 @@
 @import "tailwindcss";
 
-:root {
-  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.05);
-}
-
 @theme {
-  --color-glass-100: rgba(255, 255, 255, 0.1);
-  --color-glass-200: rgba(255, 255, 255, 0.2);
-  --color-glass-300: rgba(255, 255, 255, 0.3);
-  --backdrop-blur-xs: 2px;
+  --color-base: #0A0A0B;
+  --color-base-2: #141416;
+  --color-base-3: #1D1D20;
+  --color-line: #2B2B2F;
+  --color-fg: #EFEDE9;
+  --color-fg-2: #B9B6B0;
+  --color-fg-3: #7C7A76;
+  --color-select: #FF3B14;
+  --color-film: #1D5B8A;
+  --color-film-2: #8A3A1D;
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-condensed: "Archivo Narrow", "Archivo", ui-sans-serif, sans-serif;
+  --font-spec: "Martian Mono", ui-monospace, monospace;
+  --radius-none: 0px;
+  --radius-poster: 2px;
+  --radius-icon: 22px;
+  --color-glass-100: rgba(239, 237, 233, 0.1);
+  --color-glass-200: rgba(239, 237, 233, 0.2);
+  --color-glass-300: rgba(239, 237, 233, 0.3);
 }
 
-/* Force black background immediately to verify CSS load */
+:root {
+  --base: #0A0A0B;
+  --base-2: #141416;
+  --base-3: #1D1D20;
+  --line: #2B2B2F;
+  --fg: #EFEDE9;
+  --fg-2: #B9B6B0;
+  --fg-3: #7C7A76;
+  --select: #FF3B14;
+  --film: #1D5B8A;
+  --film-2: #8A3A1D;
+  --radius-none: 0px;
+  --radius-poster: 2px;
+  --radius-icon: 22px;
+  --tab-h: 68px;
+}
+
+html, body, #root {
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
-  background-color: #050505;
-  color: #ffffff;
+  background-color: var(--base);
+  color: var(--fg);
   min-height: 100vh;
-  width: 100vw;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  width: 100%;
+  font-family: var(--font-display);
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Utility classes for Tailwind v4 */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.font-spec, [data-spec] {
+  font-family: var(--font-spec);
+}
+
 @utility glass-panel {
-  @apply bg-white/5 backdrop-blur-lg border border-white/10 shadow-xl;
+  background: var(--base-3);
+  border: 1px solid var(--line);
 }
 
 @utility glass-button {
-  @apply px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all duration-200 border border-white/5;
+  @apply min-h-11 px-4 py-2 bg-base-3 text-fg transition-colors duration-150 border border-line;
+  border-radius: 0;
 }
 
 @utility glass-input {
-  @apply w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-white/20 backdrop-blur-sm text-white placeholder-white/30;
+  @apply w-full min-h-11 px-4 py-2 bg-base-2 border border-line text-fg placeholder:text-fg-3 focus:outline-none focus:border-fg-2;
+  border-radius: 0;
 }
 
 @utility no-scrollbar {
@@ -45,7 +87,10 @@ body {
   display: none;
 }
 
-/* When the hero video container goes fullscreen, cover the whole screen edge-to-edge */
+.screen-pad {
+  padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+}
+
 .hero-video-wrap:fullscreen,
 .hero-video-wrap:-webkit-full-screen {
   background: #000;
@@ -63,7 +108,6 @@ body {
   transform: translate(-50%, -50%) !important;
   pointer-events: auto !important;
 }
-/* Hide the tap overlay in fullscreen so native controls are accessible */
 .hero-video-wrap:fullscreen > div[class*="z-10"],
 .hero-video-wrap:-webkit-full-screen > div[class*="z-10"] {
   display: none;

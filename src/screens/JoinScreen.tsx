@@ -1,10 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '../components/ui';
 
-// Landing page for general "invite to Selects" links.
-// Sets a session flag so the login screen bypasses the whitelist gate.
 export default function JoinScreen() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -20,8 +18,8 @@ export default function JoinScreen() {
   }, [loading, user, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-gray-500 animate-spin" />
+    <div className="min-h-screen bg-base flex items-center justify-center">
+      <Skeleton className="h-8 w-32" />
     </div>
   );
 }

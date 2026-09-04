@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { callClaude } from '../lib/claude';
+import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const OMDB_API_KEY = import.meta.env.VITE_OMDB_API_KEY || '';
@@ -333,8 +334,33 @@ Genres: ${genreList}
       return movieDetails;
     } catch (err) {
       console.error('Failed to fetch movie details:', err);
-      setError('Failed to load movie details');
-      return null;
+      const film = fallbackById(movieId);
+      const fallback: MovieDetails = {
+        id: film.id,
+        title: film.title,
+        year: film.year,
+        runtime: film.runtime,
+        posterPath: film.posterPath,
+        backdropPath: film.backdropPath ?? null,
+        logoPath: null,
+        genres: [],
+        overview: film.overview,
+        tagline: '',
+        voteAverage: 0,
+        voteCount: 0,
+        director: null,
+        cast: [],
+        trailer: null,
+        heroVideo: null,
+        watchProviders: null,
+        vibeDescription: null,
+        ratings: null,
+        techSpecs: null,
+        mediaType: 'movie',
+      };
+      setDetails(fallback);
+      setError(null);
+      return fallback;
     } finally {
       setIsLoading(false);
     }

@@ -45,7 +45,10 @@ export default function MovieActions({
         <button
           onClick={onAddToCalendar}
           disabled={isAddingToCalendar}
-          className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-white text-black font-semibold transition-all hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Add to calendar"
+          data-testid="action-log"
+          className="flex-1 flex items-center justify-center gap-2 min-h-11 py-3.5 px-4 bg-fg text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ borderRadius: 0 }}
         >
           {isAddingToCalendar ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -58,11 +61,14 @@ export default function MovieActions({
         {/* Add to List (Spotify-style picker) */}
         <button
           onClick={() => setShowPicker(true)}
-          className={`flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold transition-all ${
+          aria-label={isInWatchlist ? 'Saved' : 'Save'}
+          data-testid="action-watchlist"
+          className={`flex items-center justify-center gap-2 min-h-11 py-3.5 px-4 font-semibold ${
             isInWatchlist
-              ? 'bg-blue-600/20 text-blue-400 border border-blue-600/40'
-              : 'bg-gray-800 text-white hover:bg-gray-700 border border-gray-700'
+              ? 'bg-base-3 text-fg border border-fg'
+              : 'bg-base-3 text-fg border border-line'
           }`}
+          style={{ borderRadius: 0 }}
         >
           {isInWatchlist ? (
             <Check className="w-5 h-5" />
@@ -78,7 +84,10 @@ export default function MovieActions({
             <button
               onClick={handleMarkAsSeenClick}
               disabled={isMarkingSeen}
-              className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gray-800 text-white font-semibold transition-all hover:bg-gray-700 border border-gray-700 disabled:opacity-50"
+              aria-label="Mark as seen"
+              data-testid="action-like"
+              className="flex items-center justify-center gap-2 min-h-11 py-3.5 px-4 bg-base-3 text-fg font-semibold border border-line disabled:opacity-50"
+              style={{ borderRadius: 0 }}
             >
               {isMarkingSeen ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

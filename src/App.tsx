@@ -26,6 +26,7 @@ import OnboardingScreen from './screens/OnboardingScreen';
 import AdminScreen from './screens/AdminScreen';
 import JoinScreen from './screens/JoinScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import AppShell from './components/AppShell';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
       <AuthProvider>
         <ExplorationProvider>
           <ClaimHandleBanner />
+          <AppShell>
           <Routes>
             <Route path="/" element={<SplashScreen />} />
             <Route path="/login" element={<LoginScreen />} />
@@ -163,6 +165,7 @@ export default function App() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </AppShell>
           <PWAUpdatePrompt />
         </ExplorationProvider>
       </AuthProvider>

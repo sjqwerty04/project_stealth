@@ -79,20 +79,20 @@ export default function DNAScreen() {
 
   if (loading || !current) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-purple-400 animate-spin" />
+      <div className="min-h-screen bg-base flex items-center justify-center">
+        <div className="w-32 h-10 bg-base-3" data-testid="skeleton" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-base text-fg flex flex-col">
       {/* Top bar + breadcrumb tree */}
       <div className="sticky top-0 z-20 bg-gradient-to-b from-black via-black/90 to-transparent px-3 pt-3 pb-4">
         <div className="flex items-center gap-2 mb-3">
           <button
             onClick={handleExit}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            className="p-2 min-h-11 min-w-11 bg-base-3 text-fg"
             aria-label="Exit DNA"
           >
             <ArrowLeft size={20} />
@@ -108,7 +108,7 @@ export default function DNAScreen() {
                 onClick={() => jumpTo(i)}
                 className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
                   i === currentIndex
-                    ? 'bg-purple-600 text-white font-semibold'
+                    ? 'bg-fg text-base font-semibold'
                     : 'bg-white/10 text-gray-300 hover:bg-white/20'
                 }`}
               >

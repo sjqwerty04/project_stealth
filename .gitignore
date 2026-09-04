@@ -25,5 +25,8 @@ dist-ssr
 .vercel
 .env*.local
 
-.env
-viewfindr-233b0-firebase-adminsdk-*.json
+test-results/
+playwright-report/
+playwright/.cache/
+e2e/.auth/
+

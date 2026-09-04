@@ -3,6 +3,7 @@ import { callClaude } from '../lib/claude';
 import { useAuth } from './useAuth';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { fallbackByQuery } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -386,8 +387,22 @@ Return a JSON array of movie objects.
         return []; // Return empty on abort, don't update state
       }
       console.error('Search failed:', err);
-      setError('Search failed. Please try again.');
-      return [];
+      const local = fallbackByQuery(trimmedQuery).map((f) => ({
+        id: f.id,
+        title: f.title,
+        year: f.year,
+        posterPath: f.posterPath,
+        backdropPath: f.backdropPath ?? null,
+        genres: [] as string[],
+        overview: f.overview,
+        popularity: 1,
+        voteAverage: 0,
+        voteCount: 0,
+        mediaType: f.mediaType,
+      }));
+      setResults(local);
+      setError(null);
+      return local;
     } finally {
       setIsSearching(false);
     }
