@@ -120,7 +120,7 @@ export default function DiscoverScreen() {
   const contentPadding = showPatternAssistant && isPatternPanelOpen ? 'pb-40' : 'pb-12';
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-base text-fg">
       {showPatternAssistant && isPatternPanelOpen && (
         <div className="fixed bottom-24 left-0 right-0 px-4 sm:px-6 z-30 pointer-events-none">
           <div className="relative max-w-md mx-auto pointer-events-auto drop-shadow-2xl">
@@ -151,7 +151,8 @@ export default function DiscoverScreen() {
       {showPatternAssistant && !isPatternPanelOpen && (
         <button
           onClick={() => setIsPatternPanelOpen(true)}
-          className="fixed bottom-6 right-4 z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 hover:bg-purple-500 text-white font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-300"
+          className="fixed right-4 z-30 inline-flex items-center gap-2 min-h-11 px-4 bg-base-3 border border-line text-fg font-medium"
+          style={{ bottom: 'calc(68px + env(safe-area-inset-bottom) + 12px)', borderRadius: 0 }}
         >
           <Sparkles size={16} />
           Show pattern vibe
@@ -159,25 +160,28 @@ export default function DiscoverScreen() {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-black/95 backdrop-blur-sm border-b border-gray-800">
+      <div className="sticky top-0 z-20 bg-base border-b border-line">
         {/* Search Bar */}
         <div className="flex items-center gap-3 p-4">
           <button
             onClick={handleBack}
-            className="p-2 -ml-2 text-gray-400 hover:text-white transition-colors"
+            className="p-2 -ml-2 min-h-11 min-w-11 text-fg-2 hover:text-fg"
+            aria-label="Go back"
           >
             <ArrowLeft size={24} />
           </button>
           
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-fg-3" />
             <input
-              type="text"
+              type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search movies & shows..."
+              placeholder="Hunt a film"
+              aria-label="Search movies and shows"
               autoFocus
-              className="w-full pl-10 pr-10 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              data-testid="orbit-search"
+              className="w-full pl-10 pr-10 py-3 min-h-11 bg-base-2 border border-line text-fg placeholder-fg-3 focus:outline-none focus:border-fg-2"
             />
             {query && (
               <button
@@ -209,7 +213,7 @@ export default function DiscoverScreen() {
         {/* Loading State */}
         {isSearching && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+            <div className="w-20 h-8 bg-base-3" data-testid="skeleton" />
           </div>
         )}
 
@@ -224,11 +228,11 @@ export default function DiscoverScreen() {
         {!query && !isSearching && results.length === 0 && (
           <div className="text-center py-16">
             <Search className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
-              Discover your next watch
+            <h3 className="text-xl font-display text-fg mb-2">
+              Hunt a film
             </h3>
-            <p className="text-gray-600 max-w-xs mx-auto">
-              Search for movies or shows. After exploring a few, I'll start spotting patterns in your taste.
+            <p className="text-fg-3 max-w-xs mx-auto">
+              Search to start an orbit. After a few picks, patterns show up here.
             </p>
           </div>
         )}

@@ -19,6 +19,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { logActivity } from '../lib/activityLogger';
+import Skeleton from '../components/ui/Skeleton';
 
 const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
   if (!path) return null;
@@ -285,17 +286,17 @@ export default function MovieDetailScreen() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+      <div className="min-h-screen bg-base flex items-center justify-center">
+        <Skeleton className="w-32 h-48" />
       </div>
     );
   }
 
   if (error || !details) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white p-4">
-        <p className="text-red-400 mb-4">{error || 'Movie not found'}</p>
-        <button onClick={handleBack} className="text-blue-400 hover:underline">
+      <div className="min-h-screen bg-base flex flex-col items-center justify-center text-fg p-4">
+        <p className="text-fg-2 mb-4">{error || 'Movie not found'}</p>
+        <button type="button" onClick={handleBack} className="min-h-11 text-fg underline">
           Go back
         </button>
       </div>
@@ -305,7 +306,7 @@ export default function MovieDetailScreen() {
   const backdropUrl = buildImageUrl(details.backdropPath, 'original');
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white">
+    <div className="min-h-screen bg-base text-fg">
 
       {/* ── HERO ── full-bleed video/backdrop, ~60vh with centered logo */}
       <div className="relative h-[60vh] min-h-[340px] overflow-hidden">
@@ -360,7 +361,8 @@ export default function MovieDetailScreen() {
         {/* Back */}
         <button
           onClick={handleBack}
-          className="absolute top-4 left-4 z-10 p-2.5 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors flex items-center gap-1.5"
+          className="absolute top-4 left-4 z-10 p-2.5 min-h-11 min-w-11 bg-black/50 text-fg flex items-center gap-1.5"
+          aria-label="Go back"
         >
           <ArrowLeft size={20} />
           {fromOrbit && <span className="text-sm font-medium pr-1">Orbit</span>}
@@ -370,7 +372,7 @@ export default function MovieDetailScreen() {
         {mediaType === 'movie' && (
           <button
             onClick={() => navigate(`/dna/${details.id}`)}
-            className="absolute top-4 right-4 z-10 px-3.5 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+            className="absolute top-4 right-4 z-10 px-3.5 py-2 min-h-11 bg-black/50 text-fg"
             aria-label="Explore DNA"
           >
             <span className="text-base font-extrabold tracking-[-0.12em]">DNA</span>
@@ -450,17 +452,20 @@ export default function MovieDetailScreen() {
         {mediaType === 'movie' && (
           <div className="grid grid-cols-2 gap-3">
             <button
+              type="button"
+              data-testid="orbit-cta"
               onClick={() => navigate(`/orbit/${details.id}`)}
-              className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold text-sm transition-all active:scale-[0.98]"
+              className="flex items-center justify-center gap-2 min-h-11 py-3 bg-fg text-base font-semibold text-sm"
             >
               <Orbit className="w-4 h-4" />
               <span>Enter Orbit</span>
             </button>
             <button
+              type="button"
               onClick={() => setChatOpen(true)}
-              className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#18181b] hover:bg-[#27272a] border border-white/10 text-gray-100 font-semibold text-sm transition-colors"
+              className="flex items-center justify-center gap-2 min-h-11 py-3 bg-base-3 border border-line text-fg font-semibold text-sm"
             >
-              <Sparkles className="w-4 h-4 text-purple-400" />
+              <Sparkles className="w-4 h-4 text-fg-2" />
               <span>Ask AI</span>
             </button>
           </div>

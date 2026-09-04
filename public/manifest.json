@@ -1,9 +1,9 @@
 {
-  "name": "ViewFindr",
-  "short_name": "ViewFindr",
-  "description": "Your Personal Cinema Journal - Log movies, get AI recommendations",
-  "theme_color": "#09090b",
-  "background_color": "#09090b",
+  "name": "Selects",
+  "short_name": "Selects",
+  "description": "The take worth keeping — log films, hunt an orbit, keep a library.",
+  "theme_color": "#0A0A0B",
+  "background_color": "#0A0A0B",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",
@@ -21,4 +21,3 @@
     }
   ]
 }
-

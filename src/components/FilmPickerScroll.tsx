@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Check } from 'lucide-react';
+import { FALLBACK_FILMS, posterUrl } from '../lib/fallbackCatalog';
+import Skeleton from './ui/Skeleton';
 
 interface Film {
   id: number;
@@ -15,7 +17,6 @@ interface FilmPickerScrollProps {
 }
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY as string;
-const IMG_BASE = 'https://image.tmdb.org/t/p/w200';
 
 function tmdbResultToFilm(r: any): Film {
   return {
@@ -52,9 +53,22 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
             combined.push(tmdbResultToFilm(r));
           }
         }
-        setTrending(combined);
+        setTrending(combined.length ? combined : FALLBACK_FILMS.map((f) => ({
+          id: f.id,
+          title: f.title,
+          year: f.year,
+          posterPath: f.posterPath,
+        })));
       } catch (e) {
         console.error('Failed to fetch trending:', e);
+        if (!cancelled) {
+          setTrending(FALLBACK_FILMS.map((f) => ({
+            id: f.id,
+            title: f.title,
+            year: f.year,
+            posterPath: f.posterPath,
+          })));
+        }
       } finally {
         if (!cancelled) setLoadingTrending(false);
       }
@@ -76,6 +90,15 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
       setSearchResults((data.results ?? []).map(tmdbResultToFilm));
     } catch (e) {
       console.error('TMDB search failed:', e);
+      const needle = q.trim().toLowerCase();
+      setSearchResults(
+        FALLBACK_FILMS.filter((f) => f.title.toLowerCase().includes(needle)).map((f) => ({
+          id: f.id,
+          title: f.title,
+          year: f.year,
+          posterPath: f.posterPath,
+        }))
+      );
     }
   }, []);
 
@@ -111,7 +134,7 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
       <div className="flex-1 overflow-y-auto pb-20 no-scrollbar">
         {loadingTrending && !searchResults ? (
           <div className="flex items-center justify-center h-48">
-            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <Skeleton className="w-20 h-28" />
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 px-4">
@@ -121,15 +144,20 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
               return (
                 <button
                   key={film.id}
+                  type="button"
+                  data-testid="film-pick"
                   onClick={() => handleTap(film)}
                   disabled={isDisabled}
-                  className={`relative aspect-[2/3] rounded-lg overflow-hidden bg-[#18181b] transition-opacity ${
+                  aria-label={film.title}
+                  aria-pressed={isSelected}
+                  className={`relative aspect-[2/3] overflow-hidden bg-base-3 transition-opacity min-h-11 ${
                     isDisabled ? 'opacity-30' : 'opacity-100'
                   }`}
+                  style={{ borderRadius: 2 }}
                 >
                   {film.posterPath ? (
                     <img
-                      src={`${IMG_BASE}${film.posterPath}`}
+                      src={film.posterPath.startsWith('http') ? film.posterPath : posterUrl(film.posterPath)}
                       alt={film.title}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -140,7 +168,7 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
                     </div>
                   )}
                   {isSelected && (
-                    <div className="absolute inset-0 bg-purple-600/70 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-fg/70 flex items-center justify-center">
                       <Check size={24} className="text-white" strokeWidth={3} />
                     </div>
                   )}
@@ -151,15 +179,16 @@ export default function FilmPickerScroll({ selected, onToggle, maxSelect }: Film
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 bg-[#09090b] border-t border-white/10 px-4 py-3">
+      <div className="absolute bottom-0 left-0 right-0 bg-base border-t border-line px-4 py-3">
         <div className="relative flex items-center">
-          <Search size={16} className="absolute left-4 text-gray-600 pointer-events-none" />
+          <Search size={16} className="absolute left-4 text-fg-3 pointer-events-none" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search films..."
-            className="bg-[#09090b] rounded-full pl-10 pr-10 py-2.5 text-white text-sm placeholder-gray-600 w-full border border-white/10 focus:border-purple-500 outline-none"
+            aria-label="Search films"
+            className="bg-base-2 pl-10 pr-10 py-2.5 text-fg text-sm placeholder-fg-3 w-full border border-line focus:border-fg-2 outline-none min-h-11"
           />
           {query && (
             <button

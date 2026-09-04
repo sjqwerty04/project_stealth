@@ -9,8 +9,10 @@ export default function FeedbackFAB() {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        className="fixed right-4 z-40 w-11 h-11 bg-base-3 border border-line text-fg flex items-center justify-center"
+        style={{ bottom: 'calc(68px + env(safe-area-inset-bottom) + 12px)', borderRadius: 0 }}
         title="Send Feedback"
+        aria-label="Send feedback"
       >
         <MessageCircleQuestion size={24} />
       </button>

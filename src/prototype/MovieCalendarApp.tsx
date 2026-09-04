@@ -26,9 +26,12 @@ import { useHandle, isValidHandle, normalizeHandle } from '../hooks/useHandle';
 import { useAuth } from '../hooks/useAuth';
 import { logMovieAdded } from '../lib/analytics';
 import RecommendationCard from '../components/RecommendationCard';
-import ProfileDropdown from '../components/ProfileDropdown';
 import type { RecommendationResult } from '../hooks/useRecommendation';
 import { callClaude } from '../lib/claude';
+import HomeStrip from '../components/HomeStrip';
+import Skeleton from '../components/ui/Skeleton';
+import { useUserInsights } from '../hooks/useUserInsights';
+import { FALLBACK_FILMS, posterUrl } from '../lib/fallbackCatalog';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -517,6 +520,8 @@ export default function MovieCalendarApp() {
   const [reviewRating, setReviewRating] = useState<RatingValue>(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [dismissedReviewIds, setDismissedReviewIds] = useState<Set<string>>(new Set());
+  const [homeChrome, setHomeChrome] = useState<'strip' | 'year'>('strip');
+  const insights = useUserInsights();
 
   // Sync avatar preview when profile image changes
   useEffect(() => {
@@ -691,8 +696,19 @@ export default function MovieCalendarApp() {
         if (cancelled) return;
         if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error('TMDB fetch error:', error);
-        setSearchError('Unable to reach TMDB right now.');
-        setSearchResults([]);
+        setSearchError('Unable to reach TMDB right now. Showing local picks.');
+        const needle = trimmedQuery.toLowerCase();
+        const local = MOCK_DB.filter((m) => m.title.toLowerCase().includes(needle));
+        const extra = FALLBACK_FILMS.filter((f) => f.title.toLowerCase().includes(needle)).map((f) => ({
+          id: f.id,
+          title: f.title,
+          year: f.year,
+          runtime: f.runtime,
+          poster: posterUrl(f.posterPath),
+          backdrop: f.backdropPath ? posterUrl(f.backdropPath, 'w500') : undefined,
+          mediaType: f.mediaType,
+        }));
+        setSearchResults(local.length ? local : extra.length ? extra : MOCK_DB);
       } finally {
         if (!cancelled) setIsSearchingMovies(false);
       }
@@ -1103,42 +1119,71 @@ export default function MovieCalendarApp() {
   };
 
 
-  if (eventsLoading) return <div className="h-screen w-full flex items-center justify-center bg-black text-gray-500">Loading Cinema...</div>;
+  if (eventsLoading) {
+    return (
+      <div className="min-h-screen bg-base flex items-center justify-center">
+        <Skeleton className="w-32 h-10" />
+      </div>
+    );
+  }
 
   const isPast = isPastDate(selectedDate);
 
+  if (homeChrome === 'strip' && !isModalOpen && !isAvatarModalOpen) {
+    const featured = (featuredMovies.length ? featuredMovies : MOCK_DB).map((m) => ({
+      id: m.id,
+      title: m.title,
+      poster: m.poster,
+      mediaType: m.mediaType,
+      accentStart: m.accentStart,
+    }));
+    return (
+      <HomeStrip
+        events={events}
+        featured={featured}
+        insightsLabel={insights.personaLine}
+        onYearZoom={() => setHomeChrome('year')}
+        onOpenMovie={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)}
+        onPickEmptyRec={async (movie, date) => {
+          await addEvent({
+            movieId: movie.id,
+            title: movie.title,
+            poster: movie.poster,
+            date: date.toISOString(),
+            inviteFriend: false,
+            rating: null,
+            status: isPastDate(date) ? 'watched' : 'planned',
+            mediaType: movie.mediaType,
+            accentStart: movie.accentStart,
+          });
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#09090b] font-sans text-gray-100 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden border-x border-gray-800">
-      <div className="bg-[#09090b]/90 backdrop-blur-md px-6 py-6 flex items-center justify-between sticky top-0 z-10 border-b border-gray-800">
+    <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto overflow-hidden border-x border-line" data-testid="year-zoom-calendar">
+      <div className="bg-base px-6 py-6 flex items-center justify-between sticky top-0 z-10 border-b border-line">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Selects</h1>
-          <p className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-semibold">Your Cinema Journal</p>
+          <h1 className="text-2xl font-bold tracking-tight text-fg">Selects</h1>
+          <p className="text-xs text-fg-3 uppercase tracking-wider mt-1 font-spec">Year zoom</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/discover')}
-            className="p-2.5 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
-            title="Discover movies"
-          >
-            <Search size={20} />
-          </button>
-          <ProfileDropdown
-            profileImage={profileImage}
-            onOpenAvatarModal={() => {
-              setAvatarPreview(profileImage);
-              setAvatarError('');
-              setIsAvatarModalOpen(true);
-            }}
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => setHomeChrome('strip')}
+          className="min-h-11 px-3 font-spec text-[10px] uppercase tracking-widest text-fg-2 border border-line"
+          aria-label="Back to strip"
+        >
+          Strip
+        </button>
       </div>
 
       <div className="px-6 py-4 flex items-center justify-between bg-[#09090b]">
-        <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white">
+        <button onClick={() => changeMonth(-1)} className="p-2 min-h-11 min-w-11 hover:bg-base-3 text-fg-2 hover:text-fg" aria-label="Previous month">
           <ChevronLeft size={20} />
         </button>
         <span className="text-lg font-semibold text-gray-200">{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-        <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white">
+        <button onClick={() => changeMonth(1)} className="p-2 min-h-11 min-w-11 hover:bg-base-3 text-fg-2 hover:text-white" aria-label="Next month">
           <ChevronRight size={20} />
         </button>
       </div>
@@ -1308,9 +1353,13 @@ export default function MovieCalendarApp() {
             return (
               <div
                 key={date.toISOString()}
+                role="button"
+                tabIndex={0}
+                data-testid="year-day"
+                aria-label={date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                 onClick={() => handleDayClick(date, dayEvents.length > 0 ? dayEvents : undefined)}
-                className={`aspect-square rounded-xl relative flex flex-col items-start justify-start p-2 cursor-pointer transition-all duration-200 overflow-hidden ${baseClasses}`}
-                style={cellStyle}
+                className={`aspect-square min-h-11 relative flex flex-col items-start justify-start p-2 cursor-pointer overflow-hidden ${baseClasses}`}
+                style={{ ...cellStyle, borderRadius: 0 }}
               >
                 <span
                   className="text-sm font-bold z-10 drop-shadow-sm"
@@ -1945,14 +1994,7 @@ export default function MovieCalendarApp() {
         </div>
       )}
 
-      {/* Fixed Search Button - Bottom Center */}
-      <button
-        onClick={() => navigate('/discover')}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full shadow-lg hover:bg-gray-100 active:scale-95 transition-all font-medium"
-      >
-        <Search size={20} />
-        <span>Search</span>
-      </button>
+      {/* Avatar modal remains; Discover FAB removed — Orbit tab owns search */}
     </div>
   );
 }

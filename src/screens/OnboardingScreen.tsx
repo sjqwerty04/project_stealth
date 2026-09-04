@@ -8,7 +8,8 @@ import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport } from '../hooks/useIMDBImport';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
 import FilmPickerScroll from '../components/FilmPickerScroll';
-import { Loader2, Check, Film } from 'lucide-react';
+import Armature from '../components/Armature';
+import { BarUnit, Button, Input, Mark, Skeleton } from '../components/ui';
 
 type FilmItem = {
   id: number;
@@ -16,6 +17,8 @@ type FilmItem = {
   year: string;
   posterPath: string | null;
 };
+
+const ARMATURE = ['mark', 'screen', 'screen', 'broken', 'fan', 'stack', 'stack'] as const;
 
 export default function OnboardingScreen() {
   const navigate = useNavigate();
@@ -30,10 +33,8 @@ export default function OnboardingScreen() {
   const [aiLine, setAiLine] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
   const [lbUsername, setLbUsername] = useState('');
   const [lbStatus, setLbStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-
   const [imdbStatus, setImdbStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
 
   const { importFromLetterboxd, isImporting: lbImporting } = useLetterboxdImport();
@@ -55,7 +56,7 @@ export default function OnboardingScreen() {
       const available = await isAvailable(lower);
       if (available) await claimHandle(lower);
     } catch {
-      // silent — never block onboarding
+      // silent
     }
   }, [user, isAvailable, claimHandle]);
 
@@ -65,8 +66,15 @@ export default function OnboardingScreen() {
     const system =
       "You are a film-savvy friend. Read someone's taste from their film choice and respond with dry wit. ONE sentence, max 10 words. Wry, not flattering. No 'I see you like' opener. Like a film critic friend texting back.";
     const prompt = `The user picked: ${q1Films.map((f) => `${f.title} (${f.year})`).join(', ')}. Write ONE reaction line, max 10 words.`;
-    const result = await callClaude(prompt, system);
-    setAiLine(result);
+    try {
+      const result = await Promise.race([
+        callClaude(prompt, system),
+        new Promise<string | null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+      setAiLine(result);
+    } catch {
+      setAiLine(null);
+    }
     setAiLoading(false);
   }, [q1Films]);
 
@@ -145,20 +153,15 @@ export default function OnboardingScreen() {
     });
   }
 
-  const PageDots = () => (
-    <div className="absolute top-4 right-4 flex gap-1.5">
+  const Progress = () => (
+    <div className="flex gap-1.5 px-7 pt-6" aria-label="Onboarding progress">
       {Array.from({ length: 7 }).map((_, i) => (
-        <div
-          key={i}
-          className={`w-1.5 h-1.5 rounded-full transition-colors ${
-            i === page ? 'bg-white' : 'bg-white/20'
-          }`}
-        />
+        <BarUnit key={i} state={i === page ? 'on' : i < page ? 'on' : 'empty'} />
       ))}
     </div>
   );
 
-  const CTAButton = ({
+  const CTA = ({
     label,
     onPress,
     disabled,
@@ -169,265 +172,183 @@ export default function OnboardingScreen() {
     disabled?: boolean;
     loading?: boolean;
   }) => (
-    <div
-      className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-      style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-    >
-      <button
-        onClick={onPress}
-        disabled={disabled || loading}
-        className={`w-full bg-white text-black font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-opacity ${
-          disabled || loading ? 'opacity-40' : 'opacity-100'
-        }`}
-      >
-        {loading ? <Loader2 size={20} className="animate-spin" /> : label}
-      </button>
+    <div className="px-7 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <Button className="w-full" onClick={onPress} disabled={disabled} loading={loading} data-testid="onboarding-cta">
+        {label}
+      </Button>
     </div>
   );
 
   if (page === 0) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center px-5">
-        <div className="w-full max-w-sm flex flex-col items-center gap-6">
-          <img src="/selects-logo.png" alt="Selects" className="h-12 w-auto" />
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-black text-white">Your cinema. Understood.</h1>
-            <p className="text-gray-400 text-sm">A few questions to get started.</p>
-          </div>
-          <button
-            onClick={() => setPage(1)}
-            className="w-full bg-white text-black font-bold py-4 rounded-2xl mt-4"
-          >
-            Begin
-          </button>
-        </div>
+      <div className="min-h-screen bg-base flex flex-col items-center justify-center px-7" data-testid="onboarding-0">
+        <Armature state="mark" />
+        <Mark variant="lockup" size={40} className="mt-6" />
+        <p className="mt-4 text-center font-display text-xl text-fg">
+          Selects reads you, and hands you the take worth keeping.
+        </p>
+        <Button className="w-full max-w-sm mt-8" onClick={() => setPage(1)} data-testid="onboarding-cta">
+          Begin
+        </Button>
       </div>
     );
   }
 
   if (page === 1) {
     return (
-      <div key={1} className="min-h-screen bg-[#09090b] flex flex-col relative">
-        <PageDots />
-        <div className="px-5 pt-12 pb-3">
-          <h2 className="text-xl font-bold text-white leading-snug">
+      <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-1">
+        <Progress />
+        <Armature state={ARMATURE[1]} />
+        <div className="px-7 pb-3">
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Your theatre</p>
+          <h2 className="font-display text-xl text-fg leading-snug mt-1">
             If you were alone in a theater — same film, on repeat — what would it be?
           </h2>
-          <p className="text-xs text-gray-500 mt-1">Pick 1–3 films</p>
         </div>
         <div className="flex-1 relative min-h-0">
           <FilmPickerScroll selected={q1Films} onToggle={toggleQ1} maxSelect={3} />
         </div>
-        <CTAButton
-          label="Next"
-          onPress={goToAiPage}
-          disabled={q1Films.length < 1}
-        />
+        <CTA label="Next" onPress={goToAiPage} disabled={q1Films.length < 1} />
       </div>
     );
   }
 
   if (page === 2) {
     return (
-      <div key={2} className="min-h-screen bg-[#09090b] flex flex-col relative">
-        <PageDots />
+      <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-2">
+        <Progress />
+        <Armature state="fan" />
         <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
-          <span className="text-gray-400 text-xs uppercase tracking-widest">Based on your picks</span>
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Reading</p>
           {aiLoading ? (
-            <Loader2 className="animate-spin text-purple-400" size={24} />
+            <Skeleton className="h-8 w-56" />
           ) : (
-            <p className="text-2xl font-black text-white text-center leading-tight italic">
-              {aiLine ?? 'Interesting taste.'}
-            </p>
+            <p className="font-display text-2xl text-fg text-center leading-tight">{aiLine ?? 'Interesting taste.'}</p>
           )}
         </div>
-        <CTAButton
-          label="Next"
-          onPress={() => setPage(3)}
-          disabled={aiLoading}
-        />
+        <CTA label="Next" onPress={() => setPage(3)} disabled={aiLoading} />
       </div>
     );
   }
 
   if (page === 3) {
     return (
-      <div key={3} className="min-h-screen bg-[#09090b] flex flex-col relative">
-        <PageDots />
-        <div className="px-5 pt-12 pb-3">
-          <h2 className="text-xl font-bold text-white leading-snug">
+      <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-3">
+        <Progress />
+        <Armature state={ARMATURE[3]} />
+        <div className="px-7 pb-3">
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Everyone but you</p>
+          <h2 className="font-display text-xl text-fg leading-snug mt-1">
             Every generation has that film. The one everyone loved. But not you.
           </h2>
-          <p className="text-xs text-gray-500 mt-1">Which one didn&apos;t catch your taste?</p>
         </div>
         <div className="flex-1 relative min-h-0">
           <FilmPickerScroll selected={q2Films} onToggle={toggleQ2} maxSelect={2} />
         </div>
-        <CTAButton label="Next" onPress={() => setPage(4)} />
+        <CTA label="Next" onPress={() => setPage(4)} />
       </div>
     );
   }
 
   if (page === 4) {
     const options: { value: 'story' | 'visual' | 'mood'; label: string; sub: string }[] = [
-      { value: 'story', label: 'A great story', sub: 'Writing, characters, plot' },
-      { value: 'visual', label: 'A great experience', sub: 'Visuals, sound, atmosphere' },
-      { value: 'mood', label: 'Depends on my mood', sub: 'Both, honestly' },
+      { value: 'story', label: 'A flawless screenplay', sub: 'Structure · dialogue · the writing' },
+      { value: 'visual', label: 'The room and the projection', sub: '70mm · the crowd · the dark' },
+      { value: 'mood', label: 'Both, depending on the night', sub: 'And I will tell you which' },
     ];
     return (
-      <div key={4} className="min-h-screen bg-[#09090b] flex flex-col relative">
-        <PageDots />
-        <div className="px-5 pt-12 pb-3">
-          <h2 className="text-xl font-bold text-white leading-snug">
-            When you choose a film, what do you actually look for?
-          </h2>
+      <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-4">
+        <Progress />
+        <Armature state={ARMATURE[4]} />
+        <div className="px-7 pb-3">
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">What you go for</p>
+          <h2 className="font-display text-xl text-fg leading-snug mt-1">When you choose a film, what do you actually look for?</h2>
         </div>
-        <div className="flex-1 px-5 flex flex-col gap-3 pt-4">
+        <div className="flex-1 px-7 flex flex-col gap-2 pt-4">
           {options.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setFilmPref(opt.value)}
-              className={`w-full bg-[#18181b] border rounded-2xl p-5 text-left transition-colors ${
-                filmPref === opt.value
-                  ? 'border-purple-500 bg-purple-900/20'
-                  : 'border-white/10'
+              className={`w-full min-h-11 border p-4 text-left ${
+                filmPref === opt.value ? 'border-fg bg-base-3' : 'border-line bg-base-2'
               }`}
             >
-              <p className="text-white font-semibold text-base">{opt.label}</p>
-              <p className="text-gray-400 text-sm mt-0.5">{opt.sub}</p>
+              <p className="text-fg font-display">{opt.label}</p>
+              <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mt-1">{opt.sub}</p>
             </button>
           ))}
         </div>
-        <CTAButton
-          label="Continue"
-          onPress={saveAndAdvance}
-          disabled={filmPref === null}
-          loading={saving}
-        />
+        <CTA label="Continue" onPress={saveAndAdvance} disabled={filmPref === null} loading={saving} />
       </div>
     );
   }
 
   if (page === 5) {
     return (
-      <div key={5} className="min-h-screen bg-[#09090b] flex flex-col relative">
-        <PageDots />
-        <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5">
-          <Film size={48} className="text-[#00e054]" />
-          <h2 className="text-2xl font-black text-white text-center">Already logging on Letterboxd?</h2>
-          <p className="text-gray-400 text-sm text-center leading-relaxed">
-            Import your watched films and ratings. We&apos;ll use them to understand your taste.
-          </p>
-          <div className="w-full flex flex-col gap-3 mt-2">
-            <input
-              type="text"
-              value={lbUsername}
-              onChange={(e) => setLbUsername(e.target.value)}
-              placeholder="Your Letterboxd username"
-              className="bg-[#18181b] border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 w-full focus:border-purple-500 outline-none"
-              autoCapitalize="none"
-              autoCorrect="off"
-            />
-            <button
-              onClick={handleLetterboxdImport}
-              disabled={lbStatus === 'loading' || lbImporting}
-              className={`w-full bg-white text-black font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-opacity ${
-                lbStatus === 'loading' || lbImporting ? 'opacity-40' : 'opacity-100'
-              }`}
-            >
-              {lbStatus === 'loading' || lbImporting ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : lbStatus === 'done' ? (
-                <>
-                  <Check size={18} />
-                  Imported
-                </>
-              ) : (
-                'Import Letterboxd'
-              )}
-            </button>
-          </div>
-          {lbStatus === 'error' && (
-            <p className="text-red-400 text-sm text-center">
-              Could not import. Check the username and try again.
-            </p>
-          )}
+      <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-5">
+        <Progress />
+        <Armature state="stack" />
+        <div className="flex-1 flex flex-col items-center justify-center px-7 gap-4">
+          <h2 className="font-display text-2xl text-fg text-center">Already logging on Letterboxd?</h2>
+          <p className="text-fg-2 text-sm text-center">Username first. Skip stays skippable.</p>
+          <Input
+            value={lbUsername}
+            onChange={(e) => setLbUsername(e.target.value)}
+            placeholder="Letterboxd username"
+            aria-label="Letterboxd username"
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
+          <Button className="w-full" onClick={handleLetterboxdImport} loading={lbStatus === 'loading' || lbImporting}>
+            {lbStatus === 'done' ? 'Imported' : 'Import Letterboxd'}
+          </Button>
+          {lbStatus === 'error' && <p className="text-fg-2 text-sm">Could not import. Check the username.</p>}
         </div>
-        <div
-          className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-2"
-          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+        <button
+          type="button"
+          onClick={() => setPage(6)}
+          className="min-h-11 pb-8 font-spec text-[10px] uppercase tracking-widest text-fg-3"
+          data-testid="onboarding-skip-lb"
         >
-          <button
-            onClick={() => setPage(6)}
-            className="text-gray-500 text-sm underline text-center w-full py-2"
-          >
-            Skip for now
-          </button>
-        </div>
+          Skip
+        </button>
       </div>
     );
   }
 
-  if (page === 6) {
-    return (
-      <div key={6} className="min-h-screen bg-[#09090b] flex flex-col relative">
-        <PageDots />
-        <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5">
-          <div className="w-12 h-12 rounded-full bg-[#f5c518]/10 flex items-center justify-center">
-            <span className="text-[#f5c518] font-black text-xl">i</span>
-          </div>
-          <h2 className="text-2xl font-black text-white text-center">Import your IMDB ratings?</h2>
-          <p className="text-gray-400 text-sm text-center leading-relaxed">
-            Export your ratings from IMDB as a CSV and upload it here. We&apos;ll sync your history.
-          </p>
-          <div className="w-full mt-2">
-            <label
-              className={`w-full bg-white text-black font-bold py-4 rounded-2xl flex items-center justify-center gap-2 cursor-pointer transition-opacity ${
-                imdbStatus === 'loading' ? 'opacity-40 pointer-events-none' : 'opacity-100'
-              }`}
-            >
-              {imdbStatus === 'loading' ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : imdbStatus === 'done' ? (
-                <>
-                  <Check size={18} />
-                  Imported
-                </>
-              ) : (
-                'Upload CSV'
-              )}
-              <input
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={handleIMDBFile}
-                disabled={imdbStatus === 'loading'}
-              />
-            </label>
-          </div>
-          {imdbStatus === 'error' && (
-            <p className="text-red-400 text-sm text-center">
-              Could not import. Make sure it&apos;s a valid IMDB CSV export.
-            </p>
-          )}
-        </div>
-        <div
-          className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-2"
-          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-        >
-          <button
-            onClick={() => {
-              tryClaimHandleSilently();
-              finish();
-            }}
-            className="text-gray-500 text-sm underline text-center w-full py-2"
-          >
-            Skip for now
-          </button>
-        </div>
+  return (
+    <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-6">
+      <Progress />
+      <Armature state="stack" />
+      <div className="flex-1 flex flex-col items-center justify-center px-7 gap-4">
+        <h2 className="font-display text-2xl text-fg text-center">Import your IMDB ratings?</h2>
+        <p className="text-fg-2 text-sm text-center">CSV export. Optional.</p>
+        <label className="w-full cursor-pointer" htmlFor="imdb-csv">
+          <span className="sr-only">Upload CSV</span>
+          <span className="inline-flex w-full min-h-11 items-center justify-center bg-fg text-base text-sm font-semibold">
+            {imdbStatus === 'done' ? 'Imported' : imdbStatus === 'loading' ? 'Working' : 'Upload CSV'}
+          </span>
+          <input
+            id="imdb-csv"
+            type="file"
+            accept=".csv"
+            className="sr-only"
+            onChange={handleIMDBFile}
+            disabled={imdbStatus === 'loading'}
+          />
+        </label>
+        {imdbStatus === 'error' && <p className="text-fg-2 text-sm">Could not import that CSV.</p>}
       </div>
-    );
-  }
-
-  return null;
+      <button
+        onClick={() => {
+          tryClaimHandleSilently();
+          finish();
+        }}
+        className="min-h-11 pb-8 font-spec text-[10px] uppercase tracking-widest text-fg-3"
+        data-testid="onboarding-skip"
+      >
+        Skip
+      </button>
+    </div>
+  );
 }

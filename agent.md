@@ -14,7 +14,7 @@ In this codebase, "Selects" maps to the curated discovery and recommendation exp
 - directional exploration ("Orbit"),
 - and decision support around what to watch next.
 
-The customer-facing brand language in the app is `ViewFindr` (see `vite.config.ts` manifest metadata), while "Selects" is the conceptual product layer for curation and discovery.
+The customer-facing brand is Selects. Manifest, PWA, and chrome use the Selects lockup.
 
 ### Problem Selects is solving
 

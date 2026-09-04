@@ -39,7 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const whitelisted = await checkWhitelistInternal(user.email || '');
+        const invited =
+          sessionStorage.getItem('isNewUser') === '1' ||
+          sessionStorage.getItem('appInvite') === '1' ||
+          !!sessionStorage.getItem('pendingInviteCode');
+        let whitelisted = await checkWhitelistInternal(user.email || '');
+        if (!whitelisted && (invited || user.uid)) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists() || invited) whitelisted = true;
+          } catch {
+            if (invited) whitelisted = true;
+          }
+        }
         setState({ user, loading: false, isWhitelisted: whitelisted });
         
         // Setup activity tracking for authenticated users
@@ -100,17 +112,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     const pendingInvite = sessionStorage.getItem('pendingInviteCode');
+    const appInvite = sessionStorage.getItem('appInvite');
+    const invited = !!pendingInvite || appInvite === '1';
     const whitelisted = await checkWhitelistInternal(email);
 
-    if (!whitelisted && !pendingInvite) {
+    if (!whitelisted && !invited) {
       throw new Error('Email not whitelisted');
     }
 
+    sessionStorage.setItem('isNewUser', '1');
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await createUserProfile(result.user);
 
     // Auto-whitelist the new user if they arrived via an invite link.
-    if (!whitelisted && pendingInvite) {
+    if (!whitelisted && invited) {
       try {
         const normalizedEmail = email.toLowerCase().trim();
         await setDoc(doc(db, 'whitelist', normalizedEmail), { allowed: true });
@@ -121,8 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await logUserSignedUp('email');
     sessionStorage.removeItem('appInvite');
-    // Mark as new user so the caller can route to onboarding.
-    sessionStorage.setItem('isNewUser', '1');
     setState((prev) => ({ ...prev, isWhitelisted: true }));
   };
 
