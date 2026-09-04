@@ -72,19 +72,36 @@ test('F2 New account', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F2', testInfo.project.name, logs);
 });
 
+type PageLike = import('@playwright/test').Page;
+
 async function ensureAuthed(page: PageLike) {
   const creds = fs.existsSync(CREDS_PATH) ? JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) : null;
   await page.goto('/app');
-  if (page.url().includes('/login') || page.url().includes('/join') || page.url().includes('/waitlist')) {
+  await page.waitForLoadState('domcontentloaded');
+  const tabs = page.getByTestId('tab-bar');
+  const email = page.getByLabel(/email/i);
+  try {
+    await Promise.race([
+      tabs.waitFor({ state: 'visible', timeout: 20000 }),
+      email.waitFor({ state: 'visible', timeout: 20000 }),
+      page.getByTestId('onboarding-0').waitFor({ state: 'visible', timeout: 20000 }),
+    ]);
+  } catch {
+    // fall through
+  }
+  if (page.url().includes('/onboarding') || (await page.getByTestId('onboarding-0').isVisible().catch(() => false))) {
+    await completeOnboarding(page);
+    return;
+  }
+  if (!(await tabs.isVisible().catch(() => false))) {
     if (!creds) throw new Error('No saved F2 creds');
     await signIn(page, creds.email, creds.password);
   }
   if (page.url().includes('/onboarding')) {
     await completeOnboarding(page);
   }
+  await tabs.waitFor({ state: 'visible', timeout: 20000 });
 }
-
-type PageLike = import('@playwright/test').Page;
 
 test('F3 Tabs', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
@@ -134,19 +151,16 @@ test('F5 Logged day', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
   await page.goto('/app');
-  const rec = page.getByTestId('empty-day-recs').getByRole('button').first();
-  if (await rec.isVisible().catch(() => false)) {
-    await rec.click();
-    await page.waitForTimeout(800);
-    await page.goto('/app');
-  }
-  const logged = page.getByTestId('logged-day').getByRole('button').first();
-  if (await logged.isVisible().catch(() => false)) {
-    await logged.click();
+  const recs = page.getByTestId('empty-day-recs');
+  const logged = page.getByTestId('logged-day');
+  if (await recs.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) {
+    await recs.getByRole('button').first().click();
+    await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
   } else {
-    await page.locator('[data-testid^="strip-day-"]').last().click();
+    await expect(logged).toBeVisible();
+    await logged.getByRole('button').first().click();
+    await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
   }
-  await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
   await gate(page, 'F5', testInfo.project.name);
   await dumpConsole(page, 'F5', testInfo.project.name, logs);
 });
@@ -155,13 +169,14 @@ test('F6 Empty day', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
   await page.goto('/app');
-  await page.getByTestId('year-zoom').click();
-  await expect(page.getByTestId('year-zoom-calendar')).toBeVisible();
-  await page.getByLabel(/back to strip/i).click();
-  const empty = page.getByTestId('empty-day-recs');
-  if (await empty.isVisible().catch(() => false)) {
-    await empty.getByRole('button').nth(1).click();
-    await page.waitForTimeout(800);
+  await page.locator('[data-testid^="strip-day-"]').first().click();
+  const recs = page.getByTestId('empty-day-recs');
+  if (await recs.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
+    await recs.getByRole('button').nth(1).click();
+    await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
+  } else {
+    await page.getByTestId('year-zoom').click();
+    await expect(page.getByTestId('year-zoom-calendar')).toBeVisible();
   }
   await gate(page, 'F6', testInfo.project.name);
   await dumpConsole(page, 'F6', testInfo.project.name, logs);
@@ -176,7 +191,8 @@ test('F7 Year-zoom', async ({ page }, testInfo) => {
   await page.getByLabel(/previous month/i).click();
   await page.getByLabel(/previous month/i).click();
   await page.getByTestId('year-day').nth(10).click();
-  await expect(page.getByPlaceholder(/search|watch/i).or(page.getByText(/add another/i)).or(page.getByText(/what did you watch/i))).toBeVisible({ timeout: 8000 });
+  await expect(page).toHaveURL(/discover\?date=/, { timeout: 10000 });
+  await expect(page.getByTestId('orbit-search')).toBeVisible();
   await gate(page, 'F7', testInfo.project.name);
   await dumpConsole(page, 'F7', testInfo.project.name, logs);
 });

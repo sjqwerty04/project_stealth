@@ -50,14 +50,14 @@ export async function clearSession(page: Page) {
 
 export async function signIn(page: Page, email: string, password: string) {
   await page.goto('/login');
-  await page.evaluate(() => sessionStorage.clear());
   await page.getByLabel(/email/i).fill(email);
   await page.getByRole('button', { name: /^continue$/i }).click();
-  const choose = page.getByRole('button', { name: /already have an account/i });
-  if (await choose.isVisible({ timeout: 8000 }).catch(() => false)) {
-    await choose.click();
+  const choose = page.getByTestId('login-choose');
+  if (await choose.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
+    await page.getByRole('button', { name: /already have an account/i }).click();
   }
-  await page.getByLabel(/^password$/i).first().fill(password);
+  await page.getByTestId('login-signin').waitFor({ timeout: 8000 });
+  await page.getByLabel(/^password$/i).fill(password);
   await page.getByRole('button', { name: /^continue$/i }).click();
   await page.waitForURL(/\/app|\/onboarding/, { timeout: 20000 });
 }

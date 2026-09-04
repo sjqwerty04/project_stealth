@@ -1145,17 +1145,22 @@ export default function MovieCalendarApp() {
         onYearZoom={() => setHomeChrome('year')}
         onOpenMovie={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)}
         onPickEmptyRec={async (movie, date) => {
-          await addEvent({
-            movieId: movie.id,
-            title: movie.title,
-            poster: movie.poster,
-            date: date.toISOString(),
-            inviteFriend: false,
-            rating: null,
-            status: isPastDate(date) ? 'watched' : 'planned',
-            mediaType: movie.mediaType,
-            accentStart: movie.accentStart,
-          });
+          navigate(`/movie/${movie.id}${movie.mediaType ? `?type=${movie.mediaType}` : ''}`);
+          try {
+            await addEvent({
+              movieId: movie.id,
+              title: movie.title,
+              poster: movie.poster,
+              date: date.toISOString(),
+              inviteFriend: false,
+              rating: null,
+              status: isPastDate(date) ? 'watched' : 'planned',
+              mediaType: movie.mediaType,
+              accentStart: movie.accentStart,
+            });
+          } catch (err) {
+            console.error('Failed to log empty-day rec', err);
+          }
         }}
       />
     );

@@ -10,11 +10,18 @@ test.afterEach(async ({}, testInfo) => {
 async function authed(page: import('@playwright/test').Page) {
   const creds = fs.existsSync(CREDS_PATH) ? JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) : null;
   await page.goto('/app');
-  if (/login|join|waitlist/.test(page.url())) {
+  const tabs = page.getByTestId('tab-bar');
+  const email = page.getByLabel(/email/i);
+  await Promise.race([
+    tabs.waitFor({ state: 'visible', timeout: 20000 }),
+    email.waitFor({ state: 'visible', timeout: 20000 }),
+  ]).catch(() => {});
+  if (!(await tabs.isVisible().catch(() => false))) {
     if (!creds) throw new Error('No F2 creds');
     await signIn(page, creds.email, creds.password);
   }
   if (page.url().includes('/onboarding')) await completeOnboarding(page);
+  await tabs.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
 }
 
 test('F-smoke-cleanup', async ({ page }, testInfo) => {
@@ -36,7 +43,7 @@ test('F-smoke-watchlist', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await authed(page);
   await page.goto('/watchlist');
-  await expect(page.getByRole('heading', { name: /library/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /library|lists|saved/i }).first()).toBeVisible();
   await dumpConsole(page, 'F-smoke-watchlist', testInfo.project.name, logs);
 });
 

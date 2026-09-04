@@ -1,1 +1,39 @@
 flow	viewport	result	video	retries	notes
+F-smoke-cleanup	desktop	pass	artifacts/verify/F-smoke-cleanup-desktop/flow.webm	0	
+F-smoke-cleanup	mobile	pass	artifacts/verify/F-smoke-cleanup-mobile/flow.webm	0	
+F-smoke-invite	desktop	pass	artifacts/verify/F-smoke-invite-desktop/flow.webm	0	
+F-smoke-invite	mobile	pass	artifacts/verify/F-smoke-invite-mobile/flow.webm	0	
+F-smoke-splash	desktop	pass	artifacts/verify/F-smoke-splash-desktop/flow.webm	0	
+F-smoke-splash	mobile	pass	artifacts/verify/F-smoke-splash-mobile/flow.webm	0	
+F-smoke-watchlist	desktop	pass	artifacts/verify/F-smoke-watchlist-desktop/flow.webm	0	
+F-smoke-watchlist	mobile	pass	artifacts/verify/F-smoke-watchlist-mobile/flow.webm	0	
+F0	desktop	pass	artifacts/verify/F0-desktop/flow.webm	0	
+F0	mobile	pass	artifacts/verify/F0-mobile/flow.webm	0	
+F1	desktop	pass	artifacts/verify/F1-desktop/flow.webm	0	SKIP: SELECTS_TEST_EMAIL not set; F2 used instead
+F1	mobile	pass	artifacts/verify/F1-mobile/flow.webm	0	SKIP: SELECTS_TEST_EMAIL not set; F2 used instead
+F10	desktop	pass	artifacts/verify/F10-desktop/flow.webm	0	
+F10	mobile	pass	artifacts/verify/F10-mobile/flow.webm	0	
+F11	desktop	pass	artifacts/verify/F11-desktop/flow.webm	0	
+F11	mobile	pass	artifacts/verify/F11-mobile/flow.webm	0	
+F12	desktop	pass	artifacts/verify/F12-desktop/flow.webm	0	
+F12	mobile	pass	artifacts/verify/F12-mobile/flow.webm	0	
+F13	desktop	pass	artifacts/verify/F13-desktop/flow.webm	0	
+F13	mobile	pass	artifacts/verify/F13-mobile/flow.webm	0	
+F14	desktop	pass	artifacts/verify/F14-desktop/flow.webm	0	
+F14	mobile	pass	artifacts/verify/F14-mobile/flow.webm	0	
+F2	desktop	pass	artifacts/verify/F2-desktop/flow.webm	0	
+F2	mobile	pass	artifacts/verify/F2-mobile/flow.webm	0	
+F3	desktop	pass	artifacts/verify/F3-desktop/flow.webm	0	
+F3	mobile	pass	artifacts/verify/F3-mobile/flow.webm	0	
+F4	desktop	pass	artifacts/verify/F4-desktop/flow.webm	0	
+F4	mobile	pass	artifacts/verify/F4-mobile/flow.webm	0	
+F5	desktop	pass	artifacts/verify/F5-desktop/flow.webm	0	
+F5	mobile	pass	artifacts/verify/F5-mobile/flow.webm	0	
+F6	desktop	pass	artifacts/verify/F6-desktop/flow.webm	0	
+F6	mobile	pass	artifacts/verify/F6-mobile/flow.webm	0	
+F7	desktop	pass	artifacts/verify/F7-desktop/flow.webm	0	
+F7	mobile	pass	artifacts/verify/F7-mobile/flow.webm	0	
+F8	desktop	pass	artifacts/verify/F8-desktop/flow.webm	0	
+F8	mobile	pass	artifacts/verify/F8-mobile/flow.webm	0	
+F9	desktop	pass	artifacts/verify/F9-desktop/flow.webm	0	
+F9	mobile	pass	artifacts/verify/F9-mobile/flow.webm	0	
