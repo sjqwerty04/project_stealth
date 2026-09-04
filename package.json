@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test && node e2e/copy-artifacts.mjs",
     "test:e2e:install": "playwright install chromium",
     "build:ios": "npm run build && npx cap sync ios && npx cap open ios",
     "deploy": "vercel --prod"

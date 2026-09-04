@@ -90,7 +90,7 @@ export default function ClaimHandleBanner() {
   return (
     <>
       <div
-        className="sticky top-0 z-40 bg-blue-600/90 backdrop-blur-md text-white text-sm border-b border-blue-500/40"
+        className="sticky top-0 z-40 bg-base-3 text-fg text-sm border-b border-line"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="max-w-md mx-auto px-4 py-2 flex items-center gap-3">
@@ -99,15 +99,17 @@ export default function ClaimHandleBanner() {
             Pick a handle so friends can find you.
           </span>
           <button
+            type="button"
             onClick={() => setOpen(true)}
-            className="px-3 py-1.5 bg-white text-blue-700 rounded-full text-xs font-semibold hover:bg-blue-50 transition-colors"
+            className="px-3 min-h-11 bg-fg text-base text-xs font-semibold"
           >
             Claim
           </button>
           <button
+            type="button"
             onClick={dismiss}
             aria-label="Dismiss"
-            className="p-1 text-white/80 hover:text-white"
+            className="p-2 min-h-11 min-w-11 text-fg-2"
           >
             <X size={16} />
           </button>
@@ -117,12 +119,14 @@ export default function ClaimHandleBanner() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <div className="bg-[#18181b] w-full max-w-sm rounded-2xl p-6 shadow-2xl z-50 relative border border-gray-800">
+          <div className="bg-base-2 w-full max-w-sm p-6 z-50 relative border border-line">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-white text-lg">Claim your handle</h3>
+              <h3 className="font-bold text-fg text-lg">Claim your handle</h3>
               <button
+                type="button"
                 onClick={() => setOpen(false)}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full"
+                aria-label="Close"
+                className="p-2 min-h-11 min-w-11 text-fg-2"
               >
                 <X size={16} />
               </button>
