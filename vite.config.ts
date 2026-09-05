@@ -21,7 +21,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'selects-logo.png'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'selects-logo.png'],
       manifest: {
         name: 'Selects',
         short_name: 'Selects',
