@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
+import { recordTasteEvent } from '../lib/taste';
 
 export type WatchlistItem = {
   id: string;
@@ -92,9 +93,14 @@ export function useWatchlist() {
           source: 'manual',
         });
 
-        // Refresh the list
         await fetchWatchlist();
-        
+        if (user.email) {
+          await recordTasteEvent(
+            user.uid,
+            { type: 'watchlist_add', movieId: movie.movieId, title: movie.title, year: movie.year },
+            { email: user.email }
+          );
+        }
         return docRef.id;
       } catch (error) {
         console.error('Failed to add to watchlist:', error);
@@ -110,19 +116,24 @@ export function useWatchlist() {
       if (!user) return false;
 
       try {
+        const existing = items.find((item) => item.id === itemId);
         const docRef = doc(db, 'users', user.uid, 'watchlist', itemId);
         await deleteDoc(docRef);
-
-        // Update local state
         setItems((prev) => prev.filter((item) => item.id !== itemId));
-        
+        if (existing && user.email) {
+          await recordTasteEvent(
+            user.uid,
+            { type: 'watchlist_remove', movieId: existing.movieId, title: existing.title },
+            { email: user.email }
+          );
+        }
         return true;
       } catch (error) {
         console.error('Failed to remove from watchlist:', error);
         return false;
       }
     },
-    [user]
+    [user, items]
   );
 
   // Check if a movie is in the watchlist

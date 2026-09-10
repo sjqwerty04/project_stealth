@@ -7,6 +7,7 @@ import { callLlm } from '../lib/llm';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport } from '../hooks/useIMDBImport';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
+import { recordTasteEvent } from '../lib/taste';
 import FilmPickerScroll from '../components/FilmPickerScroll';
 import Armature from '../components/Armature';
 import { BarUnit, Button, Input, Mark, Skeleton } from '../components/ui';
@@ -94,6 +95,17 @@ export default function OnboardingScreen() {
           version: 1,
         },
         { merge: true }
+      );
+      await recordTasteEvent(
+        user.uid,
+        {
+          type: 'onboarding',
+          favoriteFilms: q1Films.map((f) => ({ movieId: f.id, title: f.title, year: f.year })),
+          dislikedFilms: q2Films.map((f) => ({ movieId: f.id, title: f.title, year: f.year })),
+          axis: filmPref,
+          personaLine: aiLine,
+        },
+        { email: user.email }
       );
     } catch (e) {
       console.error('Failed to save taste profile:', e);

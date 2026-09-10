@@ -151,16 +151,9 @@ test('F5 Logged day', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
   await page.goto('/app');
-  const recs = page.getByTestId('empty-day-recs');
-  const logged = page.getByTestId('logged-day');
-  if (await recs.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) {
-    await recs.getByRole('button').first().click();
-    await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
-  } else {
-    await expect(logged).toBeVisible();
-    await logged.getByRole('button').first().click();
-    await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
-  }
+  await expect(page.getByTestId('selects-carousel')).toBeVisible();
+  await page.getByTestId('ticket-slot').first().click();
+  await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
   await gate(page, 'F5', testInfo.project.name);
   await dumpConsole(page, 'F5', testInfo.project.name, logs);
 });
@@ -169,15 +162,17 @@ test('F6 Empty day', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
   await page.goto('/app');
-  await page.locator('[data-testid^="strip-day-"]').first().click();
-  const recs = page.getByTestId('empty-day-recs');
-  if (await recs.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
-    await recs.getByRole('button').nth(1).click();
-    await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
-  } else {
-    await page.getByTestId('year-zoom').click();
-    await expect(page.getByTestId('year-zoom-calendar')).toBeVisible();
+  const emptySlot = page.getByTestId('ticket-slot-empty').first();
+  if (await emptySlot.isVisible().catch(() => false)) {
+    await emptySlot.click();
+    await expect(page).toHaveURL(/discover\?date=/, { timeout: 10000 });
+    await gate(page, 'F6', testInfo.project.name);
+    await dumpConsole(page, 'F6', testInfo.project.name, logs);
+    return;
   }
+  await expect(page.getByTestId('selects-carousel')).toBeVisible();
+  await page.getByTestId('year-zoom').click();
+  await expect(page.getByTestId('year-zoom-calendar')).toBeVisible();
   await gate(page, 'F6', testInfo.project.name);
   await dumpConsole(page, 'F6', testInfo.project.name, logs);
 });

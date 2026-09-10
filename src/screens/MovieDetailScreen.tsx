@@ -14,11 +14,11 @@ import StarterPrompts from '../components/StarterPrompts';
 import MovieChatSheet from '../components/MovieChatSheet';
 import { useMovieInsights } from '../hooks/useMovieInsights';
 import { useMovieKnownFor } from '../hooks/useMovieKnownFor';
+import { recordTasteEvent, useTaste } from '../lib/taste';
 import { useLetterboxdRating } from '../hooks/useLetterboxdRating';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
-import { logActivity } from '../lib/activityLogger';
 import Skeleton from '../components/ui/Skeleton';
 
 const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
@@ -66,8 +66,9 @@ export default function MovieDetailScreen() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Reddit-grounded starter questions + known-for + letterboxd.
+  const { snapshot } = useTaste();
   const { insights } = useMovieInsights(details?.title, details?.year, details?.genres);
-  const { knownFor } = useMovieKnownFor(details?.title, details?.year);
+  const { knownFor } = useMovieKnownFor(details?.title, details?.year, snapshot.generated.compactForChat);
   const { rating: lbRating, filmUrl: lbUrl } = useLetterboxdRating(details?.id, details?.title, details?.year);
   const [chatOpen, setChatOpen] = useState(false);
   const [seedQuestion, setSeedQuestion] = useState<string | null>(null);
@@ -119,12 +120,12 @@ export default function MovieDetailScreen() {
 
   // Log movie view for activity tracking
   useEffect(() => {
-    if (details && user?.uid && user?.email) {
-      logActivity(user.uid, user.email, 'movie_viewed', {
-        movieId: details.id,
-        movieTitle: details.title,
-        mediaType: details.mediaType,
-      });
+    if (details && user?.uid) {
+      void recordTasteEvent(
+        user.uid,
+        { type: 'movie_viewed', movieId: details.id, title: details.title },
+        { email: user.email }
+      );
     }
   }, [details?.id, user?.uid, user?.email]);
 
@@ -752,6 +753,7 @@ export default function MovieDetailScreen() {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         movie={{
+          id: details.id,
           title: details.title,
           year: details.year,
           genres: details.genres,
@@ -759,7 +761,7 @@ export default function MovieDetailScreen() {
           overview: details.overview,
         }}
         snippets={insights.snippets}
-        taste={undefined}
+        taste={snapshot.generated.compactForChat || undefined}
         seedQuestion={seedQuestion}
         onSeedConsumed={() => setSeedQuestion(null)}
       />

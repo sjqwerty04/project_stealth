@@ -278,9 +278,13 @@ const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie
 // Main function to get next movie based on swipe direction
 export const getNextMovie = async (
   currentMovie: OrbitMovie,
-  direction: SwipeDirection
+  direction: SwipeDirection,
+  taste?: string | null
 ): Promise<{ movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> => {
-  const prompt = buildPrompt(currentMovie, direction);
+  let prompt = buildPrompt(currentMovie, direction);
+  if (taste) {
+    prompt += `\n<viewer_taste>\n${taste}\n</viewer_taste>\nSteer the pick toward this viewer. Do not fetch or invent their watch history.`;
+  }
   
   console.log(`Orbit: Getting ${direction} recommendation for "${currentMovie.title}"`);
 
@@ -330,21 +334,19 @@ export const getNextMovie = async (
 // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 export const prefetchNextMoves = async (
   currentMovie: OrbitMovie,
-  backDirection?: SwipeDirection | null // Direction that goes back (skip prefetching)
+  backDirection?: SwipeDirection | null,
+  taste?: string | null
 ): Promise<{
   visual: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
   balanced: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
   storytelling: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
   emotional: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
 }> => {
-  console.log('Orbit: Prefetching moves, back direction:', backDirection);
-  
-  // Fire all four requests in parallel (skip back direction)
   const [visual, balanced, storytelling, emotional] = await Promise.all([
-    backDirection === 'up' ? Promise.resolve(null) : getNextMovie(currentMovie, 'up'),
-    backDirection === 'right' ? Promise.resolve(null) : getNextMovie(currentMovie, 'right'),
-    backDirection === 'down' ? Promise.resolve(null) : getNextMovie(currentMovie, 'down'),
-    backDirection === 'left' ? Promise.resolve(null) : getNextMovie(currentMovie, 'left'),
+    backDirection === 'up' ? Promise.resolve(null) : getNextMovie(currentMovie, 'up', taste),
+    backDirection === 'right' ? Promise.resolve(null) : getNextMovie(currentMovie, 'right', taste),
+    backDirection === 'down' ? Promise.resolve(null) : getNextMovie(currentMovie, 'down', taste),
+    backDirection === 'left' ? Promise.resolve(null) : getNextMovie(currentMovie, 'left', taste),
   ]);
   
   return { visual, balanced, storytelling, emotional };

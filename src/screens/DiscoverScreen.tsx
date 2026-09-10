@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, X, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { useMovieSearch, type SearchResult } from '../hooks/useMovieSearch';
@@ -6,7 +6,7 @@ import SearchResultCard from '../components/SearchResultCard';
 import PatternAssistant from '../components/PatternAssistant';
 import { useExploration } from '../contexts/ExplorationContext';
 import { useAuth } from '../hooks/useAuth';
-import { logActivity } from '../lib/activityLogger';
+import { recordTasteEvent } from '../lib/taste';
 
 export default function DiscoverScreen() {
   const navigate = useNavigate();
@@ -18,7 +18,6 @@ export default function DiscoverScreen() {
   const [query, setQuery] = useState(() => searchParams.get('q') || '');
   const [isPatternPanelOpen, setIsPatternPanelOpen] = useState(true);
   const { results, isSearching, error, searchMetadata, vibeList, isLoadingVibe, searchMovies, clearResults } = useMovieSearch();
-  const lastLoggedQueryRef = useRef<string>('');
   const { 
     clickedMovies, 
     addMovie, 
@@ -49,26 +48,16 @@ export default function DiscoverScreen() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (query.trim()) {
-        const searchResults = await searchMovies(query);
-        
-        // Log search activity (only if query changed significantly)
-        if (user?.uid && user?.email && query.trim() !== lastLoggedQueryRef.current) {
-          lastLoggedQueryRef.current = query.trim();
-          logActivity(user.uid, user.email, 'search_performed', {
-            searchQuery: query.trim(),
-            resultsCount: searchResults.length,
-          });
-        }
+        await searchMovies(query);
       } else {
         clearResults();
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, user?.uid, user?.email]); // searchMovies and clearResults are now stable refs
+  }, [query]);
 
   const handleMovieClick = useCallback((movie: SearchResult) => {
-    // Track the click for pattern detection
     addMovie({
       id: movie.id,
       title: movie.title,
@@ -78,14 +67,18 @@ export default function DiscoverScreen() {
       genres: movie.genres,
       mediaType: movie.mediaType,
     });
-    
-    // Navigate to movie detail with pre-selected date if any
+    if (user?.uid) {
+      void recordTasteEvent(
+        user.uid,
+        { type: 'search', query: query.trim(), openedMovieId: movie.id, openedTitle: movie.title },
+        { email: user.email }
+      );
+    }
     const params = new URLSearchParams();
     if (preSelectedDate) params.set('date', preSelectedDate);
     params.set('type', movie.mediaType);
-    
     navigate(`/movie/${movie.id}?${params.toString()}`);
-  }, [addMovie, navigate, preSelectedDate]);
+  }, [addMovie, navigate, preSelectedDate, user, query]);
 
   const handleClearSearch = () => {
     setQuery('');

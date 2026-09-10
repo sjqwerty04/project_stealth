@@ -3,9 +3,13 @@ type BarState = 'empty' | 'on' | 'select' | 'film';
 export default function BarUnit({
   state = 'empty',
   className = '',
+  width = 8,
+  height = 20,
 }: {
   state?: BarState;
   className?: string;
+  width?: number;
+  height?: number;
 }) {
   const fill: Record<BarState, string> = {
     empty: 'bg-line',
@@ -17,7 +21,7 @@ export default function BarUnit({
     <span
       data-testid="bar-unit"
       className={`inline-block ${fill[state]} ${className}`}
-      style={{ width: 8, height: 20, transform: 'skewX(-13.5deg)' }}
+      style={{ width, height, transform: 'skewX(-13.5deg)' }}
     />
   );
 }
