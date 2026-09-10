@@ -8,6 +8,7 @@ import {
   ratingToHistoryScore,
 } from './buildRecommendContext';
 import { selectConfidentPicks } from './buildRecommendContext';
+import { generatedDiaryFields, parseSelectPicks } from './parseSelectPicks';
 import { parseSnapshot } from './getTaste';
 import type { TasteEvent } from './types';
 
@@ -183,6 +184,33 @@ describe('parseSnapshot lastPicks', () => {
         confidence: 0.9,
       },
     ]);
+  });
+});
+
+describe('parseSelectPicks', () => {
+  it('reads camelCase whyMatch from the LLM fallback JSON', () => {
+    const fromArray = parseSelectPicks([
+      { title: 'Troy', year: '2004', whyMatch: 'You just logged The Odyssey.', confidence: 0.8 },
+    ]);
+    const fromWrapper = parseSelectPicks({
+      picks: [{ title: 'Troy', year: '2004', whyMatch: 'You just logged The Odyssey.', confidence: 0.8 }],
+    });
+    expect(fromArray[0]?.whyMatch).toBe('You just logged The Odyssey.');
+    expect(fromWrapper[0]?.whyMatch).toBe('You just logged The Odyssey.');
+  });
+});
+
+describe('generatedDiaryFields', () => {
+  it('does not write lastPicks keys', () => {
+    const fields = generatedDiaryFields({
+      updatedAt: 1,
+      fromEventId: 'e1',
+      compactForChat: 'x',
+      patterns: [],
+      insightCards: [],
+    });
+    expect(Object.keys(fields)).not.toContain('generated.lastPicks');
+    expect(Object.keys(fields)).not.toContain('generated.lastPicksAt');
   });
 });
 

@@ -1,6 +1,7 @@
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { axisFromUnknown, buildRecommendContext, emptySnapshot, withCompact } from './buildRecommendContext';
+import { generatedDiaryFields } from './parseSelectPicks';
 import { parseSnapshot, tasteDoc } from './getTaste';
 import type { DiaryEvidence, FilmRef, TasteSnapshot } from './types';
 
@@ -166,6 +167,19 @@ export async function generateSnapshot(uid: string, fromEventId?: string | null)
       lastPicksAt: current.generated.lastPicksAt,
     },
   });
-  await setDoc(tasteDoc(uid), next, { merge: true });
+  if (!currentSnap.exists()) {
+    await setDoc(tasteDoc(uid), next);
+    return next;
+  }
+  await setDoc(
+    tasteDoc(uid),
+    {
+      identity: next.identity,
+      pointers: next.pointers,
+      context: next.context,
+    },
+    { merge: true },
+  );
+  await updateDoc(tasteDoc(uid), generatedDiaryFields(next.generated));
   return next;
 }

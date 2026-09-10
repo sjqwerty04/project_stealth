@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callXai } from './_lib/xai.js';
 import { readSkill } from './_lib/readSkill.js';
+import { parseSelectPicks, type SelectPick } from '../src/lib/taste/parseSelectPicks.js';
 
 type HistoryItem = { item: string; rating: number; id?: string };
 
@@ -11,58 +12,13 @@ type RecommendContext = {
   history?: HistoryItem[];
 };
 
-type TasteRayRec = {
-  item?: { name?: string; title?: string; year?: string | number; id?: string };
-  name?: string;
-  title?: string;
-  year?: string | number;
-  confidence?: number;
-  score?: number;
-  match_score?: number;
-  explanation?: { why_match?: string };
-  why_match?: string;
-};
-
-export type SelectPick = {
-  title: string;
-  year: string;
-  whyMatch: string;
-  confidence: number;
-  id?: string;
-};
+export type { SelectPick };
 
 function meaningful(context: RecommendContext): boolean {
   const prefs = context.preferences ?? [];
   const profile = (context.profile ?? '').trim();
   const history = context.history ?? [];
   return prefs.length > 0 || profile.length > 0 || history.length > 0;
-}
-
-function parseRecs(raw: unknown): SelectPick[] {
-  const list = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === 'object' && Array.isArray((raw as { recommendations?: unknown }).recommendations)
-      ? (raw as { recommendations: unknown[] }).recommendations
-      : [];
-
-  return list
-    .map((row) => {
-      if (!row || typeof row !== 'object') return null;
-      const rec = row as TasteRayRec;
-      const title = rec.item?.name || rec.item?.title || rec.name || rec.title || '';
-      if (!title) return null;
-      const yearSource = rec.item?.year ?? rec.year ?? '';
-      const confidence = rec.confidence ?? rec.score ?? rec.match_score ?? 1;
-      const whyMatch = rec.explanation?.why_match || rec.why_match || '';
-      return {
-        title,
-        year: String(yearSource),
-        whyMatch,
-        confidence: typeof confidence === 'number' ? confidence : 1,
-        id: rec.item?.id,
-      } satisfies SelectPick;
-    })
-    .filter((row): row is SelectPick => row != null);
 }
 
 async function fallbackClaude(context: RecommendContext): Promise<SelectPick[]> {
@@ -84,8 +40,8 @@ Return ONLY JSON:
   });
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return [];
-  const parsed = JSON.parse(match[0]) as { picks?: TasteRayRec[] };
-  return parseRecs(parsed.picks).slice(0, 3);
+  const parsed = JSON.parse(match[0]) as { picks?: unknown };
+  return parseSelectPicks(parsed.picks).slice(0, 3);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -141,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = await response.json();
     const latencyMs = Date.now() - started;
-    const picks = parseRecs(data).filter((p) => p.confidence >= 0.5).slice(0, 3);
+    const picks = parseSelectPicks(data).filter((p) => p.confidence >= 0.5).slice(0, 3);
     return res.status(200).json({
       picks,
       source: 'tasteray',
