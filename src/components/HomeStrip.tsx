@@ -4,6 +4,7 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import { Mark } from './ui';
+import Skeleton from './ui/Skeleton';
 
 export type SelectFilm = {
   id: number;
@@ -305,7 +306,7 @@ function SelectCard({
       aria-label={film.title}
       onClick={onClick}
       className="relative w-full overflow-hidden bg-base-3 min-h-11"
-      style={{ height: film.whyMatch ? 148 : 106, borderRadius: 0, border: 'none' }}
+      style={{ height: 148, borderRadius: 0, border: 'none' }}
     >
       {still && (
         <img
@@ -332,11 +333,6 @@ function SelectCard({
             {film.title}
           </span>
         )}
-        {film.whyMatch && (
-          <span className="font-spec text-[10px] uppercase tracking-widest text-fg-2 text-center" data-testid="why-match">
-            {film.whyMatch}
-          </span>
-        )}
       </span>
     </button>
   );
@@ -353,14 +349,14 @@ export default function HomeStrip({
   events: CalendarEvent[];
   insightsLabel?: string | null;
   onYearZoom: () => void;
-  onOpenMovie: (id: number, mediaType?: string) => void;
+  onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   onOpenProfile?: () => void;
   onAddMovie: (date: Date) => void;
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
   const [slide, setSlide] = useState(0);
   const [paused, setPaused] = useState(false);
-  const { picks } = useRecommendation();
+  const { picks, status } = useRecommendation({ events });
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
@@ -481,6 +477,21 @@ export default function HomeStrip({
 
       <div className="px-7 shrink-0">
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
+        {status === 'loading' && (
+          <div data-testid="selects-skeleton">
+            <Skeleton className="w-full h-[148px]" />
+          </div>
+        )}
+        {status === 'empty' && (
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 pb-4" data-testid="selects-empty">
+            Log a film to get Your Selects.
+          </p>
+        )}
+        {status === 'error' && (
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 pb-4" data-testid="selects-error">
+            Could not load Your Selects.
+          </p>
+        )}
         {slides.length > 0 && (
           <div
             className="overflow-hidden"
@@ -509,7 +520,7 @@ export default function HomeStrip({
                   <SelectCard
                     film={film}
                     art={art[film.id]}
-                    onClick={() => onOpenMovie(film.id, film.mediaType)}
+                    onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
                   />
                 </div>
               ))}
