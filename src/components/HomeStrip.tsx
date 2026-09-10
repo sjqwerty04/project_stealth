@@ -385,6 +385,9 @@ export default function HomeStrip({
   }, [events]);
 
   const dayFilm = (byDay.get(dayKey(selected)) ?? [])[0] ?? null;
+  const yearCount = events.filter((e) =>
+    eventDayKey(e.date).startsWith(String(selected.getFullYear())),
+  ).length;
 
   const slides = useMemo(() => {
     return picks.slice(0, 3).map((p) => ({
@@ -532,11 +535,24 @@ export default function HomeStrip({
             />
           </div>
         ) : null}
-        <p className="px-7 mb-2 font-spec text-[10px] uppercase tracking-widest text-fg-3">
-          {format(selected, 'EEEE d')}
-          {'  ·  '}
-          {events.filter((e) => eventDayKey(e.date).startsWith(String(selected.getFullYear()))).length} this year
-        </p>
+        {dayFilm ? (
+          <p className="px-7 mb-2 font-spec text-[10px] uppercase tracking-widest text-fg-3">
+            {format(selected, 'EEEE d')}
+            {'  ·  '}
+            {yearCount} this year
+          </p>
+        ) : (
+          <button
+            type="button"
+            data-testid="ticket-slot-empty"
+            onClick={() => onAddMovie(selected)}
+            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3"
+          >
+            {format(selected, 'EEEE d')}
+            {'  ·  '}
+            {yearCount} this year
+          </button>
+        )}
 
         <div
           ref={stripTrackRef}
