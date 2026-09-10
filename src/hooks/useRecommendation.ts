@@ -3,12 +3,13 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import {
-  LAST_PICKS_FRESH_MS,
   contextFromCalendarLogs,
   hasMeaningfulContext,
+  hitSelectsCache,
   mergeRecommendContext,
   recordTasteEvent,
   useTaste,
+  writeSelectsCache,
   type CalendarLogLike,
   type RecommendContext,
   type TastePick,
@@ -58,6 +59,26 @@ function fromStored(pick: TastePick): RecommendationResult {
     reason: pick.whyMatch,
     confidence: pick.confidence,
   };
+}
+
+function toStored(p: RecommendationResult): TastePick {
+  return {
+    movieId: p.movieId,
+    title: p.title,
+    year: p.year,
+    poster: p.poster,
+    backdrop: p.backdrop,
+    runtime: p.runtime,
+    mediaType: p.mediaType,
+    whyMatch: p.reason,
+    confidence: p.confidence,
+  };
+}
+
+function resolveHit(uid: string, snapshotPicks: TastePick[], snapshotAt: number | null): RecommendationResult[] | null {
+  const hit = hitSelectsCache(uid, snapshotPicks, snapshotAt);
+  if (!hit) return null;
+  return hit.picks.map(fromStored);
 }
 
 async function hydrateFromApi(title: string, year?: string, id?: string): Promise<RecommendationResult | null> {
@@ -137,12 +158,14 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return null;
     }
 
-    const storedAt = snapshot.generated.lastPicksAt;
     const stored = snapshot.generated.lastPicks.map(fromStored);
-    if (!force && stored.length && storedAt && Date.now() - storedAt < LAST_PICKS_FRESH_MS) {
-      setPicks(stored);
-      setStatus('ready');
-      return stored;
+    if (!force) {
+      const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+      if (hit?.length) {
+        setPicks(hit);
+        setStatus('ready');
+        return hit;
+      }
     }
 
     if (!hasMeaningfulContext(context)) {
@@ -187,6 +210,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         setPicks(hydrated);
         setStatus(hydrated.length ? 'ready' : 'empty');
         if (hydrated.length) {
+          writeSelectsCache(user.uid, hydrated.map(toStored));
           try {
             await recordTasteEvent(
               user.uid,
@@ -226,23 +250,22 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   }, [user, snapshot, context]);
 
   useEffect(() => {
-    const stored = snapshot.generated.lastPicks.map(fromStored);
-    if (stored.length) {
-      setPicks(stored);
-      setStatus('ready');
-    }
     if (!user) {
-      if (!stored.length) setStatus('idle');
+      setStatus('idle');
       return;
     }
-    if (!stored.length && !hasMeaningfulContext(context)) {
+    const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+    if (hit?.length) {
+      setPicks(hit);
+      setStatus('ready');
+      return;
+    }
+    if (!hasMeaningfulContext(context)) {
       setPicks([]);
       setStatus('empty');
       return;
     }
-    if (!stored.length || !snapshot.generated.lastPicksAt || Date.now() - snapshot.generated.lastPicksAt >= LAST_PICKS_FRESH_MS) {
-      void generateRecommendation(false);
-    }
+    void generateRecommendation(false);
   }, [user, snapshot, context, generateRecommendation]);
 
   const rateRecommendation = useCallback(
