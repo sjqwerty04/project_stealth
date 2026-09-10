@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Orbit, X, ThumbsUp, ThumbsDown, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useSimilarVibes } from '../hooks/useSimilarVibes';
@@ -67,6 +67,11 @@ export default function MovieDetailScreen() {
 
   // Reddit-grounded starter questions + known-for + letterboxd.
   const { snapshot } = useTaste();
+  const location = useLocation();
+  const stateWhy =
+    location.state && typeof location.state === 'object' && typeof (location.state as { whyMatch?: unknown }).whyMatch === 'string'
+      ? (location.state as { whyMatch: string }).whyMatch
+      : '';
   const { insights } = useMovieInsights(details?.title, details?.year, details?.genres);
   const { knownFor } = useMovieKnownFor(details?.title, details?.year, snapshot.generated.compactForChat);
   const { rating: lbRating, filmUrl: lbUrl } = useLetterboxdRating(details?.id, details?.title, details?.year);
@@ -416,6 +421,19 @@ export default function MovieDetailScreen() {
             <> &bull; <span className="text-white/70">{details.techSpecs.certification}</span></>
           )}
         </p>
+        {(() => {
+          const whyMatch =
+            snapshot.generated.lastPicks.find((p) => p.movieId === details.id)?.whyMatch || stateWhy;
+          if (!whyMatch) return null;
+          return (
+            <div className="mt-4 text-center" data-testid="why-you-would-like-this">
+              <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-2">
+                Why you would like this
+              </p>
+              <p className="text-sm text-fg-2 leading-relaxed">{whyMatch}</p>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── CONTENT ── */}

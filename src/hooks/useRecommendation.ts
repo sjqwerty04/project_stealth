@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { LAST_PICKS_FRESH_MS, hasMeaningfulContext, recordTasteEvent, useTaste, type TastePick } from '../lib/taste';
+import {
+  contextFromCalendarLogs,
+  hasMeaningfulContext,
+  hitSelectsCache,
+  mergeRecommendContext,
+  recordTasteEvent,
+  useTaste,
+  writeSelectsCache,
+  type CalendarLogLike,
+  type RecommendContext,
+  type TastePick,
+} from '../lib/taste';
 
 export type RecommendationResult = {
   movieId: number;
@@ -15,6 +26,8 @@ export type RecommendationResult = {
   reason: string;
   confidence: number;
 };
+
+export type SelectsStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -46,6 +59,26 @@ function fromStored(pick: TastePick): RecommendationResult {
     reason: pick.whyMatch,
     confidence: pick.confidence,
   };
+}
+
+function toStored(p: RecommendationResult): TastePick {
+  return {
+    movieId: p.movieId,
+    title: p.title,
+    year: p.year,
+    poster: p.poster,
+    backdrop: p.backdrop,
+    runtime: p.runtime,
+    mediaType: p.mediaType,
+    whyMatch: p.reason,
+    confidence: p.confidence,
+  };
+}
+
+function resolveHit(uid: string, snapshotPicks: TastePick[], snapshotAt: number | null): RecommendationResult[] | null {
+  const hit = hitSelectsCache(uid, snapshotPicks, snapshotAt);
+  if (!hit) return null;
+  return hit.picks.map(fromStored);
 }
 
 async function hydrateFromApi(title: string, year?: string, id?: string): Promise<RecommendationResult | null> {
@@ -103,41 +136,60 @@ async function hydrateTitle(title: string, year?: string, id?: string): Promise<
   };
 }
 
-export function useRecommendation() {
+export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot } = useTaste();
   const [picks, setPicks] = useState<RecommendationResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState<SelectsStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  const diaryKey = (opts?.events ?? [])
+    .map((e) => `${e.movieId ?? ''}:${e.title}:${e.rating ?? ''}:${e.date ?? ''}`)
+    .join('|');
+
+  const context = useMemo((): RecommendContext => {
+    return mergeRecommendContext(contextFromCalendarLogs(opts?.events ?? []), snapshot.context);
+  }, [diaryKey, snapshot.context]);
 
   const generateRecommendation = useCallback(async (force = false): Promise<RecommendationResult[] | null> => {
     if (!user) {
       setError('Not authenticated');
+      setStatus('error');
       return null;
     }
 
-    const storedAt = snapshot.generated.lastPicksAt;
     const stored = snapshot.generated.lastPicks.map(fromStored);
-    if (!force && stored.length && storedAt && Date.now() - storedAt < LAST_PICKS_FRESH_MS) {
-      setPicks(stored);
-      return stored;
+    if (!force) {
+      const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+      if (hit?.length) {
+        setPicks(hit);
+        setStatus('ready');
+        return hit;
+      }
+    }
+
+    if (!hasMeaningfulContext(context)) {
+      setPicks([]);
+      setStatus('empty');
+      return [];
     }
 
     const existing = inflight.get(user.uid);
     if (existing) {
       const shared = await existing;
       setPicks(shared);
+      setStatus(shared.length ? 'ready' : 'empty');
       return shared;
     }
 
     const run = (async () => {
-      setIsLoading(true);
+      setStatus(stored.length ? 'ready' : 'loading');
       setError(null);
       try {
         const res = await fetch('/api/your-selects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context: snapshot.context }),
+          body: JSON.stringify({ context }),
         });
         const data = res.ok ? await res.json() : { picks: [] };
         const raw = Array.isArray(data.picks) ? data.picks : [];
@@ -156,51 +208,65 @@ export function useRecommendation() {
         ).filter((row): row is RecommendationResult => row != null);
 
         setPicks(hydrated);
+        setStatus(hydrated.length ? 'ready' : 'empty');
         if (hydrated.length) {
-          await recordTasteEvent(
-            user.uid,
-            {
-              type: 'last_picks',
-              picks: hydrated.map((p) => ({
-                movieId: p.movieId,
-                title: p.title,
-                year: p.year,
-                poster: p.poster,
-                backdrop: p.backdrop,
-                runtime: p.runtime,
-                mediaType: p.mediaType,
-                whyMatch: p.reason,
-                confidence: p.confidence,
-              })),
-            },
-            { email: user.email }
-          );
+          writeSelectsCache(user.uid, hydrated.map(toStored));
+          try {
+            await recordTasteEvent(
+              user.uid,
+              {
+                type: 'last_picks',
+                picks: hydrated.map((p) => ({
+                  movieId: p.movieId,
+                  title: p.title,
+                  year: p.year,
+                  poster: p.poster,
+                  backdrop: p.backdrop,
+                  runtime: p.runtime,
+                  mediaType: p.mediaType,
+                  whyMatch: p.reason,
+                  confidence: p.confidence,
+                })),
+              },
+              { email: user.email }
+            );
+          } catch (err) {
+            console.warn('Your Selects cache write failed:', err);
+          }
         }
         return hydrated;
       } catch (err) {
         console.error('Your Selects failed:', err);
         setError('Could not load Your Selects');
-        return [];
+        setStatus(stored.length ? 'ready' : 'error');
+        return stored.length ? stored : [];
       } finally {
-        setIsLoading(false);
         inflight.delete(user.uid);
       }
     })();
 
     inflight.set(user.uid, run);
     return run;
-  }, [user, snapshot]);
+  }, [user, snapshot, context]);
 
   useEffect(() => {
-    const stored = snapshot.generated.lastPicks.map(fromStored);
-    if (stored.length) {
-      setPicks(stored);
+    if (!user) {
+      setStatus('idle');
       return;
     }
-    if (user && hasMeaningfulContext(snapshot.context)) {
-      void generateRecommendation(false);
+    const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+    if (hit?.length) {
+      setPicks(hit);
+      setStatus('ready');
+      return;
     }
-  }, [user, snapshot, generateRecommendation]);
+    if (!hasMeaningfulContext(context)) {
+      setPicks([]);
+      setStatus('empty');
+      return;
+    }
+    void generateRecommendation(false);
+  }, [user, snapshot, context, generateRecommendation]);
 
   const rateRecommendation = useCallback(
     async (rec: RecommendationResult, rating: 'up' | 'down') => {
@@ -259,7 +325,8 @@ export function useRecommendation() {
   return {
     picks,
     recommendation: picks[0] ?? null,
-    isLoading,
+    status,
+    isLoading: status === 'loading',
     error,
     generateRecommendation,
     rateRecommendation,

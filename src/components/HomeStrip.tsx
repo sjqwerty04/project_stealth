@@ -3,7 +3,9 @@ import { addDays, format, isSameDay, startOfDay, subDays } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
+import { firstSentence } from '../lib/taste';
 import { Mark } from './ui';
+import Skeleton from './ui/Skeleton';
 
 export type SelectFilm = {
   id: number;
@@ -298,6 +300,7 @@ function SelectCard({
 }) {
   const still = art?.still || film.backdrop || film.poster;
   const logo = art?.logo || film.logo;
+  const whyLine = film.whyMatch ? firstSentence(film.whyMatch) : '';
   return (
     <button
       type="button"
@@ -305,7 +308,7 @@ function SelectCard({
       aria-label={film.title}
       onClick={onClick}
       className="relative w-full overflow-hidden bg-base-3 min-h-11"
-      style={{ height: film.whyMatch ? 148 : 106, borderRadius: 0, border: 'none' }}
+      style={{ height: whyLine ? 168 : 148, borderRadius: 0, border: 'none' }}
     >
       {still && (
         <img
@@ -322,7 +325,7 @@ function SelectCard({
             alt=""
             className="relative object-contain"
             style={{
-              maxHeight: 56,
+              maxHeight: 48,
               maxWidth: '70%',
               filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
             }}
@@ -332,11 +335,11 @@ function SelectCard({
             {film.title}
           </span>
         )}
-        {film.whyMatch && (
-          <span className="font-spec text-[10px] uppercase tracking-widest text-fg-2 text-center" data-testid="why-match">
-            {film.whyMatch}
+        {whyLine ? (
+          <span className="font-spec text-[10px] uppercase tracking-widest text-fg-2 text-center line-clamp-1" data-testid="why-match-line">
+            {whyLine}
           </span>
-        )}
+        ) : null}
       </span>
     </button>
   );
@@ -353,14 +356,14 @@ export default function HomeStrip({
   events: CalendarEvent[];
   insightsLabel?: string | null;
   onYearZoom: () => void;
-  onOpenMovie: (id: number, mediaType?: string) => void;
+  onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   onOpenProfile?: () => void;
   onAddMovie: (date: Date) => void;
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
   const [slide, setSlide] = useState(0);
   const [paused, setPaused] = useState(false);
-  const { picks } = useRecommendation();
+  const { picks, status } = useRecommendation({ events });
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
@@ -481,6 +484,21 @@ export default function HomeStrip({
 
       <div className="px-7 shrink-0">
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
+        {status === 'loading' && (
+          <div data-testid="selects-skeleton">
+            <Skeleton className="w-full h-[148px]" />
+          </div>
+        )}
+        {status === 'empty' && (
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 pb-4" data-testid="selects-empty">
+            Log a film to get Your Selects.
+          </p>
+        )}
+        {status === 'error' && (
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 pb-4" data-testid="selects-error">
+            Could not load Your Selects.
+          </p>
+        )}
         {slides.length > 0 && (
           <div
             className="overflow-hidden"
@@ -509,7 +527,7 @@ export default function HomeStrip({
                   <SelectCard
                     film={film}
                     art={art[film.id]}
-                    onClick={() => onOpenMovie(film.id, film.mediaType)}
+                    onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
                   />
                 </div>
               ))}
@@ -571,9 +589,12 @@ export default function HomeStrip({
                 <button
                   key={dayKey(d)}
                   data-testid={`strip-day-${format(d, 'd')}`}
-                  aria-label={format(d, 'EEEE MMM d')}
+                  aria-label={film ? format(d, 'EEEE MMM d') : `Log a film on ${format(d, 'EEEE MMM d')}`}
                   aria-pressed={active}
-                  onClick={() => setSelected(d)}
+                  onClick={() => {
+                    setSelected(d);
+                    if (!film) onAddMovie(d);
+                  }}
                   className="flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >
                   <span

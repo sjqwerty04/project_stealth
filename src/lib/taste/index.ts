@@ -4,14 +4,23 @@ export {
   emptySnapshot,
   ratingToHistoryScore,
   compactTaste,
+  contextFromCalendarLogs,
+  mergeRecommendContext,
   hasMeaningfulContext,
   buildRecommendContext,
   withCompact,
   selectConfidentPicks,
 } from './buildRecommendContext';
+export type { CalendarLogLike } from './buildRecommendContext';
 export { applyTasteEvent, shouldRebuildDiary } from './applyEvent';
 export { getTaste, parseSnapshot, tasteDoc } from './getTaste';
 export { generateSnapshot, loadDiary } from './generateSnapshot';
 export { generatedDiaryFields, parseSelectPicks } from './parseSelectPicks';
 export { recordTasteEvent } from './recordTasteEvent';
 export { useTaste } from './useTaste';
+export {
+  firstSentence,
+  hitSelectsCache,
+  readSelectsCache,
+  writeSelectsCache,
+} from './selectsCache';

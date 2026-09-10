@@ -25,7 +25,7 @@ async function recommendWithGrok(context: RecommendContext): Promise<SelectPick[
   const skill = readSkill('your-selects');
   const text = await callXai({
     system: skill || 'Recommend three films that match this viewer. JSON only.',
-    maxTokens: 600,
+    maxTokens: 900,
     messages: [
       {
         role: 'user',
@@ -33,8 +33,10 @@ async function recommendWithGrok(context: RecommendContext): Promise<SelectPick[
 
 ${JSON.stringify(context)}
 
+Each whyMatch is two or three sentences. Name a film from their history. Do not use em dashes.
+
 Return ONLY JSON:
-{"picks":[{"title":"Film","year":"2015","whyMatch":"one sentence naming their history","confidence":0.8}]}`,
+{"picks":[{"title":"Film","year":"2015","whyMatch":"Two or three sentences. Name a history title.","confidence":0.8}]}`,
       },
     ],
   });

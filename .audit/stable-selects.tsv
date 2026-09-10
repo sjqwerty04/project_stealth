@@ -1,0 +1,6 @@
+ts	phase	decision	why	evidence	result
+2026-09-10T23:10:00Z	frame	predicate is same three titles on back-nav, one-line home why, empty bar logs	user distrust from Grok on remount	plan stable_selects_fixes	open
+2026-09-10T23:20:00Z	C1	module plus sessionStorage last picks; skip Grok when hit	Home unmounts on /movie so hook state died	src/lib/taste/selectsCache.ts	tests green
+2026-09-10T23:21:00Z	C2	empty strip bar calls onAddMovie	caption-only add was invisible	src/components/HomeStrip.tsx	open
+2026-09-10T23:22:00Z	C3	first sentence of whyMatch on SelectCard	why on Home without a paragraph	firstSentence	tests green
+2026-09-10T23:23:00Z	C4	skip first-load Grok speed work	return path is the trust bug; first paint stays Grok	plan C4	skipped
