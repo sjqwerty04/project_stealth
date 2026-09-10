@@ -6,7 +6,7 @@ import pandas as pd
 
 # Page config
 st.set_page_config(
-    page_title="ViewFindr Admin",
+    page_title="Selects Admin",
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -65,7 +65,7 @@ def check_password():
 
 # Main app
 def main():
-    st.title("🎬 ViewFindr Admin Dashboard")
+    st.title("🎬 Selects Admin Dashboard")
     
     # Initialize Firebase
     try:

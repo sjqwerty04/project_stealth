@@ -1,4 +1,4 @@
-# AGENT GUIDE: ViewFindr / Selects Codebase
+# AGENT GUIDE: Selects Codebase
 
 This file is an in-depth orientation guide for engineers, PMs, and AI/code agents working in this repository.
 
