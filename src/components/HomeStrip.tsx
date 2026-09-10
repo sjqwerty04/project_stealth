@@ -427,7 +427,9 @@ export default function HomeStrip({
     const track = stripTrackRef.current;
     if (!track) return;
     const active = track.querySelector<HTMLElement>('[aria-pressed="true"]');
-    active?.scrollIntoView({ inline: 'end', block: 'nearest', behavior: 'instant' });
+    if (!active) return;
+    const nextLeft = active.offsetLeft - track.clientWidth + active.offsetWidth;
+    track.scrollTo({ left: Math.max(0, nextLeft), behavior: 'instant' });
   }, []);
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
@@ -556,7 +558,7 @@ export default function HomeStrip({
 
         <div
           ref={stripTrackRef}
-          className="relative z-10 px-7 overflow-x-auto no-scrollbar pb-3"
+          className="relative z-10 px-7 overflow-x-auto overflow-y-hidden no-scrollbar pb-3"
           data-testid="strip-track"
         >
           <div className="flex w-max gap-1 pb-2">

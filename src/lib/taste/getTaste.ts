@@ -13,10 +13,13 @@ function parsePicks(value: unknown): TastePick[] {
   for (const raw of value) {
     if (!raw || typeof raw !== 'object') continue;
     const row = raw as Record<string, unknown>;
-    if (typeof row.title !== 'string' || typeof row.movieId !== 'number') continue;
+    const title = typeof row.title === 'string' ? row.title : '';
+    const movieIdRaw = row.movieId;
+    const movieId = typeof movieIdRaw === 'number' ? movieIdRaw : Number(movieIdRaw);
+    if (!title || !Number.isFinite(movieId)) continue;
     const pick: TastePick = {
-      movieId: row.movieId,
-      title: row.title,
+      movieId,
+      title,
       year: typeof row.year === 'string' || typeof row.year === 'number' ? row.year : '',
       poster: typeof row.poster === 'string' ? row.poster : '',
       whyMatch: typeof row.whyMatch === 'string' ? row.whyMatch : '',
@@ -33,8 +36,10 @@ function parsePicks(value: unknown): TastePick[] {
 export function selectsHydrateKey(snapshot: TasteSnapshot): string {
   return [
     String(snapshot.generated.lastPicksAt),
+    String(snapshot.generated.lastPicks.length),
     snapshot.context.profile,
     String(snapshot.context.preferences.length),
+    String(snapshot.context.history.length),
   ].join('\0');
 }
 
