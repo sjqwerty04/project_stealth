@@ -3,6 +3,7 @@ import { addDays, format, isSameDay, startOfDay, subDays } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
+import { firstSentence } from '../lib/taste';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 
@@ -299,6 +300,7 @@ function SelectCard({
 }) {
   const still = art?.still || film.backdrop || film.poster;
   const logo = art?.logo || film.logo;
+  const whyLine = film.whyMatch ? firstSentence(film.whyMatch) : '';
   return (
     <button
       type="button"
@@ -306,7 +308,7 @@ function SelectCard({
       aria-label={film.title}
       onClick={onClick}
       className="relative w-full overflow-hidden bg-base-3 min-h-11"
-      style={{ height: 148, borderRadius: 0, border: 'none' }}
+      style={{ height: whyLine ? 168 : 148, borderRadius: 0, border: 'none' }}
     >
       {still && (
         <img
@@ -323,7 +325,7 @@ function SelectCard({
             alt=""
             className="relative object-contain"
             style={{
-              maxHeight: 56,
+              maxHeight: 48,
               maxWidth: '70%',
               filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
             }}
@@ -333,6 +335,11 @@ function SelectCard({
             {film.title}
           </span>
         )}
+        {whyLine ? (
+          <span className="font-spec text-[10px] uppercase tracking-widest text-fg-2 text-center line-clamp-1" data-testid="why-match-line">
+            {whyLine}
+          </span>
+        ) : null}
       </span>
     </button>
   );
@@ -582,9 +589,12 @@ export default function HomeStrip({
                 <button
                   key={dayKey(d)}
                   data-testid={`strip-day-${format(d, 'd')}`}
-                  aria-label={format(d, 'EEEE MMM d')}
+                  aria-label={film ? format(d, 'EEEE MMM d') : `Log a film on ${format(d, 'EEEE MMM d')}`}
                   aria-pressed={active}
-                  onClick={() => setSelected(d)}
+                  onClick={() => {
+                    setSelected(d);
+                    if (!film) onAddMovie(d);
+                  }}
                   className="flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >
                   <span
