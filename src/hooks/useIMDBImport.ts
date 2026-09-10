@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
+import { recordTasteEvent } from '../lib/taste';
 
 type IMDBMovie = {
   title: string;
@@ -569,6 +570,9 @@ export function useIMDBImport() {
       }
 
       console.log(`CSV import complete: ${imported} to watched, ${calendarAdded} to calendar, ${skipped} skipped, ${failed} failed`);
+      if (imported > 0 && user) {
+        await recordTasteEvent(user.uid, { type: 'import', source: 'imdb', count: imported }, { email: user.email });
+      }
       return imported;
     } catch (err) {
       console.error('CSV import failed:', err);
@@ -749,6 +753,9 @@ export function useIMDBImport() {
       }
 
       console.log(`IMDB import complete: ${imported} imported, ${skipped} skipped, ${failed} failed`);
+      if (imported > 0 && user) {
+        await recordTasteEvent(user.uid, { type: 'import', source: 'imdb', count: imported }, { email: user.email });
+      }
       return imported;
     } catch (err) {
       console.error('IMDB import failed:', err);

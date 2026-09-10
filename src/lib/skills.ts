@@ -7,6 +7,7 @@ import tasteInsight from '../skills/taste-insight.md?raw';
 import onboardingAi from '../skills/onboarding-ai.md?raw';
 import movieChat from '../skills/movie-chat.md?raw';
 import searchIntent from '../skills/search-intent.md?raw';
+import yourSelects from '../skills/your-selects.md?raw';
 
 const SKILLS: Record<string, string> = {
   'movie-hook': movieHook,
@@ -14,6 +15,7 @@ const SKILLS: Record<string, string> = {
   'onboarding-ai': onboardingAi,
   'movie-chat': movieChat,
   'search-intent': searchIntent,
+  'your-selects': yourSelects,
 };
 
 export function loadSkill(name: string): string {

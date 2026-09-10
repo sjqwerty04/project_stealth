@@ -1,12 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callXai } from './_lib/xai.js';
-
-const SYSTEM = `You write ultra-short audience-perspective hooks for films. Max 7 words. Rules:
-1. Present tense only — never "upcoming", "drops", "next year", "debut drops".
-2. NEVER mention the director by name unless they are globally iconic (Nolan, Kubrick, Spielberg, Scorsese, Tarantino, Fincher). Unknown directors mean nothing to audiences.
-3. Focus on what AUDIENCES know this film for: box office, awards, premise, cultural moment, reputation.
-Good: "$1M budget. $80M gross. Earned every dollar.", "The horror film nobody saw coming", "Oscar winner for Best Cinematography", "36-year-late sequel that justified every year".
-Bad: "Barker's directorial debut" (nobody knows Barker), "drops next year" (stale), "Baker's horror debut" (same problem).`;
+import { readSkill } from './_lib/readSkill.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,6 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const title = typeof req.query.title === 'string' ? req.query.title : '';
   const year  = typeof req.query.year  === 'string' ? req.query.year  : '';
+  const taste = typeof req.query.taste === 'string' ? req.query.taste : '';
 
   if (!title) return res.status(400).json({ error: 'title is required' });
 
@@ -25,15 +20,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
+  const skill = readSkill('movie-hook');
+
   try {
     const text = await callXai({
-      system: SYSTEM,
+      system: skill || 'Write a 7-word audience-POV hook. Present tense. Specific.',
       webSearch: true,
       maxTokens: 80,
       messages: [
         {
           role: 'user',
-          content: `Today is ${currentDate}. Search the web for what "${title}"${year ? ` (${year})` : ''} is known for among audiences — box office, awards, cultural reputation. Then write ONE hook line, max 7 words, present tense, audience-POV. Output ONLY the line, no quotes.`,
+          content: `Today is ${currentDate}. Search the web for what "${title}"${year ? ` (${year})` : ''} is known for among audiences. Write ONE hook line, max 7 words, present tense, audience-POV.${taste ? ` Tilt it toward this viewer without naming them: ${taste}` : ''} Output ONLY the line, no quotes.`,
         },
       ],
     });

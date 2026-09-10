@@ -42,6 +42,7 @@ type Movie = {
   runtime: string;
   poster: string;
   backdrop?: string;
+  logo?: string;
   mediaType?: 'movie' | 'tv';
   popularity?: number;
   accentStart?: string;
@@ -467,14 +468,14 @@ ${historyContext}
 
 // --- Expanded Mock Movie Data ---
 const MOCK_DB: Movie[] = [
-  { id: 1, title: 'Interstellar', year: 2014, runtime: '2h 49m', poster: 'https://image.tmdb.org/t/p/w200/gEU2QniL6C8zEfVIuM8nEyh09ny.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg' },
-  { id: 2, title: 'The Grand Budapest Hotel', year: 2014, runtime: '1h 39m', poster: 'https://image.tmdb.org/t/p/w200/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/nX5XotM9yprCKarRH4BNhmNLh0H.jpg' },
-  { id: 3, title: 'Dune: Part Two', year: 2024, runtime: '2h 46m', poster: 'https://image.tmdb.org/t/p/w200/1pdfLvkbY9ohJlCjQH2GBAsJbge.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg' },
-  { id: 4, title: 'Past Lives', year: 2023, runtime: '1h 45m', poster: 'https://image.tmdb.org/t/p/w200/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/x2IqsMlpbOhS8z09dbOQ0aZUXuR.jpg' },
-  { id: 5, title: 'Oppenheimer', year: 2023, runtime: '3h 00m', poster: 'https://image.tmdb.org/t/p/w200/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg' },
-  { id: 6, title: 'Heat', year: 1995, runtime: '2h 50m', poster: 'https://image.tmdb.org/t/p/w200/rrBuGu0PjqhY2LoXi4rd3E2i1F.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/lh5lbisD4o7TwNrfbt8ztPLcRqE.jpg' },
-  { id: 7, title: 'Spider-Man: Into the Spider-Verse', year: 2018, runtime: '1h 57m', poster: 'https://image.tmdb.org/t/p/w200/xnopI5Xtky18MPhK40cZAGAOveV.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/qHybrid7k2yUl8ivpgyr5He5x9.jpg' },
-  { id: 8, title: 'The Dark Knight', year: 2008, runtime: '2h 32m', poster: 'https://image.tmdb.org/t/p/w200/qJ2tW6WMUDux911r6m7haRef0WH.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/hkBaDkMWbLaf8B1lsWsKX7Ew3Xq.jpg' },
+  { id: 157336, title: 'Interstellar', year: 2014, runtime: '2h 49m', poster: 'https://image.tmdb.org/t/p/w200/gEU2QniL6C8zEfVIuM8nEyh09ny.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg' },
+  { id: 120467, title: 'The Grand Budapest Hotel', year: 2014, runtime: '1h 39m', poster: 'https://image.tmdb.org/t/p/w200/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/nX5XotM9yprCKarRH4BNhmNLh0H.jpg', logo: 'https://upload.wikimedia.org/wikipedia/commons/0/05/The_Grand_Budapest_Hotel_movie_logo.png' },
+  { id: 693134, title: 'Dune: Part Two', year: 2024, runtime: '2h 46m', poster: 'https://image.tmdb.org/t/p/w200/1pdfLvkbY9ohJlCjQH2GBAsJbge.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg', logo: 'https://static.wikia.nocookie.net/logopedia/images/b/b4/DunePartTwo_2023.png' },
+  { id: 666277, title: 'Past Lives', year: 2023, runtime: '1h 45m', poster: 'https://image.tmdb.org/t/p/w200/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/x2IqsMlpbOhS8z09dbOQ0aZUXuR.jpg' },
+  { id: 872585, title: 'Oppenheimer', year: 2023, runtime: '3h 00m', poster: 'https://image.tmdb.org/t/p/w200/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/fm6KqXpk3M2HVveHwCrBSSBaO0V.jpg' },
+  { id: 949, title: 'Heat', year: 1995, runtime: '2h 50m', poster: 'https://image.tmdb.org/t/p/w200/rrBuGu0PjqhY2LoXi4rd3E2i1F.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/lh5lbisD4o7TwNrfbt8ztPLcRqE.jpg' },
+  { id: 324857, title: 'Spider-Man: Into the Spider-Verse', year: 2018, runtime: '1h 57m', poster: 'https://image.tmdb.org/t/p/w200/xnopI5Xtky18MPhK40cZAGAOveV.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/qHybrid7k2yUl8ivpgyr5He5x9.jpg' },
+  { id: 155, title: 'The Dark Knight', year: 2008, runtime: '2h 32m', poster: 'https://image.tmdb.org/t/p/w200/qJ2tW6WMUDux911r6m7haRef0WH.jpg', backdrop: 'https://image.tmdb.org/t/p/w500/hkBaDkMWbLaf8B1lsWsKX7Ew3Xq.jpg' },
 ];
 
 export default function MovieCalendarApp() {
@@ -1130,38 +1131,13 @@ export default function MovieCalendarApp() {
   const isPast = isPastDate(selectedDate);
 
   if (homeChrome === 'strip' && !isModalOpen && !isAvatarModalOpen) {
-    const featured = (featuredMovies.length ? featuredMovies : MOCK_DB).map((m) => ({
-      id: m.id,
-      title: m.title,
-      poster: m.poster,
-      mediaType: m.mediaType,
-      accentStart: m.accentStart,
-    }));
     return (
       <HomeStrip
         events={events}
-        featured={featured}
         insightsLabel={insights.personaLine}
         onYearZoom={() => setHomeChrome('year')}
         onOpenMovie={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)}
-        onPickEmptyRec={async (movie, date) => {
-          navigate(`/movie/${movie.id}${movie.mediaType ? `?type=${movie.mediaType}` : ''}`);
-          try {
-            await addEvent({
-              movieId: movie.id,
-              title: movie.title,
-              poster: movie.poster,
-              date: date.toISOString(),
-              inviteFriend: false,
-              rating: null,
-              status: isPastDate(date) ? 'watched' : 'planned',
-              mediaType: movie.mediaType,
-              accentStart: movie.accentStart,
-            });
-          } catch (err) {
-            console.error('Failed to log empty-day rec', err);
-          }
-        }}
+        onOpenProfile={() => navigate('/me')}
         onAddMovie={(date) => handleDayClick(date)}
       />
     );

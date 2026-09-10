@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
+import { recordTasteEvent } from '../lib/taste';
 
 type LetterboxdFilm = {
   title: string;
@@ -308,7 +309,9 @@ export function useLetterboxdImport() {
       }
 
       console.log(`Import complete: ${imported} to watched, ${calendarAdded} to calendar, ${skipped} skipped, ${failed} failed`);
-
+      if (imported > 0) {
+        await recordTasteEvent(user.uid, { type: 'import', source: 'letterboxd', count: imported }, { email: user.email });
+      }
       return imported;
     } catch (err) {
       console.error('Letterboxd import failed:', err);

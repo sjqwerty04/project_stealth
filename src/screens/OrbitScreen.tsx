@@ -13,6 +13,7 @@ import ConstellationView from '../components/orbit/ConstellationView';
 import { useAuth } from '../hooks/useAuth';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { logActivity } from '../lib/activityLogger';
+import { recordTasteEvent, useTaste } from '../lib/taste';
 import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -21,6 +22,7 @@ export default function OrbitScreen() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { snapshot } = useTaste();
   const { addToWatchlist } = useWatchlist();
   
   const {
@@ -135,7 +137,7 @@ export default function OrbitScreen() {
         setIsLoading(false);
         
         // Pre-fetch next moves in background (no back direction for entry movie)
-        prefetchNextMoves(entryMovie, null).then((moves) => {
+        prefetchNextMoves(entryMovie, null, snapshot.generated.compactForChat).then((moves) => {
           setPrefetchedMoves({
             visual: moves.visual || null,
             balanced: moves.balanced || null,
@@ -219,20 +221,22 @@ export default function OrbitScreen() {
         setPendingDirection(null);
         
         // Log orbit swipe activity
-        if (user?.uid && user?.email && currentMovie) {
-          logActivity(user.uid, user.email, 'orbit_swipe', {
-            swipeDirection: direction,
-            fromMovieId: currentMovie.id,
-            fromMovieTitle: currentMovie.title,
-            toMovieId: prefetched.movie.id,
-            toMovieTitle: prefetched.movie.title,
-          });
+        if (user?.uid && currentMovie) {
+          void recordTasteEvent(
+            user.uid,
+            {
+              type: 'orbit_swipe',
+              direction,
+              fromMovieId: currentMovie.id,
+              toMovieId: prefetched.movie.id,
+              toTitle: prefetched.movie.title,
+            },
+            { email: user.email }
+          );
         }
         
-        // Pre-fetch next moves for new movie
-        // The back direction is the OPPOSITE of how we arrived
         const backDir = getOppositeDirection(direction);
-        prefetchNextMoves(prefetched.movie, backDir).then((moves) => {
+        prefetchNextMoves(prefetched.movie, backDir, snapshot.generated.compactForChat).then((moves) => {
           setPrefetchedMoves({
             visual: moves.visual || null,
             balanced: moves.balanced || null,
@@ -246,7 +250,7 @@ export default function OrbitScreen() {
       setTransitioning(true);
       setPendingDirection(direction);
       
-      const result = await getNextMovie(currentMovie, direction);
+      const result = await getNextMovie(currentMovie, direction, snapshot.generated.compactForChat);
       
       if (result) {
         setTransitionColor(result.movie.dominantHex);
@@ -257,19 +261,22 @@ export default function OrbitScreen() {
           setPendingDirection(null);
           
           // Log orbit swipe activity
-          if (user?.uid && user?.email && currentMovie) {
-            logActivity(user.uid, user.email, 'orbit_swipe', {
-              swipeDirection: direction,
-              fromMovieId: currentMovie.id,
-              fromMovieTitle: currentMovie.title,
-              toMovieId: result.movie.id,
-              toMovieTitle: result.movie.title,
-            });
+          if (user?.uid && currentMovie) {
+            void recordTasteEvent(
+              user.uid,
+              {
+                type: 'orbit_swipe',
+                direction,
+                fromMovieId: currentMovie.id,
+                toMovieId: result.movie.id,
+                toTitle: result.movie.title,
+              },
+              { email: user.email }
+            );
           }
           
-          // Pre-fetch next moves for new movie
           const backDir = getOppositeDirection(direction);
-          prefetchNextMoves(result.movie, backDir).then((moves) => {
+          prefetchNextMoves(result.movie, backDir, snapshot.generated.compactForChat).then((moves) => {
             setPrefetchedMoves({
               visual: moves.visual || null,
               balanced: moves.balanced || null,
@@ -283,7 +290,7 @@ export default function OrbitScreen() {
         setPendingDirection(null);
       }
     }
-  }, [currentMovie, isTransitioning, prefetchedMoves, isBackDirection, goBack, setTransitioning, setPendingDirection, navigateTo, setPrefetchedMoves, user]);
+  }, [currentMovie, isTransitioning, prefetchedMoves, isBackDirection, goBack, setTransitioning, setPendingDirection, navigateTo, setPrefetchedMoves, user, snapshot.generated.compactForChat]);
 
   // Handle long press (save movie to watchlist)
   const handleLongPress = useCallback(async () => {
