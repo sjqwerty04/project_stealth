@@ -1,10 +1,10 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
-import { callClaudeForJSON } from './claude';
+import { callLlmForJSON } from './llm';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Response schema from Gemini - connection_reason is LAST to handle truncation
+// Response schema. connection_reason is LAST to handle truncation
 export interface OrbitResponse {
   title: string;
   year: string;
@@ -13,10 +13,9 @@ export interface OrbitResponse {
   reason: string; // LAST - can be truncated safely
 }
 
-// System prompt for orbit recommendations - defines Claude's cinematic expertise
 const ORBIT_SYSTEM_PROMPT = `You are a film scholar and cinematographer with deep expertise in visual storytelling, narrative structure, emotional resonance, and film analysis. You understand the nuanced connections between films across different dimensions.`;
 
-// ORBIT PROMPTS - 4 directional attributes using Claude's XML structure
+// ORBIT PROMPTS - 4 directional attributes using XML structure
 // UP = Visual (cinematography, colors)
 // RIGHT = Balanced (overall match)
 // DOWN = Storytelling (narrative style)
@@ -284,9 +283,8 @@ export const getNextMovie = async (
   const prompt = buildPrompt(currentMovie, direction);
   
   console.log(`Orbit: Getting ${direction} recommendation for "${currentMovie.title}"`);
-  
-  // Use Claude with validated JSON call and auto-retry
-  const parsed = await callClaudeForJSON<{
+
+  let parsed: {
     title?: string;
     next_movie_title?: string;
     year: string;
@@ -296,10 +294,17 @@ export const getNextMovie = async (
     similarity_score?: number;
     reason?: string;
     connection_reason?: string;
-  }>(prompt, ORBIT_SYSTEM_PROMPT, 2);
-  
+  } | null = null;
+
+  try {
+    parsed = await callLlmForJSON(prompt, ORBIT_SYSTEM_PROMPT, 2);
+  } catch (error) {
+    console.error('Orbit: Grok call failed', error);
+    return null;
+  }
+
   if (!parsed) {
-    console.error('Orbit: Claude JSON call failed after retries');
+    console.error('Orbit: JSON call failed after retries');
     return null;
   }
   
@@ -363,7 +368,7 @@ export const getMovieCredits = async (tmdbId: number): Promise<{
   }
 };
 
-// Extract dominant color from poster (fallback if Gemini doesn't provide accurate hex)
+// Extract dominant color from poster when the model hex is missing or unusable
 export const extractDominantColor = async (imageUrl: string): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();

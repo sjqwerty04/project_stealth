@@ -27,7 +27,7 @@ import { useAuth } from '../hooks/useAuth';
 import { logMovieAdded } from '../lib/analytics';
 import RecommendationCard from '../components/RecommendationCard';
 import type { RecommendationResult } from '../hooks/useRecommendation';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 import HomeStrip from '../components/HomeStrip';
 import Skeleton from '../components/ui/Skeleton';
 import { useUserInsights } from '../hooks/useUserInsights';
@@ -203,11 +203,11 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 </example>`;
 
   try {
-    console.log(`[fetchLLMColors] Calling Claude API...`);
-    const text = await callClaude(prompt, systemPrompt);
+    console.log(`[fetchLLMColors] Calling Grok API...`);
+    const text = await callLlm(prompt, systemPrompt);
     
     if (!text) {
-      console.warn('[fetchLLMColors] No response from Claude');
+      console.warn('[fetchLLMColors] No response from Grok');
       return null;
     }
     
@@ -457,7 +457,7 @@ ${historyContext}
 </rules>`;
     }
 
-    const text = await callClaude(prompt, systemPrompt);
+    const text = await callLlm(prompt, systemPrompt);
     return text || 'Enjoy the show!';
   } catch (error) {
     console.error('AI Error:', error);
@@ -1162,6 +1162,7 @@ export default function MovieCalendarApp() {
             console.error('Failed to log empty-day rec', err);
           }
         }}
+        onAddMovie={(date) => handleDayClick(date)}
       />
     );
   }

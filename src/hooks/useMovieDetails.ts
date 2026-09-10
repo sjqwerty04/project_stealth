@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -248,7 +248,7 @@ export function useMovieDetails() {
       // System prompt for vibe descriptions
       const vibeSystemPrompt = `You are a snarky film critic writing for Letterboxd. Your specialty is writing witty, oversimplified plot synopses that capture the essence of films in a humorous way. You never spoil anything.`;
       
-      // Generate AI vibe description - smirky synopsis style using Claude's XML structure
+      // Generate AI vibe description - smirky synopsis style using XML structure
       const genreList = detailsData.genres?.map((g: any) => g.name).join(', ') || 'film';
       const vibePrompt = `<task>
 Write a smirky, oversimplified plot synopsis for this film.
@@ -275,7 +275,7 @@ Genres: ${genreList}
 </examples>`;
 
       // Start fetching vibe description in background (don't block page load)
-      const vibePromise = callClaude(vibePrompt, vibeSystemPrompt);
+      const vibePromise = callLlm(vibePrompt, vibeSystemPrompt);
 
       // Build movie details immediately (without waiting for AI)
       const movieDetails: MovieDetails = {

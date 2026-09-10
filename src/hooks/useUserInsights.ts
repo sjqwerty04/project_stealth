@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, doc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { callClaudeForJSON } from '../lib/claude';
+import { callLlmForJSON } from '../lib/llm';
 
 type InsightsStats = {
   watchedCount: number;
@@ -118,7 +118,7 @@ Rules: personaLine examples: "Slow burns and moral ambiguity. Every time.", "Pre
 Insight examples: "You've liked 7 films where the protagonist loses in the end.", "Your watchlist skews toward films that flopped theatrically, then found their audience."
 Never say 'you seem to' or 'based on your history'. State insights directly.`;
 
-        const result = await callClaudeForJSON<AIInsightsResult>(prompt, systemPrompt);
+        const result = await callLlmForJSON<AIInsightsResult>(prompt, systemPrompt);
 
         if (!cancelled) {
           if (result?.personaLine) setPersonaLine(result.personaLine);

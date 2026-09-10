@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 
 type ExploredMovie = {
   id: number;
@@ -19,7 +19,7 @@ const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 // System prompt for pattern analysis
 const PATTERN_SYSTEM_PROMPT = `You are a film-obsessed cinephile friend who's seen everything. Your voice is playful, slightly sarcastic, and you write like you're on Letterboxd or Film Twitter. You're witty, specific, and never generic.`;
 
-// Pattern analysis prompt using Claude's XML structure
+// Pattern analysis prompt using XML structure
 const PATTERN_PROMPT = `<task>
 Analyze the pattern in the user's movie browsing session and identify what connects these films.
 </task>
@@ -117,7 +117,7 @@ export function useExplorationSession() {
         .join('\n');
 
       const prompt = PATTERN_PROMPT.replace('{movieList}', movieList);
-      const insight = await callClaude(prompt, PATTERN_SYSTEM_PROMPT);
+      const insight = await callLlm(prompt, PATTERN_SYSTEM_PROMPT);
       
       if (insight) {
         setPatternInsight(insight.trim());
@@ -163,7 +163,7 @@ export function useExplorationSession() {
         .replace('{pattern}', patternInsight)
         .replace('{movieList}', movieList);
 
-      const response = await callClaude(prompt, SHOW_MORE_SYSTEM_PROMPT);
+      const response = await callLlm(prompt, SHOW_MORE_SYSTEM_PROMPT);
       if (!response) return [];
 
       // Parse JSON response

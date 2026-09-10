@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callAnthropic, type ChatMessage } from './_lib/anthropic';
+import { callXai, type ChatMessage } from './_lib/xai';
 import { snippetsToPromptBlock, type RedditSnippet } from './_lib/reddit';
 
 type Movie = {
@@ -55,13 +55,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const text = await callAnthropic({
+    const text = await callXai({
       messages,
       system: buildSystem(movie, snippets || [], taste),
       maxTokens: 1024,
     });
 
-    // Split conversational text from the optional recommendations JSON block.
     let reply = text;
     let recommendations: { title: string; year?: string }[] = [];
     const block = text.match(/```(?:json)?\s*([\s\S]*?)```/);

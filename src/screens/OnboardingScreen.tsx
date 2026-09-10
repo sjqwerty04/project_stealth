@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport } from '../hooks/useIMDBImport';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
@@ -68,7 +68,7 @@ export default function OnboardingScreen() {
     const prompt = `The user picked: ${q1Films.map((f) => `${f.title} (${f.year})`).join(', ')}. Write ONE reaction line, max 10 words.`;
     try {
       const result = await Promise.race([
-        callClaude(prompt, system),
+        callLlm(prompt, system),
         new Promise<string | null>((resolve) => setTimeout(() => resolve(null), 8000)),
       ]);
       setAiLine(result);

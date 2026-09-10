@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callOpenRouter } from './_lib/openrouter';
+import { callXai } from './_lib/xai';
 
 const SYSTEM = `You write ultra-short audience-perspective hooks for films. Max 7 words. Rules:
 1. Present tense only — never "upcoming", "drops", "next year", "debut drops".
-2. NEVER mention the director by name unless they are globally iconic (Nolan, Kubrick, Spielberg, Scorsese, Tarantino, Kubrick, Fincher). Unknown directors mean nothing to audiences.
+2. NEVER mention the director by name unless they are globally iconic (Nolan, Kubrick, Spielberg, Scorsese, Tarantino, Fincher). Unknown directors mean nothing to audiences.
 3. Focus on what AUDIENCES know this film for: box office, awards, premise, cultural moment, reputation.
 Good: "$1M budget. $80M gross. Earned every dollar.", "The horror film nobody saw coming", "Oscar winner for Best Cinematography", "36-year-late sequel that justified every year".
 Bad: "Barker's directorial debut" (nobody knows Barker), "drops next year" (stale), "Baker's horror debut" (same problem).`;
@@ -26,17 +26,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   try {
-    const text = await callOpenRouter({
-      model: 'google/gemini-3.1-flash-lite',
-      plugins: [{ id: 'web', max_results: 3 }],
+    const text = await callXai({
+      system: SYSTEM,
+      webSearch: true,
+      maxTokens: 80,
       messages: [
-        { role: 'system', content: SYSTEM },
         {
           role: 'user',
           content: `Today is ${currentDate}. Search the web for what "${title}"${year ? ` (${year})` : ''} is known for among audiences — box office, awards, cultural reputation. Then write ONE hook line, max 7 words, present tense, audience-POV. Output ONLY the line, no quotes.`,
         },
       ],
-      maxTokens: 40,
     });
 
     const knownFor = text.trim().replace(/^["'"']|["'"']$/g, '') || null;
