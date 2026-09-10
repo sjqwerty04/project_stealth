@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callXai } from './_lib/xai';
+import { callXai } from './_lib/xai.js';
 
 const SYSTEM = `You write ultra-short audience-perspective hooks for films. Max 7 words. Rules:
 1. Present tense only — never "upcoming", "drops", "next year", "debut drops".

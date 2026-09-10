@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callXai, type ChatMessage } from './_lib/xai';
-import { snippetsToPromptBlock, type RedditSnippet } from './_lib/reddit';
+import { callXai, type ChatMessage } from './_lib/xai.js';
+import { snippetsToPromptBlock, type RedditSnippet } from './_lib/reddit.js';
 
 type Movie = {
   title: string;
