@@ -6,7 +6,7 @@ export type SelectPick = {
   id?: string;
 };
 
-type TasteRayRec = {
+type SelectRec = {
   item?: { name?: string; title?: string; year?: string | number; id?: string };
   name?: string;
   title?: string;
@@ -47,7 +47,7 @@ export function parseSelectPicks(raw: unknown): SelectPick[] {
   return list
     .map((row) => {
       if (!row || typeof row !== 'object') return null;
-      const rec = row as TasteRayRec;
+      const rec = row as SelectRec;
       const title = rec.item?.name || rec.item?.title || rec.name || rec.title || '';
       if (!title) return null;
       const yearSource = rec.item?.year ?? rec.year ?? '';
