@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth';
-import { emptySnapshot } from './buildRecommendContext';
+import { emptySnapshot, hasMeaningfulContext } from './buildRecommendContext';
 import { generateSnapshot } from './generateSnapshot';
 import { parseSnapshot, tasteDoc } from './getTaste';
 import type { TasteSnapshot } from './types';
@@ -17,15 +17,12 @@ export function useTaste(): { snapshot: TasteSnapshot; loading: boolean } {
     return onSnapshot(
       tasteDoc(user.uid),
       (snap) => {
-        if (!snap.exists()) {
-          if (!backfill.has(user.uid)) {
-            backfill.add(user.uid);
-            void generateSnapshot(user.uid).finally(() => backfill.delete(user.uid));
-          }
-          setSnapshot(emptySnapshot());
-          return;
+        const parsed = snap.exists() ? parseSnapshot(snap.data()) : emptySnapshot();
+        if (!backfill.has(user.uid) && !hasMeaningfulContext(parsed.context)) {
+          backfill.add(user.uid);
+          void generateSnapshot(user.uid);
         }
-        setSnapshot(parseSnapshot(snap.data()));
+        setSnapshot(parsed);
       },
       () => {
         setSnapshot(emptySnapshot());
