@@ -1136,7 +1136,9 @@ export default function MovieCalendarApp() {
         events={events}
         insightsLabel={insights.personaLine}
         onYearZoom={() => setHomeChrome('year')}
-        onOpenMovie={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)}
+        onOpenMovie={(id, type, whyMatch) =>
+          navigate(`/movie/${id}${type ? `?type=${type}` : ''}`, whyMatch ? { state: { whyMatch } } : undefined)
+        }
         onOpenProfile={() => navigate('/me')}
         onAddMovie={(date) => handleDayClick(date)}
       />

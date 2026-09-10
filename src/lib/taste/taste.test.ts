@@ -3,8 +3,10 @@ import { applyTasteEvent } from './applyEvent';
 import {
   buildRecommendContext,
   compactTaste,
+  contextFromCalendarLogs,
   emptySnapshot,
   hasMeaningfulContext,
+  mergeRecommendContext,
   ratingToHistoryScore,
 } from './buildRecommendContext';
 import { selectConfidentPicks } from './buildRecommendContext';
@@ -87,6 +89,33 @@ describe('buildRecommendContext', () => {
     });
     expect(context.history[0]).toEqual({ item: 'Heat', rating: 3, id: '949' });
     expect(hasMeaningfulContext(context)).toBe(true);
+  });
+
+  it('puts unrated calendar logs in history as 3', () => {
+    const context = contextFromCalendarLogs([
+      { title: 'Heat', movieId: 949, date: '2024-01-02', rating: null },
+      { title: 'Drive', movieId: 64690, date: '2024-06-01', rating: 'up' },
+    ]);
+    expect(context.history[0]).toEqual({ item: 'Drive', rating: 5, id: '64690' });
+    expect(context.history.some((h) => h.item === 'Heat' && h.rating === 3)).toBe(true);
+    expect(hasMeaningfulContext(context)).toBe(true);
+  });
+
+  it('is empty when calendar logs have no titles', () => {
+    expect(hasMeaningfulContext(contextFromCalendarLogs([{ title: '  ', movieId: 1 }]))).toBe(false);
+  });
+
+  it('keeps diary history when merging a snapshot with only a persona', () => {
+    const diary = contextFromCalendarLogs([{ title: 'Heat', movieId: 949, rating: null }]);
+    const merged = mergeRecommendContext(diary, {
+      preferences: ['story-driven films'],
+      profile: 'Slow burns.',
+      constraints: {},
+      history: [],
+    });
+    expect(merged.history[0]?.item).toBe('Heat');
+    expect(merged.profile).toBe('Slow burns.');
+    expect(merged.preferences).toContain('story-driven films');
   });
 
   it('is empty when the diary is empty', () => {
