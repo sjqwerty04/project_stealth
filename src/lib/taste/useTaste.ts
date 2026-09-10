@@ -20,7 +20,9 @@ export function useTaste(): { snapshot: TasteSnapshot; loading: boolean } {
         const parsed = snap.exists() ? parseSnapshot(snap.data()) : emptySnapshot();
         if (!backfill.has(user.uid) && !hasMeaningfulContext(parsed.context)) {
           backfill.add(user.uid);
-          void generateSnapshot(user.uid);
+          void generateSnapshot(user.uid).catch((err) => {
+            console.warn('taste snapshot backfill failed:', err);
+          });
         }
         setSnapshot(parsed);
       },
