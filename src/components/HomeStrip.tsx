@@ -30,6 +30,7 @@ export default function HomeStrip({
   onYearZoom: () => void;
   onOpenMovie: (id: number, mediaType?: string) => void;
   onPickEmptyRec: (movie: StripMovie, date: Date) => void;
+  onAddMovie?: (date: Date) => void;
 }) {
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
