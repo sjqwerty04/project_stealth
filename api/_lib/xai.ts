@@ -37,7 +37,7 @@ export async function callXai(opts: {
   const body: Record<string, unknown> = {
     model: DEFAULT_MODEL,
     store: false,
-    reasoning: { effort: 'low' },
+    reasoning: { effort: 'medium' },
     max_output_tokens: opts.maxTokens ?? 4096,
     input: opts.messages.map((m) => ({ role: m.role, content: m.content })),
   };
