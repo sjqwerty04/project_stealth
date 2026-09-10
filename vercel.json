@@ -5,6 +5,17 @@
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/movie-chat.ts": {
+      "includeFiles": "src/skills/**"
+    },
+    "api/movie-known-for.ts": {
+      "includeFiles": "src/skills/**"
+    },
+    "api/your-selects.ts": {
+      "includeFiles": "src/skills/**"
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",

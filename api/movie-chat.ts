@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callXai, type ChatMessage } from './_lib/xai.js';
 import { snippetsToPromptBlock, type RedditSnippet } from './_lib/reddit.js';
+import { readSkill } from './_lib/readSkill.js';
 
 type Movie = {
   title: string;
@@ -11,8 +12,9 @@ type Movie = {
 };
 
 const buildSystem = (movie: Movie, snippets: RedditSnippet[], taste?: string): string => {
+  const skill = readSkill('movie-chat');
   const grounding = snippetsToPromptBlock(snippets || [], 5000);
-  return `You are a sharp, funny film companion embedded in a movie app. You are talking with a user about ONE specific film and nothing else.
+  return `${skill}
 
 THE FILM:
 Title: "${movie.title}" (${movie.year || 'n/a'})
@@ -20,19 +22,8 @@ Director: ${movie.director || 'unknown'}
 Genres: ${(movie.genres || []).join(', ') || 'unknown'}
 Overview: ${movie.overview || 'n/a'}
 
-${grounding ? `WHAT REAL VIEWERS DISCUSS (from Reddit — use to ground answers about plot details, theories, trivia):\n${grounding}\n` : ''}
-${taste ? `THE USER'S TASTE (use only when recommending similar films):\n${taste}\n` : ''}
-
-YOUR RULES:
-- Only help with TWO things: (1) answering questions about THIS film — plot, themes, trivia, "what did X mean", theories, cast; (2) recommending OTHER movies similar to this one, especially by mood/attributes the user names ("more like this but gripping with a twist").
-- If the user asks about anything unrelated (general chit-chat, other topics, coding, etc.), gently redirect back to the film.
-- Do NOT reveal major spoilers unless the user explicitly asks (e.g. "spoil the ending"). If they ask a spoiler-y question without opting in, give a spoiler-free answer and offer to go deeper.
-- Keep answers tight and conversational (2-5 sentences). A little wit is good.
-- When you recommend specific movies, ALWAYS end your message with a fenced code block containing JSON of the form:
-\`\`\`json
-{"recommendations":[{"title":"Movie Name","year":"2019"},{"title":"Another","year":"2021"}]}
-\`\`\`
-Only include the block when you are actually recommending films. Put your conversational text BEFORE the block.`;
+${grounding ? `WHAT REAL VIEWERS DISCUSS (from Reddit):\n${grounding}\n` : ''}
+${taste ? `THE USER'S TASTE (use when recommending similar films):\n${taste}\n` : ''}`;
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

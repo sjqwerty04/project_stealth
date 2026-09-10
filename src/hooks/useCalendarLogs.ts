@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { logActivity } from '../lib/activityLogger';
+import { recordTasteEvent } from '../lib/taste';
 
 type RatingValue = 'up' | 'down' | null;
 type EventStatus = 'planned' | 'watched' | null;
@@ -89,14 +89,19 @@ export function useCalendarLogs() {
         updatedAt: serverTimestamp(),
       });
       
-      // Log activity
       if (user.email) {
-        logActivity(user.uid, user.email, 'movie_logged', {
-          movieId: eventData.movieId,
-          movieTitle: eventData.title,
-          logDate: eventData.date,
-          mediaType: eventData.mediaType,
-        });
+        await recordTasteEvent(
+          user.uid,
+          {
+            type: 'calendar_log',
+            movieId: eventData.movieId,
+            title: eventData.title,
+            year: eventData.year,
+            date: eventData.date,
+            rating: eventData.rating ?? null,
+          },
+          { email: user.email }
+        );
       }
       
       return docRef.id;
@@ -114,15 +119,21 @@ export function useCalendarLogs() {
         updatedAt: serverTimestamp(),
       });
       
-      // Log rating activity if rating was updated (only if it's 'up' or 'down', not null)
       if (user.email && eventData.rating !== undefined && eventData.rating !== null) {
         const event = events.find(e => e.id === eventId);
         if (event) {
-          logActivity(user.uid, user.email, 'movie_rated', {
-            movieId: event.movieId,
-            movieTitle: event.title,
-            rating: eventData.rating as 'up' | 'down',
-          });
+          await recordTasteEvent(
+            user.uid,
+            {
+              type: 'rate',
+              movieId: event.movieId,
+              title: event.title,
+              year: event.year,
+              rating: eventData.rating,
+              source: 'calendar',
+            },
+            { email: user.email }
+          );
         }
       }
     },

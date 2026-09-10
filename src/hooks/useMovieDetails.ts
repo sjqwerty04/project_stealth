@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { callLlm } from '../lib/llm';
 import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -45,7 +44,6 @@ export type MovieDetails = {
     rent: { name: string; logoPath: string }[];
     buy: { name: string; logoPath: string }[];
   } | null;
-  vibeDescription: string | null;
   ratings: MovieRatings | null;
   techSpecs: TechSpecs | null;
   mediaType: 'movie' | 'tv';
@@ -82,7 +80,6 @@ export function useMovieDetails() {
   const [details, setDetails] = useState<MovieDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoadingVibe, setIsLoadingVibe] = useState(false);
 
   const fetchDetails = useCallback(async (movieId: number, mediaType: 'movie' | 'tv' = 'movie'): Promise<MovieDetails | null> => {
     setIsLoading(true);
@@ -242,42 +239,8 @@ export function useMovieDetails() {
         isDolbyVision: false,
       };
 
-      // Start fetching IMDb tech specs in background (don't block page load)
       const imdbTechPromise = imdbId ? fetchIMDbTechSpecs(imdbId) : Promise.resolve(null);
 
-      // System prompt for vibe descriptions
-      const vibeSystemPrompt = `You are a snarky film critic writing for Letterboxd. Your specialty is writing witty, oversimplified plot synopses that capture the essence of films in a humorous way. You never spoil anything.`;
-      
-      // Generate AI vibe description - smirky synopsis style using XML structure
-      const genreList = detailsData.genres?.map((g: any) => g.name).join(', ') || 'film';
-      const vibePrompt = `<task>
-Write a smirky, oversimplified plot synopsis for this film.
-</task>
-
-<film>
-Title: "${detailsData.title || detailsData.name}"
-Year: ${detailsData.release_date?.slice(0, 4) || detailsData.first_air_date?.slice(0, 4)}
-Genres: ${genreList}
-</film>
-
-<rules>
-- Maximum 2 short sentences
-- Be witty and specific, not generic
-- Oversimplify the plot humorously
-- ABSOLUTELY NO spoilers
-- Channel Letterboxd energy
-</rules>
-
-<examples>
-"Rich people problems get violent. Oscars ensue."
-"Sad robot learns to feel. You will too."
-"Heist goes wrong. Cool guys walk slow."
-</examples>`;
-
-      // Start fetching vibe description in background (don't block page load)
-      const vibePromise = callLlm(vibePrompt, vibeSystemPrompt);
-
-      // Build movie details immediately (without waiting for AI)
       const movieDetails: MovieDetails = {
         id: detailsData.id,
         title: detailsData.title || detailsData.name,
@@ -298,25 +261,13 @@ Genres: ${genreList}
         trailer: trailer ? { key: trailer.key, site: trailer.site, name: trailer.name } : null,
         heroVideo,
         watchProviders,
-        vibeDescription: null, // Will be loaded async
         ratings,
         techSpecs,
         mediaType,
       };
 
-      // Set details immediately so page renders fast
       setDetails(movieDetails);
-      
-      // Then update with vibe description when ready
-      setIsLoadingVibe(true);
-      vibePromise.then(vibeDescription => {
-        if (vibeDescription) {
-          setDetails(prev => prev ? { ...prev, vibeDescription: vibeDescription.trim() } : null);
-        }
-        setIsLoadingVibe(false);
-      }).catch(() => setIsLoadingVibe(false));
 
-      // Update with IMDb tech specs (IMAX/Dolby) when ready
       imdbTechPromise.then(imdbTech => {
         if (imdbTech) {
           setDetails(prev => prev ? {
@@ -353,7 +304,6 @@ Genres: ${genreList}
         trailer: null,
         heroVideo: null,
         watchProviders: null,
-        vibeDescription: null,
         ratings: null,
         techSpecs: null,
         mediaType: 'movie',
@@ -374,7 +324,6 @@ Genres: ${genreList}
   return {
     details,
     isLoading,
-    isLoadingVibe,
     error,
     fetchDetails,
     clearDetails,

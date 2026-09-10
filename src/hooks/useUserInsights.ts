@@ -3,6 +3,8 @@ import { collection, doc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { callLlmForJSON } from '../lib/llm';
+import { loadSkill } from '../lib/skills';
+import { hasMeaningfulContext, recordTasteEvent, SNAPSHOT_FRESH_MS, useTaste } from '../lib/taste';
 
 type InsightsStats = {
   watchedCount: number;
@@ -25,11 +27,21 @@ export type UserInsights = {
 
 export function useUserInsights(): UserInsights {
   const { user } = useAuth();
+  const { snapshot } = useTaste();
   const [stats, setStats] = useState<InsightsStats | null>(null);
   const [tasteProfile, setTasteProfile] = useState<any | null>(null);
   const [personaLine, setPersonaLine] = useState<string | null>(null);
   const [insightCards, setInsightCards] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (snapshot.identity.personaLine) {
+      setPersonaLine(snapshot.identity.personaLine);
+    }
+    if (snapshot.generated.insightCards.length) {
+      setInsightCards(snapshot.generated.insightCards);
+    }
+  }, [snapshot.identity.personaLine, snapshot.generated.insightCards]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -56,73 +68,51 @@ export function useUserInsights(): UserInsights {
         const watchedDocs = watchedSnap.docs.map((d) => d.data());
         const watchedCount = watchedDocs.length;
         const watchlistCount = watchlistSnap.size;
-
         const likedCount = watchedDocs.filter((d) => d.rating === 'up').length;
         const likedPercent = watchedCount > 0 ? Math.round((likedCount / watchedCount) * 100) : 0;
-
-        const computedStats: InsightsStats = { watchedCount, watchlistCount, likedPercent };
-
         const rawTasteProfile = tasteProfileDoc.exists() ? tasteProfileDoc.data() : null;
 
-        if (!cancelled) {
-          setStats(computedStats);
-          setTasteProfile(rawTasteProfile);
-        }
+        setStats({ watchedCount, watchlistCount, likedPercent });
+        setTasteProfile(rawTasteProfile);
+
+        const storedLine = snapshot.identity.personaLine || rawTasteProfile?.aiPersonaLine || null;
+        const storedCards = snapshot.generated.insightCards;
+        const fresh =
+          snapshot.generated.updatedAt != null &&
+          Date.now() - snapshot.generated.updatedAt < SNAPSHOT_FRESH_MS;
+
+        if (storedLine) setPersonaLine(storedLine);
+        if (storedCards.length) setInsightCards(storedCards);
 
         const shouldGenerateAI =
-          watchedCount >= 3 || (rawTasteProfile?.favoriteFilms?.length ?? 0) >= 1;
+          !fresh &&
+          !storedLine &&
+          hasMeaningfulContext(snapshot.context);
 
         if (!shouldGenerateAI) {
           if (!cancelled) setIsLoading(false);
           return;
         }
 
-        const likedTitles: string[] = watchedDocs
-          .filter((d) => d.rating === 'up' && d.title)
-          .map((d) => d.title as string)
-          .slice(0, 20);
-
-        const dislikedTitles: string[] = watchedDocs
-          .filter((d) => d.rating === 'down' && d.title)
-          .map((d) => d.title as string)
-          .slice(0, 10);
-
-        const onboardingTitles: string[] =
-          (rawTasteProfile?.favoriteFilms ?? [])
-            .map((f: any) => (typeof f === 'string' ? f : f?.title ?? ''))
-            .filter(Boolean)
-            .slice(0, 15);
-
-        const filmPref: string = rawTasteProfile?.filmPreference ?? '';
-
-        const systemPrompt =
-          'You are a film analyst generating deep, personal taste insights for a cinema app user. Be specific, wry, and data-driven. Never be generic.';
-
-        const prompt = `Generate insights for a user with this film history:
-Loved: ${likedTitles.join(', ')}
-Disliked: ${dislikedTitles.join(', ')}
-Deliberately chose (onboarding): ${onboardingTitles.join(', ')}
-Prefers: ${filmPref}
+        const result = await callLlmForJSON<AIInsightsResult>(
+          `Taste context (do not invent extra title lists):
+${snapshot.generated.compactForChat || JSON.stringify(snapshot.context)}
 
 Output JSON only:
-{
-  "personaLine": "6-8 word present-tense identity statement (wry, specific, not generic)",
-  "insights": [
-    "1 sentence, 10-15 words, specific pattern from the data",
-    "1 sentence, 10-15 words, different angle",
-    "1 sentence, 10-15 words, surprising observation"
-  ]
-}
+{"personaLine":"6-8 word present-tense identity statement","insights":["1 sentence","1 sentence","1 sentence"]}`,
+          loadSkill('taste-insight') || 'You are a film analyst. Be specific and wry.'
+        );
 
-Rules: personaLine examples: "Slow burns and moral ambiguity. Every time.", "Pre-2000 or nothing. Rarely between."
-Insight examples: "You've liked 7 films where the protagonist loses in the end.", "Your watchlist skews toward films that flopped theatrically, then found their audience."
-Never say 'you seem to' or 'based on your history'. State insights directly.`;
-
-        const result = await callLlmForJSON<AIInsightsResult>(prompt, systemPrompt);
-
-        if (!cancelled) {
-          if (result?.personaLine) setPersonaLine(result.personaLine);
-          if (Array.isArray(result?.insights)) setInsightCards(result.insights.slice(0, 3));
+        if (cancelled) return;
+        if (result?.personaLine) {
+          setPersonaLine(result.personaLine);
+          const cards = Array.isArray(result.insights) ? result.insights.slice(0, 3) : [];
+          setInsightCards(cards);
+          await recordTasteEvent(
+            user.uid,
+            { type: 'identity', personaLine: result.personaLine, insightCards: cards },
+            { email: user.email }
+          );
         }
       } catch (err) {
         console.warn('useUserInsights failed:', err);
@@ -134,7 +124,7 @@ Never say 'you seem to' or 'based on your history'. State insights directly.`;
     return () => {
       cancelled = true;
     };
-  }, [user?.uid]);
+  }, [user?.uid, snapshot.identity.personaLine, snapshot.generated.updatedAt, snapshot.generated.insightCards, snapshot.generated.compactForChat, snapshot.context]);
 
   return { stats, tasteProfile, personaLine, insightCards, isLoading };
 }

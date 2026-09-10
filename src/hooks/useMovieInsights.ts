@@ -3,16 +3,13 @@ import { useState, useEffect } from 'react';
 export type MovieSnippet = { text: string; score: number; url: string };
 
 export type MovieInsights = {
-  knownForTags: string[];
   suggestedQuestions: string[];
   snippets: MovieSnippet[];
   blocked: boolean;
 };
 
-const EMPTY: MovieInsights = { knownForTags: [], suggestedQuestions: [], snippets: [], blocked: false };
+const EMPTY: MovieInsights = { suggestedQuestions: [], snippets: [], blocked: false };
 
-// Fetches Reddit-grounded "known for" tags + most-asked questions for a movie.
-// Snippets are returned so the chat can reuse them as grounding.
 export function useMovieInsights(
   title: string | undefined,
   year: string | undefined,
@@ -33,7 +30,6 @@ export function useMovieInsights(
       .then((data) => {
         if (cancelled) return;
         setInsights({
-          knownForTags: data.knownForTags || [],
           suggestedQuestions: data.suggestedQuestions || [],
           snippets: data.snippets || [],
           blocked: !!data.blocked,
