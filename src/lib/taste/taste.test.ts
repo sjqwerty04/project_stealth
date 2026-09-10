@@ -8,6 +8,7 @@ import {
   ratingToHistoryScore,
 } from './buildRecommendContext';
 import { selectConfidentPicks } from './buildRecommendContext';
+import { parseSnapshot, selectsHydrateKey } from './getTaste';
 import type { TasteEvent } from './types';
 
 describe('ratingToHistoryScore', () => {
@@ -161,6 +162,41 @@ describe('applyTasteEvent', () => {
     );
     expect(next.identity.personaLine).toBe('Mood first.');
     expect(next.generated.lastPicks[0].title).toBe('Sicario');
+  });
+});
+
+describe('parseSnapshot lastPicks', () => {
+  it('keeps lastPicks when movieId is a numeric string', () => {
+    const snap = parseSnapshot({
+      generated: {
+        lastPicks: [{ movieId: '157336', title: 'Interstellar', year: '2014', poster: 'x', whyMatch: 'y', confidence: 0.9 }],
+        lastPicksAt: 1,
+      },
+    });
+    expect(snap.generated.lastPicks).toEqual([
+      {
+        movieId: 157336,
+        title: 'Interstellar',
+        year: '2014',
+        poster: 'x',
+        whyMatch: 'y',
+        confidence: 0.9,
+      },
+    ]);
+  });
+});
+
+describe('selectsHydrateKey', () => {
+  it('changes when diary history arrives on an otherwise empty snapshot', () => {
+    const empty = emptySnapshot();
+    const withHistory = {
+      ...empty,
+      context: {
+        ...empty.context,
+        history: [{ item: 'Heat', rating: 5, id: '949' }],
+      },
+    };
+    expect(selectsHydrateKey(withHistory)).not.toBe(selectsHydrateKey(empty));
   });
 });
 
