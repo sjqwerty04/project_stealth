@@ -62,6 +62,50 @@ export function compactTaste(context: RecommendContext, identity: TasteIdentity)
   return parts.join(' ');
 }
 
+export type CalendarLogLike = {
+  title: string;
+  movieId?: number;
+  year?: string | number;
+  rating?: 'up' | 'down' | null;
+  date?: string;
+};
+
+export function contextFromCalendarLogs(logs: CalendarLogLike[]): RecommendContext {
+  return buildRecommendContext({
+    identity: { personaLine: null, axis: null },
+    favorites: [],
+    disliked: [],
+    rated: logs
+      .filter((log) => typeof log.title === 'string' && log.title.trim())
+      .map((log) => ({
+        title: log.title.trim(),
+        movieId: typeof log.movieId === 'number' ? log.movieId : undefined,
+        year: log.year,
+        rating: log.rating === 'up' || log.rating === 'down' ? log.rating : 3,
+        at: log.date ? Date.parse(log.date) || 0 : 0,
+      })),
+    watchlist: [],
+    skipped: [],
+    searches: [],
+    patterns: [],
+  });
+}
+
+export function mergeRecommendContext(
+  diary: RecommendContext,
+  snapshot: RecommendContext
+): RecommendContext {
+  const history = diary.history.length ? diary.history : snapshot.history;
+  const preferences = snapshot.preferences.length ? snapshot.preferences : diary.preferences;
+  const profile = snapshot.profile.trim() || diary.profile;
+  return {
+    preferences,
+    profile,
+    constraints: Object.keys(snapshot.constraints).length ? snapshot.constraints : diary.constraints,
+    history,
+  };
+}
+
 export function hasMeaningfulContext(context: RecommendContext): boolean {
   return (
     context.preferences.length > 0 ||
