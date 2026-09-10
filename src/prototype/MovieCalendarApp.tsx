@@ -30,6 +30,7 @@ import type { RecommendationResult } from '../hooks/useRecommendation';
 import { callLlm } from '../lib/llm';
 import HomeStrip from '../components/HomeStrip';
 import Skeleton from '../components/ui/Skeleton';
+import { discoverSearchPath, localDateKey } from '../lib/stripDays';
 import { useUserInsights } from '../hooks/useUserInsights';
 import { FALLBACK_FILMS, posterUrl } from '../lib/fallbackCatalog';
 
@@ -814,9 +815,7 @@ export default function MovieCalendarApp() {
       setViewMode('events');
       setIsModalOpen(true);
     } else {
-      // No events - redirect to Discovery with date pre-selected
-      const dateStr = date.toISOString().split('T')[0];
-      navigate(`/discover?date=${dateStr}`);
+      navigate(discoverSearchPath(localDateKey(date)));
     }
   };
 
@@ -1138,7 +1137,7 @@ export default function MovieCalendarApp() {
         onYearZoom={() => setHomeChrome('year')}
         onOpenMovie={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)}
         onOpenProfile={() => navigate('/me')}
-        onAddMovie={(date) => handleDayClick(date)}
+        onAddMovie={(key) => navigate(discoverSearchPath(key))}
       />
     );
   }

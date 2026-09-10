@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { addDays, format, startOfDay } from 'date-fns';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -162,17 +163,21 @@ test('F6 Empty day', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
   await page.goto('/app');
+  await expect(page.getByTestId('home-strip')).toBeVisible();
+  const discoverDate = /\/discover\?date=\d{4}-\d{2}-\d{2}/;
   const emptySlot = page.getByTestId('ticket-slot-empty').first();
   if (await emptySlot.isVisible().catch(() => false)) {
     await emptySlot.click();
-    await expect(page).toHaveURL(/discover\?date=/, { timeout: 10000 });
-    await gate(page, 'F6', testInfo.project.name);
-    await dumpConsole(page, 'F6', testInfo.project.name, logs);
-    return;
+    await expect(page).toHaveURL(discoverDate, { timeout: 10000 });
+    await page.goto('/app');
+    await expect(page.getByTestId('home-strip')).toBeVisible();
   }
-  await expect(page.getByTestId('selects-carousel')).toBeVisible();
-  await page.getByTestId('year-zoom').click();
-  await expect(page.getByTestId('year-zoom-calendar')).toBeVisible();
+  const emptyDay = addDays(startOfDay(new Date()), 3);
+  await page.getByLabel(format(emptyDay, 'EEEE MMM d')).click();
+  await expect(page).toHaveURL(
+    new RegExp(`discover\\?date=${format(emptyDay, 'yyyy-MM-dd')}`),
+    { timeout: 10000 },
+  );
   await gate(page, 'F6', testInfo.project.name);
   await dumpConsole(page, 'F6', testInfo.project.name, logs);
 });

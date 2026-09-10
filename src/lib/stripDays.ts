@@ -1,5 +1,48 @@
 import { format } from 'date-fns';
 
+export type LocalDateKey = string & { readonly __brand: 'LocalDateKey' };
+
+export type EmptyDay = {
+  readonly occupancy: 'empty';
+  readonly key: LocalDateKey;
+  readonly date: Date;
+};
+
+export type OccupiedDay<T> = {
+  readonly occupancy: 'occupied';
+  readonly key: LocalDateKey;
+  readonly date: Date;
+  readonly events: readonly [T, ...T[]];
+};
+
+export type CalendarDay<T> = EmptyDay | OccupiedDay<T>;
+
+export function localDateKey(date: Date): LocalDateKey {
+  return format(date, 'yyyy-MM-dd') as LocalDateKey;
+}
+
+export function parseLocalDateKey(raw: string): LocalDateKey | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  return raw as LocalDateKey;
+}
+
+export function discoverSearchPath(key: LocalDateKey): `/discover?date=${string}` {
+  return `/discover?date=${key}`;
+}
+
+export function occupyDay<T>(
+  date: Date,
+  eventsByDay: ReadonlyMap<string, readonly T[]>,
+): CalendarDay<T> {
+  const key = localDateKey(date);
+  const events = eventsByDay.get(key) ?? [];
+  const first = events[0];
+  if (first === undefined) {
+    return { occupancy: 'empty', key, date };
+  }
+  return { occupancy: 'occupied', key, date, events: [first, ...events.slice(1)] };
+}
+
 export function eventDayKey(date: unknown): string {
   if (date && typeof date === 'object') {
     const withToDate = date as { toDate?: () => Date };

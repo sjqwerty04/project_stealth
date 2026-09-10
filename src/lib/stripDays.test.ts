@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { eventDayKey, stripFill } from './stripDays';
+import {
+  discoverSearchPath,
+  eventDayKey,
+  localDateKey,
+  occupyDay,
+  parseLocalDateKey,
+  stripFill,
+} from './stripDays';
 
 describe('eventDayKey', () => {
   it('keeps the ISO calendar day', () => {
@@ -13,6 +20,43 @@ describe('eventDayKey', () => {
   it('returns empty for junk', () => {
     expect(eventDayKey(null)).toBe('');
     expect(eventDayKey({})).toBe('');
+  });
+});
+
+describe('localDateKey', () => {
+  it('keeps the local civil day at 10pm', () => {
+    expect(localDateKey(new Date(2026, 8, 10, 22, 0, 0))).toBe('2026-09-10');
+  });
+});
+
+describe('discoverSearchPath', () => {
+  it('prints the discover query for that civil day', () => {
+    expect(discoverSearchPath(localDateKey(new Date(2026, 8, 10, 22, 0, 0)))).toBe(
+      '/discover?date=2026-09-10',
+    );
+  });
+});
+
+describe('parseLocalDateKey', () => {
+  it('accepts a civil day and rejects junk', () => {
+    expect(parseLocalDateKey('2026-09-10')).toBe('2026-09-10');
+    expect(parseLocalDateKey('nope')).toBeNull();
+  });
+});
+
+describe('occupyDay', () => {
+  it('is empty when missing or empty, occupied when the map holds a list', () => {
+    const date = new Date(2026, 8, 10);
+    const key = localDateKey(date);
+    const events = [{ id: 1 }];
+    expect(occupyDay(date, new Map()).occupancy).toBe('empty');
+    expect(occupyDay(date, new Map([[key, []]])).occupancy).toBe('empty');
+    expect(occupyDay(date, new Map([[key, events]]))).toEqual({
+      occupancy: 'occupied',
+      key,
+      date,
+      events,
+    });
   });
 });
 

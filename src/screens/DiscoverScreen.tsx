@@ -7,11 +7,12 @@ import PatternAssistant from '../components/PatternAssistant';
 import { useExploration } from '../contexts/ExplorationContext';
 import { useAuth } from '../hooks/useAuth';
 import { recordTasteEvent } from '../lib/taste';
+import { parseLocalDateKey } from '../lib/stripDays';
 
 export default function DiscoverScreen() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const preSelectedDate = searchParams.get('date');
+  const preSelectedDate = parseLocalDateKey(searchParams.get('date') ?? '');
   const { user } = useAuth();
   
   // Initialize query from URL param so it survives back navigation

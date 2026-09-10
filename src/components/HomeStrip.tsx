@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, isSameDay, startOfDay, subDays } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
-import { eventDayKey, stripFill } from '../lib/stripDays';
+import {
+  eventDayKey,
+  localDateKey,
+  occupyDay,
+  stripFill,
+  type LocalDateKey,
+} from '../lib/stripDays';
 import { Mark } from './ui';
 
 export type SelectFilm = {
@@ -23,10 +29,6 @@ const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_API_KEY =
   !TMDB_KEY || TMDB_KEY.includes('your_tmdb') ? '' : TMDB_KEY;
 const TMDB_BASE = 'https://api.themoviedb.org/3';
-
-function dayKey(d: Date) {
-  return format(d, 'yyyy-MM-dd');
-}
 
 function tmdbImage(path: string | null | undefined, size: 'w500' | 'w780' = 'w780') {
   if (!path) return null;
@@ -355,7 +357,7 @@ export default function HomeStrip({
   onYearZoom: () => void;
   onOpenMovie: (id: number, mediaType?: string) => void;
   onOpenProfile?: () => void;
-  onAddMovie: (date: Date) => void;
+  onAddMovie: (key: LocalDateKey) => void;
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
   const [slide, setSlide] = useState(0);
@@ -384,7 +386,7 @@ export default function HomeStrip({
     return map;
   }, [events]);
 
-  const dayFilm = (byDay.get(dayKey(selected)) ?? [])[0] ?? null;
+  const dayFilm = (byDay.get(localDateKey(selected)) ?? [])[0] ?? null;
   const yearCount = events.filter((e) =>
     eventDayKey(e.date).startsWith(String(selected.getFullYear())),
   ).length;
@@ -547,7 +549,7 @@ export default function HomeStrip({
           <button
             type="button"
             data-testid="ticket-slot-empty"
-            onClick={() => onAddMovie(selected)}
+            onClick={() => onAddMovie(localDateKey(selected))}
             className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3"
           >
             {format(selected, 'EEEE d')}
@@ -563,17 +565,23 @@ export default function HomeStrip({
         >
           <div className="flex w-max gap-1 pb-2">
             {days.map((d) => {
-              const logs = byDay.get(dayKey(d)) ?? [];
-              const film = logs[0];
+              const day = occupyDay(d, byDay);
+              const film = day.occupancy === 'occupied' ? day.events[0] : undefined;
               const active = isSameDay(d, selected);
-              const color = stripFill(film?.accentStart, logs.length > 0);
+              const color = stripFill(film?.accentStart, day.occupancy === 'occupied');
               return (
                 <button
-                  key={dayKey(d)}
+                  key={day.key}
                   data-testid={`strip-day-${format(d, 'd')}`}
                   aria-label={format(d, 'EEEE MMM d')}
                   aria-pressed={active}
-                  onClick={() => setSelected(d)}
+                  onClick={() => {
+                    if (day.occupancy === 'empty') {
+                      onAddMovie(day.key);
+                      return;
+                    }
+                    setSelected(d);
+                  }}
                   className="flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >
                   <span
