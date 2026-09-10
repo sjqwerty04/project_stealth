@@ -4,7 +4,7 @@ from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta
 import pandas as pd
 
-st.set_page_config(page_title="Activity - ViewFindr Admin", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Activity - Selects Admin", page_icon="📊", layout="wide")
 
 @st.cache_resource
 def init_firebase():

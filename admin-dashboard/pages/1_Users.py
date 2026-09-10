@@ -4,7 +4,7 @@ from firebase_admin import credentials, firestore
 from datetime import datetime
 import pandas as pd
 
-st.set_page_config(page_title="Users - ViewFindr Admin", page_icon="👥", layout="wide")
+st.set_page_config(page_title="Users - Selects Admin", page_icon="👥", layout="wide")
 
 # Reuse Firebase initialization from main app
 @st.cache_resource
