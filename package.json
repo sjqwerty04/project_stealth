@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "vite preview",
     "test:e2e": "playwright test && node e2e/copy-artifacts.mjs",
     "test:e2e:install": "playwright install chromium",
@@ -56,6 +57,7 @@
     "typescript-eslint": "^8.46.3",
     "vercel": "^53.1.0",
     "vite": "^7.2.2",
-    "vite-plugin-pwa": "^1.1.0"
+    "vite-plugin-pwa": "^1.1.0",
+    "vitest": "^5.0.0"
   }
 }

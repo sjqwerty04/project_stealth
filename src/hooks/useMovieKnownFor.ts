@@ -5,6 +5,7 @@ import { loadSkill } from '../lib/skills';
 export function useMovieKnownFor(
   title: string | undefined,
   year: string | undefined,
+  taste?: string,
 ) {
   const [knownFor, setKnownFor] = useState<string | null>(null);
 
@@ -15,8 +16,8 @@ export function useMovieKnownFor(
 
     (async () => {
       try {
-        // Try the server route first (Grok with web search).
         const params = new URLSearchParams({ title, year: year || '' });
+        if (taste) params.set('taste', taste.slice(0, 400));
         const res = await fetch(`/api/movie-known-for?${params}`);
         const data = res.ok ? await res.json() : { knownFor: null };
 
@@ -25,9 +26,8 @@ export function useMovieKnownFor(
           return;
         }
 
-        // Fallback: Grok via /api/llm and the movie-hook skill.
         const system = loadSkill('movie-hook');
-        const prompt = `Write ONE hook line for "${title}"${year ? ` (${year})` : ''}. Max 7 words. Audience-POV. Present tense. Output ONLY the line, no quotes.`;
+        const prompt = `Write ONE hook line for "${title}"${year ? ` (${year})` : ''}. Max 7 words. Audience-POV. Present tense. Output ONLY the line, no quotes.${taste ? ` Viewer: ${taste}` : ''}`;
         const text = await callLlm(prompt, system);
         if (!cancelled && text) {
           setKnownFor(text.trim().replace(/^["'"']|["'"']$/g, ''));
@@ -38,7 +38,7 @@ export function useMovieKnownFor(
     })();
 
     return () => { cancelled = true; };
-  }, [title, year]);
+  }, [title, year, taste]);
 
   return { knownFor };
 }

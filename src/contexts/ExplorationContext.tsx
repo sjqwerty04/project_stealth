@@ -3,7 +3,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { callLlm } from '../lib/llm';
-import { logActivity } from '../lib/activityLogger';
+import { recordTasteEvent } from '../lib/taste';
 
 type ExploredMovie = {
   id: number;
@@ -159,8 +159,14 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
       // Only set pattern if it's valid (not NO_PATTERN)
       if (insight && !insight.trim().includes('NO_PATTERN')) {
         setPatternInsight(insight.trim());
+        if (user?.uid) {
+          void recordTasteEvent(
+            user.uid,
+            { type: 'pattern', insight: insight.trim(), movieIds: movies.map((m) => m.id) },
+            { email: user.email }
+          );
+        }
       } else {
-        // No valid pattern detected - don't show assistant
         setPatternInsight(null);
       }
     } catch (error) {
@@ -168,7 +174,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsAnalyzing(false);
     }
-  }, []);
+  }, [user]);
 
   const addMovie = useCallback((movie: ExploredMovie) => {
     setClickedMovies((prev) => {
@@ -268,16 +274,6 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
       });
       setVibeSaved(true);
-      
-      // Log activity
-      if (user.email) {
-        logActivity(user.uid, user.email, 'vibe_saved', {
-          pattern: patternInsight,
-          movieCount: clickedMovies.length,
-          movieTitles: clickedMovies.map(m => m.title),
-        });
-      }
-      
       return true;
     } catch (error) {
       console.error('Failed to save vibe:', error);

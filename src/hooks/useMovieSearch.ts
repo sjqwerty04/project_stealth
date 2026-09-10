@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { callLlm } from '../lib/llm';
 import { useAuth } from './useAuth';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getTaste } from '../lib/taste';
+import { loadSkill } from '../lib/skills';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -89,32 +89,13 @@ const classifyQuery = (query: string): { mode: SearchMode } => {
 };
 
 // Fetch user preference context for personalized vibes
-const fetchUserContext = async (userId: string): Promise<string[]> => {
+const fetchUserContext = async (userId: string): Promise<string> => {
   try {
-    const contextMovies: string[] = [];
-    
-    // Get recent watchlist items (last 10)
-    const watchlistRef = collection(db, 'users', userId, 'watchlist');
-    const watchlistQuery = query(watchlistRef, orderBy('addedAt', 'desc'), limit(10));
-    const watchlistSnap = await getDocs(watchlistQuery);
-    watchlistSnap.forEach(doc => {
-      const data = doc.data();
-      if (data.title) contextMovies.push(data.title);
-    });
-    
-    // Get recent calendar logs (last 10)
-    const calendarRef = collection(db, 'users', userId, 'calendar');
-    const calendarQuery = query(calendarRef, orderBy('date', 'desc'), limit(10));
-    const calendarSnap = await getDocs(calendarQuery);
-    calendarSnap.forEach(doc => {
-      const data = doc.data();
-      if (data.title) contextMovies.push(data.title);
-    });
-    
-    return contextMovies.slice(0, 15); // Max 15 for context
+    const snapshot = await getTaste(userId);
+    return snapshot.generated.compactForChat || snapshot.context.preferences.join('; ');
   } catch (err) {
     console.error('Failed to fetch user context:', err);
-    return [];
+    return '';
   }
 };
 
@@ -168,28 +149,25 @@ export function useMovieSearch() {
         // AI-powered search for complex queries
         metadata.label = 'AI-curated results';
         
-        const aiPrompt = `<task>
+        const snapshot = user?.uid ? await getTaste(user.uid).catch(() => null) : null;
+        const tasteBlock = snapshot?.generated.compactForChat
+          ? `\n<user_taste>\n${snapshot.generated.compactForChat}\n</user_taste>`
+          : '';
+        const aiPrompt = `${loadSkill('search-intent')}
+
+<task>
 The user is searching for movies with this query: "${trimmedQuery}"
-
 Interpret their intent and recommend 8-10 highly relevant movies.
-Return a JSON array of movie objects.
 </task>
-
-<rules>
-- Understand complex criteria (e.g., ratings, comparisons, mood, actors, directors, genres)
-- Return films that match the criteria, including recent releases from 2023, 2024, and 2025
-- Do NOT limit results to only well-known classics — include newer films where relevant
-- Output ONLY valid JSON array, no markdown
-</rules>
+${tasteBlock}
 
 <output_format>
 [
-  {"title": "Movie Title", "year": "2024"},
-  {"title": "Another Movie", "year": "2015"}
+  {"title": "Movie Title", "year": "2024"}
 ]
 </output_format>`;
 
-        const aiResponse = await callLlm(aiPrompt, 'You are a film expert helping users discover movies.');
+        const aiResponse = await callLlm(aiPrompt, loadSkill('search-intent') || 'You are a film expert helping users discover movies.');
         
         if (aiResponse) {
           try {
@@ -416,10 +394,8 @@ Return a JSON array of movie objects.
     
     try {
       // Fetch user context
-      const userMovies = await fetchUserContext(user.uid);
-      const contextString = userMovies.length > 0 
-        ? `\nUser's recent movies: ${userMovies.join(', ')}` 
-        : '';
+      const taste = await fetchUserContext(user.uid);
+      const contextString = taste ? `\nViewer taste: ${taste}` : '';
       
       const vibePrompt = `<task>
 Create a personalized movie recommendation list based on the user's search query and their viewing history.

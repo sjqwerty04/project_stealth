@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { MovieSnippet } from './useMovieInsights';
+import { useAuth } from './useAuth';
+import { recordTasteEvent } from '../lib/taste';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -12,6 +14,7 @@ export type ChatMessageUI = {
 };
 
 export type ChatMovie = {
+  id?: number;
   title: string;
   year?: string;
   genres?: string[];
@@ -48,6 +51,7 @@ async function hydrate(recs: { title: string; year?: string }[]): Promise<ChatRe
 }
 
 export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?: string) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageUI[]>([]);
   const [isThinking, setIsThinking] = useState(false);
 
@@ -75,6 +79,13 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
         const data = res.ok ? await res.json() : { text: "Sorry, I couldn't reach the projector booth. Try again?" };
         const recommendations = data.recommendations?.length ? await hydrate(data.recommendations) : undefined;
         setMessages((prev) => [...prev, { role: 'assistant', content: data.text || '', recommendations }]);
+        if (user?.uid && movie.id) {
+          void recordTasteEvent(
+            user.uid,
+            { type: 'chat_turn', movieId: movie.id, title: movie.title },
+            { email: user.email }
+          );
+        }
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -84,7 +95,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
         setIsThinking(false);
       }
     },
-    [messages, isThinking, movie, snippets, taste]
+    [messages, isThinking, movie, snippets, taste, user]
   );
 
   const reset = useCallback(() => setMessages([]), []);
