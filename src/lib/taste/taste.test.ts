@@ -31,7 +31,7 @@ describe('ratingToHistoryScore', () => {
 });
 
 describe('buildRecommendContext', () => {
-  it('fills the four TasteRay buckets from diary evidence', () => {
+  it('fills the four context buckets from diary evidence', () => {
     const context = buildRecommendContext({
       identity: { personaLine: 'Slow burns and moral ambiguity. Every time.', axis: 'story' },
       favorites: [{ title: 'Heat', movieId: 949 }],

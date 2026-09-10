@@ -21,7 +21,7 @@ function meaningful(context: RecommendContext): boolean {
   return prefs.length > 0 || profile.length > 0 || history.length > 0;
 }
 
-async function fallbackClaude(context: RecommendContext): Promise<SelectPick[]> {
+async function recommendWithGrok(context: RecommendContext): Promise<SelectPick[]> {
   const skill = readSkill('your-selects');
   const text = await callXai({
     system: skill || 'Recommend three films that match this viewer. JSON only.',
@@ -57,60 +57,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ picks: [], empty: true, source: 'empty' });
   }
 
-  const key = process.env.TASTERAY_KEY || '';
-  if (!key) {
-    console.warn('your-selects: TASTERAY_KEY missing, using LLM fallback');
-    try {
-      const picks = await fallbackClaude(context);
-      return res.status(200).json({ picks: picks.filter((p) => p.confidence >= 0.5), source: 'fallback' });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'fallback failed';
-      return res.status(500).json({ error: message, picks: [] });
-    }
-  }
-
-  const started = Date.now();
   try {
-    const response = await fetch('https://api.tasteray.com/v1/recommend', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': key,
-      },
-      body: JSON.stringify({
-        vertical: 'movies',
-        context: {
-          preferences: context.preferences ?? [],
-          profile: context.profile ?? '',
-          constraints: context.constraints ?? {},
-          history: (context.history ?? []).slice(0, 50),
-        },
-        count: 3,
-        explain: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`TasteRay ${response.status}: ${text}`);
-    }
-
-    const data = await response.json();
-    const latencyMs = Date.now() - started;
-    const picks = parseSelectPicks(data).filter((p) => p.confidence >= 0.5).slice(0, 3);
+    const picks = await recommendWithGrok(context);
     return res.status(200).json({
-      picks,
-      source: 'tasteray',
-      meta: { latency_ms: data?.meta?.latency_ms ?? latencyMs },
+      picks: picks.filter((p) => p.confidence >= 0.5),
+      source: 'grok',
     });
   } catch (err: unknown) {
-    console.error('your-selects TasteRay failed, trying fallback:', err);
-    try {
-      const picks = await fallbackClaude(context);
-      return res.status(200).json({ picks: picks.filter((p) => p.confidence >= 0.5), source: 'fallback' });
-    } catch (fallbackErr: unknown) {
-      const message = fallbackErr instanceof Error ? fallbackErr.message : 'recommend failed';
-      return res.status(500).json({ error: message, picks: [] });
-    }
+    const message = err instanceof Error ? err.message : 'recommend failed';
+    console.error('your-selects Grok failed:', err);
+    return res.status(500).json({ error: message, picks: [] });
   }
 }
