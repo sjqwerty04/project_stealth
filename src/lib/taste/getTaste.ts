@@ -30,6 +30,14 @@ function parsePicks(value: unknown): TastePick[] {
   return out;
 }
 
+export function selectsHydrateKey(snapshot: TasteSnapshot): string {
+  return [
+    String(snapshot.generated.lastPicksAt),
+    snapshot.context.profile,
+    String(snapshot.context.preferences.length),
+  ].join('\0');
+}
+
 export function parseSnapshot(raw: unknown): TasteSnapshot {
   const empty = emptySnapshot();
   if (!raw || typeof raw !== 'object') return empty;

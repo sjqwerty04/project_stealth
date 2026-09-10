@@ -10,7 +10,7 @@ export {
   selectConfidentPicks,
 } from './buildRecommendContext';
 export { applyTasteEvent, shouldRebuildDiary } from './applyEvent';
-export { getTaste, parseSnapshot, tasteDoc } from './getTaste';
+export { getTaste, parseSnapshot, selectsHydrateKey, tasteDoc } from './getTaste';
 export { generateSnapshot, loadDiary } from './generateSnapshot';
 export { recordTasteEvent } from './recordTasteEvent';
 export { useTaste } from './useTaste';
