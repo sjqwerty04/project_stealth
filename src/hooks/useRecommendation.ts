@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { LAST_PICKS_FRESH_MS, hasMeaningfulContext, recordTasteEvent, selectsHydrateKey, useTaste, type TastePick } from '../lib/taste';
+import { LAST_PICKS_FRESH_MS, hasMeaningfulContext, recordTasteEvent, useTaste, type TastePick } from '../lib/taste';
 
 export type RecommendationResult = {
   movieId: number;
@@ -200,8 +200,7 @@ export function useRecommendation() {
     if (user && hasMeaningfulContext(snapshot.context)) {
       void generateRecommendation(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid, selectsHydrateKey(snapshot)]);
+  }, [user, snapshot, generateRecommendation]);
 
   const rateRecommendation = useCallback(
     async (rec: RecommendationResult, rating: 'up' | 'down') => {

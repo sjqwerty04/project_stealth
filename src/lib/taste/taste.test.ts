@@ -8,7 +8,7 @@ import {
   ratingToHistoryScore,
 } from './buildRecommendContext';
 import { selectConfidentPicks } from './buildRecommendContext';
-import { parseSnapshot, selectsHydrateKey } from './getTaste';
+import { parseSnapshot } from './getTaste';
 import type { TasteEvent } from './types';
 
 describe('ratingToHistoryScore', () => {
@@ -183,20 +183,6 @@ describe('parseSnapshot lastPicks', () => {
         confidence: 0.9,
       },
     ]);
-  });
-});
-
-describe('selectsHydrateKey', () => {
-  it('changes when diary history arrives on an otherwise empty snapshot', () => {
-    const empty = emptySnapshot();
-    const withHistory = {
-      ...empty,
-      context: {
-        ...empty.context,
-        history: [{ item: 'Heat', rating: 5, id: '949' }],
-      },
-    };
-    expect(selectsHydrateKey(withHistory)).not.toBe(selectsHydrateKey(empty));
   });
 });
 
