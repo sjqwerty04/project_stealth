@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { fetchRedditContext, snippetsToPromptBlock } from './_lib/reddit';
-import { callXai, extractJSON } from './_lib/xai';
+import { fetchRedditContext, snippetsToPromptBlock } from './_lib/reddit.js';
+import { callXai, extractJSON } from './_lib/xai.js';
 
 const INSIGHTS_SYSTEM = `You are a film-savvy editor who reads Reddit movie discussions and distills what a film is *actually* known for among real viewers — directorial debuts, cultural moments, standout performances, controversies, "wait what happened" moments. You never spoil endings.`;
 

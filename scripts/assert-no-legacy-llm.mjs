@@ -41,4 +41,18 @@ if (hits.length) {
   console.error(hits.join('\n'));
   process.exit(1);
 }
+
+const apiDir = join(ROOT, 'api');
+for (const file of walk(apiDir)) {
+  if (!file.endsWith('.ts')) continue;
+  const text = readFileSync(file, 'utf8');
+  if (/from '\.\/_lib\/[a-z-]+'/.test(text)) {
+    hits.push(`${file} must import ./_lib/*.js so Vercel ESM can resolve the compiled file`);
+  }
+}
+
+if (hits.length) {
+  console.error(hits.join('\n'));
+  process.exit(1);
+}
 console.log('assert-no-legacy-llm: ok');
