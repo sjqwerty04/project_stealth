@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 import { loadSkill } from '../lib/skills';
 
 export function useMovieKnownFor(
@@ -15,7 +15,7 @@ export function useMovieKnownFor(
 
     (async () => {
       try {
-        // Try the server route first — uses OpenRouter + Gemini 3.1 Flash Lite with real-time web search.
+        // Try the server route first (Grok with web search).
         const params = new URLSearchParams({ title, year: year || '' });
         const res = await fetch(`/api/movie-known-for?${params}`);
         const data = res.ok ? await res.json() : { knownFor: null };
@@ -25,11 +25,10 @@ export function useMovieKnownFor(
           return;
         }
 
-        // Fallback: call Claude directly via the existing /api/claude proxy.
-        // Uses the movie-hook skill for consistent prompt quality.
+        // Fallback: Grok via /api/llm and the movie-hook skill.
         const system = loadSkill('movie-hook');
         const prompt = `Write ONE hook line for "${title}"${year ? ` (${year})` : ''}. Max 7 words. Audience-POV. Present tense. Output ONLY the line, no quotes.`;
-        const text = await callClaude(prompt, system);
+        const text = await callLlm(prompt, system);
         if (!cancelled && text) {
           setKnownFor(text.trim().replace(/^["'"']|["'"']$/g, ''));
         }

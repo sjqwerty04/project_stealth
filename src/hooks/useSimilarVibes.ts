@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -93,7 +93,7 @@ export function useSimilarVibes() {
       // System prompt for similar vibes
       const systemPrompt = `You are a film scholar and critic who specializes in identifying deep connections between films beyond surface-level similarities. You consider directorial style, cinematography, themes, tone, and cultural impact.`;
       
-      // Similar vibes prompt using Claude's XML structure
+      // Similar vibes prompt using XML structure
       const prompt = `<task>
 Recommend ${currentPage === 0 ? 8 : 6} films that fans of the reference film would love.
 </task>
@@ -123,7 +123,7 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
 [{"title": "There Will Be Blood", "year": "2007"}, {"title": "The Master", "year": "2012"}]
 </example>`;
 
-      const response = await callClaude(prompt, systemPrompt);
+      const response = await callLlm(prompt, systemPrompt);
       if (!response) {
         // Fallback to TMDB similar endpoint
         await loadFromTMDBFallback(parseInt(id || '0'));

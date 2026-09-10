@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchRedditContext, snippetsToPromptBlock } from './_lib/reddit';
-import { callAnthropic, extractJSON } from './_lib/anthropic';
+import { callXai, extractJSON } from './_lib/xai';
 
 const INSIGHTS_SYSTEM = `You are a film-savvy editor who reads Reddit movie discussions and distills what a film is *actually* known for among real viewers — directorial debuts, cultural moments, standout performances, controversies, "wait what happened" moments. You never spoil endings.`;
 
@@ -48,7 +48,7 @@ ${groundingBlock || '(No Reddit discussion available — infer from general know
 {"knownForTags": ["...", "..."], "suggestedQuestions": ["...?", "...?"]}
 </output_format>`;
 
-    const text = await callAnthropic({
+    const text = await callXai({
       messages: [{ role: 'user', content: prompt }],
       system: INSIGHTS_SYSTEM,
       maxTokens: 700,

@@ -27,7 +27,7 @@ Users have too many options and too little confidence in what to watch next. Exi
 Selects solves this by combining:
 
 1. **Taste memory** (calendar logs, likes/dislikes, watchlist),
-2. **Taste reasoning** (Claude prompts for "why this"),
+2. **Taste reasoning** (Grok prompts for "why this"),
 3. **Taste exploration** (Orbit directional browsing),
 4. **Taste continuity** (imports, saved vibes, watched timelines).
 
@@ -54,7 +54,7 @@ Selects solves this by combining:
 1. **Main Web App** (React + Vite + Firebase)
    - Entry: `index.html` -> `src/main.tsx` -> `src/App.tsx`
 2. **Serverless API layer** (Vercel `/api`)
-   - `api/claude.ts`, `api/imdb-techspecs.ts`
+   - `api/llm.ts`, `api/imdb-techspecs.ts`
 3. **Standalone prototypes** (plain HTML/CSS/JS)
    - `prototype-demo/index.html` (home/calendar concepts)
    - `prototype-orbit/index.html` (Orbit concepts)
@@ -68,7 +68,7 @@ Selects solves this by combining:
 - **React + React Router**: SPA routing and stateful UI composition.
 - **Firebase Auth + Firestore**: user auth, personalized persisted data.
 - **TMDB / OMDb APIs**: movie metadata, imagery, external IDs, trailers.
-- **Claude API (via proxy)**: personalized recommendation and pattern reasoning.
+- **Grok API (via proxy)**: personalized recommendation and pattern reasoning.
 - **Framer Motion + custom haptics**: premium interaction feel (especially Orbit).
 - **Vite PWA plugin**: installable web app and cache strategy.
 
@@ -121,8 +121,7 @@ Hooks encapsulate each domain boundary so UI remains declarative:
 Shared infrastructure/adapters:
 
 - `firebase.ts`: Firebase app/auth/db initialization.
-- `claude.ts`: client-side Claude API adapter (via serverless proxy).
-- `gemini.ts`: alternate/experimental generative integration.
+- `llm.ts`: client-side Grok adapter (via serverless proxy).
 - `orbitEngine.ts`: directional recommendation engine for Orbit.
 - `analytics.ts`: product analytics events.
 - `activityLogger.ts`: durable activity logging.
@@ -182,7 +181,7 @@ Purpose: rapid iteration without impacting deploy path or route complexity.
 
 ### `api/` (Vercel serverless)
 
-- `claude.ts`: secure-ish serverless proxy for Anthropic calls (CORS + model passthrough).
+- `llm.ts`: serverless proxy for Grok calls (CORS + model pin).
 - `imdb-techspecs.ts`: IMDb technical spec scraping proxy endpoint.
 
 ### `admin-dashboard/`
@@ -274,7 +273,7 @@ Rationale: per-user subcollections isolate concerns and simplify rule logic.
 - **TMDB**: broad movie metadata + posters/backdrops + videos for trailer embed.
 - **YouTube Embed**: playback surface using TMDB video keys.
 - **OMDb**: secondary metadata enrichment (esp. ratings/aliases).
-- **Anthropic Claude**: recommendation reasoning and pattern text generation.
+- **xAI Grok**: recommendation reasoning and pattern text generation.
 - **Firebase Auth/Firestore**: identity + persisted personalization.
 - **Vercel Functions**: backend shim for AI and scraping endpoints.
 
@@ -345,7 +344,7 @@ Rationale: per-user subcollections isolate concerns and simplify rule logic.
 - `src/prototype/MovieCalendarApp.tsx`: current production-like home owner.
 - `prototype-demo/index.html`: standalone home experimentation owner.
 - `prototype-orbit/index.html`: standalone orbit experimentation owner.
-- `api/claude.ts`: Claude request proxy owner.
+- `api/llm.ts`: Grok request proxy owner.
 - `firestore.rules`: data access policy owner.
 
 ---

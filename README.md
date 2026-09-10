@@ -4,7 +4,7 @@ A modern movie discovery and tracking application built with React, TypeScript, 
 
 ## Features
 
-- AI-powered movie recommendations using Claude
+- AI-powered movie recommendations using Grok
 - Smart orbit-based discovery system
 - Multi-modal search (actors, genres, AI-curated)
 - Personalized vibe lists
@@ -25,7 +25,7 @@ A modern movie discovery and tracking application built with React, TypeScript, 
 Create a `.env` file with the following keys:
 
 ```bash
-VITE_CLAUDE_API_KEY=your_claude_api_key
+XAI_API_KEY=your_xai_api_key
 VITE_TMDB_API_KEY=your_tmdb_api_key
 VITE_OMDB_API_KEY=your_omdb_api_key
 ```
@@ -39,7 +39,7 @@ npm run dev
 
 **For full feature testing (including AI features):**
 
-The AI features use Vercel serverless functions at `/api/claude`. To test these locally:
+The AI features use Vercel serverless functions at `/api/llm`. To test these locally:
 
 ```bash
 # Install Vercel CLI globally (one time only)
@@ -51,7 +51,7 @@ vercel dev
 
 The Vercel dev server will:
 - Start the Vite dev server
-- Emulate the `/api/claude` serverless function locally
+- Emulate the `/api/llm` serverless function locally
 - Enable all AI features (recommendations, orbit, search vibes, etc.)
 
 When prompted by Vercel CLI:
@@ -85,7 +85,7 @@ vercel --prod
 - **Styling**: Tailwind CSS
 - **Animation**: Framer Motion
 - **Backend**: Firebase (Firestore, Auth)
-- **AI**: Claude (Anthropic) via Vercel serverless functions
+- **AI**: Grok (xAI) via Vercel serverless functions
 - **APIs**: TMDB, OMDb
 - **Deployment**: Vercel
 

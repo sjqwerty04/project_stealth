@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 import { useAuth } from './useAuth';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -189,7 +189,7 @@ Return a JSON array of movie objects.
 ]
 </output_format>`;
 
-        const aiResponse = await callClaude(aiPrompt, 'You are a film expert helping users discover movies.');
+        const aiResponse = await callLlm(aiPrompt, 'You are a film expert helping users discover movies.');
         
         if (aiResponse) {
           try {
@@ -448,7 +448,7 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
 }
 </output_format>`;
 
-      const aiResponse = await callClaude(vibePrompt, 'You are a film curator creating personalized movie lists.');
+      const aiResponse = await callLlm(vibePrompt, 'You are a film curator creating personalized movie lists.');
       
       if (aiResponse) {
         try {

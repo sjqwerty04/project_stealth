@@ -3,7 +3,7 @@ import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { useCalendarLogs } from './useCalendarLogs';
-import { callClaude, callClaudeForJSON } from '../lib/claude';
+import { callLlm, callLlmForJSON } from '../lib/llm';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -34,10 +34,10 @@ export type RecommendationResult = {
   genres?: string[];
 };
 
-// System prompt for recommendation generation - defines Claude's role
+// System prompt for recommendation generation
 const RECOMMENDATION_SYSTEM_PROMPT = `You are an expert film curator with deep knowledge of cinema across all genres, eras, and cultures. Your specialty is analyzing viewing patterns and recommending films that perfectly match viewer preferences while introducing them to new experiences.`;
 
-// Recommendation prompt using Claude's XML structure for clarity
+// Recommendation prompt using XML structure for clarity
 const RECOMMENDATION_PROMPT_TEMPLATE = `<task>
 Recommend ONE movie that the user has NOT already watched, based on their viewing history and preferences.
 </task>
@@ -312,21 +312,20 @@ export function useRecommendation() {
         .replace('{likedMovies}', likedMovies)
         .replace('{dislikedMovies}', dislikedMovies);
 
-      // Get movie recommendation from Claude with validation and auto-retry
+      // Get movie recommendation with validation and auto-retry
       console.log('Generating recommendation with prompt length:', prompt.length);
       
       let parsed: { title: string; year: string; fromWatchlist?: boolean } | null = null;
       try {
-        parsed = await callClaudeForJSON<{ title: string; year: string; fromWatchlist?: boolean }>(
+        parsed = await callLlmForJSON<{ title: string; year: string; fromWatchlist?: boolean }>(
           prompt,
           RECOMMENDATION_SYSTEM_PROMPT,
           2 // max retries
         );
       } catch (error: any) {
-        console.error('Claude API call threw error:', error);
-        const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
-        if (!apiKey) {
-          setError('Claude API key not configured. Please check environment variables.');
+        console.error('Grok API call threw error:', error);
+        if (String(error?.message || '').includes('XAI_API_KEY')) {
+          setError('Grok API key not configured. Add XAI_API_KEY and run vercel dev.');
         } else {
           setError(error?.message || 'Failed to generate recommendation. Check browser console (F12) for details.');
         }
@@ -334,13 +333,8 @@ export function useRecommendation() {
       }
       
       if (!parsed) {
-        const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
-        console.error('Claude JSON call returned null. API key present:', !!apiKey);
-        if (!apiKey) {
-          setError('Claude API key not configured. Please check environment variables.');
-        } else {
-          setError('AI returned invalid response after multiple retries. Please try again.');
-        }
+        console.error('Grok JSON call returned null');
+        setError('AI returned invalid response after multiple retries. Please try again.');
         return null;
       }
       
@@ -376,7 +370,7 @@ export function useRecommendation() {
         .replace('{likedMovies}', likedForReason)
         .replace('{dislikedMovies}', dislikedForReason);
 
-      const reasonResponse = await callClaude(reasonPrompt, REASON_SYSTEM_PROMPT);
+      const reasonResponse = await callLlm(reasonPrompt, REASON_SYSTEM_PROMPT);
       const reason = reasonResponse || "This one's got your name written all over it.";
 
       // Extract director from credits

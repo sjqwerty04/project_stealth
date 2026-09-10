@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 import { logActivity } from '../lib/activityLogger';
 
 type ExploredMovie = {
@@ -37,7 +37,7 @@ const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 // System prompt for pattern analysis
 const PATTERN_SYSTEM_PROMPT = `You are a film-obsessed cinephile with encyclopedic knowledge of cinema. You excel at identifying meaningful patterns in viewing behavior. Your voice is playful and Letterboxd-style.`;
 
-// Pattern analysis prompt using Claude's XML structure
+// Pattern analysis prompt using XML structure
 const PATTERN_PROMPT = `<task>
 Determine if there's a MEANINGFUL pattern in the user's browsed movies.
 </task>
@@ -154,7 +154,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         .join('\n');
 
       const prompt = PATTERN_PROMPT.replace('{movieList}', movieList);
-      const insight = await callClaude(prompt, PATTERN_SYSTEM_PROMPT);
+      const insight = await callLlm(prompt, PATTERN_SYSTEM_PROMPT);
       
       // Only set pattern if it's valid (not NO_PATTERN)
       if (insight && !insight.trim().includes('NO_PATTERN')) {
@@ -211,7 +211,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         .replace('{pattern}', patternInsight)
         .replace('{movieList}', movieList);
 
-      const response = await callClaude(prompt, SHOW_MORE_SYSTEM_PROMPT);
+      const response = await callLlm(prompt, SHOW_MORE_SYSTEM_PROMPT);
       if (!response) return [];
 
       // Parse JSON response

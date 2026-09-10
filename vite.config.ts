@@ -5,17 +5,6 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  server: {
-    proxy: {
-      // Forward /api/* to the production Vercel deployment so AI features
-      // work in local dev without needing `vercel dev` running.
-      '/api': {
-        target: 'https://movie-lcursor.vercel.app',
-        changeOrigin: true,
-        secure: true,
-      },
-    },
-  },
   plugins: [
     react(),
     tailwindcss(),

@@ -28,7 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import { logMovieAdded } from '../lib/analytics';
 import { useRecommendation } from '../hooks/useRecommendation';
 import ProfileDropdown from '../components/ProfileDropdown';
-import { callClaude } from '../lib/claude';
+import { callLlm } from '../lib/llm';
 
 type RatingValue = 'up' | 'down' | null;
 
@@ -145,7 +145,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 <example>{"start": "#1a1a2e", "end": "#ff6b35", "text": "#f8fafc"}</example>`;
 
  try {
-  const text = await callClaude(prompt, systemPrompt);
+  const text = await callLlm(prompt, systemPrompt);
   if (!text) return null;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
