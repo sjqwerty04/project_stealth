@@ -4,6 +4,7 @@ import {
   forgetSelectsCacheMemory,
   hitSelectsCache,
   readSelectsCache,
+  resetSelectsCacheForTesting,
   selectsCacheFresh,
   writeSelectsCache,
 } from './selectsCache';
@@ -49,6 +50,35 @@ describe('selectsCache', () => {
     expect(hit?.at).toBe(200);
     forgetSelectsCacheMemory('u3');
     expect(readSelectsCache('u3')?.picks[0].title).toBe('Heat');
+  });
+
+  it('isolates cache entries by UID', () => {
+    writeSelectsCache('user-a', picks, 100);
+    expect(readSelectsCache('user-b')).toBeNull();
+  });
+
+  it('reads and writes to localStorage when available', () => {
+    const store = new Map<string, string>();
+    const mockStorage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, val: string) => store.set(key, val),
+      clear: () => store.clear(),
+      removeItem: (key: string) => store.delete(key),
+      key: (i: number) => Array.from(store.keys())[i] ?? null,
+      length: 0,
+    };
+    (globalThis as unknown as { localStorage: Storage }).localStorage = mockStorage as unknown as Storage;
+    try {
+      resetSelectsCacheForTesting();
+      writeSelectsCache('u-storage', picks, 500);
+      forgetSelectsCacheMemory('u-storage');
+      const retrieved = readSelectsCache('u-storage');
+      expect(retrieved?.picks[0].title).toBe('Collateral');
+      expect(store.has('selects:lastPicks:u-storage')).toBe(true);
+    } finally {
+      delete (globalThis as unknown as { localStorage?: Storage }).localStorage;
+      resetSelectsCacheForTesting();
+    }
   });
 });
 

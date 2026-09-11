@@ -88,6 +88,25 @@ export function forgetSelectsCacheMemory(uid: string) {
   memory.delete(uid);
 }
 
+export function resetSelectsCacheForTesting() {
+  memory.clear();
+  persist.clear();
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.clear();
+    } catch {
+      // ignore
+    }
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.clear();
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export function hitSelectsCache(
   uid: string,
   snapshotPicks: TastePick[],

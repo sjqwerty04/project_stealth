@@ -21,6 +21,7 @@ export function useTaste(): { snapshot: TasteSnapshot; loading: boolean } {
       return;
     }
     setLoading(true);
+    setSnapshot(emptySnapshot());
     return onSnapshot(
       tasteDoc(uid),
       (snap) => {
