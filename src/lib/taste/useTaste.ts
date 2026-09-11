@@ -11,27 +11,37 @@ const backfill = new Set<string>();
 export function useTaste(): { snapshot: TasteSnapshot; loading: boolean } {
   const { user } = useAuth();
   const [remote, setSnapshot] = useState<TasteSnapshot>(emptySnapshot());
+  const [loading, setLoading] = useState<boolean>(Boolean(user?.uid));
 
   useEffect(() => {
-    if (!user) return;
+    const uid = user?.uid;
+    if (!uid) {
+      setLoading(false);
+      setSnapshot(emptySnapshot());
+      return;
+    }
+    setLoading(true);
     return onSnapshot(
-      tasteDoc(user.uid),
+      tasteDoc(uid),
       (snap) => {
         const parsed = snap.exists() ? parseSnapshot(snap.data()) : emptySnapshot();
-        if (!backfill.has(user.uid) && !hasMeaningfulContext(parsed.context)) {
-          backfill.add(user.uid);
-          void generateSnapshot(user.uid).catch((err) => {
+        if (!backfill.has(uid) && !hasMeaningfulContext(parsed.context)) {
+          backfill.add(uid);
+          void generateSnapshot(uid).catch((err) => {
             console.warn('taste snapshot backfill failed:', err);
           });
         }
         setSnapshot(parsed);
+        setLoading(false);
       },
-      () => {
+      (err) => {
+        console.warn('taste subscription error:', err);
         setSnapshot(emptySnapshot());
+        setLoading(false);
       }
     );
-  }, [user]);
+  }, [user?.uid]);
 
   if (!user) return { snapshot: emptySnapshot(), loading: false };
-  return { snapshot: remote, loading: false };
+  return { snapshot: remote, loading };
 }

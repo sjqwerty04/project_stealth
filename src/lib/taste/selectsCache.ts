@@ -1,4 +1,4 @@
-import { LAST_PICKS_FRESH_MS, type TastePick } from './types';
+import type { TastePick } from './types';
 
 export type CachedSelects = {
   picks: TastePick[];
@@ -13,9 +13,18 @@ function storageKey(uid: string) {
 }
 
 function persistGet(uid: string): string | null {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const val = localStorage.getItem(storageKey(uid));
+      if (val) return val;
+    } catch {
+      // quota or private browsing
+    }
+  }
   if (typeof sessionStorage !== 'undefined') {
     try {
-      return sessionStorage.getItem(storageKey(uid));
+      const val = sessionStorage.getItem(storageKey(uid));
+      if (val) return val;
     } catch {
       return persist.get(storageKey(uid)) ?? null;
     }
@@ -25,6 +34,13 @@ function persistGet(uid: string): string | null {
 
 function persistSet(uid: string, raw: string) {
   persist.set(storageKey(uid), raw);
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(storageKey(uid), raw);
+    } catch {
+      // quota or private browsing
+    }
+  }
   if (typeof sessionStorage !== 'undefined') {
     try {
       sessionStorage.setItem(storageKey(uid), raw);
@@ -41,10 +57,9 @@ export function firstSentence(text: string): string {
   return (match ? match[0] : trimmed).trim();
 }
 
-export function selectsCacheFresh(entry: CachedSelects | null, now = Date.now()): boolean {
-  if (!entry?.picks.length) return false;
-  if (!entry.at) return true;
-  return now - entry.at < LAST_PICKS_FRESH_MS;
+export function selectsCacheFresh(entry: CachedSelects | null, _now = Date.now()): entry is CachedSelects {
+  if (!entry?.picks?.length) return false;
+  return true;
 }
 
 export function readSelectsCache(uid: string): CachedSelects | null {
@@ -79,6 +94,9 @@ export function hitSelectsCache(
   snapshotAt: number | null
 ): CachedSelects | null {
   const cached = readSelectsCache(uid);
+  if (snapshotPicks.length && snapshotAt && cached?.at && snapshotAt > cached.at) {
+    return writeSelectsCache(uid, snapshotPicks, snapshotAt);
+  }
   if (selectsCacheFresh(cached)) return cached;
   if (snapshotPicks.length) {
     return writeSelectsCache(uid, snapshotPicks, snapshotAt || Date.now());
