@@ -22,5 +22,6 @@ export {
   firstSentence,
   hitSelectsCache,
   readSelectsCache,
+  selectsCacheFresh,
   writeSelectsCache,
 } from './selectsCache';

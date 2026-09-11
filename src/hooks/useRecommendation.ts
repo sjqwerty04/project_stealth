@@ -7,7 +7,9 @@ import {
   hasMeaningfulContext,
   hitSelectsCache,
   mergeRecommendContext,
+  readSelectsCache,
   recordTasteEvent,
+  selectsCacheFresh,
   useTaste,
   writeSelectsCache,
   type CalendarLogLike,
@@ -138,9 +140,22 @@ async function hydrateTitle(title: string, year?: string, id?: string): Promise<
 
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
-  const { snapshot } = useTaste();
-  const [picks, setPicks] = useState<RecommendationResult[]>([]);
-  const [status, setStatus] = useState<SelectsStatus>('idle');
+  const { snapshot, loading: tasteLoading } = useTaste();
+  const [picks, setPicks] = useState<RecommendationResult[]>(() => {
+    if (user?.uid) {
+      const hit = readSelectsCache(user.uid);
+      if (selectsCacheFresh(hit)) {
+        return hit.picks.map(fromStored);
+      }
+    }
+    return [];
+  });
+  const [status, setStatus] = useState<SelectsStatus>(() => {
+    if (!user) return 'idle';
+    const hit = readSelectsCache(user.uid);
+    if (selectsCacheFresh(hit)) return 'ready';
+    return 'loading';
+  });
   const [error, setError] = useState<string | null>(null);
 
   const diaryKey = (opts?.events ?? [])
@@ -260,13 +275,17 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setStatus('ready');
       return;
     }
+    if (tasteLoading) {
+      setStatus('loading');
+      return;
+    }
     if (!hasMeaningfulContext(context)) {
       setPicks([]);
       setStatus('empty');
       return;
     }
     void generateRecommendation(false);
-  }, [user, snapshot, context, generateRecommendation]);
+  }, [user, tasteLoading, snapshot, context, generateRecommendation]);
 
   const rateRecommendation = useCallback(
     async (rec: RecommendationResult, rating: 'up' | 'down') => {
