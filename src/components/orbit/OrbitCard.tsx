@@ -6,7 +6,6 @@ interface OrbitCardProps {
   movie: OrbitMovie;
   isSaved: boolean;
   connectionReason?: string;
-  onSaveToggle: () => void;
   onInfoPress?: () => void;
   isActive?: boolean;
 }
@@ -20,13 +19,11 @@ export default function OrbitCard({
   movie,
   isSaved,
   connectionReason,
-  onSaveToggle: _onSaveToggle,
   onInfoPress,
   isActive = true,
 }: OrbitCardProps) {
-  // onSaveToggle is passed for future use but long-press handled in parent
   const posterUrl = buildImageUrl(movie.posterPath, 'w500');
-  const backdropUrl = buildImageUrl(movie.backdropPath, 'original');
+  const backdropUrl = buildImageUrl(movie.backdropPath, 'w780');
 
   const handleInfoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,7 +36,7 @@ export default function OrbitCard({
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: isActive ? 1 : 0.5, scale: isActive ? 1 : 0.95 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.2 }}
     >
       {/* Backdrop gradient overlay */}
       {backdropUrl && (

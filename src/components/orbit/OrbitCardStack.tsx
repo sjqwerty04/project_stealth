@@ -4,7 +4,7 @@ import { useOrbitStore, type SwipeDirection } from '../../stores/orbitStore';
 import OrbitCard from './OrbitCard';
 
 interface OrbitCardStackProps {
-  onSwipe: (direction: SwipeDirection) => void;
+  onSwipe: (direction: SwipeDirection, releasedAt: number) => void;
   onLongPress: () => void;
   onInfoPress?: () => void;
   isTransitioning: boolean;
@@ -102,20 +102,21 @@ export default function OrbitCardStack({
     const direction = getSwipeDirection(info.offset.x, info.offset.y);
     
     if (direction && !isTransitioning) {
+      const releasedAt = performance.now();
       // Animate card off screen
       const exitX = direction === 'left' ? -window.innerWidth : direction === 'right' ? window.innerWidth : 0;
       const exitY = direction === 'up' ? -window.innerHeight : direction === 'down' ? window.innerHeight : 0;
       
       // Animate exit
-      const exitAnimation = animate(x, exitX, { duration: 0.2 });
-      const exitAnimationY = animate(y, exitY, { duration: 0.2 });
+      const exitAnimation = animate(x, exitX, { duration: 0.12 });
+      const exitAnimationY = animate(y, exitY, { duration: 0.12 });
       
       // Wait for exit animation to complete, then trigger swipe
       Promise.all([exitAnimation, exitAnimationY]).then(() => {
         // Reset position BEFORE triggering swipe so new card starts at center
         x.set(0);
         y.set(0);
-        onSwipe(direction);
+        onSwipe(direction, releasedAt);
       });
     } else {
       // Spring back to center
@@ -195,7 +196,7 @@ export default function OrbitCardStack({
       </motion.div>
 
       {/* Main card */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <motion.div
           key={currentMovie.id}
           className="absolute inset-0 cursor-grab active:cursor-grabbing"
@@ -215,13 +216,12 @@ export default function OrbitCardStack({
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.14 }}
         >
           <OrbitCard
             movie={currentMovie}
             isSaved={isSaved}
             connectionReason={historyIndex > 0 ? edges.find(e => e.toId === currentMovie.id)?.connectionReason : undefined}
-            onSaveToggle={() => {}}
             onInfoPress={onInfoPress}
             isActive={!isTransitioning}
           />

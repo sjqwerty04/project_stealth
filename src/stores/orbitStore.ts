@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { OrbitRecommendation } from '../lib/orbitRequests';
 
 export type SwipeDirection = 'left' | 'right' | 'up' | 'down';
 // New connection types based on swipe direction
@@ -33,6 +34,11 @@ export interface OrbitNode {
   entryDirection: SwipeDirection | null; // Direction used to arrive at this film (null for entry film)
 }
 
+type PrefetchedMoves = {
+  sourceKey: string | null;
+  moves: Record<SwipeDirection, OrbitRecommendation | null>;
+};
+
 interface OrbitState {
   // Session state
   isActive: boolean;
@@ -49,14 +55,7 @@ interface OrbitState {
   showConstellation: boolean;
   pendingDirection: SwipeDirection | null;
   
-  // Pre-fetched next moves with connection info
-  // UP=visual, RIGHT=balanced, DOWN=storytelling, LEFT=emotional
-  prefetchedMoves: {
-    visual: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-    balanced: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-    storytelling: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-    emotional: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-  };
+  prefetchedMoves: PrefetchedMoves;
   
   // Actions
   enterOrbit: (movie: OrbitMovie) => void;
@@ -68,7 +67,12 @@ interface OrbitState {
   setTransitioning: (value: boolean) => void;
   setShowConstellation: (value: boolean) => void;
   setPendingDirection: (direction: SwipeDirection | null) => void;
-  setPrefetchedMoves: (moves: Partial<OrbitState['prefetchedMoves']>) => void;
+  setPrefetchSource: (sourceKey: string) => void;
+  publishPrefetchedMove: (
+    sourceKey: string,
+    direction: SwipeDirection,
+    move: OrbitRecommendation
+  ) => boolean;
   getSavedMovies: () => OrbitNode[];
   getBackDirection: () => SwipeDirection | null;
   isBackDirection: (direction: SwipeDirection) => boolean;
@@ -107,13 +111,15 @@ const initialState = {
   isTransitioning: false,
   showConstellation: false,
   pendingDirection: null,
-  prefetchedMoves: {
-    visual: null,
-    balanced: null,
-    storytelling: null,
-    emotional: null,
-  },
+  prefetchedMoves: emptyPrefetchedMoves(),
 };
+
+function emptyPrefetchedMoves(sourceKey: string | null = null): PrefetchedMoves {
+  return {
+    sourceKey,
+    moves: { up: null, right: null, down: null, left: null },
+  };
+}
 
 export const useOrbitStore = create<OrbitState>((set, get) => ({
   ...initialState,
@@ -135,7 +141,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       edges: [],
       isTransitioning: false,
       showConstellation: false,
-      prefetchedMoves: { visual: null, balanced: null, storytelling: null, emotional: null },
+      prefetchedMoves: emptyPrefetchedMoves(),
     });
   },
 
@@ -173,7 +179,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       edges: [...state.edges, edge],
       isTransitioning: false,
       pendingDirection: null,
-      prefetchedMoves: { visual: null, balanced: null, storytelling: null, emotional: null },
+      prefetchedMoves: emptyPrefetchedMoves(),
     });
   },
 
@@ -189,6 +195,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       historyIndex: newIndex,
       isTransitioning: false,
       pendingDirection: null,
+      prefetchedMoves: emptyPrefetchedMoves(),
     });
 
     return true;
@@ -204,6 +211,8 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
       historyIndex: index,
       showConstellation: false,
       isTransitioning: false,
+      pendingDirection: null,
+      prefetchedMoves: emptyPrefetchedMoves(),
     });
   },
 
@@ -227,11 +236,23 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
     set({ pendingDirection: direction });
   },
 
-  setPrefetchedMoves: (moves: Partial<OrbitState['prefetchedMoves']>) => {
+  setPrefetchSource: (sourceKey: string) => {
     const state = get();
+    if (state.prefetchedMoves.sourceKey !== sourceKey) {
+      set({ prefetchedMoves: emptyPrefetchedMoves(sourceKey) });
+    }
+  },
+
+  publishPrefetchedMove: (sourceKey, direction, move) => {
+    const state = get();
+    if (state.prefetchedMoves.sourceKey !== sourceKey) return false;
     set({
-      prefetchedMoves: { ...state.prefetchedMoves, ...moves },
+      prefetchedMoves: {
+        sourceKey,
+        moves: { ...state.prefetchedMoves.moves, [direction]: move },
+      },
     });
+    return true;
   },
 
   getSavedMovies: () => {

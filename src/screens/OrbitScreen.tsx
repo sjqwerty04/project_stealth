@@ -3,8 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { usePinchGesture } from '../hooks/usePinchGesture';
-import { useOrbitStore, type SwipeDirection, type OrbitMovie, getOppositeDirection } from '../stores/orbitStore';
-import { getNextMovie, prefetchNextMoves, extractDominantColor } from '../lib/orbitEngine';
+import { useOrbitStore, type SwipeDirection, type OrbitMovie } from '../stores/orbitStore';
+import { getNextMovie, extractDominantColor } from '../lib/orbitEngine';
+import {
+  createOrbitRequestCoordinator,
+  warmOrbitImages,
+  type OrbitRecommendation,
+} from '../lib/orbitRequests';
+import { recordOrbitTiming, type OrbitTiming } from '../lib/orbitTelemetry';
 import { orbitHaptics } from '../lib/haptics';
 import OrbitCardStack from '../components/orbit/OrbitCardStack';
 import OrbitControls from '../components/orbit/OrbitControls';
@@ -17,16 +23,18 @@ import { recordTasteEvent, useTaste } from '../lib/taste';
 import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+const orbitRequests = createOrbitRequestCoordinator(getNextMovie);
 
 export default function OrbitScreen() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { snapshot } = useTaste();
+  const { snapshot, loading: tasteLoading } = useTaste();
   const { addToWatchlist } = useWatchlist();
   
   const {
     currentMovie,
+    historyIndex,
     showConstellation,
     isTransitioning,
     pendingDirection,
@@ -39,16 +47,26 @@ export default function OrbitScreen() {
     setTransitioning,
     setShowConstellation,
     setPendingDirection,
-    setPrefetchedMoves,
+    setPrefetchSource,
+    publishPrefetchedMove,
     getBackDirection,
     isBackDirection,
   } = useOrbitStore();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isWaitingForRecommendation, setIsWaitingForRecommendation] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [transitionColor, setTransitionColor] = useState('#1a1a2e');
   const [showWatchlistToast, setShowWatchlistToast] = useState(false);
   const watchlistToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeSwipeAttempt = useRef(0);
+  const swipeTiming = useRef<{
+    releasedAt: number;
+    sourceMovieId: number;
+    sourceHistoryIndex: number;
+    direction: SwipeDirection;
+    cacheState: NonNullable<OrbitTiming['cacheState']>;
+  } | null>(null);
   
   // Pinch gesture for constellation toggle
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,11 +84,14 @@ export default function OrbitScreen() {
       }
     },
     threshold: 0.25,
-    enabled: !isTransitioning && !isLoading,
+    enabled: !isTransitioning && !isLoading && !isWaitingForRecommendation,
   });
 
   // Initialize orbit with movie data
   useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
     const initOrbit = async () => {
       if (!id) {
         navigate('/app');
@@ -82,38 +103,54 @@ export default function OrbitScreen() {
       try {
         // Fetch movie details from TMDB
         const response = await fetch(
-          `https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`
+          `https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}&append_to_response=credits`,
+          { signal: controller.signal }
         );
-        
+
         if (!response.ok) throw new Error('Failed to fetch movie');
-        
+
         const data = await response.json();
+        if (cancelled) return;
         
         // Extract director
         const director = data.credits?.crew?.find((c: any) => c.job === 'Director')?.name;
         const cinematographer = data.credits?.crew?.find((c: any) => c.job === 'Director of Photography')?.name;
         
-        // Get dominant color from poster
         const posterUrl = data.poster_path 
           ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
           : null;
-        
-        let dominantHex = '#1a1a2e';
-        if (posterUrl) {
-          dominantHex = await extractDominantColor(posterUrl);
-        }
-        
-        const entryMovie: OrbitMovie = {
+
+        const movieWithoutColor: OrbitMovie = {
           id: data.id,
           title: data.title,
           year: data.release_date?.slice(0, 4) || '----',
           posterPath: data.poster_path,
           backdropPath: data.backdrop_path,
-          dominantHex,
+          dominantHex: '#1a1a2e',
           mediaType: 'movie',
           director,
           cinematographer,
           genres: data.genres?.map((g: any) => g.name) || [],
+        };
+        warmOrbitImages(movieWithoutColor);
+        if (!tasteLoading) {
+          orbitRequests.prefetch(
+            movieWithoutColor,
+            null,
+            snapshot.generated.compactForChat,
+            () => {}
+          );
+        }
+
+        let dominantHex = '#1a1a2e';
+        if (posterUrl) {
+          dominantHex = await extractDominantColor(posterUrl);
+        }
+        if (cancelled) return;
+
+        const entryMovie: OrbitMovie = {
+          ...movieWithoutColor,
+          dominantHex,
         };
         
         enterOrbit(entryMovie);
@@ -135,18 +172,8 @@ export default function OrbitScreen() {
         }
         
         setIsLoading(false);
-        
-        // Pre-fetch next moves in background (no back direction for entry movie)
-        prefetchNextMoves(entryMovie, null, snapshot.generated.compactForChat).then((moves) => {
-          setPrefetchedMoves({
-            visual: moves.visual || null,
-            balanced: moves.balanced || null,
-            storytelling: moves.storytelling || null,
-            emotional: moves.emotional || null,
-          });
-        });
-        
       } catch (error) {
+        if (cancelled || controller.signal.aborted) return;
         console.error('Failed to initialize orbit:', error);
         const film = fallbackById(movieId);
         const entryMovie: OrbitMovie = {
@@ -168,129 +195,167 @@ export default function OrbitScreen() {
     };
 
     initOrbit();
-    
     return () => {
-      // Don't exit orbit on unmount - let user continue session
+      cancelled = true;
+      controller.abort();
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!currentMovie || tasteLoading) return;
+    const taste = snapshot.generated.compactForChat;
+    const sourceKey = orbitRequests.sourceKey(currentMovie, taste);
+    setPrefetchSource(sourceKey);
+    orbitRequests.prefetch(
+      currentMovie,
+      getBackDirection(),
+      taste,
+      publishPrefetchedMove
+    );
+  }, [
+    currentMovie,
+    getBackDirection,
+    publishPrefetchedMove,
+    setPrefetchSource,
+    snapshot.generated.compactForChat,
+    tasteLoading,
+  ]);
+
+  useEffect(() => {
+    const timing = swipeTiming.current;
+    if (!currentMovie || !timing || historyIndex === timing.sourceHistoryIndex) return;
+    let paintedFrame = 0;
+    const committedFrame = requestAnimationFrame(() => {
+      paintedFrame = requestAnimationFrame(() => {
+        recordOrbitTiming({
+          phase: 'gesture-to-card',
+          durationMs: performance.now() - timing.releasedAt,
+          sourceMovieId: timing.sourceMovieId,
+          direction: timing.direction,
+          cacheState: timing.cacheState,
+        });
+        swipeTiming.current = null;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(committedFrame);
+      cancelAnimationFrame(paintedFrame);
+    };
+  }, [currentMovie, historyIndex]);
+
+  useEffect(() => {
+    activeSwipeAttempt.current += 1;
+  }, [currentMovie?.id, historyIndex, snapshot.generated.compactForChat]);
 
   // Handle swipe action
   // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
   // BUT: if swipe direction is opposite of how we arrived, go BACK instead
-  const handleSwipe = useCallback(async (direction: SwipeDirection) => {
-    if (!currentMovie || isTransitioning) return;
+  const handleSwipe = useCallback(async (direction: SwipeDirection, releasedAt: number) => {
+    if (!currentMovie || isTransitioning || isWaitingForRecommendation) return;
     
     // Check if this direction is the "back" direction
     if (isBackDirection(direction)) {
       const success = goBack();
       if (success) {
         orbitHaptics.historyNav();
-        
-        // After going back, prefetch for the previous movie
-        // The back direction for the previous movie will be the opposite
       } else {
         orbitHaptics.edgeReached();
       }
       return;
     }
     
-    // Haptic feedback for swipe
     orbitHaptics.swipeComplete();
-    
-    // Map direction to prefetch key
-    // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
-    const directionToPrefetchKey: Record<SwipeDirection, 'visual' | 'balanced' | 'storytelling' | 'emotional'> = {
-      up: 'visual',
-      right: 'balanced',
-      down: 'storytelling',
-      left: 'emotional',
+
+    const taste = snapshot.generated.compactForChat;
+    const sourceKey = orbitRequests.sourceKey(currentMovie, taste);
+    const attempt = ++activeSwipeAttempt.current;
+    let result: OrbitRecommendation | null =
+      prefetchedMoves.sourceKey === sourceKey
+        ? prefetchedMoves.moves[direction]
+        : null;
+    result ??= orbitRequests.peek(currentMovie, direction, taste);
+    const requestState = orbitRequests.status(currentMovie, direction, taste).state;
+    swipeTiming.current = {
+      releasedAt,
+      sourceMovieId: currentMovie.id,
+      sourceHistoryIndex: historyIndex,
+      direction,
+      cacheState: result ? 'ready' : requestState === 'loading' ? 'loading' : 'miss',
     };
-    const prefetchKey = directionToPrefetchKey[direction];
-    const prefetched = prefetchedMoves[prefetchKey];
-    
-    if (prefetched) {
-      // INSTANT transition with prefetched data - no delay!
-      setTransitionColor(prefetched.movie.dominantHex);
-      setTransitioning(true);
+
+    if (!result) {
       setPendingDirection(direction);
-      
-      // Minimal delay just for visual polish
-      requestAnimationFrame(() => {
-        navigateTo(prefetched.movie, direction, prefetched.connectionReason, prefetched.similarityScore);
-        setTransitioning(false);
+      setIsWaitingForRecommendation(true);
+      result = await orbitRequests.request(currentMovie, direction, taste);
+      setIsWaitingForRecommendation(false);
+      if (
+        activeSwipeAttempt.current !== attempt ||
+        useOrbitStore.getState().prefetchedMoves.sourceKey !== sourceKey
+      ) {
+        swipeTiming.current = null;
         setPendingDirection(null);
-        
-        // Log orbit swipe activity
-        if (user?.uid && currentMovie) {
-          void recordTasteEvent(
-            user.uid,
-            {
-              type: 'orbit_swipe',
-              direction,
-              fromMovieId: currentMovie.id,
-              toMovieId: prefetched.movie.id,
-              toTitle: prefetched.movie.title,
-            },
-            { email: user.email }
-          );
-        }
-        
-        const backDir = getOppositeDirection(direction);
-        prefetchNextMoves(prefetched.movie, backDir, snapshot.generated.compactForChat).then((moves) => {
-          setPrefetchedMoves({
-            visual: moves.visual || null,
-            balanced: moves.balanced || null,
-            storytelling: moves.storytelling || null,
-            emotional: moves.emotional || null,
-          });
-        });
-      });
-    } else {
-      // No prefetch available - show loading state and fetch
-      setTransitioning(true);
-      setPendingDirection(direction);
-      
-      const result = await getNextMovie(currentMovie, direction, snapshot.generated.compactForChat);
-      
-      if (result) {
-        setTransitionColor(result.movie.dominantHex);
-        
-        requestAnimationFrame(() => {
-          navigateTo(result.movie, direction, result.connectionReason, result.similarityScore);
-          setTransitioning(false);
-          setPendingDirection(null);
-          
-          // Log orbit swipe activity
-          if (user?.uid && currentMovie) {
-            void recordTasteEvent(
-              user.uid,
-              {
-                type: 'orbit_swipe',
-                direction,
-                fromMovieId: currentMovie.id,
-                toMovieId: result.movie.id,
-                toTitle: result.movie.title,
-              },
-              { email: user.email }
-            );
-          }
-          
-          const backDir = getOppositeDirection(direction);
-          prefetchNextMoves(result.movie, backDir, snapshot.generated.compactForChat).then((moves) => {
-            setPrefetchedMoves({
-              visual: moves.visual || null,
-              balanced: moves.balanced || null,
-              storytelling: moves.storytelling || null,
-              emotional: moves.emotional || null,
-            });
-          });
-        });
-      } else {
-        setTransitioning(false);
-        setPendingDirection(null);
+        return;
       }
     }
-  }, [currentMovie, isTransitioning, prefetchedMoves, isBackDirection, goBack, setTransitioning, setPendingDirection, navigateTo, setPrefetchedMoves, user, snapshot.generated.compactForChat]);
+
+    if (!result) {
+      swipeTiming.current = null;
+      setPendingDirection(null);
+      return;
+    }
+
+    const recommendation = result;
+    setTransitionColor(recommendation.movie.dominantHex);
+    setTransitioning(true);
+    setPendingDirection(direction);
+
+    requestAnimationFrame(() => {
+      if (
+        activeSwipeAttempt.current !== attempt ||
+        useOrbitStore.getState().prefetchedMoves.sourceKey !== sourceKey
+      ) {
+        swipeTiming.current = null;
+        setTransitioning(false);
+        setPendingDirection(null);
+        return;
+      }
+      navigateTo(
+        recommendation.movie,
+        direction,
+        recommendation.connectionReason,
+        recommendation.similarityScore
+      );
+      setTransitioning(false);
+      setPendingDirection(null);
+
+      if (user?.uid) {
+        void recordTasteEvent(
+          user.uid,
+          {
+            type: 'orbit_swipe',
+            direction,
+            fromMovieId: currentMovie.id,
+            toMovieId: recommendation.movie.id,
+            toTitle: recommendation.movie.title,
+          },
+          { email: user.email }
+        );
+      }
+    });
+  }, [
+    currentMovie,
+    goBack,
+    historyIndex,
+    isBackDirection,
+    isTransitioning,
+    isWaitingForRecommendation,
+    navigateTo,
+    prefetchedMoves,
+    setPendingDirection,
+    setTransitioning,
+    snapshot.generated.compactForChat,
+    user,
+  ]);
 
   // Handle long press (save movie to watchlist)
   const handleLongPress = useCallback(async () => {
@@ -377,9 +442,6 @@ export default function OrbitScreen() {
         isActive={isTransitioning}
         targetColor={transitionColor}
         direction={pendingDirection}
-        onComplete={() => {
-          // Transition complete callback if needed
-        }}
       />
 
       {/* Main content */}
@@ -406,7 +468,7 @@ export default function OrbitScreen() {
               onSwipe={handleSwipe}
               onLongPress={handleLongPress}
               onInfoPress={handleInfoPress}
-              isTransitioning={isTransitioning}
+              isTransitioning={isTransitioning || isWaitingForRecommendation}
             />
           </motion.div>
         )}
@@ -421,7 +483,7 @@ export default function OrbitScreen() {
 
       {/* Loading indicator during swipe - only show if actually waiting */}
       <AnimatePresence>
-        {isTransitioning && pendingDirection && !isBackDirection(pendingDirection) && (
+        {isWaitingForRecommendation && pendingDirection && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -440,7 +502,7 @@ export default function OrbitScreen() {
       {!isTransitioning && !showConstellation && (
         <div className="absolute inset-0 pointer-events-none z-10">
           {/* UP = Visual (if not back direction) */}
-          {prefetchedMoves.visual && getBackDirection() !== 'up' && (
+          {prefetchedMoves.moves.up && getBackDirection() !== 'up' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
@@ -461,7 +523,7 @@ export default function OrbitScreen() {
           )}
           
           {/* DOWN = Storytelling (if not back direction) */}
-          {prefetchedMoves.storytelling && getBackDirection() !== 'down' && (
+          {prefetchedMoves.moves.down && getBackDirection() !== 'down' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
@@ -481,7 +543,7 @@ export default function OrbitScreen() {
           )}
           
           {/* LEFT = Emotional (if not back direction) */}
-          {prefetchedMoves.emotional && getBackDirection() !== 'left' && (
+          {prefetchedMoves.moves.left && getBackDirection() !== 'left' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
@@ -501,7 +563,7 @@ export default function OrbitScreen() {
           )}
           
           {/* RIGHT = Balanced (if not back direction) */}
-          {prefetchedMoves.balanced && getBackDirection() !== 'right' && (
+          {prefetchedMoves.moves.right && getBackDirection() !== 'right' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.6 }}
@@ -540,5 +602,3 @@ export default function OrbitScreen() {
     </motion.div>
   );
 }
-
-// Deploy trigger Mon Dec  8 21:17:43 CST 2025
