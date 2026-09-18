@@ -1,14 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('selects carousel wrap', () => {
-  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
   test('swipe right from the first select shows the third', async ({ page }) => {
     await page.goto('/dev/selects-carousel');
     const carousel = page.getByTestId('selects-carousel');
     const track = page.getByTestId('selects-carousel-track');
     await expect(track).toHaveAttribute('data-slide', '1');
-    await expect(page.getByTestId('ticket-slot').nth(1)).toHaveAttribute('aria-label', 'Select 1');
+    await expect(page.getByTestId('ticket-slot').nth(1)).toHaveAttribute('aria-label', 'Zodiac');
 
     const box = await carousel.boundingBox();
     if (!box) throw new Error('carousel missing');
@@ -20,7 +19,7 @@ test.describe('selects carousel wrap', () => {
     await page.mouse.up();
 
     await expect.poll(async () => track.getAttribute('data-slide'), { timeout: 4000 }).toBe('3');
-    await expect(page.getByLabel('Select 3').first()).toBeVisible();
+    await expect(page.getByLabel('Heat').first()).toBeVisible();
 
     await page.mouse.move(box.x + box.width * 0.85, y);
     await page.mouse.down();
@@ -28,7 +27,7 @@ test.describe('selects carousel wrap', () => {
     await page.mouse.up();
 
     await expect.poll(async () => track.getAttribute('data-slide'), { timeout: 4000 }).toBe('1');
-    await expect(page.getByLabel('Select 1').nth(1)).toBeVisible();
+    await expect(page.getByLabel('Zodiac').nth(1)).toBeVisible();
   });
 
   test('autoplay advances 1 then 2 then 3 then 1', async ({ page }) => {
@@ -41,5 +40,15 @@ test.describe('selects carousel wrap', () => {
       return seen.join(',');
     }, { timeout: 28000 }).toMatch(/1,2,3,(4,)?1/);
     expect(seen.join(',')).not.toMatch(/3,2/);
+  });
+
+  test('slide shows hero, related posters, and full why copy', async ({ page }) => {
+    await page.goto('/dev/selects-carousel');
+    const card = page.getByTestId('ticket-slot').nth(1);
+    await expect(card).toHaveAttribute('aria-label', 'Zodiac');
+    await expect(card.getByTestId('why-watch-label')).toHaveText(/why should i watch this/i);
+    await expect(card.getByTestId('why-match-line')).toContainText("All the President's Men");
+    await expect(card.getByTestId('why-match-line')).toContainText("Fincher's procedural patience");
+    await expect(card.getByTestId('related-posters').locator('img')).toHaveCount(2);
   });
 });

@@ -1,4 +1,14 @@
+import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+
+function isStandalone() {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    ('standalone' in window.navigator &&
+      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
+  );
+}
 
 export default function PWAUpdatePrompt() {
   const {
@@ -10,7 +20,12 @@ export default function PWAUpdatePrompt() {
     },
   });
 
-  if (!needRefresh) return null;
+  useEffect(() => {
+    if (!needRefresh || !isStandalone()) return;
+    void updateServiceWorker(true);
+  }, [needRefresh, updateServiceWorker]);
+
+  if (!needRefresh || isStandalone()) return null;
 
   return (
     <div
