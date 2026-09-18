@@ -142,6 +142,39 @@ For "Lost in Translation" (2003): {"title": "Her", "year": "2013", "hex": "#f39c
 For "Parasite" (2019): {"title": "Burning", "year": "2018", "hex": "#c0392b", "score": 85, "reason": "Simmering tension from Parasite"}
 </examples>`;
 
+const BATCH_ORBIT_PROMPT = `<task>
+For the reference film, recommend exactly FOUR connected films, one for each dimension:
+- "up": Visual match (cinematography style, color palette, lighting design, visual composition, camera work)
+- "right": Balanced match (overall tone, quality, genre blend, pacing, general vibe)
+- "down": Storytelling match (narrative structure, pacing, plot complexity, directorial storytelling approach)
+- "left": Emotional match (same feeling, mood, atmosphere, emotional impact)
+</task>
+
+<reference_film>
+Title: "{title}"
+Year: {year}
+Genres: {genres}
+Director: {director}
+</reference_film>
+
+<rules>
+- Provide exactly 4 recommendations keyed by direction: "up", "right", "down", "left"
+- For each recommendation provide: title, year (4 digits), hex (dominant color #xxxxxx), score (integer 70-98), and reason
+- The "reason" must reference "{title}" by name
+- Keep each reason under 8 words (punchy, evocative)
+- All 4 films must be different from each other and from the reference film
+- Output ONLY valid JSON matching the format below, no markdown blocks
+</rules>
+
+<output_format>
+{
+  "up": {"title": "Film Title", "year": "2020", "hex": "#4a5568", "score": 88, "reason": "Cinematography like {title}"},
+  "right": {"title": "Film Title", "year": "2019", "hex": "#3d5a80", "score": 86, "reason": "Tension and grit from {title}"},
+  "down": {"title": "Film Title", "year": "2018", "hex": "#2d3561", "score": 90, "reason": "Non-linear structure like {title}"},
+  "left": {"title": "Film Title", "year": "2021", "hex": "#8b6f47", "score": 87, "reason": "Same melancholic ache as {title}"}
+}
+</output_format>`;
+
 // Build prompt based on direction
 // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
 const buildPrompt = (
@@ -316,7 +349,10 @@ export const getNextMovie = async (
 
   const llmStartedAt = performance.now();
   try {
-    parsed = await callLlmForJSON(prompt, ORBIT_SYSTEM_PROMPT, 2);
+    parsed = await callLlmForJSON(prompt, ORBIT_SYSTEM_PROMPT, 2, {
+      maxTokens: 300,
+      reasoningEffort: 'low',
+    });
   } catch (error) {
     console.error('Orbit: Grok call failed', error);
     return null;
@@ -357,6 +393,81 @@ export const getNextMovie = async (
     connectionReason: orbitResponse.reason,
     similarityScore: orbitResponse.score,
   };
+};
+
+// Batch function to get recommendations for all 4 swipe directions in one LLM call
+export const getNextMovieBatch = async (
+  currentMovie: OrbitMovie,
+  taste?: string | null
+): Promise<Record<SwipeDirection, { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> | null> => {
+  const genres = currentMovie.genres?.join(', ') || 'Drama';
+  const director = currentMovie.director || 'Unknown';
+  let prompt = BATCH_ORBIT_PROMPT
+    .replace(/\{title\}/g, currentMovie.title)
+    .replace('{year}', currentMovie.year)
+    .replace('{genres}', genres)
+    .replace('{director}', director);
+
+  if (taste) {
+    prompt += `\n<viewer_taste>\n${taste}\n</viewer_taste>\nSteer the picks toward this viewer. Do not fetch or invent their watch history.`;
+  }
+
+  const llmStartedAt = performance.now();
+  let parsed: Record<string, any> | null = null;
+  try {
+    parsed = await callLlmForJSON<Record<string, any>>(prompt, ORBIT_SYSTEM_PROMPT, 2, {
+      maxTokens: 600,
+      reasoningEffort: 'low',
+    });
+  } catch (error) {
+    console.error('Orbit: Batch Grok call failed', error);
+    return null;
+  } finally {
+    recordOrbitTiming({
+      phase: 'llm',
+      durationMs: performance.now() - llmStartedAt,
+      sourceMovieId: currentMovie.id,
+    });
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const directions: SwipeDirection[] = ['up', 'right', 'down', 'left'];
+  const results = await Promise.all(
+    directions.map(async (dir) => {
+      const raw = parsed![dir];
+      if (!raw) return null;
+      const normalized = normalizeOrbitResponse(raw);
+      if (!normalized) return null;
+      const movie = await hydrateWithTMDB(normalized);
+      if (!movie) return null;
+      return {
+        direction: dir,
+        recommendation: {
+          movie,
+          connectionReason: normalized.reason,
+          similarityScore: normalized.score,
+        },
+      };
+    })
+  );
+
+  const moves: Record<SwipeDirection, { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> = {
+    up: null,
+    right: null,
+    down: null,
+    left: null,
+  };
+
+  for (const res of results) {
+    if (res) {
+      moves[res.direction] = res.recommendation;
+    }
+  }
+
+  return moves;
 };
 
 // Get additional movie info from TMDB (for enriching the experience)

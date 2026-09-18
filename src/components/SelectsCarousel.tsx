@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { firstSentence } from '../lib/taste';
-import { loopingSlides, SELECTS_AUTOPLAY_MS, SELECTS_TRANSITION_EASE, SELECTS_TRANSITION_MS, snapLoopIndex } from './selectsCarousel';
+import { loopingSlides, SELECTS_AUTOPLAY_MS, SELECTS_TRANSITION_EASE, SELECTS_TRANSITION_MS, snapLoopIndex } from './selectsCarouselLogic';
 
 export type SelectFilm = {
   id: number;

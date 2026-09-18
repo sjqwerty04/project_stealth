@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loopingSlides, snapLoopIndex } from './selectsCarousel';
+import { loopingSlides, snapLoopIndex } from './selectsCarouselLogic';
 
 describe('selects carousel loop', () => {
   const slides = [{ id: 1 }, { id: 2 }, { id: 3 }];

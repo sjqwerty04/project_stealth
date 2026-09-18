@@ -5,7 +5,8 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { AtSign, Check, Copy, Link2, Loader2, Search, Share2, UserPlus, X } from 'lucide-react';
+import { AtSign, Check, Copy, Link2, Search, Share2, UserPlus, X } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { db } from '../lib/firebase';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useHandle, type HandleSearchResult } from '../hooks/useHandle';
@@ -188,7 +189,7 @@ export default function InviteShareModal({ list, open, onClose }: Props) {
                 placeholder="Search by @handle…"
                 className="flex-1 bg-transparent outline-none text-white text-sm placeholder-gray-600"
               />
-              {searching && <Loader2 size={14} className="text-gray-500 animate-spin shrink-0" />}
+              {searching && <SelectsChaseLoader size="xs" />}
               {query && !searching && (
                 <button onClick={() => { setQuery(''); setResults([]); }} className="text-gray-600 hover:text-gray-400">
                   <X size={14} />
@@ -230,7 +231,7 @@ export default function InviteShareModal({ list, open, onClose }: Props) {
                           : 'bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50'
                       }`}
                     >
-                      {isAdding ? <Loader2 size={12} className="animate-spin" /> :
+                      {isAdding ? <SelectsChaseLoader size="xs" /> :
                        isAdded ? <Check size={12} /> : <UserPlus size={12} />}
                       {isAdded ? 'Added' : 'Add'}
                     </button>
@@ -259,7 +260,7 @@ export default function InviteShareModal({ list, open, onClose }: Props) {
 
             {linkLoading && (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                <SelectsChaseLoader size="md" />
               </div>
             )}
 

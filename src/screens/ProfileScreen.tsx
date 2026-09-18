@@ -8,8 +8,8 @@ import {
   Star,
   TrendingUp,
   ChevronRight,
-  Loader2,
 } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserInsights } from '../hooks/useUserInsights';
@@ -289,7 +289,7 @@ export default function ProfileScreen() {
                       disabled={lbImporting || !lbUsername.trim()}
                       className="px-4 min-h-11 bg-fg text-base text-sm font-medium flex items-center gap-2 disabled:opacity-40"
                     >
-                      {lbImporting ? <Loader2 size={14} className="animate-spin" /> : 'Import'}
+                      {lbImporting ? <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" /> : 'Import'}
                     </button>
                   </div>
                   {lbImporting && (
@@ -346,7 +346,7 @@ export default function ProfileScreen() {
                   >
                     {imdbImporting ? (
                       <>
-                        <Loader2 size={14} className="animate-spin" />
+                        <SelectsChaseLoader size="xs" />
                         {imdbProgress.current > 0
                           ? `${imdbProgress.current}/${imdbProgress.total}`
                           : 'Importing...'}
