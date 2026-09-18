@@ -1,4 +1,4 @@
-import type { TastePick } from './types';
+import { LAST_PICKS_FRESH_MS, type TastePick } from './types';
 
 export type CachedSelects = {
   picks: TastePick[];
@@ -57,9 +57,10 @@ export function firstSentence(text: string): string {
   return (match ? match[0] : trimmed).trim();
 }
 
-export function selectsCacheFresh(entry: CachedSelects | null, _now = Date.now()): entry is CachedSelects {
+export function selectsCacheFresh(entry: CachedSelects | null, now = Date.now()): entry is CachedSelects {
   if (!entry?.picks?.length) return false;
-  return true;
+  if (!entry.at) return true;
+  return now - entry.at < LAST_PICKS_FRESH_MS;
 }
 
 export function readSelectsCache(uid: string): CachedSelects | null {
@@ -110,15 +111,18 @@ export function resetSelectsCacheForTesting() {
 export function hitSelectsCache(
   uid: string,
   snapshotPicks: TastePick[],
-  snapshotAt: number | null
+  snapshotAt: number | null,
+  now = Date.now()
 ): CachedSelects | null {
   const cached = readSelectsCache(uid);
   if (snapshotPicks.length && snapshotAt && cached?.at && snapshotAt > cached.at) {
-    return writeSelectsCache(uid, snapshotPicks, snapshotAt);
+    const fromSnap = writeSelectsCache(uid, snapshotPicks, snapshotAt);
+    return selectsCacheFresh(fromSnap, now) ? fromSnap : null;
   }
-  if (selectsCacheFresh(cached)) return cached;
+  if (selectsCacheFresh(cached, now)) return cached;
   if (snapshotPicks.length) {
-    return writeSelectsCache(uid, snapshotPicks, snapshotAt || Date.now());
+    const fromSnap = writeSelectsCache(uid, snapshotPicks, snapshotAt || now);
+    return selectsCacheFresh(fromSnap, now) ? fromSnap : null;
   }
   return null;
 }
