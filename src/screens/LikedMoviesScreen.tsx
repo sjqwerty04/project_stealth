@@ -1,68 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, Loader2 } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { useAuth } from '../hooks/useAuth';
-
-type LikedMovie = {
- movieId: number;
- title: string;
- year: string | number;
- poster: string;
-};
+import { useLibrary } from '../lib/library';
+import { VerdictBadge } from '../components/VerdictPicker';
 
 export default function LikedMoviesScreen() {
  const navigate = useNavigate();
- const { user } = useAuth();
- const [movies, setMovies] = useState<LikedMovie[]>([]);
- const [loading, setLoading] = useState(true);
+ const { films, loading } = useLibrary();
 
- useEffect(() => {
-  if (!user) return;
-  const load = async () => {
-   const seen = new Set<number>();
-   const results: LikedMovie[] = [];
-
-   // Source 1: watched_recommendations with rating 'up'
-   const recSnap = await getDocs(
-    collection(db, 'users', user.uid, 'watched_recommendations')
-   );
-   for (const d of recSnap.docs) {
-    const data = d.data();
-    if (data.rating === 'up' && data.movieId && !seen.has(data.movieId)) {
-     seen.add(data.movieId);
-     results.push({
-      movieId: data.movieId,
-      title: data.title ?? '',
-      year: data.year ?? '',
-      poster: data.poster ?? '',
-     });
-    }
-   }
-
-   // Source 2: calendar_logs with rating 'up'
-   const calSnap = await getDocs(
-    collection(db, 'users', user.uid, 'calendar_logs')
-   );
-   for (const d of calSnap.docs) {
-    const data = d.data();
-    if (data.rating === 'up' && data.movieId && !seen.has(data.movieId)) {
-     seen.add(data.movieId);
-     results.push({
-      movieId: data.movieId,
-      title: data.title ?? '',
-      year: data.year ?? '',
-      poster: data.poster ?? '',
-     });
-    }
-   }
-
-   setMovies(results);
-   setLoading(false);
-  };
-  load().catch(() => setLoading(false));
- }, [user]);
+ const movies = useMemo(
+  () =>
+   films
+    .filter((f) => f.watched && f.verdict === 'liked')
+    .sort((a, b) => (b.lastWatchedAt ?? '').localeCompare(a.lastWatchedAt ?? '') || b.updatedAt - a.updatedAt),
+  [films],
+ );
 
  return (
   <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden border-x border-line">
@@ -95,7 +47,7 @@ export default function LikedMoviesScreen() {
       </div>
       <h3 className="text-lg font-medium text-fg-2 mb-2">No liked movies yet</h3>
       <p className="text-sm text-fg-3 max-w-xs">
-       Give a thumbs up after watching a film and it'll appear here.
+       Mark a film Liked after watching and it will appear here.
       </p>
      </div>
     ) : (
@@ -103,17 +55,16 @@ export default function LikedMoviesScreen() {
       {movies.map((item) => (
        <button
         key={item.movieId}
-        onClick={() => navigate(`/movie/${item.movieId}?type=movie`)}
+        onClick={() => navigate(`/movie/${item.movieId}?type=${item.mediaType}`)}
         className="relative overflow-hidden bg-gray-900 border border-line group cursor-pointer transform transition-all duration-200 hover:scale-105 active:scale-95 text-left"
        >
-        <img
-         src={item.poster}
-         alt={item.title}
-         className="w-full aspect-[2/3] object-cover"
-        />
-        <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500/90 flex items-center justify-center">
-         <Heart size={12} className="fill-white text-fg" />
+        <img src={item.poster} alt={item.title} className="w-full aspect-[2/3] object-cover" />
+        <div className="absolute top-1.5 right-1.5">
+         <VerdictBadge verdict="liked" size={22} />
         </div>
+        {item.watchCount > 1 && (
+         <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-black/70 text-[10px] font-bold text-fg">x{item.watchCount}</span>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-2">
          <h4 className="text-xs font-bold text-fg leading-tight truncate">{item.title}</h4>
          <p className="text-[10px] text-fg-2">{item.year}</p>

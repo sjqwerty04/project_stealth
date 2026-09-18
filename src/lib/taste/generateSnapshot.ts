@@ -1,9 +1,12 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { axisFromUnknown, buildRecommendContext, emptySnapshot, withCompact } from './buildRecommendContext';
+import { parseFilm } from '../library/ledger';
+import type { LibraryFilm } from '../library/types';
+import { starsOf, verdictOf } from '../library/verdict';
+import { axisFromUnknown, buildRecommendContext, emptySnapshot, meaningfulTags, withCompact } from './buildRecommendContext';
 import { generatedDiaryFields } from './parseSelectPicks';
 import { parseSnapshot, tasteDoc } from './getTaste';
-import type { DiaryEvidence, FilmRef, TasteSnapshot } from './types';
+import type { DiaryEvidence, FilmRef, LibraryStats, RatedFilm, TasteSnapshot } from './types';
 
 function millis(value: unknown): number {
   if (value && typeof value === 'object' && 'toMillis' in value && typeof (value as { toMillis: () => number }).toMillis === 'function') {
@@ -30,10 +33,82 @@ function filmFrom(data: Record<string, unknown>): FilmRef | null {
   };
 }
 
+function refsFromProfile(value: unknown): FilmRef[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((f) => {
+      if (typeof f === 'string') return { title: f };
+      if (f && typeof f === 'object') {
+        const row = f as Record<string, unknown>;
+        return {
+          movieId: typeof row.id === 'number' ? row.id : typeof row.movieId === 'number' ? row.movieId : undefined,
+          title: typeof row.title === 'string' ? row.title : '',
+          year: typeof row.year === 'string' || typeof row.year === 'number' ? row.year : undefined,
+        };
+      }
+      return { title: '' };
+    })
+    .filter((f) => f.title);
+}
+
+/** Pure. Summarise the ledger for the compact taste line. Exported for tests. */
+export function libraryStats(films: LibraryFilm[]): LibraryStats | null {
+  const watched = films.filter((f) => f.watched);
+  if (!watched.length) return null;
+  const rated = watched.filter((f) => f.stars != null || f.verdict != null);
+  const starred = watched.filter((f) => typeof f.stars === 'number');
+  const avgStars = starred.length ? starred.reduce((sum, f) => sum + (f.stars ?? 0), 0) / starred.length : null;
+  const byLast = [...watched].sort((a, b) => (b.lastWatchedAt ?? '').localeCompare(a.lastWatchedAt ?? ''));
+  const canon = byLast
+    .filter((f) => f.verdict !== 'nope' && (f.hearted || (f.stars ?? 0) >= 4.5 || f.watchCount >= 2))
+    .sort((a, b) => (b.stars ?? 0) + b.watchCount - ((a.stars ?? 0) + a.watchCount))
+    .slice(0, 8)
+    .map((f) => f.title);
+  const rewatches = watched
+    .filter((f) => f.watchCount >= 2)
+    .sort((a, b) => b.watchCount - a.watchCount)
+    .slice(0, 5)
+    .map((f) => `${f.title} x${f.watchCount}`);
+  const recent = byLast.filter((f) => f.lastWatchedAt).slice(0, 6).map((f) => f.title);
+  const rejects = byLast.filter((f) => f.verdict === 'nope').slice(0, 6).map((f) => f.title);
+  const tags = meaningfulTags(watched.flatMap((f) => f.tags));
+  const quotes = watched
+    .filter((f) => f.reviewExcerpt && (f.stars ?? 0) >= 4)
+    .slice(0, 2)
+    .map((f) => (f.reviewExcerpt ?? '').slice(0, 140).trim());
+  return {
+    watched: watched.length,
+    rated: rated.length,
+    avgStars: avgStars != null ? Math.round(avgStars * 10) / 10 : null,
+    canon,
+    rewatches,
+    recent,
+    rejects,
+    tags,
+    quotes,
+  };
+}
+
+/** Pure. Ledger films to rated evidence. Exported for tests. */
+export function ratedFromLibrary(films: LibraryFilm[]): RatedFilm[] {
+  return films
+    .filter((f) => f.watched)
+    .map((f) => ({
+      movieId: f.movieId,
+      title: f.title,
+      year: f.year,
+      verdict: f.verdict,
+      stars: f.stars,
+      hearted: f.hearted,
+      watchCount: f.watchCount,
+      at: f.lastWatchedAt ? Date.parse(f.lastWatchedAt) || f.updatedAt : f.updatedAt,
+    }));
+}
+
 export async function loadDiary(uid: string, current: TasteSnapshot): Promise<{ evidence: DiaryEvidence; pointers: TasteSnapshot['pointers'] }> {
-  const [calendarSnap, watchedSnap, watchlistSnap, skippedSnap, tasteProfileSnap, eventsSnap] = await Promise.all([
+  const [calendarSnap, filmsSnap, watchlistSnap, skippedSnap, tasteProfileSnap, eventsSnap] = await Promise.all([
     getDocs(query(collection(db, 'users', uid, 'calendar_logs'), orderBy('date', 'desc'), limit(80))),
-    getDocs(collection(db, 'users', uid, 'watched_recommendations')),
+    getDocs(collection(db, 'users', uid, 'films')),
     getDocs(collection(db, 'users', uid, 'watchlist')),
     getDocs(collection(db, 'users', uid, 'skipped_recommendations')),
     getDoc(doc(db, 'users', uid, 'profile_data', 'taste_profile')),
@@ -43,38 +118,8 @@ export async function loadDiary(uid: string, current: TasteSnapshot): Promise<{ 
   ]);
 
   const profile = tasteProfileSnap.exists() ? (tasteProfileSnap.data() as Record<string, unknown>) : {};
-  const favorites = Array.isArray(profile.favoriteFilms)
-    ? profile.favoriteFilms
-        .map((f) => {
-          if (typeof f === 'string') return { title: f };
-          if (f && typeof f === 'object') {
-            const row = f as Record<string, unknown>;
-            return {
-              movieId: typeof row.id === 'number' ? row.id : typeof row.movieId === 'number' ? row.movieId : undefined,
-              title: typeof row.title === 'string' ? row.title : '',
-              year: typeof row.year === 'string' || typeof row.year === 'number' ? row.year : undefined,
-            };
-          }
-          return { title: '' };
-        })
-        .filter((f) => f.title)
-    : [];
-  const disliked = Array.isArray(profile.dislikedFilms)
-    ? profile.dislikedFilms
-        .map((f) => {
-          if (typeof f === 'string') return { title: f };
-          if (f && typeof f === 'object') {
-            const row = f as Record<string, unknown>;
-            return {
-              movieId: typeof row.id === 'number' ? row.id : typeof row.movieId === 'number' ? row.movieId : undefined,
-              title: typeof row.title === 'string' ? row.title : '',
-              year: typeof row.year === 'string' || typeof row.year === 'number' ? row.year : undefined,
-            };
-          }
-          return { title: '' };
-        })
-        .filter((f) => f.title)
-    : [];
+  const favorites = refsFromProfile(profile.favoriteFilms);
+  const disliked = refsFromProfile(profile.dislikedFilms);
 
   const identity = {
     personaLine:
@@ -83,49 +128,47 @@ export async function loadDiary(uid: string, current: TasteSnapshot): Promise<{ 
     axis: current.identity.axis || axisFromUnknown(profile.filmPreference),
   };
 
-  const rated: DiaryEvidence['rated'] = [];
+  const films = filmsSnap.docs
+    .map((d) => parseFilm(d.data(), Number(d.id)))
+    .filter((f): f is LibraryFilm => f != null);
+  const inLedger = new Set(films.map((f) => f.movieId));
+
+  const rated: RatedFilm[] = ratedFromLibrary(films);
   for (const docSnap of calendarSnap.docs) {
     const data = docSnap.data() as Record<string, unknown>;
     const film = filmFrom(data);
     if (!film) continue;
+    if (film.movieId != null && inLedger.has(film.movieId)) continue;
+    if (data.status === 'planned') continue;
     const at = millis(data.updatedAt) || millis(data.date);
-    if (data.rating === 'up' || data.rating === 'down') {
-      rated.push({ ...film, rating: data.rating, at });
-    } else {
-      rated.push({ ...film, rating: 3, at });
-    }
-  }
-  for (const docSnap of watchedSnap.docs) {
-    const data = docSnap.data() as Record<string, unknown>;
-    const film = filmFrom(data);
-    if (!film) continue;
-    if (data.rating === 'up' || data.rating === 'down' || typeof data.letterboxdRating === 'number' || typeof data.imdbRating === 'number') {
-      const rating =
-        data.rating === 'up' || data.rating === 'down'
-          ? data.rating
-          : typeof data.letterboxdRating === 'number'
-            ? data.letterboxdRating
-            : typeof data.imdbRating === 'number'
-              ? data.imdbRating
-              : null;
-      if (rating == null) continue;
-      rated.push({ ...film, rating, at: millis(data.ratedAt) || millis(data.importedAt) });
-    }
+    rated.push({ ...film, verdict: verdictOf(data), stars: starsOf(data), at });
   }
 
   const watchlist = watchlistSnap.docs
     .map((d) => filmFrom(d.data() as Record<string, unknown>))
     .filter((f): f is FilmRef => f != null);
+  for (const f of films) {
+    if (f.onWatchlist && !f.watched && !watchlist.some((w) => w.movieId === f.movieId)) {
+      watchlist.push({ movieId: f.movieId, title: f.title, year: f.year });
+    }
+  }
 
   const skipped = skippedSnap.docs
     .map((d) => filmFrom(d.data() as Record<string, unknown>))
     .filter((f): f is FilmRef => f != null);
 
   const searches: string[] = [];
+  const curious: FilmRef[] = [];
   for (const docSnap of eventsSnap.docs) {
     const data = docSnap.data() as Record<string, unknown>;
     const event = data.event as Record<string, unknown> | undefined;
     if (event?.type === 'search' && typeof event.query === 'string') searches.push(event.query);
+    if (event?.type === 'import' && event.digest && typeof event.digest === 'object') {
+      const digest = event.digest as { curious?: unknown };
+      for (const ref of refsFromProfile(digest.curious)) {
+        if (!inLedger.has(ref.movieId ?? -1)) curious.push(ref);
+      }
+    }
   }
 
   return {
@@ -138,6 +181,8 @@ export async function loadDiary(uid: string, current: TasteSnapshot): Promise<{ 
       skipped,
       searches,
       patterns: current.generated.patterns,
+      curious,
+      library: libraryStats(films),
     },
     pointers: {
       lastEventId: current.pointers.lastEventId,
@@ -152,21 +197,25 @@ export async function generateSnapshot(uid: string, fromEventId?: string | null)
   const current = currentSnap.exists() ? parseSnapshot(currentSnap.data()) : emptySnapshot();
   const { evidence, pointers } = await loadDiary(uid, current);
   const context = buildRecommendContext(evidence);
-  const next = withCompact({
-    ...current,
-    identity: evidence.identity,
-    pointers: { ...pointers, lastEventId: fromEventId ?? pointers.lastEventId },
-    context,
-    generated: {
-      ...current.generated,
-      updatedAt: Date.now(),
-      fromEventId: fromEventId ?? current.generated.fromEventId,
-      patterns: current.generated.patterns,
-      insightCards: current.generated.insightCards,
-      lastPicks: current.generated.lastPicks,
-      lastPicksAt: current.generated.lastPicksAt,
+  const next = withCompact(
+    {
+      ...current,
+      identity: evidence.identity,
+      pointers: { ...pointers, lastEventId: fromEventId ?? pointers.lastEventId },
+      context,
+      generated: {
+        ...current.generated,
+        updatedAt: Date.now(),
+        fromEventId: fromEventId ?? current.generated.fromEventId,
+        patterns: current.generated.patterns,
+        insightCards: current.generated.insightCards,
+        lastPicks: current.generated.lastPicks,
+        lastPicksAt: current.generated.lastPicksAt,
+        library: evidence.library ?? null,
+      },
     },
-  });
+    evidence.library,
+  );
   if (!currentSnap.exists()) {
     await setDoc(tasteDoc(uid), next);
     return next;
