@@ -10,3 +10,7 @@ export function snapLoopIndex(index: number, count: number): number | null {
   if (index === count + 1) return 1;
   return null;
 }
+
+export const SELECTS_AUTOPLAY_MS = 6200;
+export const SELECTS_TRANSITION_MS = 900;
+export const SELECTS_TRANSITION_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)';

@@ -39,7 +39,7 @@ test.describe('selects carousel wrap', () => {
       const v = (await track.getAttribute('data-slide')) ?? '';
       if (v && seen[seen.length - 1] !== v) seen.push(v);
       return seen.join(',');
-    }, { timeout: 14000 }).toMatch(/1,2,3,(4,)?1/);
+    }, { timeout: 28000 }).toMatch(/1,2,3,(4,)?1/);
     expect(seen.join(',')).not.toMatch(/3,2/);
   });
 });
