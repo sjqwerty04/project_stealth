@@ -1,25 +1,27 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Loader2, Film, Plus, X, Upload, Calendar } from 'lucide-react';
-import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
-import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
-import { useIMDBImport, detectImportType, type ImportType } from '../hooks/useIMDBImport';
+import { ArrowLeft, Film, Plus, X, Calendar, MoreHorizontal, Bookmark, Trash2, CalendarX } from 'lucide-react';
+import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
+import { useWatchlist } from '../hooks/useWatchlist';
+import { useAuth } from '../hooks/useAuth';
 import LibraryHub from '../components/LibraryHub';
 import Skeleton from '../components/ui/Skeleton';
+import ImportSheet from '../components/ImportSheet';
+import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
+import { clearWatched, setVerdict as setLedgerVerdict, useLibrary, VERDICT_LABEL, type LibraryFilm, type Verdict } from '../lib/library';
+import { recordTasteEvent } from '../lib/taste';
 
-// --- Timeline grouping helpers ---
+type WeekGroup = { weekLabel: string; weekStart: Date; movies: CalendarEvent[] };
+type MonthGroup = { monthLabel: string; monthKey: string; weeks: WeekGroup[] };
+type Filter = 'all' | Verdict | 'unrated';
 
-type WeekGroup = {
-  weekLabel: string;
-  weekStart: Date;
-  movies: CalendarEvent[];
-};
-
-type MonthGroup = {
-  monthLabel: string;
-  monthKey: string;
-  weeks: WeekGroup[];
-};
+const FILTERS: Array<{ id: Filter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'liked', label: 'Liked' },
+  { id: 'okay', label: 'Okay' },
+  { id: 'nope', label: 'Nope' },
+  { id: 'unrated', label: 'Unrated' },
+];
 
 const getMonday = (d: Date): Date => {
   const date = new Date(d);
@@ -30,220 +32,229 @@ const getMonday = (d: Date): Date => {
   return date;
 };
 
-const formatWeekLabel = (weekStart: Date): string => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `Week of ${months[weekStart.getMonth()]} ${weekStart.getDate()}`;
-};
-
-const formatMonthLabel = (date: Date): string => {
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  return `${months[date.getMonth()]} ${date.getFullYear()}`;
-};
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const groupByTimeline = (events: CalendarEvent[]): MonthGroup[] => {
-  // Sort descending by date
   const sorted = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
   const monthMap = new Map<string, { label: string; weekMap: Map<string, { weekStart: Date; movies: CalendarEvent[] }> }>();
 
   for (const event of sorted) {
     const eventDate = new Date(event.date);
+    if (Number.isNaN(eventDate.getTime())) continue;
     const monthKey = `${eventDate.getFullYear()}-${String(eventDate.getMonth()).padStart(2, '0')}`;
     const weekStart = getMonday(eventDate);
     const weekKey = weekStart.toISOString().slice(0, 10);
-
     if (!monthMap.has(monthKey)) {
-      monthMap.set(monthKey, {
-        label: formatMonthLabel(eventDate),
-        weekMap: new Map(),
-      });
+      monthMap.set(monthKey, { label: `${MONTHS_LONG[eventDate.getMonth()]} ${eventDate.getFullYear()}`, weekMap: new Map() });
     }
-
     const month = monthMap.get(monthKey)!;
-    if (!month.weekMap.has(weekKey)) {
-      month.weekMap.set(weekKey, { weekStart, movies: [] });
-    }
+    if (!month.weekMap.has(weekKey)) month.weekMap.set(weekKey, { weekStart, movies: [] });
     month.weekMap.get(weekKey)!.movies.push(event);
   }
 
-  // Convert to arrays, keeping descending order
   const result: MonthGroup[] = [];
   for (const [monthKey, { label, weekMap }] of monthMap) {
-    const weeks: WeekGroup[] = [];
-    // Sort weeks descending
-    const sortedWeeks = [...weekMap.entries()].sort((a, b) => b[1].weekStart.getTime() - a[1].weekStart.getTime());
-    for (const [, { weekStart, movies }] of sortedWeeks) {
-      weeks.push({
-        weekLabel: formatWeekLabel(weekStart),
+    const weeks = [...weekMap.entries()]
+      .sort((a, b) => b[1].weekStart.getTime() - a[1].weekStart.getTime())
+      .map(([, { weekStart, movies }]) => ({
+        weekLabel: `Week of ${MONTHS_SHORT[weekStart.getMonth()]} ${weekStart.getDate()}`,
         weekStart,
         movies,
-      });
-    }
+      }));
     result.push({ monthLabel: label, monthKey, weeks });
   }
-
   return result;
 };
 
-// --- Component ---
+type Target = { film: LibraryFilm | null; event: CalendarEvent | null; movieId: number; title: string };
+
+function matchesFilter(filter: Filter, verdict: Verdict | null): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'unrated') return verdict == null;
+  return verdict === filter;
+}
 
 export default function WatchedScreen() {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { events, loading: eventsLoading } = useCalendarLogs();
-  const { 
-    importFromLetterboxd, 
-    isImporting: isLetterboxdImporting, 
-    progress: letterboxdProgress, 
-    error: letterboxdError, 
-    importedCount: letterboxdImportedCount 
-  } = useLetterboxdImport();
-  const { 
-    importFromIMDB,
-    importFromCSV,
-    isImporting: isIMDBImporting, 
-    progress: imdbProgress, 
-    error: imdbError, 
-    importedCount: imdbImportedCount 
-  } = useIMDBImport();
-  
-  const [filter, setFilter] = useState<'all' | 'liked' | 'disliked'>('all');
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importUrl, setImportUrl] = useState('');
-  const [importSuccess, setImportSuccess] = useState<number | null>(null);
-  const [detectedType, setDetectedType] = useState<ImportType>('unknown');
-  const [importMode, setImportMode] = useState<'url' | 'csv'>('url');
+  const { user } = useAuth();
+  const { events, loading: eventsLoading, deleteEvent } = useCalendarLogs();
+  const { films, byId, loading: filmsLoading } = useLibrary();
+  const { addToWatchlist } = useWatchlist();
 
-  const isImporting = isLetterboxdImporting || isIMDBImporting;
-  const progress = isLetterboxdImporting ? letterboxdProgress : imdbProgress;
-  const importError = isLetterboxdImporting ? letterboxdError : imdbError;
-  const importedCount = isLetterboxdImporting ? letterboxdImportedCount : imdbImportedCount;
+  const [filter, setFilter] = useState<Filter>('all');
+  const [showImport, setShowImport] = useState(false);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  // Get watched movies from calendar_logs (has real watch dates)
-  const watchedEvents = useMemo(() => {
-    return events.filter(e => e.status === 'watched');
-  }, [events]);
+  const verdictFor = (movieId: number, event?: CalendarEvent | null): Verdict | null =>
+    byId.get(movieId)?.verdict ?? (event ? eventVerdict(event) : null);
 
-  // Apply filter
-  const filteredEvents = useMemo(() => {
-    if (filter === 'all') return watchedEvents;
-    if (filter === 'liked') return watchedEvents.filter(e => e.rating === 'up');
-    if (filter === 'disliked') return watchedEvents.filter(e => e.rating === 'down');
-    return watchedEvents;
-  }, [watchedEvents, filter]);
-
-  // Group into timeline
+  const watchedEvents = useMemo(
+    () => events.filter((e) => e.status !== 'planned' && new Date(e.date).getTime() <= Date.now()),
+    [events],
+  );
+  const filteredEvents = useMemo(
+    () => watchedEvents.filter((e) => matchesFilter(filter, verdictFor(e.movieId, e))),
+    [watchedEvents, filter, byId],
+  );
   const timeline = useMemo(() => groupByTimeline(filteredEvents), [filteredEvents]);
 
-  const likedCount = watchedEvents.filter(e => e.rating === 'up').length;
-  const dislikedCount = watchedEvents.filter(e => e.rating === 'down').length;
+  const datedIds = useMemo(() => new Set(watchedEvents.map((e) => e.movieId)), [watchedEvents]);
+  const undated = useMemo(
+    () =>
+      films
+        .filter((f) => f.watched && !datedIds.has(f.movieId) && matchesFilter(filter, f.verdict))
+        .sort((a, b) => b.updatedAt - a.updatedAt),
+    [films, datedIds, filter],
+  );
 
-  // Detect import type when URL changes
-  useEffect(() => {
-    if (importUrl.trim()) {
-      setDetectedType(detectImportType(importUrl));
-    } else {
-      setDetectedType('unknown');
+  const watchedFilms = useMemo(() => films.filter((f) => f.watched), [films]);
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: 0, liked: 0, okay: 0, nope: 0, unrated: 0 };
+    const seen = new Set<number>();
+    for (const f of watchedFilms) {
+      seen.add(f.movieId);
+      c.all++;
+      if (f.verdict) c[f.verdict]++;
+      else c.unrated++;
     }
-  }, [importUrl]);
-
-  const handleImport = async () => {
-    if (!importUrl.trim()) return;
-    
-    let count = 0;
-    
-    if (detectedType === 'letterboxd') {
-      const match = importUrl.match(/letterboxd\.com\/([^\/]+)/i);
-      const username = match ? match[1] : importUrl.trim();
-      count = await importFromLetterboxd(username);
-    } else if (detectedType === 'imdb-ratings') {
-      count = await importFromIMDB(importUrl, 'imdb-ratings');
-    } else if (detectedType === 'imdb-watchlist') {
-      navigate('/watchlist');
-      return;
+    for (const e of watchedEvents) {
+      if (seen.has(e.movieId)) continue;
+      seen.add(e.movieId);
+      c.all++;
+      const v = eventVerdict(e);
+      if (v) c[v]++;
+      else c.unrated++;
     }
+    return c;
+  }, [watchedFilms, watchedEvents]);
 
-    if (count > 0) {
-      setImportSuccess(count);
-      setTimeout(() => {
-        setShowImportModal(false);
-        setImportUrl('');
-        setImportSuccess(null);
-      }, 2000);
+  const open = (movieId: number, mediaType?: string) => navigate(`/movie/${movieId}?type=${mediaType || 'movie'}`);
+
+  const changeVerdict = async (verdict: Verdict) => {
+    if (!user || !target) return;
+    setBusy(true);
+    try {
+      const film = target.film ?? byId.get(target.movieId) ?? null;
+      const event = target.event;
+      await setLedgerVerdict(
+        user.uid,
+        {
+          movieId: target.movieId,
+          title: target.title,
+          year: film?.year ?? event?.year,
+          poster: film?.poster ?? event?.poster,
+          backdrop: film?.backdrop ?? event?.backdrop,
+          mediaType: film?.mediaType ?? event?.mediaType,
+        },
+        verdict,
+        'manual',
+        film?.stars ?? null,
+      );
+      await recordTasteEvent(
+        user.uid,
+        { type: 'verdict', movieId: target.movieId, title: target.title, year: film?.year ?? event?.year, verdict, source: 'watched' },
+        { email: user.email },
+      );
+      setTarget(null);
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const removeNight = async () => {
+    if (!target?.event) return;
+    setBusy(true);
+    try {
+      await deleteEvent(target.event.id);
+      setTarget(null);
+    } finally {
+      setBusy(false);
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const csvContent = e.target?.result as string;
-      if (csvContent) {
-        const count = await importFromCSV(csvContent, 'imdb-ratings');
-        if (count > 0) {
-          setImportSuccess(count);
-          setTimeout(() => {
-            setShowImportModal(false);
-            setImportSuccess(null);
-            setImportMode('url');
-          }, 2000);
-        }
+  const removeFromWatched = async (moveToWatchlist: boolean) => {
+    if (!user || !target) return;
+    setBusy(true);
+    try {
+      const film = target.film ?? byId.get(target.movieId) ?? null;
+      const event = target.event;
+      for (const e of events.filter((e) => e.movieId === target.movieId && e.status !== 'planned')) {
+        await deleteEvent(e.id);
       }
-    };
-    reader.readAsText(file);
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      await clearWatched(user.uid, target.movieId);
+      await recordTasteEvent(user.uid, { type: 'watched_remove', movieId: target.movieId, title: target.title }, { email: user.email });
+      if (moveToWatchlist) {
+        await addToWatchlist({
+          movieId: target.movieId,
+          title: target.title,
+          year: film?.year ?? event?.year ?? '',
+          poster: film?.poster ?? event?.poster ?? '',
+          backdrop: film?.backdrop ?? event?.backdrop,
+        });
+      }
+      setTarget(null);
+    } finally {
+      setBusy(false);
     }
   };
 
-  const getImportTypeLabel = () => {
-    switch (detectedType) {
-      case 'letterboxd':
-        return { text: 'Letterboxd Diary detected', color: 'text-[#ff8000]', valid: true };
-      case 'imdb-ratings':
-        return { text: 'IMDB Ratings detected', color: 'text-yellow-400', valid: true };
-      case 'imdb-watchlist':
-        return { text: 'IMDB Watchlist detected (go to Watchlist screen)', color: 'text-blue-400', valid: false };
-      default:
-        return { text: '', color: '', valid: false };
-    }
+  const Poster = ({ movieId, title, poster, year, mediaType, event }: { movieId: number; title: string; poster: string; year?: string | number; mediaType?: string; event?: CalendarEvent | null }) => {
+    const film = byId.get(movieId) ?? null;
+    const verdict = verdictFor(movieId, event);
+    const count = film?.watchCount ?? 0;
+    return (
+      <div className="relative overflow-hidden bg-gray-900 group" data-testid="watched-poster">
+        <button type="button" onClick={() => open(movieId, mediaType)} className="block w-full text-left" aria-label={title}>
+          <img src={poster} alt={title} className="w-full aspect-[2/3] object-cover" loading="lazy" />
+        </button>
+        {verdict && (
+          <div className="absolute top-1 right-1 pointer-events-none">
+            <VerdictBadge verdict={verdict} size={20} />
+          </div>
+        )}
+        {count > 1 && (
+          <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/75 text-[10px] font-bold text-fg pointer-events-none" data-testid="watch-count-pill">
+            x{count}
+          </span>
+        )}
+        <button
+          type="button"
+          aria-label={`Edit ${title}`}
+          data-testid="watched-edit"
+          onClick={() => setTarget({ film, event: event ?? null, movieId, title })}
+          className="absolute bottom-0 left-0 right-0 min-h-8 bg-gradient-to-t from-black/90 to-transparent flex items-end justify-between px-1.5 pb-1"
+        >
+          <span className="text-[10px] font-bold text-white leading-tight truncate">{title}</span>
+          <MoreHorizontal size={14} className="text-white shrink-0" />
+        </button>
+        {year ? <span className="sr-only">{year}</span> : null}
+      </div>
+    );
   };
 
-  const isValidImport = () => {
-    return detectedType === 'letterboxd' || detectedType === 'imdb-ratings';
-  };
-
-  const getImportButtonColor = () => {
-    if (detectedType === 'letterboxd') return 'bg-[#ff8000] hover:bg-[#e67300]';
-    if (detectedType === 'imdb-ratings') return 'bg-yellow-500 hover:bg-yellow-400';
-    return 'bg-gray-600';
-  };
-
-  const typeLabel = getImportTypeLabel();
+  const loading = eventsLoading || filmsLoading;
+  const empty = filteredEvents.length === 0 && undated.length === 0;
 
   return (
     <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto overflow-hidden border-x border-line">
       <LibraryHub />
-      {/* Header */}
       <div id="timeline" className="bg-base px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-line">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/app')}
-            className="p-2 min-h-11 min-w-11 text-fg-2 hover:text-fg"
-            aria-label="Go back"
-          >
+          <button onClick={() => navigate('/app')} className="p-2 min-h-11 min-w-11 text-fg-2 hover:text-fg" aria-label="Go back">
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-xl font-bold text-white">Watched</h1>
-            <p className="text-xs text-gray-500">{watchedEvents.length} films logged</p>
+            <p className="text-xs text-gray-500" data-testid="watched-count">
+              {counts.all} films · {watchedEvents.length} nights
+            </p>
           </div>
         </div>
         <button
-          onClick={() => setShowImportModal(true)}
+          onClick={() => setShowImport(true)}
+          data-testid="watched-import"
           className="flex items-center gap-2 px-3 min-h-11 bg-base-3 text-fg border border-line text-sm font-medium"
         >
           <Plus size={16} />
@@ -251,300 +262,137 @@ export default function WatchedScreen() {
         </button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="px-4 py-3 flex gap-2 border-b border-gray-800">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            filter === 'all'
-              ? 'bg-white text-black'
-              : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-          }`}
-        >
-          All ({watchedEvents.length})
-        </button>
-        <button
-          onClick={() => setFilter('liked')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-            filter === 'liked'
-              ? 'bg-green-500 text-white'
-              : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-          }`}
-        >
-          <ThumbsUp size={14} />
-          {likedCount}
-        </button>
-        <button
-          onClick={() => setFilter('disliked')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-            filter === 'disliked'
-              ? 'bg-red-500 text-white'
-              : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-          }`}
-        >
-          <ThumbsDown size={14} />
-          {dislikedCount}
-        </button>
+      <div className="px-4 py-3 flex gap-2 border-b border-line overflow-x-auto no-scrollbar" role="tablist">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            role="tab"
+            aria-selected={filter === f.id}
+            data-testid={`watched-filter-${f.id}`}
+            onClick={() => setFilter(f.id)}
+            className={`shrink-0 px-3 min-h-11 text-xs font-medium border flex items-center gap-1.5 ${
+              filter === f.id ? 'bg-fg text-base border-fg' : 'bg-base-2 text-fg-3 border-line'
+            }`}
+          >
+            {f.id !== 'all' && f.id !== 'unrated' && <VerdictBadge verdict={f.id} size={14} />}
+            {f.label} {counts[f.id]}
+          </button>
+        ))}
       </div>
 
-      {/* Timeline Content */}
       <div className="flex-1 overflow-y-auto">
-        {eventsLoading ? (
+        {loading ? (
           <div className="flex items-center justify-center py-20">
             <Skeleton className="w-24 h-8" />
           </div>
-        ) : filteredEvents.length === 0 ? (
+        ) : empty ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">
             <div className="w-20 h-20 rounded-full bg-gray-900 flex items-center justify-center mb-4">
               <Film className="w-10 h-10 text-gray-600" />
             </div>
             <h3 className="text-lg font-medium text-gray-300 mb-2">
-              {filter === 'all' ? 'No watched movies yet' : `No ${filter} movies`}
+              {filter === 'all' ? 'No watched movies yet' : `Nothing marked ${filter === 'unrated' ? 'unrated' : VERDICT_LABEL[filter]}`}
             </h3>
-            <p className="text-sm text-gray-500 max-w-xs">
-              {filter === 'all'
-                ? 'Log movies from the calendar and they\'ll appear here as a timeline.'
-                : `You haven't ${filter === 'liked' ? 'liked' : 'disliked'} any movies yet.`}
-            </p>
+            <p className="text-sm text-gray-500 max-w-xs">Log films from the calendar or drop your Letterboxd export.</p>
           </div>
         ) : (
           <div className="pb-8">
             {timeline.map((monthGroup) => (
               <div key={monthGroup.monthKey}>
-                {/* Month Header - sticky */}
-                <div className="sticky top-0 z-[5] bg-[#09090b]/95 backdrop-blur-sm px-4 py-3 border-b border-gray-800/50">
+                <div className="sticky top-0 z-[5] bg-base/95 backdrop-blur-sm px-4 py-3 border-b border-line">
                   <h2 className="text-lg font-bold text-white">{monthGroup.monthLabel}</h2>
                 </div>
-
                 {monthGroup.weeks.map((weekGroup) => (
                   <div key={weekGroup.weekStart.toISOString()} className="px-4 pt-3 pb-1">
-                    {/* Week Sub-header */}
                     <div className="flex items-center gap-2 mb-3">
                       <Calendar size={13} className="text-gray-500" />
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {weekGroup.weekLabel}
-                      </span>
-                      <span className="text-[10px] text-gray-600">
-                        ({weekGroup.movies.length})
-                      </span>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{weekGroup.weekLabel}</span>
+                      <span className="text-[10px] text-gray-600">({weekGroup.movies.length})</span>
                     </div>
-
-                    {/* Movie Poster Grid */}
                     <div className="grid grid-cols-4 gap-2 mb-2">
                       {weekGroup.movies.map((movie) => (
-                        <div
+                        <Poster
                           key={movie.id}
-                          onClick={() => navigate(`/movie/${movie.movieId}?type=${movie.mediaType || 'movie'}`)}
-                          className="relative rounded-lg overflow-hidden bg-gray-900 group cursor-pointer transform transition-all duration-200 hover:scale-105 hover:z-10 hover:shadow-xl active:scale-95"
-                        >
-                          <img
-                            src={movie.poster}
-                            alt={movie.title}
-                            className="w-full aspect-[2/3] object-cover transition-transform duration-200 group-hover:brightness-110"
-                            loading="lazy"
-                          />
-                          
-                          {/* Rating Badge */}
-                          {movie.rating && (
-                            <div
-                              className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg ${
-                                movie.rating === 'up'
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-red-500 text-white'
-                              }`}
-                            >
-                              {movie.rating === 'up' ? (
-                                <ThumbsUp size={10} className="fill-current" />
-                              ) : (
-                                <ThumbsDown size={10} className="fill-current" />
-                              )}
-                            </div>
-                          )}
-
-                          {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-end p-1.5">
-                            <h4 className="text-[10px] font-bold text-white leading-tight truncate">
-                              {movie.title}
-                            </h4>
-                            <p className="text-[8px] text-gray-400">{movie.year}</p>
-                          </div>
-                        </div>
+                          movieId={movie.movieId}
+                          title={movie.title}
+                          poster={movie.poster}
+                          year={movie.year}
+                          mediaType={movie.mediaType}
+                          event={movie}
+                        />
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
             ))}
+            {undated.length > 0 && (
+              <div data-testid="watched-undated">
+                <div className="sticky top-0 z-[5] bg-base/95 backdrop-blur-sm px-4 py-3 border-b border-line">
+                  <h2 className="text-lg font-bold text-white">Also watched</h2>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">No date on record</p>
+                </div>
+                <div className="px-4 pt-3 grid grid-cols-4 gap-2">
+                  {undated.map((f) => (
+                    <Poster key={f.movieId} movieId={f.movieId} title={f.title} poster={f.poster} year={f.year} mediaType={f.mediaType} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Unified Import Modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
-            onClick={() => !isImporting && setShowImportModal(false)} 
-          />
-          
-          <div className="bg-[#18181b] w-full max-w-sm rounded-2xl p-6 shadow-2xl z-50 relative border border-gray-800">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ff8000] to-yellow-500 flex items-center justify-center">
-                  <Film className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white">Import Watched Movies</h3>
-                  <p className="text-xs text-gray-500">Letterboxd or IMDB Ratings</p>
-                </div>
+      <ImportSheet open={showImport} onClose={() => setShowImport(false)} title="Import watched films" />
+
+      {target && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4" data-testid="watched-editor">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !busy && setTarget(null)} />
+          <div className="relative z-10 w-full max-w-sm bg-base border border-line p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-fg">{target.title}</h3>
+                <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">
+                  {target.event ? new Date(target.event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date'}
+                  {(target.film?.watchCount ?? 0) > 1 ? ` · x${target.film?.watchCount}` : ''}
+                </p>
               </div>
-              {!isImporting && (
+              <button type="button" onClick={() => setTarget(null)} aria-label="Close" className="p-2 min-h-11 min-w-11 text-fg-3">
+                <X size={18} />
+              </button>
+            </div>
+            <VerdictPicker value={verdictFor(target.movieId, target.event)} onChange={changeVerdict} disabled={busy} size="sm" />
+            <div className="grid grid-cols-1 gap-2">
+              {target.event && (
                 <button
-                  onClick={() => setShowImportModal(false)}
-                  className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-full transition-colors"
+                  type="button"
+                  onClick={removeNight}
+                  disabled={busy}
+                  data-testid="watched-remove-night"
+                  className="min-h-11 px-3 border border-line text-fg text-sm flex items-center gap-2 disabled:opacity-40"
                 >
-                  <X size={18} />
+                  <CalendarX size={14} /> Remove this night
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => removeFromWatched(true)}
+                disabled={busy}
+                data-testid="watched-move-watchlist"
+                className="min-h-11 px-3 border border-line text-fg text-sm flex items-center gap-2 disabled:opacity-40"
+              >
+                <Bookmark size={14} /> Move to watchlist
+              </button>
+              <button
+                type="button"
+                onClick={() => removeFromWatched(false)}
+                disabled={busy}
+                data-testid="watched-remove"
+                className="min-h-11 px-3 border border-red-900 text-red-400 text-sm flex items-center gap-2 disabled:opacity-40"
+              >
+                <Trash2 size={14} /> Remove from watched
+              </button>
             </div>
-
-            {importSuccess !== null ? (
-              <div className="text-center py-6">
-                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h4 className="text-lg font-bold text-white mb-1">Import Complete!</h4>
-                <p className="text-gray-400">{importSuccess} movies imported</p>
-              </div>
-            ) : isImporting ? (
-              <div className="text-center py-6">
-                <Loader2 className={`w-10 h-10 animate-spin mx-auto mb-4 ${importMode === 'csv' ? 'text-yellow-400' : detectedType === 'letterboxd' ? 'text-[#ff8000]' : 'text-yellow-400'}`} />
-                <h4 className="text-lg font-bold text-white mb-1">Importing...</h4>
-                <p className="text-gray-400">
-                  {progress.current} of {progress.total} films
-                </p>
-                {importedCount > 0 && (
-                  <p className="text-sm text-green-400 mt-2">{importedCount} new movies added</p>
-                )}
-              </div>
-            ) : (
-              <>
-                {/* Import Mode Tabs */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setImportMode('url')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      importMode === 'url'
-                        ? 'bg-white text-black'
-                        : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-                    }`}
-                  >
-                    Paste URL
-                  </button>
-                  <button
-                    onClick={() => setImportMode('csv')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      importMode === 'csv'
-                        ? 'bg-yellow-500 text-black'
-                        : 'bg-gray-900 text-gray-400 hover:text-white border border-gray-800'
-                    }`}
-                  >
-                    Upload CSV
-                  </button>
-                </div>
-
-                {importMode === 'url' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
-                        Paste your URL
-                      </label>
-                      <input
-                        type="text"
-                        value={importUrl}
-                        onChange={(e) => setImportUrl(e.target.value)}
-                        placeholder="letterboxd.com/username or imdb.com/user/.../ratings"
-                        className="w-full bg-gray-900 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#ff8000] transition-all border border-gray-800"
-                        autoFocus
-                      />
-                      {typeLabel.text && (
-                        <p className={`text-xs mt-2 ${typeLabel.color}`}>
-                          ✓ {typeLabel.text}
-                        </p>
-                      )}
-                    </div>
-
-                    {importError && (
-                      <div className="p-3 rounded-xl bg-red-900/30 border border-red-800/50">
-                        <p className="text-sm text-red-400">{importError}</p>
-                      </div>
-                    )}
-
-                    {/* Supported formats */}
-                    <div className="p-3 rounded-xl bg-gray-900 border border-gray-800">
-                      <p className="text-xs font-medium text-gray-300 mb-2">Supported formats:</p>
-                      <ul className="text-xs text-gray-500 space-y-1">
-                        <li className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#ff8000]"></span>
-                          letterboxd.com/<span className="text-[#ff8000]">username</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
-                          imdb.com/user/ur.../ratings/
-                        </li>
-                      </ul>
-                    </div>
-
-                    <button
-                      onClick={handleImport}
-                      disabled={!isValidImport()}
-                      className={`w-full py-4 rounded-xl font-bold text-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${getImportButtonColor()}`}
-                    >
-                      Import Films
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-gray-900 border border-gray-800 border-dashed">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        onChange={handleCSVUpload}
-                        className="hidden"
-                        id="csv-upload"
-                      />
-                      <label
-                        htmlFor="csv-upload"
-                        className="flex flex-col items-center justify-center cursor-pointer py-6"
-                      >
-                        <Upload className="w-10 h-10 text-yellow-400 mb-3" />
-                        <p className="text-sm font-medium text-white mb-1">Upload IMDB CSV</p>
-                        <p className="text-xs text-gray-500">Click to select your ratings.csv file</p>
-                      </label>
-                    </div>
-
-                    {importError && (
-                      <div className="p-3 rounded-xl bg-red-900/30 border border-red-800/50">
-                        <p className="text-sm text-red-400">{importError}</p>
-                      </div>
-                    )}
-
-                    <div className="p-3 rounded-xl bg-gray-900 border border-gray-800">
-                      <p className="text-xs font-medium text-gray-300 mb-2">How to export from IMDB:</p>
-                      <ol className="text-xs text-gray-500 space-y-1 list-decimal list-inside">
-                        <li>Go to your IMDB Ratings page</li>
-                        <li>Click the three dots menu (⋮)</li>
-                        <li>Select "Export"</li>
-                        <li>Upload the downloaded CSV here</li>
-                      </ol>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         </div>
       )}

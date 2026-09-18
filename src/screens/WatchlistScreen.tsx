@@ -1,24 +1,20 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Loader2, Plus, Upload, Users, X } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Loader2, Plus, Upload, Users } from 'lucide-react';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useSharedWatchlists } from '../hooks/useSharedWatchlists';
-import { useIMDBImport, detectImportType } from '../hooks/useIMDBImport';
+import ImportSheet from '../components/ImportSheet';
 
 export default function WatchlistScreen() {
  const navigate = useNavigate();
- const fileInputRef = useRef<HTMLInputElement>(null);
  const { items: savedItems, loading: savedLoading, refreshWatchlist } = useWatchlist();
  const { personalLists, sharedLists, loading: listsLoading, createList } = useSharedWatchlists();
- const { importFromIMDB, importFromCSV, isImporting, progress, error: importError } = useIMDBImport();
 
  const [showCreatePersonal, setShowCreatePersonal] = useState(false);
  const [showCreateShared, setShowCreateShared] = useState(false);
  const [newListName, setNewListName] = useState('');
  const [creating, setCreating] = useState(false);
  const [showImportModal, setShowImportModal] = useState(false);
- const [importUrl, setImportUrl] = useState('');
- const [importSuccess, setImportSuccess] = useState<number | null>(null);
 
  const loading = savedLoading || listsLoading;
 
@@ -34,36 +30,6 @@ export default function WatchlistScreen() {
   if (id) navigate(isPersonal ? `/shared/${id}` : `/shared/${id}`);
  };
 
- const handleImport = async () => {
-  if (!importUrl.trim()) return;
-  const type = detectImportType(importUrl);
-  if (type !== 'imdb-watchlist') return;
-  const count = await importFromIMDB(importUrl, 'imdb-watchlist');
-  if (count > 0) {
-   setImportSuccess(count);
-   await refreshWatchlist();
-   setTimeout(() => { setShowImportModal(false); setImportUrl(''); setImportSuccess(null); }, 2000);
-  }
- };
-
- const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-   const csv = e.target?.result as string;
-   if (csv) {
-    const count = await importFromCSV(csv, 'imdb-watchlist');
-    if (count > 0) {
-     setImportSuccess(count);
-     await refreshWatchlist();
-     setTimeout(() => { setShowImportModal(false); setImportSuccess(null); }, 2000);
-    }
-   }
-  };
-  reader.readAsText(file);
-  if (fileInputRef.current) fileInputRef.current.value = '';
- };
 
  return (
   <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden border-x border-line">
@@ -225,62 +191,12 @@ export default function WatchlistScreen() {
     )}
    </div>
 
-   {/* Import Modal */}
-   {showImportModal && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !isImporting && setShowImportModal(false)} />
-     <div className="bg-base-2 w-full max-w-sm p-6 shadow-2xl z-50 relative border border-line">
-      <div className="flex items-center justify-between mb-4">
-       <h3 className="font-bold text-fg">Import from IMDB</h3>
-       {!isImporting && (
-        <button onClick={() => setShowImportModal(false)} className="p-2 text-fg-2 hover:text-fg hover:bg-gray-800">
-         <X size={16} />
-        </button>
-       )}
-      </div>
-
-      {importSuccess ? (
-       <p className="text-green-400 text-center py-4">✓ Imported {importSuccess} movies</p>
-      ) : (
-       <div className="space-y-3">
-        <button
-         onClick={() => fileInputRef.current?.click()}
-         disabled={isImporting}
-         className="w-full py-3 bg-white hover:bg-gray-200 text-black font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-40"
-        >
-         <Upload size={16} />
-         Upload IMDB CSV
-        </button>
-        <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
-        <div className="relative">
-         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-line" /></div>
-         <div className="relative flex justify-center text-xs"><span className="bg-base-2 px-4 text-fg-3">or paste URL</span></div>
-        </div>
-        <input
-         value={importUrl}
-         onChange={(e) => setImportUrl(e.target.value)}
-         placeholder="https://www.imdb.com/list/..."
-         className="w-full bg-black/40 border border-line px-3 py-3 text-fg text-sm outline-none focus:border-blue-500 placeholder-gray-600"
-        />
-        {isImporting && (
-         <div className="text-center text-sm text-fg-2">
-          <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
-          Importing {progress.current}/{progress.total}...
-         </div>
-        )}
-        {importError && <p className="text-xs text-red-400">{importError}</p>}
-        <button
-         onClick={handleImport}
-         disabled={!importUrl.trim() || isImporting || detectImportType(importUrl) !== 'imdb-watchlist'}
-         className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-fg font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-         Import
-        </button>
-       </div>
-      )}
-     </div>
-    </div>
-   )}
+   <ImportSheet
+    open={showImportModal}
+    onClose={() => setShowImportModal(false)}
+    onImported={() => void refreshWatchlist()}
+    title="Import your lists"
+   />
   </div>
  );
 }
