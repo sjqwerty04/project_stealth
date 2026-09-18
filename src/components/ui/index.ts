@@ -6,3 +6,4 @@ export { default as PosterPlate } from './PosterPlate';
 export { default as TicketStub } from './TicketStub';
 export { default as BarUnit } from './BarUnit';
 export { default as Skeleton } from './Skeleton';
+export { default as SelectsChaseLoader } from './SelectsChaseLoader';

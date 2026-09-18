@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, systemPrompt } = req.body || {};
+  const { prompt, systemPrompt, maxTokens, reasoningEffort } = req.body || {};
 
   if (!prompt) {
     return res.status(400).json({ error: 'prompt is required' });
@@ -24,7 +24,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const text = await callXai({
       messages: [{ role: 'user', content: prompt }],
       system: systemPrompt,
-      maxTokens: 4096,
+      maxTokens: typeof maxTokens === 'number' ? maxTokens : 4096,
+      reasoningEffort: reasoningEffort !== undefined ? reasoningEffort : 'medium',
     });
     return res.status(200).json({ text: text || null });
   } catch (error: any) {

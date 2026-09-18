@@ -6,7 +6,7 @@ import {
   SELECTS_TRANSITION_MS,
   snapLoopIndex,
   type RelatedPoster,
-} from './selectsCarousel';
+} from './selectsCarouselLogic';
 
 export type { RelatedPoster };
 

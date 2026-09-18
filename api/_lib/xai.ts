@@ -30,6 +30,7 @@ export async function callXai(opts: {
   messages: ChatMessage[];
   system?: string;
   maxTokens?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high' | null;
   webSearch?: boolean;
 }): Promise<string> {
   if (!XAI_API_KEY) throw new XaiConfigError();
@@ -37,10 +38,14 @@ export async function callXai(opts: {
   const body: Record<string, unknown> = {
     model: DEFAULT_MODEL,
     store: false,
-    reasoning: { effort: 'medium' },
     max_output_tokens: opts.maxTokens ?? 4096,
     input: opts.messages.map((m) => ({ role: m.role, content: m.content })),
   };
+  if (opts.reasoningEffort !== null && opts.reasoningEffort !== undefined) {
+    body.reasoning = { effort: opts.reasoningEffort };
+  } else if (opts.reasoningEffort === undefined) {
+    body.reasoning = { effort: 'medium' };
+  }
   if (opts.system) body.instructions = opts.system;
   if (opts.webSearch) body.tools = [{ type: 'web_search' }];
 

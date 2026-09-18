@@ -113,9 +113,6 @@ export default function OrbitCardStack({
       
       // Wait for exit animation to complete, then trigger swipe
       Promise.all([exitAnimation, exitAnimationY]).then(() => {
-        // Reset position BEFORE triggering swipe so new card starts at center
-        x.set(0);
-        y.set(0);
         onSwipe(direction, releasedAt);
       });
     } else {
@@ -134,7 +131,7 @@ export default function OrbitCardStack({
     };
   }, []);
 
-  // Reset position when movie changes (e.g., when going back)
+  // Reset position when movie changes (e.g., when going back or advancing)
   useEffect(() => {
     if (currentMovie) {
       x.set(0);
