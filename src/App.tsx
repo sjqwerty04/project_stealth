@@ -27,6 +27,7 @@ import AdminScreen from './screens/AdminScreen';
 import JoinScreen from './screens/JoinScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AppShell from './components/AppShell';
+import SelectsCarouselPreviewScreen from './screens/SelectsCarouselPreviewScreen';
 
 export default function App() {
   return (
@@ -41,6 +42,9 @@ export default function App() {
             <Route path="/waitlist" element={<WaitlistScreen />} />
             <Route path="/invite/:code" element={<InviteAcceptScreen />} />
             <Route path="/join" element={<JoinScreen />} />
+            {import.meta.env.DEV && (
+              <Route path="/dev/selects-carousel" element={<SelectsCarouselPreviewScreen />} />
+            )}
             <Route path="/onboarding" element={<OnboardingScreen />} />
             <Route
               path="/admin"

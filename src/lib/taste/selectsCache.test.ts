@@ -52,7 +52,7 @@ describe('selectsCache', () => {
     const newerPicks: TastePick[] = [
       { movieId: 999, title: 'Heat', year: '1995', poster: 'h', whyMatch: 'Updated', confidence: 1 },
     ];
-    const hit = hitSelectsCache('u3', newerPicks, 200);
+    const hit = hitSelectsCache('u3', newerPicks, 200, 250);
     expect(hit?.picks[0].title).toBe('Heat');
     expect(hit?.at).toBe(200);
     forgetSelectsCacheMemory('u3');
