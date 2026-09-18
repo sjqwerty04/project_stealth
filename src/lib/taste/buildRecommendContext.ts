@@ -180,13 +180,14 @@ export function selectHistory(rated: RatedFilm[], limit = HISTORY_LIMIT): Histor
   const recentCap = Math.floor(limit * 0.4);
   const rejectCap = Math.floor(limit * 0.16);
 
+  const canonPool = byRecency
+    .filter((item) => isCanon(item) && item.verdict !== 'nope')
+    .sort((a, b) => (b.stars ?? 0) + (b.watchCount ?? 0) - ((a.stars ?? 0) + (a.watchCount ?? 0)));
   let n = 0;
-  for (const item of byRecency) {
+  for (const item of canonPool) {
     if (n >= canonCap) break;
-    if (isCanon(item) && item.verdict !== 'nope') {
-      push(item);
-      n++;
-    }
+    push(item);
+    n++;
   }
   n = 0;
   for (const item of byRecency) {
