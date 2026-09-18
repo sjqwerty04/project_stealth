@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('selects carousel wrap', () => {
-  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
   test('swipe right from the first select shows the third', async ({ page }) => {
     await page.goto('/dev/selects-carousel');

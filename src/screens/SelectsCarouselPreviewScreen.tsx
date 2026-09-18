@@ -29,7 +29,7 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     id: 2,
     title: 'The Departed',
     poster: poster('#1a1a1c'),
-    backdrop: still('#141416'),
+    backdrop: still('#24303a'),
     whyMatch:
       'You keep coming back to Infernal Affairs and The Godfather. Scorsese Boston crime web has the same loyalty-as-trap energy you already marked as a 5.',
     related: [
@@ -41,7 +41,7 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     id: 3,
     title: 'Heat',
     poster: poster('#1a1a1c'),
-    backdrop: still('#0a0a0b'),
+    backdrop: still('#2c2520'),
     whyMatch:
       'You logged Thief and Collateral back to back. Mann night-drive professionalism is the through line, and this is the longest cut of that same job.',
     related: [
