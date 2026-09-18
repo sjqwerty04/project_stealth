@@ -167,4 +167,44 @@ describe('Orbit request coordinator', () => {
       coordinator.sourceKey({ ...source, id: 999 }, 'noir')
     );
   });
+
+  it('uses loadBatch during prefetch to populate all directions in one call', async () => {
+    let batchCalls = 0;
+    let singleCalls = 0;
+    const published: SwipeDirection[] = [];
+
+    const coordinator = createOrbitRequestCoordinator(
+      async () => {
+        singleCalls += 1;
+        return recommendation;
+      },
+      () => {},
+      async () => {
+        batchCalls += 1;
+        return {
+          up: { ...recommendation, connectionReason: 'Up reason' },
+          right: { ...recommendation, connectionReason: 'Right reason' },
+          down: { ...recommendation, connectionReason: 'Down reason' },
+          left: { ...recommendation, connectionReason: 'Left reason' },
+        };
+      }
+    );
+
+    coordinator.prefetch(source, 'up', 'taste', (_sourceKey, dir) => {
+      published.push(dir);
+    });
+
+    // In-flight request should wait on the batch
+    const pendingRight = coordinator.request(source, 'right', 'taste');
+    expect(coordinator.status(source, 'right', 'taste').state).toBe('loading');
+
+    const result = await pendingRight;
+    expect(result?.connectionReason).toBe('Right reason');
+    expect(batchCalls).toBe(1);
+    expect(singleCalls).toBe(0);
+    expect(coordinator.peek(source, 'down', 'taste')?.connectionReason).toBe('Down reason');
+    expect(coordinator.peek(source, 'left', 'taste')?.connectionReason).toBe('Left reason');
+    // 'up' was the back direction, so it shouldn't be published to store
+    expect(published).toEqual(['right', 'down', 'left']);
+  });
 });

@@ -112,3 +112,51 @@ h1, h2, h3 {
 .hero-video-wrap:-webkit-full-screen > div[class*="z-10"] {
   display: none;
 }
+
+/* Selects 5-bar chase micro-animation (from selectsfilm.com) */
+@keyframes nav-bar-chase {
+  0%, 16% {
+    background-color: var(--chase-active, #FF3B14);
+  }
+  22%, 100% {
+    background-color: var(--chase-idle, #EFEDE9);
+  }
+}
+
+@keyframes nav-svg-chase {
+  0%, 16% {
+    fill: #FF3B14;
+  }
+  22%, 100% {
+    fill: #EFEDE9;
+  }
+}
+
+.selects-chase-mark {
+  --chase-hold: 0.166667s;
+  --chase-cycle: calc(var(--chase-hold) * 5);
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.selects-chase-bar {
+  display: block;
+  background-color: var(--chase-idle, #EFEDE9);
+  transform: skew(-13.5deg);
+  transform-origin: center bottom;
+  animation: nav-bar-chase var(--chase-cycle) linear infinite;
+  animation-delay: calc(var(--i, 0) * var(--chase-hold));
+}
+
+/* Hover micro-animation on logo lockup (matches selectsfilm.com) */
+[data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect {
+  animation: nav-svg-chase 0.833333s linear infinite;
+}
+[data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(1) { animation-delay: 0s; }
+[data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(2) { animation-delay: 0.166667s; }
+[data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(3) { animation-delay: 0.333333s; }
+[data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(4) { animation-delay: 0.5s; }
+[data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(5) { animation-delay: 0.666667s; }
+

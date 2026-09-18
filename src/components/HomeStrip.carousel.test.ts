@@ -5,7 +5,7 @@ import {
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_MS,
   snapLoopIndex,
-} from './selectsCarousel';
+} from './selectsCarouselLogic';
 
 describe('selects carousel loop', () => {
   const slides = [{ id: 1 }, { id: 2 }, { id: 3 }];

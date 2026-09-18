@@ -4,7 +4,7 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
-import { relatedFromWhy } from './selectsCarousel';
+import { relatedFromWhy } from './selectsCarouselLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 

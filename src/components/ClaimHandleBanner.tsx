@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AtSign, Check, Loader2, X } from 'lucide-react';
+import { AtSign, Check, X } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
@@ -144,7 +145,7 @@ export default function ClaimHandleBanner() {
                 placeholder="your_handle"
                 className="flex-1 bg-transparent outline-none text-white placeholder-gray-600"
               />
-              {status === 'checking' && <Loader2 size={16} className="text-gray-500 animate-spin" />}
+              {status === 'checking' && <SelectsChaseLoader size="xs" />}
               {status === 'available' && <Check size={16} className="text-green-400" />}
             </div>
 
@@ -163,7 +164,7 @@ export default function ClaimHandleBanner() {
               disabled={status !== 'available' || submitting}
               className="w-full mt-2 py-3 rounded-xl font-medium bg-white text-black hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
+              {submitting ? <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" /> : null}
               Claim @{lower || '...'}
             </button>
           </div>

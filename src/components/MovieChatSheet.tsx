@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, Loader2, Sparkles } from 'lucide-react';
+import { X, Send, Sparkles } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { useMovieChat, type ChatMovie } from '../hooks/useMovieChat';
 import type { MovieSnippet } from '../hooks/useMovieInsights';
 
@@ -135,7 +136,7 @@ export default function MovieChatSheet({
           {isThinking && (
             <div className="flex justify-start">
               <div className="px-4 py-2.5 rounded-2xl bg-gray-800 text-gray-400 rounded-bl-md">
-                <Loader2 size={16} className="animate-spin" />
+                <SelectsChaseLoader size="xs" />
               </div>
             </div>
           )}
