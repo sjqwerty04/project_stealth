@@ -38,6 +38,28 @@ test('Orbit publishes a completed direction without duplicate generation', async
 
   await page.route('**/api/llm', async (route) => {
     const body = route.request().postDataJSON() as { prompt: string };
+    if (body.prompt.includes('FOUR connected films')) {
+      if (body.prompt.includes('Title: "The Dark Knight"')) {
+        calls.emotional += 1;
+        calls.visual += 1;
+        calls.balanced += 1;
+        calls.storytelling += 1;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          text: JSON.stringify({
+            up: { title: recommendations.visual.title, year: recommendations.visual.year, hex: '#24344d', score: 88, reason: recommendations.visual.reason },
+            right: { title: recommendations.balanced.title, year: recommendations.balanced.year, hex: '#24344d', score: 86, reason: recommendations.balanced.reason },
+            down: { title: recommendations.storytelling.title, year: recommendations.storytelling.year, hex: '#24344d', score: 90, reason: recommendations.storytelling.reason },
+            left: { title: recommendations.emotional.title, year: recommendations.emotional.year, hex: '#24344d', score: 87, reason: recommendations.emotional.reason },
+          }),
+        }),
+      });
+      return;
+    }
+
     const direction = directionFromPrompt(body.prompt);
     if (body.prompt.includes('Title: "The Dark Knight"')) {
       calls[direction] += 1;

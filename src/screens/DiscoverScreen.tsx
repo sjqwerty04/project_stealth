@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, X, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { Search, X, ArrowLeft, Sparkles } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieSearch, type SearchResult } from '../hooks/useMovieSearch';
 import SearchResultCard from '../components/SearchResultCard';
 import PatternAssistant from '../components/PatternAssistant';
@@ -287,7 +288,7 @@ export default function DiscoverScreen() {
             {isLoadingVibe && !vibeList && (
               <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/10 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                  <SelectsChaseLoader size="sm" />
                   <span className="text-sm text-gray-400">Curating personalized recommendations...</span>
                 </div>
               </div>

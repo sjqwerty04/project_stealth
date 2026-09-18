@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Plus, Search, Share2, Trash2, UserMinus, Users, X } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Share2, Trash2, UserMinus, Users, X } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import {
  arrayRemove,
  deleteField,
@@ -129,7 +130,7 @@ export default function SharedWatchlistDetailScreen() {
    <div className="flex-1 overflow-y-auto p-4">
     {loading ? (
      <div className="flex items-center justify-center py-20">
-      <Loader2 className="w-8 h-8 text-fg-3 animate-spin" />
+      <SelectsChaseLoader size="lg" />
      </div>
     ) : items.length === 0 ? (
      <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -269,7 +270,7 @@ export default function SharedWatchlistDetailScreen() {
            title={`Remove ${m.displayName}`}
           >
            {removingMember === uid
-            ? <Loader2 size={15} className="animate-spin" />
+            ? <SelectsChaseLoader size="xs" />
             : <UserMinus size={15} />}
           </button>
          ) : null}

@@ -9,11 +9,11 @@
   "gestureP50Ms": 184,
   "gestureP95Ms": 184,
   "automationSettledSamples": [
-    637,
-    623,
-    631,
-    604,
-    615
+    620,
+    614,
+    626,
+    624,
+    628
   ],
   "calls": {
     "emotional": 5,
@@ -24,21 +24,21 @@
   "telemetry": [
     {
       "phase": "llm",
-      "durationMs": 402.09999999403954,
+      "durationMs": 405.09999999403954,
       "sourceMovieId": 155,
       "direction": "left"
     },
     {
       "phase": "tmdb-search",
-      "durationMs": 1.5
+      "durationMs": 1.5999999940395355
     },
     {
       "phase": "tmdb-details",
-      "durationMs": 1.699999988079071
+      "durationMs": 1.4000000059604645
     },
     {
       "phase": "recommendation",
-      "durationMs": 405.60000002384186,
+      "durationMs": 408.2999999821186,
       "sourceMovieId": 155,
       "direction": "left"
     },

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Trash2, Loader2, ChevronRight, X } from 'lucide-react';
+import { ArrowLeft, Sparkles, Trash2, ChevronRight, X } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { collection, getDocs, deleteDoc, doc, orderBy, query, limit, startAfter, DocumentSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -169,7 +170,7 @@ export default function SavedVibesScreen() {
    <div className="p-4">
     {isLoading ? (
      <div className="flex items-center justify-center py-16">
-      <Loader2 className="w-8 h-8 text-fg-2 animate-spin" />
+      <SelectsChaseLoader size="lg" />
      </div>
     ) : vibes.length === 0 ? (
      <div className="text-center py-16">
@@ -262,7 +263,7 @@ export default function SavedVibesScreen() {
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
          >
           {deletingId === vibe.id ? (
-           <Loader2 className="w-4 h-4 animate-spin" />
+           <SelectsChaseLoader size="xs" />
           ) : (
            <Trash2 className="w-4 h-4" />
           )}
@@ -275,7 +276,7 @@ export default function SavedVibesScreen() {
       {/* Load More / Infinite Scroll Trigger */}
       <div ref={loadMoreRef} className="py-4 flex justify-center">
        {isLoadingMore && (
-        <Loader2 className="w-6 h-6 text-fg-2 animate-spin" />
+        <SelectsChaseLoader size="sm" />
        )}
        {!hasMore && vibes.length > 0 && (
         <p className="text-sm text-fg-3">No more vibes</p>

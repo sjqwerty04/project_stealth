@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { usePinchGesture } from '../hooks/usePinchGesture';
 import { useOrbitStore, type SwipeDirection, type OrbitMovie } from '../stores/orbitStore';
-import { getNextMovie, extractDominantColor } from '../lib/orbitEngine';
+import { getNextMovie, getNextMovieBatch, extractDominantColor } from '../lib/orbitEngine';
 import {
   createOrbitRequestCoordinator,
   warmOrbitImages,
@@ -23,7 +23,7 @@ import { recordTasteEvent, useTaste } from '../lib/taste';
 import { fallbackById } from '../lib/fallbackCatalog';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
-const orbitRequests = createOrbitRequestCoordinator(getNextMovie);
+const orbitRequests = createOrbitRequestCoordinator(getNextMovie, undefined, getNextMovieBatch);
 
 export default function OrbitScreen() {
   const navigate = useNavigate();
@@ -417,11 +417,11 @@ export default function OrbitScreen() {
         style={{ backgroundColor: transitionColor }}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center gap-4"
         >
-        <p className="font-spec text-[10px] uppercase tracking-widest text-white/50">Entering orbit</p>
+          <SelectsChaseLoader size="xl" label="Entering orbit" />
         </motion.div>
       </div>
     );
@@ -481,6 +481,26 @@ export default function OrbitScreen() {
         showOnboarding={showOnboarding}
       />
 
+      {/* Center atmospheric loader during swipe wait */}
+      <AnimatePresence>
+        {isWaitingForRecommendation && pendingDirection && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.18 }}
+            className="absolute inset-0 z-40 flex flex-col items-center justify-center pointer-events-none px-6"
+          >
+            <div className="px-7 py-5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10 flex flex-col items-center gap-3 shadow-2xl">
+              <SelectsChaseLoader size="lg" />
+              <p className="font-spec text-xs uppercase tracking-widest text-white/80">
+                Finding {pendingDirection === 'up' ? 'visual' : pendingDirection === 'right' ? 'balanced' : pendingDirection === 'down' ? 'story' : 'emotional'} match...
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Loading indicator during swipe - only show if actually waiting */}
       <AnimatePresence>
         {isWaitingForRecommendation && pendingDirection && (
@@ -488,11 +508,11 @@ export default function OrbitScreen() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50"
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
           >
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/50 backdrop-blur-md">
-              <Loader2 className="w-4 h-4 text-white animate-spin" />
-              <span className="text-white/70 text-sm">Finding next film...</span>
+            <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+              <SelectsChaseLoader size="xs" />
+              <span className="text-white/80 text-xs font-spec tracking-wider uppercase">Finding next film...</span>
             </div>
           </motion.div>
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BookmarkCheck, Check, ListPlus, Loader2, Users, X } from 'lucide-react';
+import { BookmarkCheck, Check, ListPlus, Users, X } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useSharedWatchlists } from '../hooks/useSharedWatchlists';
 import {
@@ -178,7 +179,7 @@ export default function AddToListPicker({ movie, open, onClose }: Props) {
                   disabled={!newListName.trim() || creating}
                   className="flex-1 py-2 rounded-xl bg-white text-black text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-1"
                 >
-                  {creating && <Loader2 size={14} className="animate-spin" />}
+                  {creating && <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />}
                   Create & Add
                 </button>
               </div>
@@ -226,7 +227,7 @@ function ListRow({
       </div>
       <div className="shrink-0 w-6 h-6 flex items-center justify-center">
         {busy ? (
-          <Loader2 size={16} className="text-gray-400 animate-spin" />
+          <SelectsChaseLoader size="xs" />
         ) : done ? (
           <Check size={16} className="text-green-400" />
         ) : null}

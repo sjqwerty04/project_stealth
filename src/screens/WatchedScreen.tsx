@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Loader2, Film, Plus, X, Upload, Calendar } from 'lucide-react';
+import { ArrowLeft, ThumbsUp, ThumbsDown, Film, Plus, X, Upload, Calendar } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import { useIMDBImport, detectImportType, type ImportType } from '../hooks/useIMDBImport';
@@ -419,8 +420,10 @@ export default function WatchedScreen() {
                 <p className="text-gray-400">{importSuccess} movies imported</p>
               </div>
             ) : isImporting ? (
-              <div className="text-center py-6">
-                <Loader2 className={`w-10 h-10 animate-spin mx-auto mb-4 ${importMode === 'csv' ? 'text-yellow-400' : detectedType === 'letterboxd' ? 'text-[#ff8000]' : 'text-yellow-400'}`} />
+              <div className="text-center py-6 flex flex-col items-center">
+                <div className="mb-4">
+                  <SelectsChaseLoader size="xl" />
+                </div>
                 <h4 className="text-lg font-bold text-white mb-1">Importing...</h4>
                 <p className="text-gray-400">
                   {progress.current} of {progress.total} films
