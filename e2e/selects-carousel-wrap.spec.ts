@@ -30,4 +30,16 @@ test.describe('selects carousel wrap', () => {
     await expect.poll(async () => track.getAttribute('data-slide'), { timeout: 4000 }).toBe('1');
     await expect(page.getByLabel('Select 1').nth(1)).toBeVisible();
   });
+
+  test('autoplay advances 1 then 2 then 3 then 1', async ({ page }) => {
+    await page.goto('/dev/selects-carousel');
+    const track = page.getByTestId('selects-carousel-track');
+    const seen: string[] = [];
+    await expect.poll(async () => {
+      const v = (await track.getAttribute('data-slide')) ?? '';
+      if (v && seen[seen.length - 1] !== v) seen.push(v);
+      return seen.join(',');
+    }, { timeout: 14000 }).toMatch(/1,2,3,(4,)?1/);
+    expect(seen.join(',')).not.toMatch(/3,2/);
+  });
 });
