@@ -104,6 +104,7 @@ export type ImportDigest = {
   recent: FilmRef[];
   avgStars: number | null;
   counts: { watched: number; rated: number; diary: number; watchlist: number };
+  curious?: FilmRef[];
 };
 
 export type TasteEvent =
