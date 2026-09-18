@@ -92,7 +92,7 @@ function SelectCard({
             Why should I watch this?
           </span>
           <span
-            className="mt-2 block font-display text-sm text-fg-2 leading-relaxed"
+            className="mt-2 block font-display text-sm text-fg-2 leading-relaxed break-words"
             data-testid="why-match-line"
           >
             {why}
@@ -249,7 +249,7 @@ export default function SelectsCarousel({
         }}
       >
         {looped.map((film, i) => (
-          <div key={`${film.id}-${i}`} className="w-full shrink-0">
+          <div key={`${film.id}-${i}`} className="w-full min-w-full shrink-0 overflow-hidden">
             <SelectCard
               film={film}
               art={art[film.id]}
