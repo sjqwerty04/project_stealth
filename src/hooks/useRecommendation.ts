@@ -183,7 +183,18 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       }
     }
 
+    const fallbackPicks = (): RecommendationResult[] => {
+      if (stored.length) return stored;
+      return readSelectsCache(user.uid)?.picks.map(fromStored) ?? [];
+    };
+
     if (!hasMeaningfulContext(context)) {
+      const fallback = fallbackPicks();
+      if (fallback.length) {
+        setPicks(fallback);
+        setStatus('ready');
+        return fallback;
+      }
       setPicks([]);
       setStatus('empty');
       return [];
@@ -207,7 +218,10 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ context }),
         });
-        const data = res.ok ? await res.json() : { picks: [] };
+        if (!res.ok) {
+          throw new Error('Your Selects request failed');
+        }
+        const data = await res.json();
         const raw = Array.isArray(data.picks) ? data.picks : [];
         const hydrated = (
           await Promise.all(
@@ -253,9 +267,15 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         return hydrated;
       } catch (err) {
         console.error('Your Selects failed:', err);
+        const fallback = fallbackPicks();
+        if (fallback.length) {
+          setPicks(fallback);
+          setStatus('ready');
+          return fallback;
+        }
         setError('Could not load Your Selects');
-        setStatus(stored.length ? 'ready' : 'error');
-        return stored.length ? stored : [];
+        setStatus('error');
+        return [];
       } finally {
         inflight.delete(user.uid);
       }
@@ -286,6 +306,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     if (!hasMeaningfulContext(context)) {
+      if (stale?.picks.length) return;
       setPicks([]);
       setStatus('empty');
       return;
