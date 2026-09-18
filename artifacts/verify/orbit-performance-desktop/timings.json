@@ -1,19 +1,19 @@
 {
   "gestureSamples": [
-    187,
-    186,
-    183,
-    183,
-    183
+    171,
+    178,
+    177,
+    173,
+    175
   ],
-  "gestureP50Ms": 183,
-  "gestureP95Ms": 187,
+  "gestureP50Ms": 175,
+  "gestureP95Ms": 178,
   "automationSettledSamples": [
-    612,
-    615,
-    616,
-    616,
-    606
+    646,
+    550,
+    642,
+    629,
+    639
   ],
   "calls": {
     "emotional": 5,
@@ -24,27 +24,27 @@
   "telemetry": [
     {
       "phase": "llm",
-      "durationMs": 406,
+      "durationMs": 402,
       "sourceMovieId": 155,
       "direction": "left"
     },
     {
       "phase": "tmdb-search",
-      "durationMs": 2
+      "durationMs": 2.5
     },
     {
       "phase": "tmdb-details",
-      "durationMs": 1.300000011920929
+      "durationMs": 1.9000000059604645
     },
     {
       "phase": "recommendation",
-      "durationMs": 409.40000000596046,
+      "durationMs": 406.69999998807907,
       "sourceMovieId": 155,
       "direction": "left"
     },
     {
       "phase": "gesture-to-card",
-      "durationMs": 182.60000002384186,
+      "durationMs": 175.40000000596046,
       "sourceMovieId": 155,
       "direction": "left",
       "cacheState": "ready"

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Loader2, Plus, Upload, Users, X } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Plus, Upload, Users, X } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useSharedWatchlists } from '../hooks/useSharedWatchlists';
 import { useIMDBImport, detectImportType } from '../hooks/useIMDBImport';
@@ -94,7 +95,7 @@ export default function WatchlistScreen() {
    <div className="flex-1 overflow-y-auto">
     {loading ? (
      <div className="flex items-center justify-center py-20">
-      <Loader2 className="w-8 h-8 text-fg-3 animate-spin" />
+      <SelectsChaseLoader size="lg" />
      </div>
     ) : (
      <div className="p-4 space-y-5">
@@ -263,9 +264,9 @@ export default function WatchlistScreen() {
          className="w-full bg-black/40 border border-line px-3 py-3 text-fg text-sm outline-none focus:border-blue-500 placeholder-gray-600"
         />
         {isImporting && (
-         <div className="text-center text-sm text-fg-2">
-          <Loader2 className="w-4 h-4 animate-spin inline mr-1" />
-          Importing {progress.current}/{progress.total}...
+         <div className="flex items-center justify-center gap-2 text-sm text-fg-2">
+          <SelectsChaseLoader size="xs" />
+          <span>Importing {progress.current}/{progress.total}...</span>
          </div>
         )}
         {importError && <p className="text-xs text-red-400">{importError}</p>}
@@ -347,7 +348,7 @@ function CreateListInput({
      disabled={!value.trim() || creating}
      className="flex-1 py-2 bg-white text-black text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-1"
     >
-     {creating && <Loader2 size={14} className="animate-spin" />}
+     {creating && <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />}
      Create
     </button>
    </div>

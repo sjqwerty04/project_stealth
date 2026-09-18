@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Calendar, BookmarkPlus, Eye, ThumbsUp, ThumbsDown, Loader2, Check } from 'lucide-react';
+import { Calendar, BookmarkPlus, Eye, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import AddToListPicker, { type PickerMovie } from './AddToListPicker';
 
 type MovieActionsProps = {
@@ -51,7 +52,7 @@ export default function MovieActions({
           style={{ borderRadius: 0 }}
         >
           {isAddingToCalendar ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />
           ) : (
             <Calendar className="w-5 h-5" />
           )}
@@ -90,7 +91,7 @@ export default function MovieActions({
               style={{ borderRadius: 0 }}
             >
               {isMarkingSeen ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <SelectsChaseLoader size="xs" />
               ) : (
                 <Eye className="w-5 h-5" />
               )}
@@ -115,7 +116,7 @@ export default function MovieActions({
                 className="flex items-center justify-center gap-1.5 py-3.5 px-4 rounded-xl bg-green-600 text-white font-semibold transition-all hover:bg-green-500 disabled:opacity-50"
               >
                 {isMarkingSeen && selectedRating === 'up' ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <SelectsChaseLoader size="xs" activeColor="#FFFFFF" idleColor="rgba(255,255,255,0.4)" />
                 ) : (
                   <ThumbsUp className="w-5 h-5" />
                 )}
@@ -126,7 +127,7 @@ export default function MovieActions({
                 className="flex items-center justify-center gap-1.5 py-3.5 px-4 rounded-xl bg-red-600 text-white font-semibold transition-all hover:bg-red-500 disabled:opacity-50"
               >
                 {isMarkingSeen && selectedRating === 'down' ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <SelectsChaseLoader size="xs" activeColor="#FFFFFF" idleColor="rgba(255,255,255,0.4)" />
                 ) : (
                   <ThumbsDown className="w-5 h-5" />
                 )}
