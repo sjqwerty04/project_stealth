@@ -10,6 +10,7 @@ import {
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { recordTasteEvent } from '../lib/taste';
+import { setOnWatchlist, type FilmSource } from '../lib/library';
 
 export type WatchlistItem = {
   id: string;
@@ -20,7 +21,7 @@ export type WatchlistItem = {
   backdrop?: string;
   runtime?: string;
   addedAt: any;
-  source?: 'imdb' | 'manual';
+  source?: FilmSource;
 };
 
 export function useWatchlist() {
@@ -92,6 +93,7 @@ export function useWatchlist() {
           addedAt: serverTimestamp(),
           source: 'manual',
         });
+        await setOnWatchlist(user.uid, movie, true).catch((err) => console.warn('ledger watchlist failed:', err));
 
         await fetchWatchlist();
         if (user.email) {
@@ -120,6 +122,9 @@ export function useWatchlist() {
         const docRef = doc(db, 'users', user.uid, 'watchlist', itemId);
         await deleteDoc(docRef);
         setItems((prev) => prev.filter((item) => item.id !== itemId));
+        if (existing) {
+          await setOnWatchlist(user.uid, existing, false).catch((err) => console.warn('ledger watchlist failed:', err));
+        }
         if (existing && user.email) {
           await recordTasteEvent(
             user.uid,

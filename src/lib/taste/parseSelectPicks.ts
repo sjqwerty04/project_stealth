@@ -25,6 +25,7 @@ export function generatedDiaryFields(generated: {
   compactForChat: string;
   patterns: string[];
   insightCards: string[];
+  library?: unknown;
 }) {
   return {
     'generated.updatedAt': generated.updatedAt,
@@ -32,6 +33,7 @@ export function generatedDiaryFields(generated: {
     'generated.compactForChat': generated.compactForChat,
     'generated.patterns': generated.patterns,
     'generated.insightCards': generated.insightCards,
+    ...(generated.library !== undefined ? { 'generated.library': generated.library } : {}),
   };
 }
 

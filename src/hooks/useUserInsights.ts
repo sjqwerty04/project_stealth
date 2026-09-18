@@ -57,18 +57,18 @@ export function useUserInsights(): UserInsights {
 
     (async () => {
       try {
-        const [watchedSnap, watchlistSnap, tasteProfileDoc] = await Promise.all([
-          getDocs(collection(db, 'users', user.uid, 'watched_recommendations')),
+        const [filmsSnap, watchlistSnap, tasteProfileDoc] = await Promise.all([
+          getDocs(collection(db, 'users', user.uid, 'films')),
           getDocs(collection(db, 'users', user.uid, 'watchlist')),
           getDoc(doc(db, 'users', user.uid, 'profile_data', 'taste_profile')),
         ]);
 
         if (cancelled) return;
 
-        const watchedDocs = watchedSnap.docs.map((d) => d.data());
+        const watchedDocs = filmsSnap.docs.map((d) => d.data()).filter((d) => d.watched === true);
         const watchedCount = watchedDocs.length;
         const watchlistCount = watchlistSnap.size;
-        const likedCount = watchedDocs.filter((d) => d.rating === 'up').length;
+        const likedCount = watchedDocs.filter((d) => d.verdict === 'liked').length;
         const likedPercent = watchedCount > 0 ? Math.round((likedCount / watchedCount) * 100) : 0;
         const rawTasteProfile = tasteProfileDoc.exists() ? tasteProfileDoc.data() : null;
 

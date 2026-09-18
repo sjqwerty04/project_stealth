@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Orbit, X, ThumbsUp, ThumbsDown, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useSimilarVibes } from '../hooks/useSimilarVibes';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -16,10 +16,10 @@ import { useMovieInsights } from '../hooks/useMovieInsights';
 import { useMovieKnownFor } from '../hooks/useMovieKnownFor';
 import { recordTasteEvent, useTaste } from '../lib/taste';
 import { useLetterboxdRating } from '../hooks/useLetterboxdRating';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import Skeleton from '../components/ui/Skeleton';
+import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
+import { setVerdict as setLedgerVerdict, useLibraryFilm, type Verdict } from '../lib/library';
 
 const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
   if (!path) return null;
@@ -56,11 +56,11 @@ export default function MovieDetailScreen() {
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
   const [isMarkingSeen, setIsMarkingSeen] = useState(false);
-  const [isMarkedSeen, setIsMarkedSeen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(preSelectedDate || new Date().toISOString().split('T')[0]);
   const [showRatingPicker, setShowRatingPicker] = useState(false);
-  const [selectedRating, setSelectedRating] = useState<'up' | 'down' | null>(null);
+  const [selectedRating, setSelectedRating] = useState<Verdict | null>(null);
+  const { film: libraryFilm } = useLibraryFilm(details?.id);
   const [showSuccessState, setShowSuccessState] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -196,37 +196,21 @@ export default function MovieDetailScreen() {
 
       const isPast = isPastDate(selectedDate);
 
-      // Save to calendar logs
+      // The calendar hook mirrors watched nights into the film ledger.
       await addEvent({
         movieId: details.id,
         title: details.title,
         poster: buildImageUrl(details.posterPath) || '',
         date: safeDate.toISOString(),
         inviteFriend: false,
-        rating: isPast ? selectedRating : null,
+        verdict: isPast ? selectedRating : null,
         status: isPast ? 'watched' : 'planned',
         backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
         mediaType: details.mediaType,
         year: details.year,
         runtimeLabel: details.runtime || 'Feature',
+        rewatch: isPast && (libraryFilm?.watchCount ?? 0) > 0,
       });
-
-      // ALSO save to watched_recommendations if it's a past date with rating
-      if (isPast && selectedRating) {
-        const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
-        await addDoc(watchedRef, {
-          movieId: details.id,
-          title: details.title,
-          year: details.year,
-          poster: buildImageUrl(details.posterPath) || '',
-          backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
-          runtime: details.runtime,
-          mediaType: details.mediaType,
-          rating: selectedRating,
-          ratedAt: serverTimestamp(),
-          source: 'calendar',
-        });
-      }
       
       // Auto-remove from watchlist when logging as watched
       if (isPast) {
@@ -250,37 +234,39 @@ export default function MovieDetailScreen() {
     } finally {
       setIsAddingToCalendar(false);
     }
-  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate, getWatchlistItem, removeFromWatchlist]);
+  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate, getWatchlistItem, removeFromWatchlist, libraryFilm?.watchCount]);
 
 
-  const handleMarkAsSeen = useCallback(async (rating: 'up' | 'down') => {
+  const handleVerdict = useCallback(async (verdict: Verdict) => {
     if (!details || !user) return;
-    
+
     setIsMarkingSeen(true);
     try {
-      const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
-      await addDoc(watchedRef, {
-        movieId: details.id,
-        title: details.title,
-        year: details.year,
-        poster: buildImageUrl(details.posterPath) || '',
-        backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
-        runtime: details.runtime,
-        mediaType: details.mediaType,
-        rating,
-        ratedAt: serverTimestamp(),
-        source: 'discovery',
-      });
+      await setLedgerVerdict(
+        user.uid,
+        {
+          movieId: details.id,
+          title: details.title,
+          year: details.year,
+          poster: buildImageUrl(details.posterPath) || '',
+          backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
+          mediaType: details.mediaType,
+        },
+        verdict,
+        'discovery',
+      );
+      await recordTasteEvent(
+        user.uid,
+        { type: 'verdict', movieId: details.id, title: details.title, year: details.year, verdict, source: 'detail' },
+        { email: user.email },
+      );
 
-      // Auto-remove from watchlist when marked as seen
       const watchlistItem = getWatchlistItem(details.id);
       if (watchlistItem) {
         await removeFromWatchlist(watchlistItem.id);
       }
-
-      setIsMarkedSeen(true);
     } catch (err) {
-      console.error('Failed to mark as seen:', err);
+      console.error('Failed to save verdict:', err);
     } finally {
       setIsMarkingSeen(false);
     }
@@ -460,11 +446,11 @@ export default function MovieDetailScreen() {
             runtime: details.runtime,
           }}
           onAddToCalendar={handleAddToCalendar}
-          onMarkAsSeen={handleMarkAsSeen}
-          isInWatchlist={isInWatchlist(details.id)}
-          isMarkedSeen={isMarkedSeen}
+          onVerdict={handleVerdict}
+          isInWatchlist={isInWatchlist(details.id) || libraryFilm?.onWatchlist === true}
+          film={libraryFilm}
           isAddingToCalendar={isAddingToCalendar}
-          isMarkingSeen={isMarkingSeen}
+          isSavingVerdict={isMarkingSeen}
         />
 
         {/* Orbit + Ask — side by side */}
@@ -684,22 +670,7 @@ export default function MovieDetailScreen() {
             </div>
             <div>
               <p className="text-sm font-bold text-gray-400 mb-3 text-center">How was it?</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSelectedRating('up')}
-                  className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all ${selectedRating === 'up' ? 'border-green-500 bg-green-900/30 text-green-400 scale-105' : 'border-white/10 bg-[#09090b] text-gray-500 hover:border-white/20'}`}
-                >
-                  <ThumbsUp size={34} className={selectedRating === 'up' ? 'fill-current' : ''} />
-                  <span className="mt-2 font-bold text-sm">Loved it</span>
-                </button>
-                <button
-                  onClick={() => setSelectedRating('down')}
-                  className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 transition-all ${selectedRating === 'down' ? 'border-red-500 bg-red-900/30 text-red-400 scale-105' : 'border-white/10 bg-[#09090b] text-gray-500 hover:border-white/20'}`}
-                >
-                  <ThumbsDown size={34} className={selectedRating === 'down' ? 'fill-current' : ''} />
-                  <span className="mt-2 font-bold text-sm">Not for me</span>
-                </button>
-              </div>
+              <VerdictPicker value={selectedRating} onChange={setSelectedRating} size="lg" />
             </div>
             <div className="flex gap-3">
               <button
@@ -740,9 +711,7 @@ export default function MovieDetailScreen() {
                 <h3 className="font-bold text-white truncate">{details.title}</h3>
                 <p className="text-sm text-gray-400">{details.year} &bull; {details.runtime}</p>
               </div>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${selectedRating === 'up' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                {selectedRating === 'up' ? <ThumbsUp size={20} className="fill-current" /> : <ThumbsDown size={20} className="fill-current" />}
-              </div>
+              {selectedRating && <VerdictBadge verdict={selectedRating} size={36} />}
             </div>
             <div className="space-y-3 pt-2">
               <button

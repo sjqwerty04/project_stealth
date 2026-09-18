@@ -1,3 +1,5 @@
+import { historyScore } from '../library/verdict';
+import type { Verdict } from '../library/types';
 import {
   AXIS_PREFERENCE,
   HISTORY_LIMIT,
@@ -5,6 +7,8 @@ import {
   type Axis,
   type DiaryEvidence,
   type HistoryItem,
+  type LibraryStats,
+  type RatedFilm,
   type RecommendContext,
   type TasteIdentity,
   type TasteSnapshot,
@@ -27,16 +31,17 @@ export function emptySnapshot(): TasteSnapshot {
   };
 }
 
+/**
+ * 1 to 5 score for history. Accepts a verdict, native stars, or the legacy thumbs.
+ */
 export function ratingToHistoryScore(
-  rating: 'up' | 'down' | number | null | undefined
+  rating: Verdict | 'up' | 'down' | number | null | undefined,
+  stars?: number | null,
 ): number | null {
-  if (rating === 'up') return 5;
-  if (rating === 'down') return 1;
-  if (typeof rating === 'number' && Number.isFinite(rating)) {
-    const scaled = rating > 5 ? rating / 2 : rating;
-    return Math.max(1, Math.min(5, Math.round(scaled)));
-  }
-  return null;
+  if (rating === 'up') return historyScore('liked', stars);
+  if (rating === 'down') return historyScore('nope', stars);
+  if (typeof rating === 'number') return historyScore(null, rating);
+  return historyScore(rating ?? null, stars);
 }
 
 function uniqPush(list: string[], value: string) {
@@ -46,13 +51,29 @@ function uniqPush(list: string[], value: string) {
   list.push(trimmed);
 }
 
-export function compactTaste(context: RecommendContext, identity: TasteIdentity): string {
+export function libraryLine(stats: LibraryStats | null | undefined): string {
+  if (!stats || stats.watched === 0) return '';
+  const parts: string[] = [];
+  const avg = stats.avgStars != null ? `, avg ${stats.avgStars.toFixed(1)}` : '';
+  parts.push(`Library: ${stats.watched} watched, ${stats.rated} rated${avg}.`);
+  if (stats.canon.length) parts.push(`Canon: ${stats.canon.slice(0, 6).join(', ')}.`);
+  if (stats.rewatches.length) parts.push(`Rewatches: ${stats.rewatches.slice(0, 4).join(', ')}.`);
+  if (stats.recent.length) parts.push(`Recent: ${stats.recent.slice(0, 5).join(', ')}.`);
+  if (stats.rejects.length) parts.push(`Avoid: ${stats.rejects.slice(0, 5).join(', ')}.`);
+  if (stats.tags.length) parts.push(`Often tags ${stats.tags.slice(0, 4).join(' / ')}.`);
+  if (stats.quotes.length) parts.push(`In their words: ${stats.quotes.slice(0, 2).map((q) => `"${q}"`).join(' ')}`);
+  return parts.join(' ');
+}
+
+export function compactTaste(context: RecommendContext, identity: TasteIdentity, library?: LibraryStats | null): string {
   const parts: string[] = [];
   if (identity.personaLine) parts.push(identity.personaLine);
   if (identity.axis) parts.push(`Cares about ${identity.axis} first.`);
   if (context.profile && context.profile !== identity.personaLine) {
     parts.push(context.profile);
   }
+  const lib = libraryLine(library);
+  if (lib) parts.push(lib);
   const likes = context.preferences.filter((p) => !p.toLowerCase().startsWith('dislikes:'));
   const dislikes = context.preferences.filter((p) => p.toLowerCase().startsWith('dislikes:'));
   if (likes.length) parts.push(`Likes: ${likes.slice(0, 12).join('; ')}.`);
@@ -67,8 +88,17 @@ export type CalendarLogLike = {
   movieId?: number;
   year?: string | number;
   rating?: 'up' | 'down' | null;
+  verdict?: Verdict | null;
+  stars?: number | null;
   date?: string;
 };
+
+function verdictFromLog(log: CalendarLogLike): Verdict | null {
+  if (log.verdict === 'liked' || log.verdict === 'okay' || log.verdict === 'nope') return log.verdict;
+  if (log.rating === 'up') return 'liked';
+  if (log.rating === 'down') return 'nope';
+  return null;
+}
 
 export function contextFromCalendarLogs(logs: CalendarLogLike[]): RecommendContext {
   return buildRecommendContext({
@@ -81,7 +111,8 @@ export function contextFromCalendarLogs(logs: CalendarLogLike[]): RecommendConte
         title: log.title.trim(),
         movieId: typeof log.movieId === 'number' ? log.movieId : undefined,
         year: log.year,
-        rating: log.rating === 'up' || log.rating === 'down' ? log.rating : 3,
+        verdict: verdictFromLog(log),
+        stars: log.stars ?? null,
         at: log.date ? Date.parse(log.date) || 0 : 0,
       })),
     watchlist: [],
@@ -118,6 +149,80 @@ export function selectConfidentPicks<T extends { confidence?: number }>(recs: T[
   return recs.filter((rec) => (rec.confidence ?? 1) >= min);
 }
 
+/** Unrated watches count as a 3 so the model knows the film was seen. */
+function scoreOf(item: RatedFilm): number {
+  return historyScore(item.verdict, item.stars) ?? 3;
+}
+
+function isCanon(item: RatedFilm): boolean {
+  return item.hearted === true || (item.stars ?? 0) >= 4.5 || (item.watchCount ?? 0) >= 2;
+}
+
+/**
+ * Pick at most HISTORY_LIMIT films in a deliberate mix: canon first, then the most
+ * recent, then rejects, then the rest by recency. Titles dedupe case-insensitively.
+ */
+export function selectHistory(rated: RatedFilm[], limit = HISTORY_LIMIT): HistoryItem[] {
+  const byRecency = [...rated].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
+  const seen = new Set<string>();
+  const out: HistoryItem[] = [];
+  const push = (item: RatedFilm) => {
+    const key = item.title.toLowerCase();
+    if (seen.has(key) || out.length >= limit) return;
+    seen.add(key);
+    out.push({
+      item: item.title,
+      rating: scoreOf(item),
+      ...(item.movieId != null ? { id: String(item.movieId) } : {}),
+    });
+  };
+  const canonCap = Math.floor(limit * 0.3);
+  const recentCap = Math.floor(limit * 0.4);
+  const rejectCap = Math.floor(limit * 0.16);
+
+  let n = 0;
+  for (const item of byRecency) {
+    if (n >= canonCap) break;
+    if (isCanon(item) && item.verdict !== 'nope') {
+      push(item);
+      n++;
+    }
+  }
+  n = 0;
+  for (const item of byRecency) {
+    if (n >= recentCap) break;
+    if (!seen.has(item.title.toLowerCase())) {
+      push(item);
+      n++;
+    }
+  }
+  n = 0;
+  for (const item of byRecency) {
+    if (n >= rejectCap) break;
+    if (item.verdict === 'nope' && !seen.has(item.title.toLowerCase())) {
+      push(item);
+      n++;
+    }
+  }
+  for (const item of byRecency) push(item);
+  return out;
+}
+
+const PLATFORM_TAGS = new Set(['plex', 'netflix', 'prime', 'hulu', 'disney', 'max', 'hbo', 'apple', 'tv', 'home', 'rewatch', 'cinema', 'theater', 'theatre', 'imax']);
+
+export function meaningfulTags(tags: string[], cap = 5): string[] {
+  const counts = new Map<string, number>();
+  for (const raw of tags) {
+    const t = raw.trim().toLowerCase();
+    if (!t || PLATFORM_TAGS.has(t)) continue;
+    counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, cap)
+    .map(([t]) => t);
+}
+
 export function buildRecommendContext(evidence: DiaryEvidence): RecommendContext {
   const preferences: string[] = [];
   if (evidence.identity.axis) {
@@ -126,35 +231,32 @@ export function buildRecommendContext(evidence: DiaryEvidence): RecommendContext
   for (const film of evidence.favorites) {
     uniqPush(preferences, film.title);
   }
+  for (const title of evidence.library?.canon.slice(0, 6) ?? []) {
+    uniqPush(preferences, title);
+  }
   for (const film of evidence.disliked) {
     uniqPush(preferences, `dislikes: ${film.title}`);
   }
   for (const film of evidence.skipped) {
     uniqPush(preferences, `dislikes: ${film.title}`);
   }
+  for (const title of evidence.library?.rejects.slice(0, 5) ?? []) {
+    uniqPush(preferences, `dislikes: ${title}`);
+  }
   for (const film of evidence.watchlist.slice(0, 5)) {
     uniqPush(preferences, `something like ${film.title}`);
+  }
+  for (const film of (evidence.curious ?? []).slice(0, 5)) {
+    uniqPush(preferences, `curious about ${film.title}`);
   }
   for (const query of evidence.searches.slice(0, 8)) {
     uniqPush(preferences, `something like ${query}`);
   }
-
-  const history: HistoryItem[] = [];
-  const seen = new Set<string>();
-  const rated = [...evidence.rated].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
-  for (const item of rated) {
-    const score = ratingToHistoryScore(item.rating);
-    if (score == null) continue;
-    const key = item.title.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    history.push({
-      item: item.title,
-      rating: score,
-      ...(item.movieId != null ? { id: String(item.movieId) } : {}),
-    });
-    if (history.length >= HISTORY_LIMIT) break;
+  for (const tag of evidence.library?.tags.slice(0, 5) ?? []) {
+    uniqPush(preferences, `often tags ${tag}`);
   }
+
+  const history = selectHistory(evidence.rated);
 
   const profile =
     evidence.identity.personaLine ||
@@ -168,12 +270,12 @@ export function buildRecommendContext(evidence: DiaryEvidence): RecommendContext
   };
 }
 
-export function withCompact(snapshot: TasteSnapshot): TasteSnapshot {
+export function withCompact(snapshot: TasteSnapshot, library?: LibraryStats | null): TasteSnapshot {
   return {
     ...snapshot,
     generated: {
       ...snapshot.generated,
-      compactForChat: compactTaste(snapshot.context, snapshot.identity),
+      compactForChat: compactTaste(snapshot.context, snapshot.identity, library ?? snapshot.generated.library ?? null),
     },
   };
 }
