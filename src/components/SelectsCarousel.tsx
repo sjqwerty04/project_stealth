@@ -80,11 +80,13 @@ export default function SelectsCarousel({
   art,
   onOpenMovie,
   autoplay = true,
+  intervalMs = 4500,
 }: {
   slides: SelectFilm[];
   art: Record<number, FilmArt>;
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   autoplay?: boolean;
+  intervalMs?: number;
 }) {
   const [slide, setSlide] = useState(slides.length < 2 ? 0 : 1);
   const [slideTransition, setSlideTransition] = useState(true);
@@ -92,15 +94,24 @@ export default function SelectsCarousel({
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
   const slideIdsRef = useRef('');
+  const resumeTimer = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const looped = useMemo(() => loopingSlides(slides), [slides]);
   const slideKey = slides.map((s) => s.id).join(',');
+  const count = slides.length;
+
+  const snapIfClone = (index: number) => {
+    const snapped = snapLoopIndex(index, count);
+    if (snapped == null) return;
+    setSlideTransition(false);
+    setSlide(snapped);
+  };
 
   useEffect(() => {
     if (slideIdsRef.current === slideKey) return;
     slideIdsRef.current = slideKey;
     setSlideTransition(false);
-    setSlide(slides.length < 2 ? 0 : 1);
-  }, [slideKey, slides.length]);
+    setSlide(count < 2 ? 0 : 1);
+  }, [slideKey, count]);
 
   useEffect(() => {
     if (slideTransition) return;
@@ -111,30 +122,46 @@ export default function SelectsCarousel({
   }, [slideTransition, slide]);
 
   useEffect(() => {
-    if (!autoplay || paused || slides.length < 2) return;
+    const snapped = snapLoopIndex(slide, count);
+    if (snapped == null) return;
+    const t = window.setTimeout(() => snapIfClone(slide), 430);
+    return () => window.clearTimeout(t);
+  }, [slide, count]);
+
+  useEffect(() => {
+    if (!autoplay || paused || count < 2) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     const t = window.setInterval(() => {
       setSlideTransition(true);
-      setSlide((i) => i + 1);
-    }, 4500);
+      setSlide((i) => {
+        const real = snapLoopIndex(i, count) ?? i;
+        return real + 1;
+      });
+    }, intervalMs);
     return () => window.clearInterval(t);
-  }, [autoplay, paused, slides.length]);
+  }, [autoplay, paused, count, intervalMs]);
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimer.current) window.clearTimeout(resumeTimer.current);
+    };
+  }, []);
 
   const go = (dir: number) => {
-    if (slides.length < 2) return;
+    if (count < 2) return;
     setSlideTransition(true);
-    setSlide((i) => i + dir);
+    setSlide((i) => {
+      const real = snapLoopIndex(i, count) ?? i;
+      return real + dir;
+    });
   };
 
   const onCarouselTransitionEnd = () => {
-    const snapped = snapLoopIndex(slide, slides.length);
-    if (snapped == null) return;
-    setSlideTransition(false);
-    setSlide(snapped);
+    snapIfClone(slide);
   };
 
-  const trackSlide = slides.length < 2 ? 0 : slide;
+  const trackSlide = count < 2 ? 0 : slide;
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -152,7 +179,8 @@ export default function SelectsCarousel({
       swallowClick.current = true;
       go(dx < 0 ? 1 : -1);
     }
-    window.setTimeout(() => setPaused(false), 6000);
+    if (resumeTimer.current) window.clearTimeout(resumeTimer.current);
+    resumeTimer.current = window.setTimeout(() => setPaused(false), 6000);
   };
 
   if (!slides.length) return null;
