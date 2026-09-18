@@ -4,6 +4,7 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
+import { relatedFromWhy } from './selectsCarousel';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 
@@ -330,8 +331,9 @@ export default function HomeStrip({
       year: p.year,
       runtime: p.runtime,
       whyMatch: p.reason,
+      related: relatedFromWhy(p.reason, events, p.title),
     }));
-  }, [picks]);
+  }, [picks, events]);
 
   const art = useCarouselArt(slides);
 
@@ -348,6 +350,7 @@ export default function HomeStrip({
     <div
       className="bg-base text-fg flex flex-col overflow-hidden"
       data-testid="home-strip"
+      data-build={import.meta.env.VITE_SELECTS_SHA || 'unknown'}
       style={{ height: 'calc(100dvh - var(--tab-h) - env(safe-area-inset-bottom))' }}
     >
       <header className="px-7 pt-6 pb-4 flex items-start justify-between">
@@ -377,7 +380,7 @@ export default function HomeStrip({
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
         {status === 'loading' && (
           <div data-testid="selects-skeleton">
-            <Skeleton className="w-full h-[148px]" />
+            <Skeleton className="w-full h-[220px]" />
           </div>
         )}
         {status === 'empty' && (
