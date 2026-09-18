@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Loader2, User, Film, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ChevronRight, User, Film, ExternalLink } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useDNAStore, nodeId } from '../stores/dnaStore';
 import type { DNANode, DNAMovie, DNAPerson } from '../stores/dnaStore';
 import { getMovieDNA, getPersonFilms } from '../lib/dnaEngine';
@@ -147,7 +148,7 @@ export default function DNAScreen() {
 
         {loadingDots ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
+            <SelectsChaseLoader size="md" />
           </div>
         ) : current.kind === 'movie' ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-3 gap-y-5">

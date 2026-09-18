@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import SelectsChaseLoader from './SelectsChaseLoader';
 
 type Kind = 'primary' | 'secondary' | 'ghost';
 
@@ -31,7 +32,12 @@ export default function Button({
       data-testid={testId ?? (kind === 'primary' ? 'btn-primary' : `btn-${kind}`)}
       {...restProps}
     >
-      {loading ? <span className="font-spec text-xs uppercase tracking-widest">Working</span> : children}
+      {loading ? (
+        <span className="inline-flex items-center gap-2">
+          <SelectsChaseLoader size="xs" activeColor="#FF3B14" idleColor="currentColor" />
+          <span className="font-spec text-xs uppercase tracking-widest">Working</span>
+        </span>
+      ) : children}
     </button>
   );
 }

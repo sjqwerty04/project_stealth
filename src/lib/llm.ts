@@ -108,11 +108,19 @@ export const extractJSON = (text: string): any | null => {
   }
 };
 
+export interface LlmCallOptions {
+  maxTokens?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high' | null;
+}
+
 export const callLlm = async (
   prompt: string,
   systemPrompt?: string,
+  options?: LlmCallOptions
 ): Promise<string | null> => {
-  const cacheKey = hashPrompt(prompt + (systemPrompt || ''));
+  const cacheKey = hashPrompt(
+    prompt + (systemPrompt || '') + (options ? JSON.stringify(options) : '')
+  );
 
   const memoryCached = memoryCache.get(cacheKey);
   if (memoryCached && Date.now() - memoryCached.timestamp < CACHE_TTL) {
@@ -140,7 +148,12 @@ export const callLlm = async (
     const response = await fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, systemPrompt }),
+      body: JSON.stringify({
+        prompt,
+        systemPrompt,
+        maxTokens: options?.maxTokens,
+        reasoningEffort: options?.reasoningEffort,
+      }),
     });
 
     if (!response.ok) {
@@ -176,9 +189,10 @@ export const callLlm = async (
 export const callLlmForJSON = async <T = any>(
   prompt: string,
   systemPrompt?: string,
-  maxRetries: number = 2
+  maxRetries: number = 2,
+  options?: LlmCallOptions
 ): Promise<T | null> => {
-  const response = await callLlm(prompt, systemPrompt);
+  const response = await callLlm(prompt, systemPrompt, options);
   if (!response) {
     return null;
   }
@@ -207,7 +221,8 @@ ${response}
 
     const retryResponse = await callLlm(
       repairPrompt,
-      'You are a JSON repair specialist. Your only job is to fix malformed JSON and output valid JSON.'
+      'You are a JSON repair specialist. Your only job is to fix malformed JSON and output valid JSON.',
+      options
     );
     if (!retryResponse) continue;
 

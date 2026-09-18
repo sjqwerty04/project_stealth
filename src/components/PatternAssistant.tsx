@@ -1,4 +1,5 @@
-import { Sparkles, Loader2, Bookmark, ArrowRight, Check } from 'lucide-react';
+import { Sparkles, Bookmark, ArrowRight, Check } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 
 type PatternAssistantProps = {
   insight: string;
@@ -70,7 +71,7 @@ export default function PatternAssistant({
           {/* Insight text */}
           {isAnalyzing ? (
             <div className="flex items-center gap-2 text-gray-500">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <SelectsChaseLoader size="xs" />
               <span className="text-xs italic">Detecting pattern...</span>
             </div>
           ) : (
@@ -89,7 +90,7 @@ export default function PatternAssistant({
               >
                 {isLoadingMore ? (
                   <>
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <SelectsChaseLoader size="xs" activeColor="#FFFFFF" idleColor="rgba(255,255,255,0.4)" />
                     Finding...
                   </>
                 ) : (
@@ -109,7 +110,7 @@ export default function PatternAssistant({
                 }`}
               >
                 {isSavingVibe ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <SelectsChaseLoader size="xs" />
                 ) : vibeSaved ? (
                   <Check className="w-3 h-3" />
                 ) : (
@@ -200,7 +201,7 @@ export default function PatternAssistant({
         <div className="mb-3">
           {isAnalyzing ? (
             <div className="flex items-center gap-2 text-gray-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <SelectsChaseLoader size="sm" />
               <span className="text-sm italic">Reading your cinematic soul...</span>
             </div>
           ) : (
@@ -220,7 +221,7 @@ export default function PatternAssistant({
             >
               {isLoadingMore ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <SelectsChaseLoader size="xs" activeColor="#FFFFFF" idleColor="rgba(255,255,255,0.4)" />
                   Finding films...
                 </>
               ) : (
@@ -241,7 +242,7 @@ export default function PatternAssistant({
               }`}
             >
               {isSavingVibe ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <SelectsChaseLoader size="xs" />
               ) : vibeSaved ? (
                 <Check className="w-4 h-4" />
               ) : (
