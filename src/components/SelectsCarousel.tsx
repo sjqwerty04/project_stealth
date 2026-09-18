@@ -1,6 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { firstSentence } from '../lib/taste';
-import { loopingSlides, SELECTS_AUTOPLAY_MS, SELECTS_TRANSITION_EASE, SELECTS_TRANSITION_MS, snapLoopIndex } from './selectsCarouselLogic';
+import {
+  loopingSlides,
+  SELECTS_AUTOPLAY_MS,
+  SELECTS_TRANSITION_EASE,
+  SELECTS_TRANSITION_MS,
+  snapLoopIndex,
+  type RelatedPoster,
+} from './selectsCarouselLogic';
+
+export type { RelatedPoster };
 
 export type SelectFilm = {
   id: number;
@@ -12,6 +20,7 @@ export type SelectFilm = {
   year?: number | string;
   runtime?: string;
   whyMatch?: string;
+  related?: RelatedPoster[];
 };
 
 export type FilmArt = { logo: string | null; still: string | null };
@@ -27,50 +36,69 @@ function SelectCard({
 }) {
   const still = art?.still || film.backdrop || film.poster;
   const logo = art?.logo || film.logo;
-  const whyLine = film.whyMatch ? firstSentence(film.whyMatch) : '';
+  const related = film.related?.slice(0, 2) ?? [];
+  const why = film.whyMatch?.trim() ?? '';
   return (
     <button
       type="button"
       data-testid="ticket-slot"
       aria-label={film.title}
       onClick={onClick}
-      className="relative w-full overflow-hidden bg-base-3 min-h-11"
-      style={{ height: whyLine ? 168 : 148, borderRadius: 0, border: 'none' }}
+      className="relative w-full overflow-hidden bg-base text-left min-h-11"
+      style={{ borderRadius: 0, border: 'none' }}
     >
-      {still && (
-        <img
-          src={still}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ opacity: 0.38 }}
-        />
-      )}
-      <span className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-2">
-        {logo ? (
-          <img
-            src={logo}
-            alt=""
-            className="relative object-contain"
-            style={{
-              maxHeight: 48,
-              maxWidth: '70%',
-              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
-            }}
-          />
-        ) : (
-          <span className="font-display font-extrabold text-fg text-lg tracking-tight text-center leading-none">
-            {film.title}
-          </span>
-        )}
-        {whyLine ? (
+      <span className="relative block w-full overflow-hidden bg-base-3" style={{ height: 220 }}>
+        {still ? (
+          <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : null}
+        <span className="absolute inset-0 flex items-center justify-center px-6">
+          {logo ? (
+            <img
+              src={logo}
+              alt=""
+              className="relative object-contain"
+              style={{
+                maxHeight: 56,
+                maxWidth: '70%',
+                filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
+              }}
+            />
+          ) : (
+            <span className="font-display font-extrabold text-fg text-lg tracking-tight text-center leading-none">
+              {film.title}
+            </span>
+          )}
+        </span>
+      </span>
+      {related.length > 0 ? (
+        <span className="flex gap-2 pt-3" data-testid="related-posters">
+          {related.map((row) => (
+            <span
+              key={row.title}
+              className="block overflow-hidden bg-base-3"
+              style={{ width: 56, height: 84, borderRadius: 2 }}
+            >
+              <img src={row.poster} alt="" className="h-full w-full object-cover" />
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {why ? (
+        <span className="block pt-3 pb-1">
           <span
-            className="font-spec text-[10px] uppercase tracking-widest text-fg-2 text-center line-clamp-1"
+            className="font-spec text-[10px] uppercase tracking-widest text-fg-3"
+            data-testid="why-watch-label"
+          >
+            Why should I watch this?
+          </span>
+          <span
+            className="mt-2 block font-display text-sm text-fg-2 leading-relaxed break-words"
             data-testid="why-match-line"
           >
-            {whyLine}
+            {why}
           </span>
-        ) : null}
-      </span>
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -221,7 +249,7 @@ export default function SelectsCarousel({
         }}
       >
         {looped.map((film, i) => (
-          <div key={`${film.id}-${i}`} className="w-full shrink-0">
+          <div key={`${film.id}-${i}`} className="w-full min-w-full shrink-0 overflow-hidden">
             <SelectCard
               film={film}
               art={art[film.id]}
