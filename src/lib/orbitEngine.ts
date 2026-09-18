@@ -1,5 +1,6 @@
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
 import { callLlmForJSON } from './llm';
+import { recordOrbitTiming } from './orbitTelemetry';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -205,6 +206,7 @@ const normalizeOrbitResponse = (parsed: any): OrbitResponse | null => {
 
 // Search TMDB for movie details
 const searchTMDB = async (title: string, year?: string): Promise<any | null> => {
+  const startedAt = performance.now();
   try {
     const url = new URL(`${TMDB_BASE}/search/movie`);
     url.searchParams.set('api_key', TMDB_API_KEY);
@@ -218,11 +220,17 @@ const searchTMDB = async (title: string, year?: string): Promise<any | null> => 
     return data.results?.[0] || null;
   } catch {
     return null;
+  } finally {
+    recordOrbitTiming({
+      phase: 'tmdb-search',
+      durationMs: performance.now() - startedAt,
+    });
   }
 };
 
 // Get movie details from TMDB
 const getMovieDetails = async (tmdbId: number): Promise<any | null> => {
+  const startedAt = performance.now();
   try {
     const url = `${TMDB_BASE}/movie/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits`;
     const response = await fetch(url);
@@ -230,6 +238,11 @@ const getMovieDetails = async (tmdbId: number): Promise<any | null> => {
     return response.json();
   } catch {
     return null;
+  } finally {
+    recordOrbitTiming({
+      phase: 'tmdb-details',
+      durationMs: performance.now() - startedAt,
+    });
   }
 };
 
@@ -281,6 +294,7 @@ export const getNextMovie = async (
   direction: SwipeDirection,
   taste?: string | null
 ): Promise<{ movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> => {
+  const recommendationStartedAt = performance.now();
   let prompt = buildPrompt(currentMovie, direction);
   if (taste) {
     prompt += `\n<viewer_taste>\n${taste}\n</viewer_taste>\nSteer the pick toward this viewer. Do not fetch or invent their watch history.`;
@@ -300,11 +314,19 @@ export const getNextMovie = async (
     connection_reason?: string;
   } | null = null;
 
+  const llmStartedAt = performance.now();
   try {
     parsed = await callLlmForJSON(prompt, ORBIT_SYSTEM_PROMPT, 2);
   } catch (error) {
     console.error('Orbit: Grok call failed', error);
     return null;
+  } finally {
+    recordOrbitTiming({
+      phase: 'llm',
+      durationMs: performance.now() - llmStartedAt,
+      sourceMovieId: currentMovie.id,
+      direction,
+    });
   }
 
   if (!parsed) {
@@ -322,34 +344,19 @@ export const getNextMovie = async (
   if (!hydratedMovie) {
     return null;
   }
+
+  recordOrbitTiming({
+    phase: 'recommendation',
+    durationMs: performance.now() - recommendationStartedAt,
+    sourceMovieId: currentMovie.id,
+    direction,
+  });
   
   return {
     movie: hydratedMovie,
     connectionReason: orbitResponse.reason,
     similarityScore: orbitResponse.score,
   };
-};
-
-// Pre-fetch all possible next moves for a movie
-// UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
-export const prefetchNextMoves = async (
-  currentMovie: OrbitMovie,
-  backDirection?: SwipeDirection | null,
-  taste?: string | null
-): Promise<{
-  visual: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-  balanced: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-  storytelling: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-  emotional: { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null;
-}> => {
-  const [visual, balanced, storytelling, emotional] = await Promise.all([
-    backDirection === 'up' ? Promise.resolve(null) : getNextMovie(currentMovie, 'up', taste),
-    backDirection === 'right' ? Promise.resolve(null) : getNextMovie(currentMovie, 'right', taste),
-    backDirection === 'down' ? Promise.resolve(null) : getNextMovie(currentMovie, 'down', taste),
-    backDirection === 'left' ? Promise.resolve(null) : getNextMovie(currentMovie, 'left', taste),
-  ]);
-  
-  return { visual, balanced, storytelling, emotional };
 };
 
 // Get additional movie info from TMDB (for enriching the experience)
