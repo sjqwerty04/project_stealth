@@ -10,7 +10,7 @@ export default function SelectsCarouselPreviewScreen() {
   return (
     <div className="min-h-dvh bg-base text-fg px-7 pt-10">
       <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
-      <SelectsCarousel slides={PREVIEW_SLIDES} art={{}} onOpenMovie={() => {}} intervalMs={1800} />
+      <SelectsCarousel slides={PREVIEW_SLIDES} art={{}} onOpenMovie={() => {}} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { firstSentence } from '../lib/taste';
-import { loopingSlides, snapLoopIndex } from './selectsCarousel';
+import { loopingSlides, SELECTS_AUTOPLAY_MS, SELECTS_TRANSITION_EASE, SELECTS_TRANSITION_MS, snapLoopIndex } from './selectsCarousel';
 
 export type SelectFilm = {
   id: number;
@@ -80,7 +80,7 @@ export default function SelectsCarousel({
   art,
   onOpenMovie,
   autoplay = true,
-  intervalMs = 4500,
+  intervalMs = SELECTS_AUTOPLAY_MS,
 }: {
   slides: SelectFilm[];
   art: Record<number, FilmArt>;
@@ -127,7 +127,7 @@ export default function SelectsCarousel({
   useEffect(() => {
     const snapped = snapLoopIndex(slide, count);
     if (snapped == null) return;
-    const t = window.setTimeout(() => jumpTo(snapped), 500);
+    const t = window.setTimeout(() => jumpTo(snapped), SELECTS_TRANSITION_MS + 80);
     return () => window.clearTimeout(t);
   }, [slide, count]);
 
@@ -214,7 +214,10 @@ export default function SelectsCarousel({
         }}
         style={{
           transform: `translateX(-${trackSlide * 100}%)`,
-          transition: slideTransition && slides.length > 1 ? 'transform 420ms ease' : 'none',
+          transition:
+            slideTransition && slides.length > 1
+              ? `transform ${SELECTS_TRANSITION_MS}ms ${SELECTS_TRANSITION_EASE}`
+              : 'none',
         }}
       >
         {looped.map((film, i) => (
