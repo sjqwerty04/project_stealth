@@ -4,6 +4,7 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import { firstSentence } from '../lib/taste';
+import { loopingSlides, snapLoopIndex } from './selectsCarousel';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 
@@ -361,12 +362,14 @@ export default function HomeStrip({
   onAddMovie: (date: Date) => void;
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
-  const [slide, setSlide] = useState(0);
+  const [slide, setSlide] = useState(1);
+  const [slideTransition, setSlideTransition] = useState(true);
   const [paused, setPaused] = useState(false);
   const { picks, status } = useRecommendation({ events });
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
+  const slideIdsRef = useRef('');
 
   const days = useMemo(() => {
     const today = startOfDay(new Date());
@@ -406,25 +409,49 @@ export default function HomeStrip({
   }, [picks]);
 
   const art = useCarouselArt(slides);
+  const looped = useMemo(() => loopingSlides(slides), [slides]);
+  const slideKey = slides.map((s) => s.id).join(',');
 
   useEffect(() => {
-    setSlide(0);
-  }, [slides.length]);
+    if (slideIdsRef.current === slideKey) return;
+    slideIdsRef.current = slideKey;
+    setSlideTransition(false);
+    setSlide(slides.length < 2 ? 0 : 1);
+  }, [slideKey, slides.length]);
+
+  useEffect(() => {
+    if (slideTransition) return;
+    const id = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setSlideTransition(true));
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [slideTransition, slide]);
 
   useEffect(() => {
     if (paused || slides.length < 2) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     const t = window.setInterval(() => {
-      setSlide((i) => (i + 1) % slides.length);
+      setSlideTransition(true);
+      setSlide((i) => i + 1);
     }, 4500);
     return () => window.clearInterval(t);
   }, [paused, slides.length]);
 
   const go = (dir: number) => {
     if (slides.length < 2) return;
-    setSlide((i) => (i + dir + slides.length) % slides.length);
+    setSlideTransition(true);
+    setSlide((i) => i + dir);
   };
+
+  const onCarouselTransitionEnd = () => {
+    const snapped = snapLoopIndex(slide, slides.length);
+    if (snapped == null) return;
+    setSlideTransition(false);
+    setSlide(snapped);
+  };
+
+  const trackSlide = slides.length < 2 ? 0 : slide;
 
   useEffect(() => {
     const track = stripTrackRef.current;
@@ -436,17 +463,18 @@ export default function HomeStrip({
   }, []);
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     carouselStartX.current = e.clientX;
     setPaused(true);
   };
-  const onCarouselPointerUp = (e: React.PointerEvent) => {
+  const finishCarouselPointer = (e: React.PointerEvent, applySwipe: boolean) => {
     if (carouselStartX.current == null) {
       setPaused(false);
       return;
     }
     const dx = e.clientX - carouselStartX.current;
     carouselStartX.current = null;
-    if (Math.abs(dx) >= 40) {
+    if (applySwipe && Math.abs(dx) >= 40) {
       swallowClick.current = true;
       go(dx < 0 ? 1 : -1);
     }
@@ -503,11 +531,10 @@ export default function HomeStrip({
           <div
             className="overflow-hidden"
             data-testid="selects-carousel"
+            style={{ touchAction: 'pan-y' }}
             onPointerDown={onCarouselPointerDown}
-            onPointerUp={onCarouselPointerUp}
-            onPointerLeave={() => {
-              carouselStartX.current = null;
-            }}
+            onPointerUp={(e) => finishCarouselPointer(e, true)}
+            onPointerCancel={(e) => finishCarouselPointer(e, false)}
             onClickCapture={(e) => {
               if (!swallowClick.current) return;
               e.preventDefault();
@@ -517,13 +544,19 @@ export default function HomeStrip({
           >
             <div
               className="flex"
+              data-testid="selects-carousel-track"
+              data-slide={trackSlide}
+              onTransitionEnd={(e) => {
+                if (e.target !== e.currentTarget) return;
+                onCarouselTransitionEnd();
+              }}
               style={{
-                transform: `translateX(-${slide * 100}%)`,
-                transition: 'transform 420ms ease',
+                transform: `translateX(-${trackSlide * 100}%)`,
+                transition: slideTransition && slides.length > 1 ? 'transform 420ms ease' : 'none',
               }}
             >
-              {slides.map((film) => (
-                <div key={film.id} className="w-full shrink-0">
+              {looped.map((film, i) => (
+                <div key={`${film.id}-${i}`} className="w-full shrink-0">
                   <SelectCard
                     film={film}
                     art={art[film.id]}

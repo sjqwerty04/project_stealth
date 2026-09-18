@@ -25,11 +25,18 @@ describe('selectsCache', () => {
     expect(selectsCacheFresh(hit, 1 + 1000)).toBe(true);
   });
 
-  it('keeps picks fresh past the legacy 6h window so app reopen does not regenerate', () => {
+  it('expires picks after 6 hours so the next open can regenerate', () => {
     writeSelectsCache('u-long', picks, 1000);
     forgetSelectsCacheMemory('u-long');
     const hit = readSelectsCache('u-long');
-    expect(selectsCacheFresh(hit, 1000 + LAST_PICKS_FRESH_MS + 99999)).toBe(true);
+    expect(selectsCacheFresh(hit, 1000 + LAST_PICKS_FRESH_MS - 1)).toBe(true);
+    expect(selectsCacheFresh(hit, 1000 + LAST_PICKS_FRESH_MS)).toBe(false);
+  });
+
+  it('does not treat a stale Firestore snapshot as a cache hit', () => {
+    writeSelectsCache('u-stale', picks, 1000);
+    const miss = hitSelectsCache('u-stale', picks, 1000, 1000 + LAST_PICKS_FRESH_MS + 1);
+    expect(miss).toBeNull();
   });
 
   it('treats snapshot lastPicks as a hit without lastPicksAt', () => {
