@@ -9,9 +9,9 @@ import {
   mergeRecommendContext,
   readSelectsCache,
   recordTasteEvent,
-  selectsCacheFresh,
   useTaste,
   writeSelectsCache,
+  LAST_PICKS_FRESH_MS,
   type CalendarLogLike,
   type RecommendContext,
   type TastePick,
@@ -144,7 +144,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const [picks, setPicks] = useState<RecommendationResult[]>(() => {
     if (user?.uid) {
       const hit = readSelectsCache(user.uid);
-      if (selectsCacheFresh(hit)) {
+      if (hit?.picks.length) {
         return hit.picks.map(fromStored);
       }
     }
@@ -153,7 +153,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const [status, setStatus] = useState<SelectsStatus>(() => {
     if (!user) return 'idle';
     const hit = readSelectsCache(user.uid);
-    if (selectsCacheFresh(hit)) return 'ready';
+    if (hit?.picks.length) return 'ready';
     return 'loading';
   });
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +198,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
 
     const run = (async () => {
-      setStatus(stored.length ? 'ready' : 'loading');
+      const havePicks = stored.length > 0 || (readSelectsCache(user.uid)?.picks.length ?? 0) > 0;
+      setStatus(havePicks ? 'ready' : 'loading');
       setError(null);
       try {
         const res = await fetch('/api/your-selects', {
@@ -275,8 +276,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setStatus('ready');
       return;
     }
+    const stale = readSelectsCache(user.uid);
+    if (stale?.picks.length) {
+      setPicks(stale.picks.map(fromStored));
+      setStatus('ready');
+    }
     if (tasteLoading) {
-      setStatus('loading');
+      if (!stale?.picks.length) setStatus('loading');
       return;
     }
     if (!hasMeaningfulContext(context)) {
@@ -286,6 +292,18 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
     void generateRecommendation(false);
   }, [user, tasteLoading, snapshot, context, generateRecommendation]);
+
+  useEffect(() => {
+    if (!user) return;
+    const cached = readSelectsCache(user.uid);
+    if (!cached?.at || !cached.picks.length) return;
+    const remaining = LAST_PICKS_FRESH_MS - (Date.now() - cached.at);
+    if (remaining <= 0) return;
+    const t = window.setTimeout(() => {
+      void generateRecommendation(true);
+    }, remaining);
+    return () => window.clearTimeout(t);
+  }, [user, picks, generateRecommendation]);
 
   const rateRecommendation = useCallback(
     async (rec: RecommendationResult, rating: 'up' | 'down') => {
