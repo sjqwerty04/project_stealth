@@ -22,11 +22,12 @@ You do not need to click New App first. The Fastlane `produce` step creates bund
 
 ## 2. Add GitHub Actions secrets
 
-In this GitHub repo, open Settings, Secrets and variables, Actions. Create three secrets:
+In this GitHub repo, open Settings, Secrets and variables, Actions. Create these secrets:
 
 - `APP_STORE_CONNECT_API_KEY_ID` is the Key ID.
 - `APP_STORE_CONNECT_ISSUER_ID` is the Issuer ID.
 - `APP_STORE_CONNECT_API_KEY` is the full `.p8` text.
+- `TESTFLIGHT_CONTACT_PHONE` is optional. It is the phone Apple reviewers can call. Without it the IPA still uploads. External Friends review and the public join link wait until this secret exists.
 
 ## 3. Run the workflow
 
@@ -36,8 +37,10 @@ A green macOS job uploaded a build. The ubuntu `require-secrets` job failing wit
 
 ## 4. Invite friends
 
-A green macos job waits for Apple to process the build, then submits it to an external TestFlight group named `Friends` with a public link. The first external build still needs Beta App Review. After Apple approves it, the join URL is `https://testflight.apple.com/join/...` in the job summary and in App Store Connect.
+If `TESTFLIGHT_CONTACT_PHONE` is set, a green macos job waits for Apple to process the build. It then submits the build to an external TestFlight group named `Friends` and turns on the public link. The first external build still needs Beta App Review. After Apple approves it, the join URL is `https://testflight.apple.com/join/...` in the job summary and in App Store Connect.
 
-Internal testers (people you add under Users and Access) can install as soon as processing finishes. They do not wait on Beta App Review.
+If that phone secret is empty, the IPA still uploads. Internal testers (people you add under Users and Access) can install as soon as processing finishes. They do not wait on Beta App Review. External Friends review waits.
 
-Friends open the public link on iPhone, install TestFlight if needed, then install Selects. They create an account on the login screen. Reviewers can do the same. The privacy policy is `/privacy`.
+The privacy policy Apple fetches is `/privacy`. That path is static HTML, so a crawler does not need JavaScript. Until this branch is on `main`, Fastlane points Beta App Review at the Vercel preview URL for that page.
+
+Friends open the public link on iPhone, install TestFlight if needed, then install Selects. They create an account on the login screen.
