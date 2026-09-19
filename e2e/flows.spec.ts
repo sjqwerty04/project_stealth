@@ -299,6 +299,9 @@ const LOOKUP_FIXTURE: Record<string, { id: number; title: string; year: string }
   whiplash: { id: 244786, title: 'Whiplash', year: '2014' },
   sinners: { id: 1233413, title: 'Sinners', year: '2025' },
   sicario: { id: 273481, title: 'Sicario', year: '2015' },
+  'good will hunting': { id: 489, title: 'Good Will Hunting', year: '1997' },
+  'the dark knight': { id: 155, title: 'The Dark Knight', year: '2008' },
+  'pulp fiction': { id: 680, title: 'Pulp Fiction', year: '1994' },
 };
 
 async function fixtureZip(): Promise<Buffer> {
