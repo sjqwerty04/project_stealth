@@ -321,7 +321,10 @@ export default function HomeStrip({
   onAddMovie: (date: Date) => void;
 }) {
   const [searchParams] = useSearchParams();
-  const [selected, setSelected] = useState(() => startOfDay(new Date()));
+  const dateParam = searchParams.get('date');
+  const [selected, setSelected] = useState(
+    () => parseAppDateParam(dateParam) ?? startOfDay(new Date()),
+  );
   const [stageOpen, setStageOpen] = useState(true);
   const [daySheet, setDaySheet] = useState<Date | null>(null);
   const {
@@ -389,7 +392,6 @@ export default function HomeStrip({
   }, [picks, events]);
 
   const art = useCarouselArt(slides);
-  const dateParam = searchParams.get('date');
 
   useEffect(() => {
     const parsed = parseAppDateParam(dateParam);
@@ -536,7 +538,7 @@ export default function HomeStrip({
                   aria-label={film ? format(d, 'EEEE MMM d') : `Log a film on ${format(d, 'EEEE MMM d')}`}
                   aria-pressed={active}
                   onClick={() => {
-                    if (film && active) {
+                    if (film && active && stageOpen) {
                       setDaySheet(d);
                       return;
                     }
