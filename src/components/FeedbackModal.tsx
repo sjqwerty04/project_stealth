@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
@@ -117,7 +118,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                 className="flex-1 py-3 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-400 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
-                  <Loader2 size={18} className="animate-spin" />
+                  <SelectsChaseLoader size="xs" activeColor="#FFFFFF" idleColor="rgba(255,255,255,0.4)" />
                 ) : (
                   <Send size={18} />
                 )}

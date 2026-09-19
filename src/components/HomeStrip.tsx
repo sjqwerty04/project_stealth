@@ -3,7 +3,8 @@ import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOf
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
-import { firstSentence } from '../lib/taste';
+import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
+import { relatedFromWhy } from './selectsCarouselLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
@@ -11,19 +12,7 @@ import { useLibrary } from '../lib/library';
 import { VerdictBadge } from './VerdictPicker';
 import { eventVerdict } from '../hooks/useCalendarLogs';
 
-export type SelectFilm = {
-  id: number;
-  title: string;
-  poster: string;
-  backdrop?: string;
-  logo?: string;
-  mediaType?: 'movie' | 'tv';
-  year?: number | string;
-  runtime?: string;
-  whyMatch?: string;
-};
-
-type FilmArt = { logo: string | null; still: string | null };
+export type { SelectFilm };
 
 const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_API_KEY =
@@ -304,69 +293,6 @@ function DayStage({
   );
 }
 
-function SelectCard({
-  film,
-  art,
-  onClick,
-  watchCount = 0,
-}: {
-  film: SelectFilm;
-  art?: FilmArt;
-  onClick: () => void;
-  watchCount?: number;
-}) {
-  const still = art?.still || film.backdrop || film.poster;
-  const logo = art?.logo || film.logo;
-  const whyLine = film.whyMatch ? firstSentence(film.whyMatch) : '';
-  return (
-    <button
-      type="button"
-      data-testid="ticket-slot"
-      aria-label={film.title}
-      onClick={onClick}
-      className="relative w-full overflow-hidden bg-base-3 min-h-11"
-      style={{ height: whyLine ? 168 : 148, borderRadius: 0, border: 'none' }}
-    >
-      {still && (
-        <img
-          src={still}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ opacity: 0.38 }}
-        />
-      )}
-      <span className="absolute inset-0 flex flex-col items-center justify-center px-6 gap-2">
-        {logo ? (
-          <img
-            src={logo}
-            alt=""
-            className="relative object-contain"
-            style={{
-              maxHeight: 48,
-              maxWidth: '70%',
-              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
-            }}
-          />
-        ) : (
-          <span className="font-display font-extrabold text-fg text-lg tracking-tight text-center leading-none">
-            {film.title}
-          </span>
-        )}
-        {whyLine ? (
-          <span className="font-spec text-[10px] uppercase tracking-widest text-fg-2 text-center line-clamp-1" data-testid="why-match-line">
-            {whyLine}
-          </span>
-        ) : null}
-      </span>
-      {watchCount > 0 && (
-        <span className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/70 font-spec text-[10px] uppercase tracking-widest text-fg" data-testid="select-card-count">
-          {watchCount > 1 ? `Watched x${watchCount}` : 'Watched'}
-        </span>
-      )}
-    </button>
-  );
-}
-
 export default function HomeStrip({
   events,
   insightsLabel,
@@ -383,14 +309,10 @@ export default function HomeStrip({
   onAddMovie: (date: Date) => void;
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
-  const [slide, setSlide] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [daySheet, setDaySheet] = useState<Date | null>(null);
   const { picks, status } = useRecommendation({ events });
   const { byId: library } = useLibrary();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
-  const carouselStartX = useRef<number | null>(null);
-  const swallowClick = useRef(false);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
   const earliest = useMemo(() => {
@@ -441,29 +363,11 @@ export default function HomeStrip({
       year: p.year,
       runtime: p.runtime,
       whyMatch: p.reason,
+      related: relatedFromWhy(p.reason, events, p.title),
     }));
-  }, [picks]);
+  }, [picks, events]);
 
   const art = useCarouselArt(slides);
-
-  useEffect(() => {
-    setSlide(0);
-  }, [slides.length]);
-
-  useEffect(() => {
-    if (paused || slides.length < 2) return;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
-    const t = window.setInterval(() => {
-      setSlide((i) => (i + 1) % slides.length);
-    }, 4500);
-    return () => window.clearInterval(t);
-  }, [paused, slides.length]);
-
-  const go = (dir: number) => {
-    if (slides.length < 2) return;
-    setSlide((i) => (i + dir + slides.length) % slides.length);
-  };
 
   useEffect(() => {
     const track = stripTrackRef.current;
@@ -474,28 +378,11 @@ export default function HomeStrip({
     track.scrollTo({ left: Math.max(0, nextLeft), behavior: 'instant' });
   }, []);
 
-  const onCarouselPointerDown = (e: React.PointerEvent) => {
-    carouselStartX.current = e.clientX;
-    setPaused(true);
-  };
-  const onCarouselPointerUp = (e: React.PointerEvent) => {
-    if (carouselStartX.current == null) {
-      setPaused(false);
-      return;
-    }
-    const dx = e.clientX - carouselStartX.current;
-    carouselStartX.current = null;
-    if (Math.abs(dx) >= 40) {
-      swallowClick.current = true;
-      go(dx < 0 ? 1 : -1);
-    }
-    window.setTimeout(() => setPaused(false), 6000);
-  };
-
   return (
     <div
       className="bg-base text-fg flex flex-col overflow-hidden"
       data-testid="home-strip"
+      data-build={import.meta.env.VITE_SELECTS_SHA || 'unknown'}
       style={{ height: 'calc(100dvh - var(--tab-h) - env(safe-area-inset-bottom))' }}
     >
       <header className="px-7 pt-6 pb-4 flex items-start justify-between">
@@ -525,7 +412,7 @@ export default function HomeStrip({
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
         {status === 'loading' && (
           <div data-testid="selects-skeleton">
-            <Skeleton className="w-full h-[148px]" />
+            <Skeleton className="w-full h-[220px]" />
           </div>
         )}
         {status === 'empty' && (
@@ -539,40 +426,7 @@ export default function HomeStrip({
           </p>
         )}
         {slides.length > 0 && (
-          <div
-            className="overflow-hidden"
-            data-testid="selects-carousel"
-            onPointerDown={onCarouselPointerDown}
-            onPointerUp={onCarouselPointerUp}
-            onPointerLeave={() => {
-              carouselStartX.current = null;
-            }}
-            onClickCapture={(e) => {
-              if (!swallowClick.current) return;
-              e.preventDefault();
-              e.stopPropagation();
-              swallowClick.current = false;
-            }}
-          >
-            <div
-              className="flex"
-              style={{
-                transform: `translateX(-${slide * 100}%)`,
-                transition: 'transform 420ms ease',
-              }}
-            >
-              {slides.map((film) => (
-                <div key={film.id} className="w-full shrink-0">
-                  <SelectCard
-                    film={film}
-                    art={art[film.id]}
-                    watchCount={library.get(film.id)?.watched ? library.get(film.id)?.watchCount ?? 0 : 0}
-                    onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+          <SelectsCarousel slides={slides} art={art} onOpenMovie={onOpenMovie} />
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Loader2, Plus, Upload, Users } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronRight, Heart, ListPlus, Plus, Upload, Users } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useSharedWatchlists } from '../hooks/useSharedWatchlists';
 import ImportSheet from '../components/ImportSheet';
@@ -60,7 +61,7 @@ export default function WatchlistScreen() {
    <div className="flex-1 overflow-y-auto">
     {loading ? (
      <div className="flex items-center justify-center py-20">
-      <Loader2 className="w-8 h-8 text-fg-3 animate-spin" />
+      <SelectsChaseLoader size="lg" />
      </div>
     ) : (
      <div className="p-4 space-y-5">
@@ -263,7 +264,7 @@ function CreateListInput({
      disabled={!value.trim() || creating}
      className="flex-1 py-2 bg-white text-black text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-1"
     >
-     {creating && <Loader2 size={14} className="animate-spin" />}
+     {creating && <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />}
      Create
     </button>
    </div>

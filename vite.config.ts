@@ -1,10 +1,26 @@
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+function selectsSha() {
+  const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA
+  if (fromVercel) return fromVercel
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+const SELECTS_SHA = selectsSha()
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_SELECTS_SHA': JSON.stringify(SELECTS_SHA),
+  },
   server: {
     proxy: {
       '/api': {
@@ -14,6 +30,12 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      name: 'selects-sha-html',
+      transformIndexHtml(html) {
+        return html.replaceAll('__SELECTS_SHA__', SELECTS_SHA)
+      },
+    },
     react(),
     tailwindcss(),
     VitePWA({

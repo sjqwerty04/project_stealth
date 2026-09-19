@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useSimilarVibes } from '../hooks/useSimilarVibes';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -17,7 +18,6 @@ import { useMovieKnownFor } from '../hooks/useMovieKnownFor';
 import { recordTasteEvent, useTaste } from '../lib/taste';
 import { useLetterboxdRating } from '../hooks/useLetterboxdRating';
 import { useAuth } from '../hooks/useAuth';
-import Skeleton from '../components/ui/Skeleton';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import { setVerdict as setLedgerVerdict, useLibraryFilm, type Verdict } from '../lib/library';
 
@@ -280,7 +280,7 @@ export default function MovieDetailScreen() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-base flex items-center justify-center">
-        <Skeleton className="w-32 h-48" />
+        <SelectsChaseLoader size="lg" />
       </div>
     );
   }
@@ -574,7 +574,7 @@ export default function MovieDetailScreen() {
           <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Similar Films</h3>
           {isLoadingSimilar && similarMovies.length === 0 ? (
             <div className="flex justify-center py-10">
-              <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
+              <SelectsChaseLoader size="md" />
             </div>
           ) : similarMovies.length > 0 ? (
             <div className="grid grid-cols-3 gap-2.5">
@@ -685,7 +685,7 @@ export default function MovieDetailScreen() {
                 disabled={!selectedRating || isAddingToCalendar}
                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${!selectedRating || isAddingToCalendar ? 'bg-[#27272a] text-gray-500 cursor-not-allowed' : 'bg-white text-black hover:bg-gray-200'}`}
               >
-                {isAddingToCalendar ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                {isAddingToCalendar ? <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" /> : <Plus size={18} />}
                 Log Movie
               </button>
             </div>

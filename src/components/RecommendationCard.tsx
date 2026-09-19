@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarPlus, Loader2, RefreshCw, SkipForward } from 'lucide-react';
+import { CalendarPlus, RefreshCw, SkipForward } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { VerdictIcon } from './VerdictPicker';
 import type { Verdict } from '../lib/library';
 import { useRecommendation, type RecommendationResult } from '../hooks/useRecommendation';
@@ -42,7 +43,9 @@ export default function RecommendationCard({ onAddToCalendar }: RecommendationCa
       <div className="mx-4 mb-4 p-3 border border-line">
         <div className="flex items-center gap-3">
           <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Your Selects</span>
-          <Loader2 className="w-4 h-4 animate-spin ml-auto" />
+          <div className="ml-auto">
+            <SelectsChaseLoader size="xs" />
+          </div>
         </div>
       </div>
     );
