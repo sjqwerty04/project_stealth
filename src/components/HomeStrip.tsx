@@ -315,7 +315,7 @@ export default function HomeStrip({
   const {
     picks,
     status,
-    replacement,
+    replacements,
     replaceSelect,
     retrySelectReplacement,
   } = useRecommendation({ events });
@@ -439,7 +439,7 @@ export default function HomeStrip({
             slides={slides}
             art={art}
             onOpenMovie={onOpenMovie}
-            replacement={replacement}
+            replacements={replacements}
             onVerdict={(slotId, verdict) => {
               void replaceSelect(slotId, verdict);
             }}

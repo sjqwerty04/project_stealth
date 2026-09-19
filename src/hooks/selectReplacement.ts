@@ -1,3 +1,5 @@
+import { hydratedTitleMatchesPick } from '../lib/taste/selectPickCoherence';
+
 export type SelectSlotId = 0 | 1 | 2;
 
 export type VisibleSelect = {
@@ -24,6 +26,11 @@ type ReplacementOptions<TPick extends VisibleSelect, TRawPick, TContext> = {
 
 function normalizedTitle(title: string) {
   return title.trim().toLocaleLowerCase();
+}
+
+function rawTitle(raw: unknown): string {
+  if (!raw || typeof raw !== 'object' || !('title' in raw)) return '';
+  return typeof raw.title === 'string' ? raw.title : '';
 }
 
 export function replacePickAtSlot<T>(picks: readonly T[], slotId: SelectSlotId, replacement: T): T[] {
@@ -64,6 +71,8 @@ export async function executeSelectReplacement<
   for (const candidate of candidates) {
     const hydrated = await hydratePick(candidate);
     if (!hydrated) continue;
+    const recommended = rawTitle(candidate) || hydrated.title;
+    if (!hydratedTitleMatchesPick(recommended, hydrated.title)) continue;
     if (visibleIds.has(hydrated.movieId) || visibleTitles.has(normalizedTitle(hydrated.title))) continue;
 
     const next = replacePickAtSlot(picks, slotId, hydrated);

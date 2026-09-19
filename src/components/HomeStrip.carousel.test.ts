@@ -145,8 +145,8 @@ describe('select card watched control', () => {
     expect(affected).toContain('aria-label="Zodiac"');
     expect(sibling).toContain('aria-label="Heat"');
     expect(sibling).not.toContain('Finding another select');
-    expect(sibling).not.toMatch(/data-testid="watched-0"[^>]*disabled/);
-    expect(affected).toMatch(/data-testid="watched-1"[^>]*disabled/);
+    expect(sibling).not.toMatch(/data-testid="watched-0"[^>]*\sdisabled=/);
+    expect(affected).toMatch(/data-testid="watched-1"[^>]*\sdisabled=/);
   });
 
   it('shows retry only on the failed slot', () => {
