@@ -60,7 +60,7 @@ describe('computeTasteStats', () => {
       2,
     );
     expect(s.filmsRead).toBe(2);
-    expect(s.hours).toBe(3.75);
+    expect(s.hours).toBe(4);
   });
 
   it('computes late night share from timed nights only', () => {

@@ -123,7 +123,7 @@ export function computeTasteStats(input: StatsInput, colourHex: string, postersS
   return {
     filmsRead: watched.length,
     nights: input.nights.length,
-    hours: round2(hours),
+    hours: Math.round(hours),
     lateNightPct,
     rewatchOfFiveStarPct,
     fiveStarCount: fiveStars.length,
