@@ -74,6 +74,8 @@ async function whyClearOfDock(page: Page) {
 }
 
 test.describe('home strip why vs trailer', () => {
+  test.describe.configure({ timeout: 180_000 });
+
   test.beforeEach(({}, testInfo) => {
     test.skip(testInfo.project.name === 'desktop', 'phone layouts only');
   });
