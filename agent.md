@@ -211,7 +211,7 @@ Capacitor iOS wrapper for mobile app packaging:
 
 ### Authentication + access
 
-`/` -> `SplashScreen` -> route to `/login`, `/waitlist`, or `/app` depending on auth + whitelist.
+`/` -> `SplashScreen` -> route to `/login` or `/app` depending on auth.
 
 Why: controlled beta rollout and lower support cost while product evolves quickly.
 

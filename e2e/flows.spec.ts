@@ -22,14 +22,15 @@ test.afterEach(async ({}, testInfo) => {
   await saveEvidence(testInfo, flowId);
 });
 
-test('F0 Waitlist', async ({ page }, testInfo) => {
+test('F0 Open signup', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await clearSession(page);
   const email = uniqueEmail();
   await page.getByLabel(/email/i).fill(email);
   await page.getByRole('button', { name: /^continue$/i }).click();
-  await expect(page).toHaveURL(/waitlist/, { timeout: 15000 });
-  await expect(page.getByRole('heading', { name: /invite only/i })).toBeVisible();
+  await expect(page.getByTestId('login-choose')).toBeVisible({ timeout: 15000 });
+  await expect(page).not.toHaveURL(/waitlist/);
+  await expect(page.getByRole('button', { name: /create new account/i })).toBeVisible();
   await gate(page, 'F0', testInfo.project.name);
   await dumpConsole(page, 'F0', testInfo.project.name, logs);
 });
@@ -55,8 +56,7 @@ test('F2 New account', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   const email = uniqueEmail();
   const password = 'SelectsVerify9';
-  await page.goto('/join');
-  await page.waitForURL(/\/login/, { timeout: 15000 });
+  await page.goto('/login');
   await page.getByLabel(/email/i).fill(email);
   await page.getByRole('button', { name: /^continue$/i }).click();
   await page.getByRole('button', { name: /create new account/i }).click();
@@ -306,8 +306,7 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
     });
   });
   // A fresh account so counts are exact. Re-importing into an existing one dedupes to zero nights.
-  await page.goto('/join');
-  await page.waitForURL(/\/login/, { timeout: 15000 });
+  await page.goto('/login');
   await page.getByLabel(/email/i).fill(uniqueEmail());
   await page.getByRole('button', { name: /^continue$/i }).click();
   await page.getByRole('button', { name: /create new account/i }).click();

@@ -4,20 +4,13 @@ import { useAuth } from '../hooks/useAuth';
 import { Mark, SelectsChaseLoader } from '../components/ui';
 
 export default function SplashScreen() {
-  const { user, loading, isWhitelisted } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (loading) return;
-
-    if (!user) {
-      navigate('/login', { replace: true });
-    } else if (isWhitelisted === false) {
-      navigate('/waitlist', { replace: true });
-    } else if (isWhitelisted === true) {
-      navigate('/app', { replace: true });
-    }
-  }, [user, loading, isWhitelisted, navigate]);
+    navigate(user ? '/app' : '/login', { replace: true });
+  }, [user, loading, navigate]);
 
   return (
     <div className="min-h-screen bg-base flex flex-col items-center justify-center px-7">

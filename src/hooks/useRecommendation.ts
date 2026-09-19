@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { apiUrl } from '../lib/apiUrl';
 import { useAuth } from './useAuth';
 import { setVerdict as setLedgerVerdict, type Verdict } from '../lib/library';
 import {
@@ -114,7 +115,7 @@ async function hydrateFromApi(title: string, year?: string, id?: string): Promis
   if (title) params.set('title', title);
   if (year) params.set('year', String(year));
   try {
-    const res = await fetch(`/api/movie-lookup?${params.toString()}`);
+    const res = await fetch(apiUrl(`/api/movie-lookup?${params.toString()}`));
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.id) return null;
@@ -253,7 +254,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setStatus(havePicks ? 'ready' : 'loading');
       setError(null);
       try {
-        const res = await fetch('/api/your-selects', {
+        const res = await fetch(apiUrl('/api/your-selects'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ context }),

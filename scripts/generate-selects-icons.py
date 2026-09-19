@@ -9,6 +9,10 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
+APP_ICON = (
+    ROOT / "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"
+)
+OPAQUE_RGB = (10, 10, 11)
 
 # Same mark as https://selectsfilm.com/favicon.svg, drawn in a larger
 # viewBox so Apple's rounded home-screen mask doesn't clip the shear.
@@ -28,6 +32,13 @@ ICON_SVG = """\
 FAVICON_SVG = (PUBLIC / "favicon.svg").read_text()
 
 
+def save_opaque_rgb(im: Image.Image, path: Path) -> None:
+    rgba = im.convert("RGBA")
+    background = Image.new("RGB", rgba.size, OPAQUE_RGB)
+    background.paste(rgba, mask=rgba.split()[-1])
+    background.save(path, "PNG")
+
+
 def svg_to_png(svg: str, size: int) -> Image.Image:
     png = cairosvg.svg2png(
         bytestring=svg.encode("utf-8"),
@@ -41,6 +52,7 @@ def svg_to_png(svg: str, size: int) -> Image.Image:
 def main() -> None:
     icon_512 = svg_to_png(ICON_SVG, 512)
     icon_512.save(PUBLIC / "pwa-512x512.png", "PNG")
+    save_opaque_rgb(svg_to_png(ICON_SVG, 1024), APP_ICON)
     icon_512.resize((192, 192), Image.Resampling.LANCZOS).save(
         PUBLIC / "pwa-192x192.png", "PNG"
     )

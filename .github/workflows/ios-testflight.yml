@@ -1,0 +1,77 @@
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - brranchh-testflight-ios-13e6
+      - main
+
+jobs:
+  check-app-icon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require opaque 1024 RGB App Store icon
+        run: python3 scripts/check-app-icon.py
+      - name: Require crawlable privacy HTML
+        run: python3 scripts/check-privacy-html.py
+
+  require-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require App Store Connect API key
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          missing=0
+          [ -n "$APP_STORE_CONNECT_API_KEY_ID" ] || { echo "::error::Missing GitHub secret APP_STORE_CONNECT_API_KEY_ID"; missing=1; }
+          [ -n "$APP_STORE_CONNECT_ISSUER_ID" ] || { echo "::error::Missing GitHub secret APP_STORE_CONNECT_ISSUER_ID"; missing=1; }
+          [ -n "$APP_STORE_CONNECT_API_KEY" ] || { echo "::error::Missing GitHub secret APP_STORE_CONNECT_API_KEY"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            echo "Add those three secrets, then push again or Run workflow. Steps are in docs/testflight.md"
+            exit 1
+          fi
+          echo "App Store Connect API secrets are present."
+
+  testflight:
+    needs: [require-secrets, check-app-icon]
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      TESTFLIGHT_CONTACT_PHONE: ${{ secrets.TESTFLIGHT_CONTACT_PHONE }}
+      TESTFLIGHT_PRIVACY_URL: ${{ github.ref == 'refs/heads/main' && 'https://selects-film.vercel.app/privacy' || 'https://selects-git-brranchh-testfligh-df9a6a-theabnormaldudes-projects.vercel.app/privacy' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install JS deps and build web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: ios
+
+      - name: CocoaPods
+        working-directory: ios/App
+        run: pod install
+
+      - name: Upload TestFlight
+        working-directory: ios
+        run: bundle exec fastlane beta

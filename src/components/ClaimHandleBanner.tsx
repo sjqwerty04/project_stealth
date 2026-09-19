@@ -8,7 +8,7 @@ import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
 
 const SESSION_DISMISS_KEY = 'selects.claimHandleBanner.dismissed';
 
-const HIDDEN_PATH_PREFIXES = ['/login', '/waitlist', '/invite', '/'];
+const HIDDEN_PATH_PREFIXES = ['/login', '/privacy', '/waitlist', '/invite'];
 
 export default function ClaimHandleBanner() {
   const { user } = useAuth();

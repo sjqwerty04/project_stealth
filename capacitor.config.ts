@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.movielove.app',
-  appName: 'MovieLove',
+  appId: 'com.moviecally.app',
+  appName: 'Selects',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
@@ -13,4 +13,3 @@ const config: CapacitorConfig = {
 };
 
 export default config;
-

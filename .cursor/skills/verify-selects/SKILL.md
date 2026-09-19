@@ -8,7 +8,7 @@ Launch, doctor, drive, evidence, and cleanup for the Selects visual rebrand.
 2. Do not `npm run deploy` or `vercel --prod` from a feature branch. `npm run deploy` refuses unless `HEAD` equals `origin/main` after a fetch. Vercel GitHub ships production when a PR merges to `main`.
 3. Port `5173` responds.
 4. Firebase project `mvplockedin` is live.
-5. `/join` sets `sessionStorage.appInvite=1`.
+5. Signup is open. `/join` redirects to `/login` or `/app`.
 6. Optional: `SELECTS_TEST_EMAIL` / `SELECTS_TEST_PASSWORD` for F1.
 7. TMDB optional. Hunt/onboarding fall back to the local catalog.
 

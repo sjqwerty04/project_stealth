@@ -14,7 +14,7 @@ export default function ProfileDropdown({ profileImage, onOpenAvatarModal }: Pro
   const { signOut, user } = useAuth();
   const { profile } = useUserProfile();
   const [copied, setCopied] = useState(false);
-  const JOIN_URL = 'https://selects-film.vercel.app/join';
+  const JOIN_URL = 'https://selects-film.vercel.app/login';
 
   const shareInvite = async () => {
     try {
@@ -25,7 +25,9 @@ export default function ProfileDropdown({ profileImage, onOpenAvatarModal }: Pro
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }
-    } catch { /* dismissed */ }
+    } catch {
+      return;
+    }
   };
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
