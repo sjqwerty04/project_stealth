@@ -6,7 +6,7 @@ import { Mark, Button, Input } from '../components/ui';
 type Step = 'email' | 'choose' | 'signin' | 'signup';
 
 export default function LoginScreen() {
-  const { checkWhitelist, signIn, signUp, signInWithGoogle } = useAuth();
+  const { checkWhitelist, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get('next');
@@ -111,23 +111,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await signInWithGoogle();
-      goAfterAuth();
-    } catch (err: any) {
-      if (err.message === 'Email not whitelisted') {
-        navigate('/waitlist', { replace: true });
-      } else {
-        setError('Google sign in failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-base flex flex-col items-center justify-center px-7">
       <div className="w-full max-w-sm space-y-8">
@@ -158,9 +141,6 @@ export default function LoginScreen() {
             />
             <Button type="submit" className="w-full" loading={loading}>
               Continue
-            </Button>
-            <Button type="button" kind="secondary" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-              Continue with Google
             </Button>
           </form>
         )}
