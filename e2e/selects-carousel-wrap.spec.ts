@@ -56,6 +56,7 @@ test.describe('selects carousel wrap', () => {
     await page.goto('/dev/selects-carousel');
     const track = page.getByTestId('selects-carousel-track');
 
+    await expect(page.getByTestId('watched-0').first()).toHaveText(/watched\?/i);
     await page.getByTestId('watched-0').first().click();
     await expect(page.getByRole('radio', { name: 'Liked' }).first()).toBeVisible();
     await expect(page.getByRole('radio', { name: "It's okay" }).first()).toBeVisible();
@@ -63,6 +64,7 @@ test.describe('selects carousel wrap', () => {
 
     await page.getByRole('radio', { name: 'Liked' }).first().click();
     await expect(page.getByLabel(/Saving feedback|Finding another select/).first()).toBeVisible();
+    await expect(page.getByTestId('watched-1').first()).toBeEnabled();
     await expect(page.locator('[data-testid="ticket-slot"][data-title="The Departed"]')).toHaveCount(1);
     await expect(page.locator('[data-testid="ticket-slot"][data-title="Heat"]')).toHaveCount(2);
 

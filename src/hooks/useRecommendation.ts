@@ -18,8 +18,10 @@ import {
   type TastePick,
 } from '../lib/taste';
 import { getTaste } from '../lib/taste/getTaste';
+import { hydratedTitleMatchesPick, whyMatchNamesRecommended } from '../lib/taste/selectPickCoherence';
 import {
   executeSelectReplacement,
+  replacePickAtSlot,
   type SelectExclusion,
   type SelectSlotId,
 } from './selectReplacement';
@@ -161,6 +163,18 @@ async function hydrateTitle(title: string, year?: string, id?: string): Promise<
   };
 }
 
+async function hydrateSelectPick(pick: ApiSelectPick): Promise<RecommendationResult | null> {
+  if (pick.whyMatch && !whyMatchNamesRecommended(pick.whyMatch, pick.title)) return null;
+  const film = await hydrateTitle(pick.title, pick.year, pick.id);
+  if (!film) return null;
+  if (!hydratedTitleMatchesPick(pick.title, film.title)) return null;
+  return {
+    ...film,
+    reason: pick.whyMatch || '',
+    confidence: typeof pick.confidence === 'number' ? pick.confidence : 1,
+  };
+}
+
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
@@ -183,13 +197,16 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     return 'loading';
   });
   const [error, setError] = useState<string | null>(null);
-  const [replacement, setReplacement] = useState<SelectReplacement>(null);
+  const [replacements, setReplacements] = useState<Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>>({});
   const picksRef = useRef(picks);
-  const replacementRef = useRef<SelectReplacement>(replacement);
+  const replacementsRef = useRef(replacements);
 
-  const updateReplacement = useCallback((next: SelectReplacement) => {
-    replacementRef.current = next;
-    setReplacement(next);
+  const patchReplacement = useCallback((slotId: SelectSlotId, next: SelectReplacement) => {
+    const current = { ...replacementsRef.current };
+    if (next) current[slotId] = next;
+    else delete current[slotId];
+    replacementsRef.current = current;
+    setReplacements(current);
   }, []);
 
   useEffect(() => {
@@ -245,15 +262,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         const raw = Array.isArray(data.picks) ? data.picks : [];
         const hydrated = (
           await Promise.all(
-            raw.map(async (pick: ApiSelectPick) => {
-              const film = await hydrateTitle(pick.title, pick.year, pick.id);
-              if (!film) return null;
-              return {
-                ...film,
-                reason: pick.whyMatch || '',
-                confidence: typeof pick.confidence === 'number' ? pick.confidence : 1,
-              } satisfies RecommendationResult;
-            })
+            raw.map((pick: ApiSelectPick) => hydrateSelectPick(pick))
           )
         ).filter((row): row is RecommendationResult => row != null);
 
@@ -388,13 +397,14 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
   const runSlotReplacement = useCallback(
     async (slotId: SelectSlotId, verdict?: Verdict, feedbackSaved = false) => {
-      if (!user || replacementRef.current) return;
-      const current = picksRef.current;
-      const rec = current[slotId];
+      const busy = replacementsRef.current[slotId];
+      if (!user || (busy && (busy.phase === 'saving' || busy.phase === 'replacing'))) return;
+      const rec = picksRef.current[slotId];
       if (!rec) return;
 
       let saved = feedbackSaved;
-      updateReplacement(
+      patchReplacement(
+        slotId,
         feedbackSaved
           ? { slotId, phase: 'replacing', feedbackSaved: true }
           : { slotId, phase: 'saving', feedbackSaved: false },
@@ -402,13 +412,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setError(null);
 
       try {
-        const next = await executeSelectReplacement<
+        const nextFromStart = await executeSelectReplacement<
           RecommendationResult,
           ApiSelectPick,
           RecommendContext
         >({
           slotId,
-          picks: current,
+          picks: picksRef.current,
           feedbackSaved,
           saveFeedback: async () => {
             if (!verdict) throw new Error('Verdict is required');
@@ -416,7 +426,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           },
           onFeedbackSaved: () => {
             saved = true;
-            updateReplacement({ slotId, phase: 'replacing', feedbackSaved: true });
+            patchReplacement(slotId, { slotId, phase: 'replacing', feedbackSaved: true });
           },
           readContext: async () => {
             const updated = await getTaste(user.uid);
@@ -435,43 +445,42 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             const data = (await res.json()) as { picks?: unknown };
             return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
           },
-          hydratePick: async (pick) => {
-            const film = await hydrateTitle(pick.title, pick.year, pick.id);
-            if (!film) return null;
-            return {
-              ...film,
-              reason: pick.whyMatch || '',
-              confidence: typeof pick.confidence === 'number' ? pick.confidence : 1,
-            };
-          },
+          hydratePick: hydrateSelectPick,
           persistPicks: async (updatedPicks) => {
-            const stored = updatedPicks.map(toStored);
-            writeSelectsCache(user.uid, stored);
+            const incoming = updatedPicks[slotId];
+            if (!incoming) return;
+            const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
+            picksRef.current = merged;
+            writeSelectsCache(user.uid, merged.map(toStored));
             await recordTasteEvent(
               user.uid,
-              { type: 'last_picks', picks: stored },
+              { type: 'last_picks', picks: merged.map(toStored) },
               { email: user.email },
             );
           },
         });
-        picksRef.current = next;
-        setPicks(next);
+        const incoming = nextFromStart[slotId];
+        const merged = incoming
+          ? replacePickAtSlot(picksRef.current, slotId, incoming)
+          : picksRef.current;
+        picksRef.current = merged;
+        setPicks(merged);
         setStatus('ready');
-        updateReplacement(null);
+        patchReplacement(slotId, null);
       } catch (err) {
         const message =
           err instanceof Error && err.message !== 'No new select available'
             ? err.message
             : 'Could not find another select';
         if (saved) {
-          updateReplacement({ slotId, phase: 'failed', feedbackSaved: true, message });
+          patchReplacement(slotId, { slotId, phase: 'failed', feedbackSaved: true, message });
         } else {
-          updateReplacement(null);
+          patchReplacement(slotId, null);
           setError('Could not save feedback');
         }
       }
     },
-    [user, rateRecommendation, updateReplacement],
+    [user, rateRecommendation, patchReplacement],
   );
 
   const replaceSelect = useCallback(
@@ -481,13 +490,14 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
   const retrySelectReplacement = useCallback(
     (slotId: SelectSlotId) => {
-      const failed = replacementRef.current;
-      if (!failed || failed.slotId !== slotId || failed.phase !== 'failed') return Promise.resolve();
-      replacementRef.current = null;
+      const failed = replacementsRef.current[slotId];
+      if (!failed || failed.phase !== 'failed') return Promise.resolve();
       return runSlotReplacement(slotId, undefined, true);
     },
     [runSlotReplacement],
   );
+
+  const replacement = replacements[0] ?? replacements[1] ?? replacements[2] ?? null;
 
   return {
     picks,
@@ -500,6 +510,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     refreshRecommendation,
     skipRecommendation,
     replacement,
+    replacements,
     replaceSelect,
     retrySelectReplacement,
   };
