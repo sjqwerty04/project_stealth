@@ -4,7 +4,7 @@ Friends install the iOS app from a TestFlight link and create an account.
 
 This Linux cloud VM cannot archive the IPA. GitHub Actions `macos-latest` runs `.github/workflows/ios-testflight.yml`.
 
-`workflow_dispatch` only appears under Actions after this file is on `main`. Until then, a push to `brranchh-testflight-ios-13e6` runs the same workflow. The first job exits if the three API secrets are missing, so a macOS archive does not start.
+`workflow_dispatch` only appears under Actions after this file is on `main`. Until then, a push to `brranchh-testflight-ios-13e6` runs the same workflow. The `require-secrets` job exits if the three API secrets are missing, so a macOS archive does not start.
 
 ## 1. Create an App Store Connect API key
 
@@ -32,7 +32,7 @@ In this GitHub repo, open Settings, Secrets and variables, Actions. Create three
 
 After the secrets exist, push to this branch or open Actions, iOS TestFlight, Run workflow (once the file is on `main`).
 
-A green macOS job uploaded a build. The ubuntu `require-secrets` job failing with missing `APP_STORE_CONNECT_*` means step 2 is incomplete.
+A green macOS job uploaded a build. The ubuntu `require-secrets` job failing with missing `APP_STORE_CONNECT_*` means step 2 is incomplete. `check-app-icon` failing means `AppIcon-512@2x.png` is not 1024x1024 RGB. Apple rejects marketing icons that still have an alpha channel. Re-run `scripts/generate-selects-icons.py` so the iOS icon is opaque RGB, then confirm with `python3 scripts/check-app-icon.py`.
 
 ## 4. Invite friends
 

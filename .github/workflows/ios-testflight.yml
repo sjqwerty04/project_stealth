@@ -8,6 +8,13 @@ on:
       - main
 
 jobs:
+  check-app-icon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require opaque 1024 RGB App Store icon
+        run: python3 scripts/check-app-icon.py
+
   require-secrets:
     runs-on: ubuntu-latest
     steps:
@@ -28,7 +35,7 @@ jobs:
           echo "App Store Connect API secrets are present."
 
   testflight:
-    needs: require-secrets
+    needs: [require-secrets, check-app-icon]
     runs-on: macos-latest
     timeout-minutes: 90
     env:
