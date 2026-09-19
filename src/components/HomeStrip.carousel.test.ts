@@ -169,4 +169,54 @@ describe('select card watched control', () => {
     expect(html).toContain('Could not find another select');
     expect(html).toContain('Retry');
   });
+
+  it('keeps Watched enabled after a failed replacement', () => {
+    const failed = {
+      slotId: 1 as const,
+      phase: 'failed' as const,
+      feedbackSaved: true as const,
+      message: 'Could not find another select',
+    };
+    const failedSlot = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: false,
+        replacement: failed,
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+    const sibling = renderToString(
+      React.createElement(SelectCard, {
+        film: { ...film, slotId: 0, id: 1, title: 'Heat' },
+        pickerOpen: true,
+        replacement: failed,
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+    const busy = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: false,
+        replacement: { slotId: 1, phase: 'saving', feedbackSaved: false },
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(failedSlot).not.toMatch(/data-testid="watched-1"[^>]*\sdisabled[\s=>]/);
+    expect(sibling).not.toMatch(/data-testid="watched-0"[^>]*\sdisabled[\s=>]/);
+    expect(sibling).not.toMatch(/data-testid="verdict-liked"[^>]*\sdisabled[\s=>]/);
+    expect(busy).toMatch(/data-testid="watched-1"[^>]*\sdisabled[\s=>]/);
+  });
 });

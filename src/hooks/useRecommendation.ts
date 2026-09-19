@@ -388,7 +388,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
   const runSlotReplacement = useCallback(
     async (slotId: SelectSlotId, verdict?: Verdict, feedbackSaved = false) => {
-      if (!user || replacementRef.current) return;
+      if (!user) return;
+      if (replacementRef.current && replacementRef.current.phase !== 'failed') return;
       const current = picksRef.current;
       const rec = current[slotId];
       if (!rec) return;

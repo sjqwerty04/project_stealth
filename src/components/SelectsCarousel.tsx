@@ -57,6 +57,8 @@ export function SelectCard({
   const related = film.related?.slice(0, 2) ?? [];
   const why = film.whyMatch?.trim() ?? '';
   const slotReplacement = replacement?.slotId === film.slotId ? replacement : null;
+  const replacementBusy =
+    replacement?.phase === 'saving' || replacement?.phase === 'replacing';
   const loading =
     slotReplacement?.phase === 'saving' || slotReplacement?.phase === 'replacing';
   return (
@@ -113,7 +115,7 @@ export function SelectCard({
         data-testid={`watched-${film.slotId}`}
         data-carousel-control
         onClick={pickerOpen ? onClosePicker : onOpenPicker}
-        disabled={replacement !== null}
+        disabled={replacementBusy}
         className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
       >
         Watched
@@ -126,7 +128,7 @@ export function SelectCard({
           <VerdictPicker
             value={null}
             onChange={onVerdict}
-            disabled={replacement !== null}
+            disabled={replacementBusy}
             size="sm"
           />
         </div>
@@ -247,7 +249,7 @@ export default function SelectsCarousel({
   }, [slide, count]);
 
   useEffect(() => {
-    if (!autoplay || paused || pickerSlotId !== null || count < 2) return;
+    if (!autoplay || paused || pickerSlotId !== null || replacement !== null || count < 2) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     const t = window.setInterval(() => {
@@ -258,7 +260,7 @@ export default function SelectsCarousel({
       setSlideTransition(true);
     }, intervalMs);
     return () => window.clearInterval(t);
-  }, [autoplay, paused, pickerSlotId, count, intervalMs]);
+  }, [autoplay, paused, pickerSlotId, replacement, count, intervalMs]);
 
   useEffect(() => {
     return () => {
