@@ -2,9 +2,33 @@ name: iOS TestFlight
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - brranchh-testflight-ios-13e6
+      - main
 
 jobs:
+  require-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require App Store Connect API key
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          missing=0
+          [ -n "$APP_STORE_CONNECT_API_KEY_ID" ] || { echo "::error::Missing GitHub secret APP_STORE_CONNECT_API_KEY_ID"; missing=1; }
+          [ -n "$APP_STORE_CONNECT_ISSUER_ID" ] || { echo "::error::Missing GitHub secret APP_STORE_CONNECT_ISSUER_ID"; missing=1; }
+          [ -n "$APP_STORE_CONNECT_API_KEY" ] || { echo "::error::Missing GitHub secret APP_STORE_CONNECT_API_KEY"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            echo "Add those three secrets, then push again or Run workflow. Steps are in docs/testflight.md"
+            exit 1
+          fi
+          echo "App Store Connect API secrets are present."
+
   testflight:
+    needs: require-secrets
     runs-on: macos-latest
     timeout-minutes: 90
     env:

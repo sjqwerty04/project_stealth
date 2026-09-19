@@ -4,30 +4,23 @@ Friends install the iOS app from a TestFlight link and create an account.
 
 This Linux cloud VM cannot archive the IPA. GitHub Actions `macos-latest` runs `.github/workflows/ios-testflight.yml`.
 
-## 1. Create the App Store Connect app
+`workflow_dispatch` only appears under Actions after this file is on `main`. Until then, a push to `brranchh-testflight-ios-13e6` runs the same workflow. The first job exits if the three API secrets are missing, so a macOS archive does not start.
+
+## 1. Create an App Store Connect API key
 
 You need a paid Apple Developer Program membership on team `L37YSKFC5X`.
 
 1. Open [App Store Connect](https://appstoreconnect.apple.com) and sign in.
-2. Go to My Apps.
-3. Click the plus button, then New App.
-4. Platform: iOS.
-5. Name: Selects.
-6. Primary language: English.
-7. Bundle ID: `com.moviecally.app`. Create that identifier first under Certificates, Identifiers & Profiles if it is missing.
-8. SKU: `selects-ios`.
-9. User access: Full Access.
+2. Open Users and Access.
+3. Open Integrations, then App Store Connect API.
+4. Click Generate API Key. Name it `selects-testflight`. Access: Admin, so Fastlane can create the Selects app record if it does not exist.
+5. Copy the Issuer ID at the top of the keys list.
+6. Copy the Key ID on the new row.
+7. Download the `.p8` file. Apple lets you download it once. Open it in a text editor and copy the whole PEM, including `BEGIN` and `END` lines.
 
-## 2. Create an App Store Connect API key
+You do not need to click New App first. The Fastlane `produce` step creates bundle id `com.moviecally.app` and SKU `selects-ios` when they are missing.
 
-1. In App Store Connect, open Users and Access.
-2. Open Integrations, then App Store Connect API.
-3. Click Generate API Key. Name it `selects-testflight`. Access: Developer (Admin also works).
-4. Copy the Issuer ID at the top of the keys list.
-5. Copy the Key ID on the new row.
-6. Download the `.p8` file. Apple lets you download it once. Open it in a text editor and copy the whole PEM, including `BEGIN` and `END` lines.
-
-## 3. Add GitHub Actions secrets
+## 2. Add GitHub Actions secrets
 
 In this GitHub repo, open Settings, Secrets and variables, Actions. Create three secrets:
 
@@ -35,13 +28,13 @@ In this GitHub repo, open Settings, Secrets and variables, Actions. Create three
 - `APP_STORE_CONNECT_ISSUER_ID` is the Issuer ID.
 - `APP_STORE_CONNECT_API_KEY` is the full `.p8` text.
 
-## 4. Run the workflow
+## 3. Run the workflow
 
-1. Open Actions, iOS TestFlight, Run workflow.
-2. Use the branch that contains the iOS workflow, then run.
-3. A green job uploaded a build. A signing or "app not found" error means step 1 or 3 is incomplete.
+After the secrets exist, push to this branch or open Actions, iOS TestFlight, Run workflow (once the file is on `main`).
 
-## 5. Invite friends
+A green macOS job uploaded a build. The ubuntu `require-secrets` job failing with missing `APP_STORE_CONNECT_*` means step 2 is incomplete.
+
+## 4. Invite friends
 
 Internal testers (people you add under Users and Access) can install as soon as processing finishes. No Beta App Review.
 

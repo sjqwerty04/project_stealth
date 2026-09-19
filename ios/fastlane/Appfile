@@ -1,3 +1,2 @@
 app_identifier("com.moviecally.app")
-apple_id(ENV["APPLE_ID"])
 team_id("L37YSKFC5X")
