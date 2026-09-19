@@ -65,9 +65,77 @@ platform :ios do
       }
     )
 
+    ensure_friends_group
+
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true
+      app_identifier: "com.moviecally.app",
+      skip_waiting_for_build_processing: false,
+      wait_processing_timeout_duration: 2700,
+      distribute_external: true,
+      groups: ["Friends"],
+      notify_external_testers: false,
+      changelog: "First Selects iOS build. Create an account with email and password on the login screen.",
+      beta_app_description: "Selects is a film journal. Sign up with email and password. Google sign-in is not on iOS.",
+      beta_app_feedback_email: "shivjethi04@gmail.com",
+      demo_account_required: false,
+      uses_non_exempt_encryption: false,
+      beta_app_review_info: {
+        contact_email: "shivjethi04@gmail.com",
+        contact_first_name: "Shiv",
+        contact_last_name: "Jethi",
+        notes: "Signup is open. Create an account with email and password on the login screen. Google is hidden on this iOS binary. Privacy policy: https://selects-film.vercel.app/privacy"
+      },
+      localized_app_info: {
+        "default": {
+          feedback_email: "shivjethi04@gmail.com",
+          marketing_url: "https://selects-film.vercel.app",
+          privacy_policy_url: "https://selects-film.vercel.app/privacy",
+          description: "Selects is a film journal. Create an account with email and password."
+        }
+      },
+      localized_build_info: {
+        "default": {
+          whats_new: "First TestFlight build. Create an account with email and password."
+        }
+      }
     )
+
+    write_testflight_link(ensure_friends_group)
   end
+end
+
+def ensure_friends_group
+  app = Spaceship::ConnectAPI::App.find("com.moviecally.app")
+  UI.user_error!("App Store Connect has no app for com.moviecally.app") unless app
+
+  group = app.get_beta_groups.find { |g| g.name == "Friends" }
+  group ||= app.create_beta_group(
+    group_name: "Friends",
+    is_internal_group: false,
+    public_link_enabled: true,
+    public_link_limit_enabled: false
+  )
+
+  unless group.public_link_enabled
+    group.update(attributes: { public_link_enabled: true })
+    group = app.get_beta_groups.find { |g| g.name == "Friends" } || group
+  end
+
+  group
+end
+
+def write_testflight_link(group)
+  return unless group
+
+  link = group.public_link
+  if !link || link.to_s.empty?
+    id = group.public_link_id
+    link = "https://testflight.apple.com/join/#{id}" if id && !id.to_s.empty?
+  end
+  return unless link
+
+  UI.success("TestFlight public link: #{link}")
+  summary = ENV["GITHUB_STEP_SUMMARY"]
+  File.open(summary, "a") { |f| f.puts("TestFlight public link: #{link}") } if summary
 end

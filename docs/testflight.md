@@ -36,13 +36,8 @@ A green macOS job uploaded a build. The ubuntu `require-secrets` job failing wit
 
 ## 4. Invite friends
 
-Internal testers (people you add under Users and Access) can install as soon as processing finishes. No Beta App Review.
+A green macos job waits for Apple to process the build, then submits it to an external TestFlight group named `Friends` with a public link. The first external build still needs Beta App Review. After Apple approves it, the join URL is `https://testflight.apple.com/join/...` in the job summary and in App Store Connect.
 
-External testers need a group:
+Internal testers (people you add under Users and Access) can install as soon as processing finishes. They do not wait on Beta App Review.
 
-1. Open the Selects app in App Store Connect, then TestFlight.
-2. Create an external group. Enable a public link.
-3. Submit the first build for Beta App Review. Fill the required contact and demo notes. Signup is open, so reviewers can create an account with email and password.
-4. After approval, send the public link.
-
-Friends open the link on iPhone, install TestFlight if needed, then install Selects. They create an account on the login screen.
+Friends open the public link on iPhone, install TestFlight if needed, then install Selects. They create an account on the login screen. Reviewers can do the same. The privacy policy is `/privacy`.
