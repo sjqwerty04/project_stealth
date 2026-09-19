@@ -85,6 +85,22 @@ describe('select replacement', () => {
     expect(requestPicks).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects a hydrated film that is not the recommended title', async () => {
+    await expect(
+      executeSelectReplacement<Pick, RawPick, Record<string, never>>({
+        slotId: 1,
+        picks,
+        feedbackSaved: true,
+        saveFeedback: async () => {},
+        onFeedbackSaved: () => {},
+        readContext: async () => ({}),
+        requestPicks: async () => [{ title: 'Manhunter', id: '4' }],
+        hydratePick: async () => ({ movieId: 99, title: 'Se7en' }),
+        persistPicks: async () => {},
+      }),
+    ).rejects.toThrow('No new select available');
+  });
+
   it('rejects a hydrated duplicate of any visible card', async () => {
     await expect(
       executeSelectReplacement<Pick, RawPick, Record<string, never>>({

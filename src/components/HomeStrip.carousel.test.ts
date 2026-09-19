@@ -109,7 +109,7 @@ describe('select card watched control', () => {
       }),
     );
 
-    expect(html).toContain('Watched');
+    expect(html).toContain('Watched?');
     expect(html).toContain('Liked');
     expect(html).toContain("It&#x27;s okay");
     expect(html).toContain('Nope');
@@ -145,6 +145,8 @@ describe('select card watched control', () => {
     expect(affected).toContain('aria-label="Zodiac"');
     expect(sibling).toContain('aria-label="Heat"');
     expect(sibling).not.toContain('Finding another select');
+    expect(sibling).not.toMatch(/data-testid="watched-0"[^>]*disabled/);
+    expect(affected).toMatch(/data-testid="watched-1"[^>]*disabled/);
   });
 
   it('shows retry only on the failed slot', () => {
