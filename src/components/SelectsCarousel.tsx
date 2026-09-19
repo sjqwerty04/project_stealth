@@ -113,10 +113,10 @@ export function SelectCard({
         data-testid={`watched-${film.slotId}`}
         data-carousel-control
         onClick={pickerOpen ? onClosePicker : onOpenPicker}
-        disabled={replacement !== null}
+        disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
         className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
       >
-        Watched
+        Watched?
       </button>
       {pickerOpen ? (
         <div
@@ -126,7 +126,7 @@ export function SelectCard({
           <VerdictPicker
             value={null}
             onChange={onVerdict}
-            disabled={replacement !== null}
+            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
             size="sm"
           />
         </div>
@@ -186,7 +186,7 @@ export default function SelectsCarousel({
   slides,
   art,
   onOpenMovie,
-  replacement,
+  replacements = {},
   onVerdict,
   onRetry,
   autoplay = true,
@@ -195,7 +195,7 @@ export default function SelectsCarousel({
   slides: SelectFilm[];
   art: Record<number, FilmArt>;
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
-  replacement: SelectReplacement;
+  replacements?: Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>;
   onVerdict: (slotId: SelectSlotId, verdict: Verdict) => void;
   onRetry: (slotId: SelectSlotId) => void;
   autoplay?: boolean;
@@ -342,7 +342,7 @@ export default function SelectsCarousel({
               film={film}
               art={art[film.id]}
               pickerOpen={pickerSlotId === film.slotId}
-              replacement={replacement}
+              replacement={replacements[film.slotId] ?? null}
               onOpenMovie={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
               onOpenPicker={() => setPickerSlotId(film.slotId)}
               onClosePicker={() => setPickerSlotId(null)}

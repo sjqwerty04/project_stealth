@@ -73,7 +73,7 @@ export default function SelectsCarouselPreviewScreen() {
         slides={slides}
         art={{}}
         onOpenMovie={() => {}}
-        replacement={replacement}
+        replacements={replacement ? { [replacement.slotId]: replacement } : {}}
         onVerdict={(slotId) => {
           setReplacement({ slotId, phase: 'saving', feedbackSaved: false });
           timers.current.push(
