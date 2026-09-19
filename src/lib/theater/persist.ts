@@ -38,6 +38,10 @@ export function loadTheaterSession(storage: Storage, uid: string): TheaterSessio
   return session ?? IDLE_SESSION;
 }
 
+export function sessionOnSignIn(live: TheaterSession, stored: TheaterSession): TheaterSession {
+  return sessionForStorage(live) ? live : stored;
+}
+
 function parseSignals(raw: unknown): TheaterSignal[] | null {
   if (!Array.isArray(raw)) return null;
   const parsed: TheaterSignal[] = [];

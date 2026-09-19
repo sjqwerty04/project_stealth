@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadTheaterSession, saveTheaterSession, theaterSessionKey } from './persist';
+import { loadTheaterSession, saveTheaterSession, sessionOnSignIn, theaterSessionKey } from './persist';
 import {
   FALLBACK_SWATCHES,
   type Theater,
@@ -194,6 +194,29 @@ describe('corruption', () => {
       lastActiveAt: 900,
       failedFingerprint: null,
     });
+  });
+});
+
+describe('sessionOnSignIn', () => {
+  const collecting: TheaterSession = { status: 'collecting', signals: SIGNALS, lastActiveAt: 1000, failedFingerprint: null };
+  const inferring: TheaterSession = {
+    status: 'inferring',
+    signals: SIGNALS,
+    revision: 3,
+    fingerprint: 'bb8c37784ee25cf5',
+    lastActiveAt: 1000,
+  };
+
+  it('keeps a live guest trail when the signed-in uid has nothing stored', () => {
+    expect(sessionOnSignIn(SHOWING, { status: 'idle' })).toBe(SHOWING);
+    expect(sessionOnSignIn(collecting, { status: 'idle' })).toBe(collecting);
+    expect(sessionOnSignIn(inferring, { status: 'idle' })).toBe(inferring);
+  });
+
+  it('restores the stored session when memory is idle, kept, or closed', () => {
+    expect(sessionOnSignIn({ status: 'idle' }, SHOWING)).toBe(SHOWING);
+    expect(sessionOnSignIn({ status: 'kept', theater: THEATER, keptId: 'bb8c37784ee25cf5' }, SHOWING)).toBe(SHOWING);
+    expect(sessionOnSignIn({ status: 'closed', reason: 'signed_out' }, SHOWING)).toBe(SHOWING);
   });
 });
 

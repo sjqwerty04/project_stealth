@@ -12,6 +12,7 @@ import {
   readLegacyTheaters,
   saveTheaterSession,
   sessionFilms,
+  sessionOnSignIn,
   theaterDocWriter,
   theaterInference,
   theaterRuntimeReducer,
@@ -54,7 +55,10 @@ export function TheaterProvider({ children }: { children: ReactNode }) {
     }
     if (restoredUidRef.current === uid) return;
     restoredUidRef.current = uid;
-    dispatch({ type: 'restore', session: loadTheaterSession(sessionStorage, uid) });
+    const live = sessionRef.current;
+    const next = sessionOnSignIn(live, loadTheaterSession(sessionStorage, uid));
+    if (next !== live) dispatch({ type: 'restore', session: next });
+    else saveTheaterSession(sessionStorage, uid, live);
   }, [uid]);
 
   useEffect(() => {
