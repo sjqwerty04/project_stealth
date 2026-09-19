@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Film, Loader2, X } from 'lucide-react';
 import ImportDropZone from './ImportDropZone';
+import PasteListPanel from './PasteListPanel';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 
-export type ImportTab = 'drop' | 'username';
+export type ImportTab = 'drop' | 'paste' | 'screenshot' | 'username';
 
 const TABS: Array<{ id: ImportTab; label: string }> = [
   { id: 'drop', label: 'Drop export' },
+  { id: 'paste', label: 'Paste list' },
+  { id: 'screenshot', label: 'Screenshot' },
   { id: 'username', label: 'Username' },
 ];
 
@@ -49,7 +52,7 @@ export default function ImportSheet({
             </div>
             <div>
               <h3 className="font-display text-fg">{title}</h3>
-              <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Letterboxd or IMDb</p>
+              <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Letterboxd, IMDb, a list, a screenshot</p>
             </div>
           </div>
           {!isImporting && (
@@ -68,7 +71,7 @@ export default function ImportSheet({
               aria-selected={tab === t.id}
               data-testid={`import-tab-${t.id}`}
               onClick={() => setTab(t.id)}
-              className={`flex-1 min-h-11 px-2 font-spec text-[10px] uppercase tracking-widest border ${
+              className={`flex-1 min-h-11 px-1 font-spec text-[9px] uppercase tracking-wider border ${
                 tab === t.id ? 'bg-fg text-base border-fg' : 'bg-base-2 text-fg-3 border-line'
               }`}
             >
@@ -78,6 +81,8 @@ export default function ImportSheet({
         </div>
 
         {tab === 'drop' && <ImportDropZone onDone={onImported} />}
+        {tab === 'paste' && <PasteListPanel mode="paste" onDone={onImported} />}
+        {tab === 'screenshot' && <PasteListPanel mode="screenshot" onDone={onImported} />}
 
         {tab === 'username' && (
           <div className="space-y-3">
