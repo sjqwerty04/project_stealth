@@ -283,6 +283,7 @@ export default function OrbitScreen() {
       cacheState: result ? 'ready' : requestState === 'loading' ? 'loading' : 'miss',
     };
 
+    const sourceMovieId = currentMovie.id;
     if (!result) {
       setPendingDirection(direction);
       setIsWaitingForRecommendation(true);
@@ -290,7 +291,7 @@ export default function OrbitScreen() {
       setIsWaitingForRecommendation(false);
       if (
         activeSwipeAttempt.current !== attempt ||
-        useOrbitStore.getState().prefetchedMoves.sourceKey !== sourceKey
+        useOrbitStore.getState().currentMovie?.id !== sourceMovieId
       ) {
         swipeTiming.current = null;
         setPendingDirection(null);
@@ -309,39 +310,38 @@ export default function OrbitScreen() {
     setTransitioning(true);
     setPendingDirection(direction);
 
-    requestAnimationFrame(() => {
-      if (
-        activeSwipeAttempt.current !== attempt ||
-        useOrbitStore.getState().prefetchedMoves.sourceKey !== sourceKey
-      ) {
-        swipeTiming.current = null;
-        setTransitioning(false);
-        setPendingDirection(null);
-        return;
-      }
-      navigateTo(
-        recommendation.movie,
-        direction,
-        recommendation.connectionReason,
-        recommendation.similarityScore
-      );
+    if (
+      activeSwipeAttempt.current !== attempt ||
+      useOrbitStore.getState().currentMovie?.id !== sourceMovieId
+    ) {
+      swipeTiming.current = null;
       setTransitioning(false);
       setPendingDirection(null);
+      return;
+    }
 
-      if (user?.uid) {
-        void recordTasteEvent(
-          user.uid,
-          {
-            type: 'orbit_swipe',
-            direction,
-            fromMovieId: currentMovie.id,
-            toMovieId: recommendation.movie.id,
-            toTitle: recommendation.movie.title,
-          },
-          { email: user.email }
-        );
-      }
-    });
+    navigateTo(
+      recommendation.movie,
+      direction,
+      recommendation.connectionReason,
+      recommendation.similarityScore
+    );
+    setTransitioning(false);
+    setPendingDirection(null);
+
+    if (user?.uid) {
+      void recordTasteEvent(
+        user.uid,
+        {
+          type: 'orbit_swipe',
+          direction,
+          fromMovieId: currentMovie.id,
+          toMovieId: recommendation.movie.id,
+          toTitle: recommendation.movie.title,
+        },
+        { email: user.email }
+      );
+    }
   }, [
     currentMovie,
     goBack,

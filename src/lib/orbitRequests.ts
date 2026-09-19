@@ -101,6 +101,7 @@ export const createOrbitRequestCoordinator = (
   const entries = new Map<string, Exclude<OrbitRequestStatus, { state: 'idle' }>>();
   let activeSourceKey: string | null = null;
   const inFlightBatches = new Map<string, Promise<Record<SwipeDirection, OrbitRecommendation | null> | null>>();
+  const batchSubscribers = new Map<string, Set<(sourceKey: string, dir: SwipeDirection, rec: OrbitRecommendation) => void>>();
 
   const status: OrbitRequestCoordinator['status'] = (movie, direction, taste) =>
     entries.get(getRequestKey(movie, direction, taste)) ?? { state: 'idle' };
@@ -147,6 +148,23 @@ export const createOrbitRequestCoordinator = (
       activeSourceKey = sourceKey;
 
       if (loadBatch) {
+        let subs = batchSubscribers.get(sourceKey);
+        if (!subs) {
+          subs = new Set();
+          batchSubscribers.set(sourceKey, subs);
+        }
+        subs.add(publish);
+
+        // Immediately publish any directions already ready
+        for (const direction of directions) {
+          if (direction === backDirection) continue;
+          const key = getRequestKey(movie, direction, taste);
+          const existing = entries.get(key);
+          if (existing?.state === 'ready') {
+            publish(sourceKey, direction, existing.value);
+          }
+        }
+
         let batchPromise = inFlightBatches.get(sourceKey);
         if (!batchPromise) {
           const resolvers: Partial<Record<SwipeDirection, (val: OrbitRecommendation | null) => void>> = {};
@@ -164,6 +182,9 @@ export const createOrbitRequestCoordinator = (
           batchPromise = loadBatch(movie, taste)
             .then((batchResult) => {
               inFlightBatches.delete(sourceKey);
+              const currentSubs = batchSubscribers.get(sourceKey);
+              batchSubscribers.delete(sourceKey);
+
               if (batchResult) {
                 for (const direction of directions) {
                   const result = batchResult[direction];
@@ -174,7 +195,9 @@ export const createOrbitRequestCoordinator = (
                       warmOrbitImages(result.movie, warmImage);
                     } catch {}
                     if (direction !== backDirection && activeSourceKey === sourceKey) {
-                      publish(sourceKey, direction, result);
+                      currentSubs?.forEach((cb) => {
+                        try { cb(sourceKey, direction, result); } catch {}
+                      });
                     }
                     resolvers[direction]?.(result);
                   } else {
@@ -195,6 +218,7 @@ export const createOrbitRequestCoordinator = (
             })
             .catch(() => {
               inFlightBatches.delete(sourceKey);
+              batchSubscribers.delete(sourceKey);
               for (const direction of directions) {
                 const key = getRequestKey(movie, direction, taste);
                 if (entries.get(key)?.state === 'loading') {
