@@ -70,44 +70,46 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
       }, wait);
     };
 
+    const emptyInput = { films: [], nights: [], positive: state.positive, negative: state.negative, axes: state.axes, sources, uid };
+
     (async () => {
-      let stats: TasteStats | null = null;
+      let input = emptyInput as Awaited<ReturnType<typeof loadStatsInput>>;
       try {
-        const input = await loadStatsInput(uid, { positive: state.positive, negative: state.negative, axes: state.axes, sources });
-        const posters = input.films.map((f) => f.poster).filter((p): p is string => !!p);
-        const total = Math.min(posters.length, 60);
-        setProgress({ count: input.films.filter((f) => f.watched).length, sampled: 0, total, colours: [] });
-        const colours = await samplePosterColours(posters, {
+        input = await loadStatsInput(uid, { positive: state.positive, negative: state.negative, axes: state.axes, sources });
+      } catch (e) {
+        console.error('Reading could not load the library:', e);
+      }
+      if (cancelled) return;
+
+      // Grok gets the numbers now. The colour arrives later and is rendered by the client, never quoted by the model.
+      const early = computeTasteStats(input, '', 0);
+      const profilePromise = fetchProfile(early, picks, controller.signal).catch(() => null);
+
+      const posters = input.films.map((f) => f.poster).filter((p): p is string => !!p);
+      const total = Math.min(posters.length, 60);
+      setProgress({ count: input.films.filter((f) => f.watched).length, sampled: 0, total, colours: [] });
+      let colours: string[] = [];
+      try {
+        colours = await samplePosterColours(posters, {
           onProgress: (done) => {
             if (!cancelled) setProgress((p) => ({ ...p, sampled: done }));
           },
         });
-        if (cancelled) return;
-        setProgress((p) => ({ ...p, colours }));
-        stats = computeTasteStats(input, oklabCentroid(colours), colours.length);
       } catch (e) {
-        console.error('Reading failed:', e);
-        stats = computeTasteStats(
-          { films: [], nights: [], positive: state.positive, negative: state.negative, axes: state.axes, sources, uid },
-          '#3A6E85',
-          0,
-        );
+        console.error('Poster sampling failed:', e);
       }
       if (cancelled) return;
+      setProgress((p) => ({ ...p, colours }));
+      const stats: TasteStats = computeTasteStats(input, oklabCentroid(colours), colours.length);
       const fallback = templateProfile(stats);
-      const remaining = READING_MAX_MS - (Date.now() - startedAt);
-      const timeout = setTimeout(() => {
-        controller.abort();
-        settle(stats!, fallback);
-      }, Math.max(0, remaining));
-      try {
-        const profile = await fetchProfile(stats, picks, controller.signal);
-        clearTimeout(timeout);
-        settle(stats, profile ?? fallback);
-      } catch {
-        clearTimeout(timeout);
-        settle(stats, fallback);
-      }
+
+      const remaining = Math.max(0, READING_MAX_MS - (Date.now() - startedAt));
+      const profile = await Promise.race([
+        profilePromise,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), remaining)),
+      ]);
+      if (!profile) controller.abort();
+      settle(stats, profile ?? fallback);
     })();
 
     return () => {
