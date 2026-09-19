@@ -248,8 +248,8 @@ export default function PickWall({ wall, selected, onToggle, searchPlaceholder }
 
   return (
     <LayoutGroup id={`pick-wall-${wall}`}>
-      <div className="flex flex-col h-full min-h-0">
-        <div data-testid="pick-hero" className="px-4" aria-live="polite">
+      <div className="flex flex-col h-full min-h-0 min-w-0">
+        <div data-testid="pick-hero" className="px-4 min-w-0" aria-live="polite">
           <AnimatePresence initial={false}>
             {selected.length > 0 && (
               <motion.div
