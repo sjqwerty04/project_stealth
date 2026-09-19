@@ -30,16 +30,31 @@ async function fetchProfile(stats: TasteStats, picks: { positive: string[]; nega
 export function useReading(state: OnboardingState, dispatch: (a: OnboardingAction) => void, uid: string | null) {
   const [progress, setProgress] = useState<ReadingProgress>({ count: 0, sampled: 0, total: 0, colours: [] });
   const started = useRef(false);
-  const { step, positive, negative, axes, imports } = state;
+  const latest = useRef(state);
+  useEffect(() => {
+    latest.current = state;
+  }, [state]);
+  const run = useRef<{ controller: AbortController; cancel: () => void } | null>(null);
+  const { step } = state;
+
+  // Only unmount cancels the pipeline. Leaving the Reading step must not, or a slow read is lost.
+  useEffect(() => () => run.current?.cancel(), []);
 
   useEffect(() => {
     if (step !== 'reading' || !uid || started.current) return;
     started.current = true;
-    const state = { positive, negative, axes, imports };
+    const state = latest.current;
     const controller = new AbortController();
     const startedAt = Date.now();
     let cancelled = false;
     let settled = false;
+    run.current = {
+      controller,
+      cancel: () => {
+        cancelled = true;
+        controller.abort();
+      },
+    };
 
     const picks = {
       positive: state.positive.map((f) => f.title),
@@ -125,11 +140,7 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
       }
     })();
 
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [step, uid, positive, negative, axes, imports, dispatch]);
+  }, [step, uid, dispatch]);
 
   return progress;
 }
