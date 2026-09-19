@@ -1,4 +1,5 @@
 import { collection, doc, getDoc, getDocs, setDoc, writeBatch, type Firestore } from 'firebase/firestore';
+import { generateSnapshot } from '../taste/generateSnapshot';
 import { db as defaultDb } from '../firebase';
 import { BATCH_LIMIT, emptyFilm, mergeFilm, parseFilm } from '../library/ledger';
 import type { ImportBundle, LibraryFilm } from '../library/types';
@@ -8,12 +9,16 @@ import { recordTasteEvent } from '../taste/recordTasteEvent';
 import { filmKey } from './letterboxd/parse';
 import type { MatchedFilm } from './match';
 
+export type CreatedRefs = { films: number[]; nights: string[]; watchlist: string[] };
+
 export type WriteSummary = {
   films: number;
   nights: number;
   watchlist: number;
   skippedNights: number;
   digest: ImportDigest;
+  /** Docs that did not exist before this write. Undo removes exactly these. */
+  created: CreatedRefs;
 };
 
 /** Pure. Fold a matched bundle into ledger films, merged over what already exists. */
@@ -187,9 +192,11 @@ export async function writeLibrary(
     if (inBatch >= BATCH_LIMIT) await flush();
   };
 
+  const created: CreatedRefs = { films: [], nights: [], watchlist: [] };
   let done = 0;
   const total = films.length + bundle.diary.length + bundle.watchlist.length;
   for (const film of films) {
+    if (!existing.has(film.movieId)) created.films.push(film.movieId);
     await queue((b) => b.set(doc(db, 'users', uid, 'films', String(film.movieId)), film));
     opts.onProgress?.('films', ++done, total);
   }
@@ -212,6 +219,7 @@ export async function writeLibrary(
     nightKeys.add(key);
     const verdict = verdictFromStars(row.stars ?? null);
     const logRef = doc(collection(db, 'users', uid, 'calendar_logs'));
+    created.nights.push(logRef.id);
     await queue((b) =>
       b.set(logRef, {
         movieId: hit.movieId,
@@ -245,8 +253,10 @@ export async function writeLibrary(
     opts.onProgress?.('watchlist', ++done, total);
     if (!hit || onList.has(hit.movieId) || existing.get(hit.movieId)?.watched) continue;
     onList.add(hit.movieId);
+    const wlRef = doc(collection(db, 'users', uid, 'watchlist'));
+    created.watchlist.push(wlRef.id);
     await queue((b) =>
-      b.set(doc(collection(db, 'users', uid, 'watchlist')), {
+      b.set(wlRef, {
         movieId: hit.movieId,
         title: hit.title,
         year: hit.year,
@@ -277,7 +287,7 @@ export async function writeLibrary(
     await recordTasteEvent(uid, { type: 'import', source: bundle.source, count: films.length, digest }, { email: opts.email });
   }
 
-  return { films: films.length, nights, watchlist, skippedNights, digest };
+  return { films: films.length, nights, watchlist, skippedNights, digest, created };
 }
 
 /** Seed onboarding favourites and dislikes from the import only when the user never picked any. */
@@ -293,4 +303,19 @@ async function seedTasteProfile(uid: string, digest: ImportDigest, db: Firestore
     patch.dislikedFilms = digest.rejects.slice(0, 12).map((f) => ({ id: f.movieId, title: f.title, year: f.year ?? '' }));
   }
   if (Object.keys(patch).length) await setDoc(profileRef, patch, { merge: true });
+}
+
+/** Remove exactly the docs a write created, then rebuild the taste snapshot. */
+export async function undoImport(uid: string, created: CreatedRefs, db: Firestore = defaultDb): Promise<void> {
+  const refs = [
+    ...created.films.map((id) => doc(db, 'users', uid, 'films', String(id))),
+    ...created.nights.map((id) => doc(db, 'users', uid, 'calendar_logs', id)),
+    ...created.watchlist.map((id) => doc(db, 'users', uid, 'watchlist', id)),
+  ];
+  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const ref of refs.slice(i, i + BATCH_LIMIT)) batch.delete(ref);
+    await batch.commit();
+  }
+  await generateSnapshot(uid).catch((err) => console.warn('snapshot rebuild after undo failed:', err));
 }
