@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import SelectsCarousel, { type SelectFilm } from '../components/SelectsCarousel';
+import type { SelectReplacement } from '../hooks/useRecommendation';
 
 function still(fill: string) {
   return `data:image/svg+xml,${encodeURIComponent(
@@ -14,6 +16,7 @@ function poster(fill: string) {
 
 const PREVIEW_SLIDES: SelectFilm[] = [
   {
+    slotId: 0,
     id: 1,
     title: 'Zodiac',
     poster: poster('#1a1a1c'),
@@ -26,6 +29,7 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     ],
   },
   {
+    slotId: 1,
     id: 2,
     title: 'The Departed',
     poster: poster('#1a1a1c'),
@@ -38,6 +42,7 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     ],
   },
   {
+    slotId: 2,
     id: 3,
     title: 'Heat',
     poster: poster('#1a1a1c'),
@@ -52,10 +57,49 @@ const PREVIEW_SLIDES: SelectFilm[] = [
 ];
 
 export default function SelectsCarouselPreviewScreen() {
+  const [slides, setSlides] = useState(PREVIEW_SLIDES);
+  const [replacement, setReplacement] = useState<SelectReplacement>(null);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    const activeTimers = timers.current;
+    return () => activeTimers.forEach((timer) => window.clearTimeout(timer));
+  }, []);
+
   return (
     <div className="min-h-dvh bg-base text-fg px-7 pt-10">
       <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
-      <SelectsCarousel slides={PREVIEW_SLIDES} art={{}} onOpenMovie={() => {}} />
+      <SelectsCarousel
+        slides={slides}
+        art={{}}
+        onOpenMovie={() => {}}
+        replacement={replacement}
+        onVerdict={(slotId) => {
+          setReplacement({ slotId, phase: 'saving', feedbackSaved: false });
+          timers.current.push(
+            window.setTimeout(() => {
+              setReplacement({ slotId, phase: 'replacing', feedbackSaved: true });
+            }, 500),
+            window.setTimeout(() => {
+              setSlides((current) =>
+                current.map((film) =>
+                  film.slotId === slotId
+                    ? {
+                        ...film,
+                        id: 4,
+                        title: 'Manhunter',
+                        backdrop: still('#302528'),
+                        whyMatch: 'A new select replaced only this stable carousel slot.',
+                      }
+                    : film,
+                ),
+              );
+              setReplacement(null);
+            }, 1800),
+          );
+        }}
+        onRetry={() => {}}
+      />
     </div>
   );
 }

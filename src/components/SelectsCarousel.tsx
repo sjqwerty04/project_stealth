@@ -4,13 +4,19 @@ import {
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_EASE,
   SELECTS_TRANSITION_MS,
+  slideIdentityKey,
   snapLoopIndex,
   type RelatedPoster,
 } from './selectsCarouselLogic';
+import type { SelectReplacement, SelectSlotId } from '../hooks/useRecommendation';
+import type { Verdict } from '../lib/library';
+import VerdictPicker from './VerdictPicker';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 
 export type { RelatedPoster };
 
 export type SelectFilm = {
+  slotId: SelectSlotId;
   id: number;
   title: string;
   poster: string;
@@ -25,29 +31,49 @@ export type SelectFilm = {
 
 export type FilmArt = { logo: string | null; still: string | null };
 
-function SelectCard({
+export function SelectCard({
   film,
   art,
-  onClick,
+  pickerOpen,
+  replacement,
+  onOpenMovie,
+  onOpenPicker,
+  onClosePicker,
+  onVerdict,
+  onRetry,
 }: {
   film: SelectFilm;
   art?: FilmArt;
-  onClick: () => void;
+  pickerOpen: boolean;
+  replacement: SelectReplacement;
+  onOpenMovie: () => void;
+  onOpenPicker: () => void;
+  onClosePicker: () => void;
+  onVerdict: (verdict: Verdict) => void;
+  onRetry: () => void;
 }) {
   const still = art?.still || film.backdrop || film.poster;
   const logo = art?.logo || film.logo;
   const related = film.related?.slice(0, 2) ?? [];
   const why = film.whyMatch?.trim() ?? '';
+  const slotReplacement = replacement?.slotId === film.slotId ? replacement : null;
+  const loading =
+    slotReplacement?.phase === 'saving' || slotReplacement?.phase === 'replacing';
   return (
-    <button
-      type="button"
+    <div
       data-testid="ticket-slot"
-      aria-label={film.title}
-      onClick={onClick}
+      data-title={film.title}
       className="relative w-full overflow-hidden bg-base text-left min-h-11"
       style={{ borderRadius: 0, border: 'none' }}
     >
-      <span className="relative block w-full overflow-hidden bg-base-3" style={{ height: 220 }}>
+      <button
+        type="button"
+        aria-label={film.title}
+        onClick={onOpenMovie}
+        disabled={loading}
+        className="relative block w-full overflow-hidden bg-base-3 text-left min-h-11"
+        style={{ height: 220 }}
+      >
         {still ? (
           <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : null}
@@ -69,9 +95,62 @@ function SelectCard({
             </span>
           )}
         </span>
-      </span>
+      </button>
+      {loading ? (
+        <div className="absolute inset-x-0 top-0 z-20 flex h-[220px] items-center justify-center bg-black">
+          <SelectsChaseLoader
+            size="sm"
+            label={
+              slotReplacement?.phase === 'saving'
+                ? 'Saving feedback'
+                : 'Finding another select'
+            }
+          />
+        </div>
+      ) : null}
+      <button
+        type="button"
+        data-testid={`watched-${film.slotId}`}
+        data-carousel-control
+        onClick={pickerOpen ? onClosePicker : onOpenPicker}
+        disabled={replacement !== null}
+        className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+      >
+        Watched
+      </button>
+      {pickerOpen ? (
+        <div
+          data-carousel-control
+          className="relative z-30 border-x border-b border-line bg-base-2 p-3"
+        >
+          <VerdictPicker
+            value={null}
+            onChange={onVerdict}
+            disabled={replacement !== null}
+            size="sm"
+          />
+        </div>
+      ) : null}
+      {slotReplacement?.phase === 'failed' ? (
+        <div
+          data-carousel-control
+          className="flex min-h-11 items-center justify-between gap-3 border-x border-b border-line bg-base-2 p-3"
+          data-testid={`replacement-failed-${film.slotId}`}
+        >
+          <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">
+            {slotReplacement.message}
+          </span>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="min-h-11 shrink-0 border border-line px-3 font-spec text-[10px] uppercase tracking-widest text-fg"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       {related.length > 0 ? (
-        <span className="flex gap-2 pt-3" data-testid="related-posters">
+        <div className="flex gap-2 pt-3" data-testid="related-posters">
           {related.map((row) => (
             <span
               key={row.title}
@@ -81,10 +160,10 @@ function SelectCard({
               <img src={row.poster} alt="" className="h-full w-full object-cover" />
             </span>
           ))}
-        </span>
+        </div>
       ) : null}
       {why ? (
-        <span className="block pt-3 pb-1">
+        <div className="block pt-3 pb-1">
           <span
             className="font-spec text-[10px] uppercase tracking-widest text-fg-3"
             data-testid="why-watch-label"
@@ -97,9 +176,9 @@ function SelectCard({
           >
             {why}
           </span>
-        </span>
+        </div>
       ) : null}
-    </button>
+    </div>
   );
 }
 
@@ -107,25 +186,32 @@ export default function SelectsCarousel({
   slides,
   art,
   onOpenMovie,
+  replacement,
+  onVerdict,
+  onRetry,
   autoplay = true,
   intervalMs = SELECTS_AUTOPLAY_MS,
 }: {
   slides: SelectFilm[];
   art: Record<number, FilmArt>;
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
+  replacement: SelectReplacement;
+  onVerdict: (slotId: SelectSlotId, verdict: Verdict) => void;
+  onRetry: (slotId: SelectSlotId) => void;
   autoplay?: boolean;
   intervalMs?: number;
 }) {
   const [slide, setSlide] = useState(slides.length < 2 ? 0 : 1);
   const [slideTransition, setSlideTransition] = useState(true);
   const [paused, setPaused] = useState(false);
+  const [pickerSlotId, setPickerSlotId] = useState<SelectSlotId | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
   const slideIdsRef = useRef('');
   const trackRef = useRef<HTMLDivElement | null>(null);
   const resumeTimer = useRef<number | null>(null);
   const looped = useMemo(() => loopingSlides(slides), [slides]);
-  const slideKey = slides.map((s) => s.id).join(',');
+  const slideKey = slideIdentityKey(slides);
   const count = slides.length;
   const trackSlide = count < 2 ? 0 : slide;
 
@@ -137,7 +223,8 @@ export default function SelectsCarousel({
   useEffect(() => {
     if (slideIdsRef.current === slideKey) return;
     slideIdsRef.current = slideKey;
-    jumpTo(count < 2 ? 0 : 1);
+    const id = window.requestAnimationFrame(() => jumpTo(count < 2 ? 0 : 1));
+    return () => window.cancelAnimationFrame(id);
   }, [slideKey, count]);
 
   useLayoutEffect(() => {
@@ -160,7 +247,7 @@ export default function SelectsCarousel({
   }, [slide, count]);
 
   useEffect(() => {
-    if (!autoplay || paused || count < 2) return;
+    if (!autoplay || paused || pickerSlotId !== null || count < 2) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     const t = window.setInterval(() => {
@@ -171,7 +258,7 @@ export default function SelectsCarousel({
       setSlideTransition(true);
     }, intervalMs);
     return () => window.clearInterval(t);
-  }, [autoplay, paused, count, intervalMs]);
+  }, [autoplay, paused, pickerSlotId, count, intervalMs]);
 
   useEffect(() => {
     return () => {
@@ -195,6 +282,7 @@ export default function SelectsCarousel({
   };
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('[data-carousel-control]')) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     carouselStartX.current = e.clientX;
     setPaused(true);
@@ -249,11 +337,20 @@ export default function SelectsCarousel({
         }}
       >
         {looped.map((film, i) => (
-          <div key={`${film.id}-${i}`} className="w-full min-w-full shrink-0 overflow-hidden">
+          <div key={`${film.slotId}-${i}`} className="w-full min-w-full shrink-0 overflow-hidden">
             <SelectCard
               film={film}
               art={art[film.id]}
-              onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
+              pickerOpen={pickerSlotId === film.slotId}
+              replacement={replacement}
+              onOpenMovie={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
+              onOpenPicker={() => setPickerSlotId(film.slotId)}
+              onClosePicker={() => setPickerSlotId(null)}
+              onVerdict={(verdict) => {
+                setPickerSlotId(null);
+                onVerdict(film.slotId, verdict);
+              }}
+              onRetry={() => onRetry(film.slotId)}
             />
           </div>
         ))}
