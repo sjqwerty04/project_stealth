@@ -1,4 +1,4 @@
-import type { ImportSourceId } from './state';
+export type ImportSourceId = 'letterboxd' | 'imdb' | 'notes' | 'images';
 
 export type Facet = 'look' | 'tempo' | 'weather' | 'world' | 'shape' | 'format';
 

@@ -1,5 +1,7 @@
 import type { Axis } from '../taste/types';
-import type { SelectsProfile, TasteStats } from './profile';
+import type { ImportSourceId, SelectsProfile, TasteStats } from './profile';
+
+export type { ImportSourceId };
 
 export type Step =
   | 'splash'
@@ -29,8 +31,6 @@ export type FilmPick = {
   posterPath: string | null;
   genreIds?: number[];
 };
-
-export type ImportSourceId = 'letterboxd' | 'imdb' | 'notes' | 'images';
 
 export const IMPORT_SOURCES: readonly ImportSourceId[] = ['letterboxd', 'imdb', 'notes', 'images'];
 
