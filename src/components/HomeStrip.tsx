@@ -376,7 +376,7 @@ export default function HomeStrip({
         </button>
       )}
 
-      <div className="px-7 shrink-0">
+      <div className="px-7 min-h-0 flex-1 overflow-y-auto">
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
         {status === 'loading' && (
           <div data-testid="selects-skeleton">
@@ -398,12 +398,9 @@ export default function HomeStrip({
         )}
       </div>
 
-      <div className="flex-1 min-h-0" />
-
       <div
-        className="fixed left-0 right-0 z-40 bg-base pt-3"
+        className="shrink-0 bg-base pt-3"
         data-testid="strip-dock"
-        style={{ bottom: 'calc(var(--tab-h) + env(safe-area-inset-bottom))' }}
       >
         {dayFilm ? (
           <div
