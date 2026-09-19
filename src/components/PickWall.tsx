@@ -260,7 +260,7 @@ export default function PickWall({ wall, selected, onToggle, searchPlaceholder }
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden"
               >
-                <div className="flex gap-1.5 pb-3 overflow-x-auto no-scrollbar snap-x">
+                <div className="flex gap-1.5 pb-3 w-full min-w-0 overflow-x-auto no-scrollbar snap-x">
                   {selected.map((film) => (
                     <motion.button
                       key={film.id}
