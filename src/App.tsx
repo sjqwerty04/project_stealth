@@ -25,6 +25,7 @@ import SavedScreen from './screens/SavedScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import AdminScreen from './screens/AdminScreen';
 import JoinScreen from './screens/JoinScreen';
+import PrivacyScreen from './screens/PrivacyScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AppShell from './components/AppShell';
 import SelectsCarouselPreviewScreen from './screens/SelectsCarouselPreviewScreen';
@@ -39,6 +40,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<SplashScreen />} />
             <Route path="/login" element={<LoginScreen />} />
+            <Route path="/privacy" element={<PrivacyScreen />} />
             <Route path="/waitlist" element={<WaitlistScreen />} />
             <Route path="/invite/:code" element={<InviteAcceptScreen />} />
             <Route path="/join" element={<JoinScreen />} />

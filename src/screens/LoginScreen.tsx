@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isNativePlatform } from '../lib/native';
 import { Mark, Button, Input } from '../components/ui';
@@ -144,6 +144,12 @@ export default function LoginScreen() {
                 Continue with Google
               </Button>
             )}
+            <Link
+              to="/privacy"
+              className="block text-center font-spec text-[10px] uppercase tracking-widest text-fg-3"
+            >
+              Privacy
+            </Link>
           </form>
         )}
 
