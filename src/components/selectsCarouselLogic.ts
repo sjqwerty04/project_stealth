@@ -1,3 +1,5 @@
+import { hydratedTitleMatchesPick, mentionNeedles } from '../lib/taste/selectPickCoherence';
+
 export function loopingSlides<T>(slides: T[]): T[] {
   if (slides.length < 2) return slides;
   return [slides[slides.length - 1], ...slides, slides[0]];
@@ -25,7 +27,22 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Diary titles named in whyMatch. Longer titles first, exclude the current film, cap at two. */
+function isGenericShortTitle(title: string) {
+  return title.length < 4 && /^[\p{L}]+$/u.test(title);
+}
+
+function firstMention(why: string, needle: string): { start: number; end: number } | null {
+  const pattern = new RegExp(
+    `(^|[^\\p{L}\\p{N}])(${escapeRegExp(needle)})($|[^\\p{L}\\p{N}])`,
+    'iu',
+  );
+  const match = why.match(pattern);
+  if (!match || match.index == null) return null;
+  const start = match.index + (match[1]?.length ?? 0);
+  return { start, end: start + needle.length };
+}
+
+/** Diary films named in whyMatch, in mention order. Exclude the current film, cap at two. */
 export function relatedFromWhy(
   whyMatch: string | undefined,
   diary: { title: string; poster?: string }[],
@@ -34,30 +51,61 @@ export function relatedFromWhy(
 ): RelatedPoster[] {
   const why = whyMatch?.trim();
   if (!why) return [];
-  const exclude = excludeTitle?.trim().toLowerCase() ?? '';
+  const exclude = excludeTitle?.trim() ?? '';
   const seen = new Set<string>();
   const candidates: RelatedPoster[] = [];
   for (const row of diary) {
     const title = row.title?.trim();
-    if (!title || title.length < 4 || !row.poster) continue;
+    if (!title || !row.poster || isGenericShortTitle(title)) continue;
     const key = title.toLowerCase();
-    if (key === exclude || seen.has(key)) continue;
+    if (seen.has(key)) continue;
+    if (exclude && (key === exclude.toLowerCase() || hydratedTitleMatchesPick(exclude, title))) {
+      continue;
+    }
     seen.add(key);
     candidates.push({ title, poster: row.poster });
   }
-  candidates.sort((a, b) => b.title.length - a.title.length);
-  let remaining = why;
-  const found: RelatedPoster[] = [];
+
+  const matches: {
+    start: number;
+    end: number;
+    needleLen: number;
+    exact: boolean;
+    candidate: RelatedPoster;
+  }[] = [];
   for (const candidate of candidates) {
+    let best: (typeof matches)[number] | null = null;
+    for (const needle of mentionNeedles(candidate.title)) {
+      const hit = firstMention(why, needle);
+      if (!hit) continue;
+      const exact = needle.toLowerCase() === candidate.title.toLowerCase();
+      const next = { ...hit, needleLen: needle.length, exact, candidate };
+      if (
+        !best ||
+        next.start < best.start ||
+        (next.start === best.start && next.needleLen > best.needleLen) ||
+        (next.start === best.start && next.needleLen === best.needleLen && next.exact && !best.exact)
+      ) {
+        best = next;
+      }
+    }
+    if (best) matches.push(best);
+  }
+
+  matches.sort(
+    (a, b) =>
+      a.start - b.start ||
+      b.needleLen - a.needleLen ||
+      Number(b.exact) - Number(a.exact),
+  );
+
+  const found: RelatedPoster[] = [];
+  let cursor = 0;
+  for (const match of matches) {
     if (found.length >= limit) break;
-    const pattern = new RegExp(
-      `(^|[^\\p{L}\\p{N}])${escapeRegExp(candidate.title)}($|[^\\p{L}\\p{N}])`,
-      'iu',
-    );
-    const match = remaining.match(pattern);
-    if (!match || match.index == null) continue;
-    found.push(candidate);
-    remaining = remaining.slice(0, match.index) + remaining.slice(match.index + match[0].length);
+    if (match.start < cursor) continue;
+    found.push(match.candidate);
+    cursor = match.end;
   }
   return found;
 }
