@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, X, ArrowLeft, Sparkles } from 'lucide-react';
-import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
-import { useMovieSearch, type SearchResult } from '../hooks/useMovieSearch';
+import { classifyQuery, useMovieSearch, type SearchResult } from '../hooks/useMovieSearch';
 import SearchResultCard from '../components/SearchResultCard';
 import TheaterCard from '../components/TheaterCard';
-import { useTheater } from '../contexts/TheaterContext';
+import { useTheater } from '../contexts/useTheater';
+import { theaterCardModel } from '../lib/theater';
 import { useAuth } from '../hooks/useAuth';
 import { recordTasteEvent } from '../lib/taste';
 
@@ -17,21 +17,9 @@ export default function DiscoverScreen() {
   
   // Initialize query from URL param so it survives back navigation
   const [query, setQuery] = useState(() => searchParams.get('q') || '');
-  const [isPatternPanelOpen, setIsPatternPanelOpen] = useState(true);
-  const { results, isSearching, error, searchMetadata, curatedList, isLoadingCuratedList, searchMovies, clearResults } = useMovieSearch();
-  const { 
-    clickedMovies, 
-    addMovie, 
-    resetSession, 
-    patternInsight,
-    isAnalyzing,
-    showMoreMovies,
-    showMoreResults,
-    isLoadingMore,
-    keepTheater,
-    isKeepingTheater,
-    theaterKept,
-  } = useTheater();
+  const { results, isSearching, error, searchMetadata, searchMovies, clearResults } = useMovieSearch();
+  const { session, commitSettledQuery, keepTheater, dismissTheater, isKeeping } = useTheater();
+  const theater = theaterCardModel(session);
 
   useEffect(() => {
     setSearchParams((current) => {
@@ -45,29 +33,21 @@ export default function DiscoverScreen() {
     }, { replace: true });
   }, [query, setSearchParams]);
 
-  // Debounced search
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (query.trim()) {
-        await searchMovies(query);
-      } else {
+    const trimmed = query.trim();
+    const timer = setTimeout(() => {
+      if (!trimmed) {
         clearResults();
+        return;
       }
+      commitSettledQuery(trimmed, classifyQuery(trimmed).mode);
+      void searchMovies(trimmed);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, commitSettledQuery, searchMovies, clearResults]);
 
   const handleMovieClick = useCallback((movie: SearchResult) => {
-    addMovie({
-      id: movie.id,
-      title: movie.title,
-      year: movie.year,
-      posterPath: movie.posterPath,
-      backdropPath: movie.backdropPath,
-      genres: movie.genres,
-      mediaType: movie.mediaType,
-    });
     if (user?.uid) {
       void recordTasteEvent(
         user.uid,
@@ -79,77 +59,31 @@ export default function DiscoverScreen() {
     if (preSelectedDate) params.set('date', preSelectedDate);
     params.set('type', movie.mediaType);
     navigate(`/movie/${movie.id}?${params.toString()}`);
-  }, [addMovie, navigate, preSelectedDate, user, query]);
+  }, [navigate, preSelectedDate, user, query]);
 
   const handleClearSearch = () => {
     setQuery('');
     clearResults();
-    resetSession();
   };
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleShowMore = async () => {
-    const movies = await showMoreMovies();
-    if (movies && movies.length > 0) {
-      return;
-    }
-  };
-
-  const handleKeepTheater = async () => {
-    await keepTheater();
-  };
-
-  const showTheaterCard = clickedMovies.length >= 3 && patternInsight;
-
-  useEffect(() => {
-    if (!showTheaterCard) {
-      setIsPatternPanelOpen(true);
-    }
-  }, [showTheaterCard]);
-
-  const contentPadding = showTheaterCard && isPatternPanelOpen ? 'pb-40' : 'pb-12';
-
   return (
     <div className="min-h-screen bg-base text-fg">
-      {showTheaterCard && isPatternPanelOpen && (
+      {theater && (
         <div className="fixed bottom-24 left-0 right-0 px-4 sm:px-6 z-30 pointer-events-none">
-          <div className="relative max-w-md mx-auto pointer-events-auto drop-shadow-2xl">
-            <button
-              aria-label="Hide pattern insights"
-              onClick={() => setIsPatternPanelOpen(false)}
-              className="absolute -top-2 -right-2 p-1 rounded-full bg-black/70 border border-white/10 text-gray-400 hover:text-white hover:bg-black/80 transition-colors"
-            >
-              <X size={14} />
-            </button>
+          <div className="relative max-w-md mx-auto pointer-events-auto drop-shadow-2xl max-h-[60vh] overflow-y-auto">
             <TheaterCard
-              insight={patternInsight}
-              isAnalyzing={isAnalyzing}
-              onShowMore={handleShowMore}
-              onKeepTheater={handleKeepTheater}
-              isLoadingMore={isLoadingMore}
-              isKeepingTheater={isKeepingTheater}
-              theaterKept={theaterKept}
-              movieCount={clickedMovies.length}
-              showMoreResults={showMoreResults}
-              onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
-              triggerMovies={clickedMovies.map(m => ({ id: m.id, title: m.title, posterPath: m.posterPath }))}
+              {...theater}
+              onKeep={() => void keepTheater()}
+              onDismiss={dismissTheater}
+              onFilmClick={(film) => navigate(`/movie/${film.id}?type=${film.mediaType}`)}
+              isKeeping={isKeeping}
             />
           </div>
         </div>
-      )}
-
-      {showTheaterCard && !isPatternPanelOpen && (
-        <button
-          onClick={() => setIsPatternPanelOpen(true)}
-          className="fixed right-4 z-30 inline-flex items-center gap-2 min-h-11 px-4 bg-base-3 border border-line text-fg font-medium"
-          style={{ bottom: 'calc(68px + env(safe-area-inset-bottom) + 12px)', borderRadius: 0 }}
-        >
-          <Sparkles size={16} />
-          Show Theater
-        </button>
       )}
 
       {/* Header */}
@@ -179,6 +113,7 @@ export default function DiscoverScreen() {
             {query && (
               <button
                 onClick={handleClearSearch}
+                aria-label="Clear search"
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white transition-colors"
               >
                 <X size={18} />
@@ -202,7 +137,7 @@ export default function DiscoverScreen() {
       </div>
 
       {/* Content */}
-      <div className={`p-4 ${contentPadding}`}>
+      <div className={`p-4 ${theater ? 'pb-40' : 'pb-12'}`}>
         {/* Loading State */}
         {isSearching && (
           <div className="flex items-center justify-center py-12">
@@ -225,7 +160,7 @@ export default function DiscoverScreen() {
               Hunt a film
             </h3>
             <p className="text-fg-3 max-w-xs mx-auto">
-              Search to start an orbit. After a few picks, patterns show up here.
+              Search to start an orbit. After a few picks, a Theater shows up here.
             </p>
           </div>
         )}
@@ -249,48 +184,6 @@ export default function DiscoverScreen() {
               </div>
             )}
             
-            {curatedList && (
-              <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20 rounded-xl p-4 mb-4">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-purple-400 mt-1 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white mb-3">{curatedList.title}</h3>
-                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                      {curatedList.movies.map((movie) => (
-                        <button
-                          key={movie.id}
-                          onClick={() => handleMovieClick(movie)}
-                          className="flex-shrink-0 w-24 group"
-                        >
-                          {movie.posterPath ? (
-                            <img
-                              src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
-                              alt={movie.title}
-                              className="w-full h-36 object-cover rounded-lg border border-white/10 group-hover:border-purple-400/50 transition-colors"
-                            />
-                          ) : (
-                            <div className="w-full h-36 bg-gray-800 rounded-lg border border-white/10 flex items-center justify-center">
-                              <span className="text-xs text-gray-500">?</span>
-                            </div>
-                          )}
-                          <p className="text-xs text-gray-300 mt-1 truncate">{movie.title}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {isLoadingCuratedList && !curatedList && (
-              <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/10 rounded-xl p-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <SelectsChaseLoader size="sm" />
-                  <span className="text-sm text-gray-400">Curating personalized recommendations...</span>
-                </div>
-              </div>
-            )}
-            
             <div className="space-y-3">
               {results.map((movie) => (
                 <SearchResultCard
@@ -305,13 +198,6 @@ export default function DiscoverScreen() {
                 />
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Session Info (dev) */}
-        {clickedMovies.length > 0 && clickedMovies.length < 3 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-gray-800 rounded-full text-sm text-gray-400">
-            {3 - clickedMovies.length} more to unlock pattern insights
           </div>
         )}
       </div>

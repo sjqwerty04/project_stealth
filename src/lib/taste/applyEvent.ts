@@ -147,6 +147,7 @@ export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, even
     case 'chat_turn':
     case 'orbit_swipe':
       break;
+    case 'theater':
     case 'pattern': {
       const patterns = [event.insight, ...next.generated.patterns.filter((p) => p !== event.insight)].slice(0, 8);
       next = { ...next, generated: { ...next.generated, patterns } };

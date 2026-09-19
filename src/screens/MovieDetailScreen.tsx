@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Orbit, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
-import { useSimilarFilms } from '../hooks/useSimilarFilms';
+import { useSimilarFilms, type SimilarMovie } from '../hooks/useSimilarFilms';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useCalendarLogs } from '../hooks/useCalendarLogs';
-import { useTheater } from '../contexts/TheaterContext';
+import { useTheater } from '../contexts/useTheater';
+import { theaterCardModel } from '../lib/theater';
 import MovieActions from '../components/MovieActions';
 import TheaterCard from '../components/TheaterCard';
 import RatingBadges from '../components/RatingBadges';
@@ -40,18 +41,15 @@ export default function MovieDetailScreen() {
   const { isInWatchlist, removeFromWatchlist, getWatchlistItem } = useWatchlist();
   const { addEvent } = useCalendarLogs();
   const {
-    clickedMovies,
-    addMovie,
-    patternInsight,
-    isAnalyzing,
-    showMoreMovies,
-    showMoreResults,
-    isLoadingMore,
+    session,
+    recordFilmView,
+    recordDetailExit,
+    markTheaterEngaged,
     keepTheater,
-    isKeepingTheater,
-    theaterKept,
-    dismissPattern,
+    dismissTheater,
+    isKeeping,
   } = useTheater();
+  const theater = theaterCardModel(session);
   
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
@@ -125,30 +123,37 @@ export default function MovieDetailScreen() {
   }, [preSelectedDate, isPastDate, showRatingPicker, showSuccessState]);
 
   // Log movie view for activity tracking
+  const viewedId = details?.id ?? null;
+  const viewedTitle = details?.title ?? null;
   useEffect(() => {
-    if (details && user?.uid) {
-      void recordTasteEvent(
-        user.uid,
-        { type: 'movie_viewed', movieId: details.id, title: details.title },
-        { email: user.email }
-      );
-    }
-  }, [details?.id, user?.uid, user?.email]);
+    if (viewedId === null || !viewedTitle || !user?.uid) return;
+    void recordTasteEvent(
+      user.uid,
+      { type: 'movie_viewed', movieId: viewedId, title: viewedTitle },
+      { email: user.email }
+    );
+  }, [viewedId, viewedTitle, user?.uid, user?.email]);
 
-  // Track this movie view for pattern detection
   useEffect(() => {
-    if (details) {
-      addMovie({
-        id: details.id,
-        title: details.title,
-        year: details.year,
-        posterPath: details.posterPath,
-        backdropPath: details.backdropPath,
-        genres: details.genres,
-        mediaType: details.mediaType,
-      });
-    }
-  }, [details, addMovie]);
+    if (!details || fromOrbit) return;
+    recordFilmView({
+      id: details.id,
+      title: details.title,
+      year: details.year,
+      posterPath: details.posterPath,
+      backdropPath: details.backdropPath,
+      genres: details.genres,
+      director: details.director,
+      mediaType: details.mediaType,
+    });
+  }, [details, fromOrbit, recordFilmView]);
+
+  useEffect(() => {
+    const filmId = id ? Number(id) : Number.NaN;
+    if (!Number.isFinite(filmId) || fromOrbit) return;
+    const enteredAt = Date.now();
+    return () => recordDetailExit(filmId, Date.now() - enteredAt);
+  }, [id, fromOrbit, recordDetailExit]);
 
   const handleBack = () => {
     navigate(-1);
@@ -165,8 +170,6 @@ export default function MovieDetailScreen() {
     }
     setIsMuted(!isMuted);
   };
-
-  const showTheaterCard = clickedMovies.length >= 3 && patternInsight;
 
   const handleAddToCalendar = useCallback(async () => {
     if (!details || !user) return;
@@ -196,6 +199,7 @@ export default function MovieDetailScreen() {
         : normalizedDate;
 
       const isPast = isPastDate(selectedDate);
+      markTheaterEngaged(details.id);
 
       // The calendar hook mirrors watched nights into the film ledger.
       await addEvent({
@@ -235,13 +239,14 @@ export default function MovieDetailScreen() {
     } finally {
       setIsAddingToCalendar(false);
     }
-  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate, getWatchlistItem, removeFromWatchlist, libraryFilm?.watchCount]);
+  }, [details, user, preSelectedDate, showDatePicker, showRatingPicker, selectedDate, selectedRating, isPastDate, addEvent, navigate, getWatchlistItem, removeFromWatchlist, libraryFilm?.watchCount, markTheaterEngaged]);
 
 
   const handleVerdict = useCallback(async (verdict: Verdict) => {
     if (!details || !user) return;
 
     setIsMarkingSeen(true);
+    markTheaterEngaged(details.id);
     try {
       await setLedgerVerdict(
         user.uid,
@@ -271,9 +276,9 @@ export default function MovieDetailScreen() {
     } finally {
       setIsMarkingSeen(false);
     }
-  }, [details, user, getWatchlistItem, removeFromWatchlist]);
+  }, [details, user, getWatchlistItem, removeFromWatchlist, markTheaterEngaged]);
 
-  const handleSimilarMovieClick = (movie: any) => {
+  const handleSimilarMovieClick = (movie: SimilarMovie) => {
     navigate(`/movie/${movie.id}?type=movie`);
   };
 
@@ -542,31 +547,15 @@ export default function MovieDetailScreen() {
           </div>
         )}
 
-        {/* Pattern Detection */}
-        {showTheaterCard && (
-          <div className="relative">
-            <button
-              onClick={dismissPattern}
-              className="absolute top-2 right-2 z-10 p-1 rounded-full text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X size={14} />
-            </button>
-            <TheaterCard
-              compact
-              insight={patternInsight}
-              isAnalyzing={isAnalyzing}
-              onShowMore={showMoreMovies}
-              onKeepTheater={keepTheater}
-              isLoadingMore={isLoadingMore}
-              isKeepingTheater={isKeepingTheater}
-              theaterKept={theaterKept}
-              movieCount={clickedMovies.length}
-              showMoreResults={showMoreResults}
-              onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
-              triggerMovies={clickedMovies.map(m => ({ id: m.id, title: m.title, posterPath: m.posterPath }))}
-            />
-          </div>
+        {theater && (
+          <TheaterCard
+            compact
+            {...theater}
+            onKeep={() => void keepTheater()}
+            onDismiss={dismissTheater}
+            onFilmClick={(film) => navigate(`/movie/${film.id}?type=${film.mediaType}`)}
+            isKeeping={isKeeping}
+          />
         )}
 
         {/* Similar Films — 2-column poster grid */}

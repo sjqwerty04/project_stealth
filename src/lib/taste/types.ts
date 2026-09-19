@@ -107,6 +107,8 @@ export type ImportDigest = {
   curious?: FilmRef[];
 };
 
+export type TheaterTasteEvent = { type: 'theater'; insight: string; movieIds: number[] };
+
 export type TasteEvent =
   | {
       type: 'onboarding';
@@ -148,6 +150,7 @@ export type TasteEvent =
       toTitle: string;
     }
   | { type: 'import'; source: FilmSource; count: number; digest?: ImportDigest }
+  | TheaterTasteEvent
   | { type: 'pattern'; insight: string; movieIds: number[] }
   | { type: 'identity'; personaLine: string; insightCards?: string[] }
   | { type: 'last_picks'; picks: TastePick[] };

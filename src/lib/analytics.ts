@@ -54,27 +54,6 @@ export const logMovieDetailViewed = async (movieId: number, title: string) => {
   }
 };
 
-export const logPatternTriggered = async (movieCount: number) => {
-  const analytics = await analyticsPromise;
-  if (analytics) {
-    logEvent(analytics, 'pattern_triggered', { movie_count: movieCount });
-  }
-};
-
-export const logShowMoreTapped = async () => {
-  const analytics = await analyticsPromise;
-  if (analytics) {
-    logEvent(analytics, 'show_more_tapped');
-  }
-};
-
-export const logTheaterKept = async (movieCount: number) => {
-  const analytics = await analyticsPromise;
-  if (analytics) {
-    logEvent(analytics, 'theater_kept', { movie_count: movieCount });
-  }
-};
-
 export const logMovieAddedFromDiscovery = async (movieId: number, action: 'calendar' | 'watchlist' | 'seen') => {
   const analytics = await analyticsPromise;
   if (analytics) {

@@ -31,6 +31,7 @@ function activityFor(event: TasteEvent): { action: ActivityAction; metadata: Rec
           toMovieTitle: event.toTitle,
         },
       };
+    case 'theater':
     case 'pattern':
       return null;
     default:
