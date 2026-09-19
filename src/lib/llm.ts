@@ -1,3 +1,5 @@
+import { apiUrl } from './apiUrl';
+
 const CACHE_PREFIX = 'llm_cache_';
 const CACHE_TTL = 1000 * 60 * 60 * 24;
 
@@ -145,7 +147,7 @@ export const callLlm = async (
       throw new Error('Prompt exceeds maximum length');
     }
 
-    const response = await fetch('/api/llm', {
+    const response = await fetch(apiUrl('/api/llm'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

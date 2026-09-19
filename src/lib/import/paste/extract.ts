@@ -1,4 +1,5 @@
 import { parseListText, type ListIntent, type ParsedItem, type ParsedList } from './heuristics';
+import { apiUrl } from '../../apiUrl';
 
 export type ExtractSource = 'paste' | 'screenshot';
 
@@ -7,7 +8,7 @@ type ApiResult = { items: ApiItem[]; intent: ListIntent; confidence: number };
 
 async function callExtract(body: { text?: string; images?: string[] }): Promise<ApiResult | null> {
   try {
-    const res = await fetch('/api/list-extract', {
+    const res = await fetch(apiUrl('/api/list-extract'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { callLlm } from '../lib/llm';
 import { loadSkill } from '../lib/skills';
+import { apiUrl } from '../lib/apiUrl';
 
 export function useMovieKnownFor(
   title: string | undefined,
@@ -18,7 +19,7 @@ export function useMovieKnownFor(
       try {
         const params = new URLSearchParams({ title, year: year || '' });
         if (taste) params.set('taste', taste.slice(0, 400));
-        const res = await fetch(`/api/movie-known-for?${params}`);
+        const res = await fetch(apiUrl(`/api/movie-known-for?${params}`));
         const data = res.ok ? await res.json() : { knownFor: null };
 
         if (!cancelled && data.knownFor) {
