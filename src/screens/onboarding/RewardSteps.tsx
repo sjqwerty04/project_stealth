@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { Insight, SelectsProfile, TasteStats } from '../../lib/onboarding/profile';
 import type { TasteGraph as TasteGraphModel } from '../../lib/onboarding/graph';
 import ReadingDisc from '../../components/onboarding/ReadingDisc';
@@ -86,21 +86,35 @@ export function NegativeProfileStep({
       <div className="flex-1 flex items-center justify-center min-h-0 py-2 select-none" {...press}>
         <TasteGraph graph={graph} accent={stats.colourHex} />
       </div>
-      {profile.archetype && (
+      <AnimatePresence mode="wait" initial={false}>
+        {profile.archetype && (
+          <motion.p
+            key={profile.archetype}
+            className="font-display text-[34px] leading-none tracking-tight"
+            style={{ color: stats.colourHex }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            data-testid="profile-archetype"
+          >
+            {profile.archetype}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>
         <motion.p
-          className="font-display text-[34px] leading-none tracking-tight"
-          style={{ color: stats.colourHex }}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          data-testid="profile-archetype"
+          key={profile.read}
+          className="text-fg text-base leading-snug mt-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          data-testid="profile-read"
         >
-          {profile.archetype}
+          {profile.read}
         </motion.p>
-      )}
-      <p className="text-fg text-base leading-snug mt-2" data-testid="profile-read">
-        {profile.read}
-      </p>
+      </AnimatePresence>
       <div className="mt-5 pt-4 border-t border-line flex items-center gap-3">
         <span className="inline-block w-4 h-4" style={{ background: stats.colourHex }} aria-hidden />
         <Label>Your colour</Label>

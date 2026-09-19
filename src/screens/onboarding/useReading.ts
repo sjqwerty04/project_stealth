@@ -50,20 +50,24 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
       (k) => state.imports[k].status === 'done',
     );
 
-    const settle = async (stats: TasteStats, profile: SelectsProfile) => {
-      if (settled || cancelled) return;
-      settled = true;
-      dispatch({ type: 'statsReady', stats });
-      dispatch({ type: 'profileReady', profile });
+    const persist = async (stats: TasteStats, profile: SelectsProfile, source: 'grok' | 'template') => {
       try {
         await setDoc(
           doc(db, 'users', uid, 'profile_data', 'selects_profile'),
-          { stats, profile, createdAt: serverTimestamp(), version: 1 },
+          { stats, profile, source, createdAt: serverTimestamp(), version: 1 },
           { merge: true },
         );
       } catch (e) {
         console.error('Failed to persist selects profile:', e);
       }
+    };
+
+    const settle = (stats: TasteStats, profile: SelectsProfile, source: 'grok' | 'template') => {
+      if (settled || cancelled) return;
+      settled = true;
+      dispatch({ type: 'statsReady', stats });
+      dispatch({ type: 'profileReady', profile });
+      void persist(stats, profile, source);
       const wait = Math.max(0, READING_MIN_MS - (Date.now() - startedAt));
       setTimeout(() => {
         if (!cancelled) dispatch({ type: 'goto', step: 'negativeProfile' });
@@ -108,8 +112,17 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
         profilePromise,
         new Promise<null>((resolve) => setTimeout(() => resolve(null), remaining)),
       ]);
-      if (!profile) controller.abort();
-      settle(stats, profile ?? fallback);
+      if (profile) {
+        settle(stats, profile, 'grok');
+        return;
+      }
+      // The deadline passed. Show the template now and let the model's read replace it when it lands.
+      settle(stats, fallback, 'template');
+      const late = await profilePromise;
+      if (late && !cancelled) {
+        dispatch({ type: 'profileReady', profile: late });
+        void persist(stats, late, 'grok');
+      }
     })();
 
     return () => {
