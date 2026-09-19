@@ -52,7 +52,7 @@ describe('buildTasteGraph', () => {
     }
   });
 
-  it('builds four clusters of 6 to 10, 6 to 8 ghosts, three bridges and dashed ghost edges', () => {
+  it('builds four clusters of 10 to 16, 6 to 8 ghosts, three bridges and dashed ghost edges', () => {
     for (const seed of ['a', 'b', 'c', 'd', 'e']) {
       const g = buildTasteGraph(seed, colours);
       const solid = g.nodes.filter((n) => !n.ghost);
@@ -61,8 +61,8 @@ describe('buildTasteGraph', () => {
       expect(clusters.size).toBe(4);
       for (const c of clusters) {
         const size = solid.filter((n) => n.cluster === c).length;
-        expect(size).toBeGreaterThanOrEqual(6);
-        expect(size).toBeLessThanOrEqual(10);
+        expect(size).toBeGreaterThanOrEqual(10);
+        expect(size).toBeLessThanOrEqual(16);
       }
       expect(ghosts.length).toBeGreaterThanOrEqual(6);
       expect(ghosts.length).toBeLessThanOrEqual(8);

@@ -103,7 +103,7 @@ export default function OnboardingScreen() {
 
   return (
     <LayoutGroup>
-      <div className="min-h-screen bg-base flex flex-col" data-testid="onboarding-screen" data-step={state.step}>
+      <div className="h-dvh min-h-screen overflow-hidden bg-base flex flex-col" data-testid="onboarding-screen" data-step={state.step}>
         {showProgress && (
           <div className="flex gap-1.5 px-7 pt-6" aria-label="Onboarding progress">
             {STEP_ORDER.slice(1).map((s, i) => (

@@ -36,8 +36,8 @@ function jitter(rand: () => number): number {
 const CLUSTERS = 4;
 const GHOST_MIN = 6;
 const GHOST_MAX = 8;
-const NODES_MIN = 6;
-const NODES_MAX = 10;
+const NODES_MIN = 10;
+const NODES_MAX = 16;
 
 type Pt = { x: number; y: number };
 

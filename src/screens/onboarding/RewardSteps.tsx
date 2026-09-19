@@ -76,10 +76,12 @@ export function NegativeProfileStep({
   );
   const press = useLongPress(share);
   return (
-    <div className="flex-1 flex flex-col min-h-0 px-7">
+    <div className="flex-1 flex flex-col min-h-0 px-7 overflow-y-auto no-scrollbar">
       <Label>The negative</Label>
       <Label className="mt-1">
-        Struck from {stats.filmsRead} films · It will change
+        {stats.filmsRead > 0
+          ? `Struck from ${stats.filmsRead} films · It will change`
+          : `Struck from ${stats.positive.length + stats.negative.length} picks · It will change`}
       </Label>
       <div className="flex-1 flex items-center justify-center min-h-0 py-2 select-none" {...press}>
         <TasteGraph graph={graph} accent={stats.colourHex} />
