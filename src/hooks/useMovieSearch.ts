@@ -45,7 +45,7 @@ export type SearchResult = {
   mediaType: 'movie' | 'tv';
 };
 
-export type VibeList = {
+export type CuratedList = {
   title: string;
   description: string;
   movies: SearchResult[];
@@ -88,7 +88,6 @@ const classifyQuery = (query: string): { mode: SearchMode } => {
   return { mode: 'standard' };
 };
 
-// Fetch user preference context for personalized vibes
 const fetchUserContext = async (userId: string): Promise<string> => {
   try {
     const snapshot = await getTaste(userId);
@@ -104,8 +103,8 @@ export function useMovieSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchMetadata, setSearchMetadata] = useState<SearchMetadata>({ mode: 'standard' });
-  const [vibeList, setVibeList] = useState<VibeList | null>(null);
-  const [isLoadingVibe, setIsLoadingVibe] = useState(false);
+  const [curatedList, setCuratedList] = useState<CuratedList | null>(null);
+  const [isLoadingCuratedList, setIsLoadingCuratedList] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string>('');
   const { user } = useAuth();
@@ -122,7 +121,7 @@ export function useMovieSearch() {
     
     if (!trimmedQuery) {
       setResults([]);
-      setVibeList(null);
+      setCuratedList(null);
       setSearchMetadata({ mode: 'standard' });
       return [];
     }
@@ -135,7 +134,7 @@ export function useMovieSearch() {
 
     setIsSearching(true);
     setError(null);
-    setVibeList(null);
+    setCuratedList(null);
 
     try {
       // Classify query intent
@@ -224,9 +223,8 @@ ${tasteBlock}
           }
         }
         
-        // Trigger personalized vibe list in parallel for AI queries
         if (user?.uid) {
-          generateVibeList(trimmedQuery, '');
+          generateCuratedList(trimmedQuery, '');
         }
         
         if (searchResults.length === 0) {
@@ -384,20 +382,18 @@ ${tasteBlock}
     } finally {
       setIsSearching(false);
     }
-  }, [user?.uid]); // Depend on user ID for personalized vibes
+  }, [user?.uid]);
 
-  // Generate personalized vibe list (runs in background)
-  const generateVibeList = useCallback(async (query: string, genreHint: string) => {
+  const generateCuratedList = useCallback(async (query: string, genreHint: string) => {
     if (!user?.uid) return;
     
-    setIsLoadingVibe(true);
+    setIsLoadingCuratedList(true);
     
     try {
-      // Fetch user context
       const taste = await fetchUserContext(user.uid);
       const contextString = taste ? `\nViewer taste: ${taste}` : '';
       
-      const vibePrompt = `<task>
+      const curatedListPrompt = `<task>
 Create a personalized movie recommendation list based on the user's search query and their viewing history.
 Query: "${query}"
 Genre hint: "${genreHint}"${contextString}
@@ -407,7 +403,7 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
 
 <rules>
 - Make the list title punchy and personalized (e.g., "Gritty Crime for the Heat Lover")
-- Include a brief description of the vibe/theme
+- Include a brief description of the theme
 - Recommend diverse but thematically connected films
 - Consider the user's viewing history when available
 - Output ONLY valid JSON, no markdown
@@ -416,7 +412,7 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
 <output_format>
 {
   "title": "List Title",
-  "description": "Brief description of the vibe",
+  "description": "Brief description of the theme",
   "movies": [
     {"title": "Movie Title", "year": "2020"},
     {"title": "Another Movie", "year": "2015"}
@@ -424,17 +420,17 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
 }
 </output_format>`;
 
-      const aiResponse = await callLlm(vibePrompt, 'You are a film curator creating personalized movie lists.');
+      const aiResponse = await callLlm(curatedListPrompt, 'You are a film curator creating personalized movie lists.');
       
       if (aiResponse) {
         try {
           // Extract JSON from response
           const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            const vibeData: { title: string; description: string; movies: {title: string, year: string}[] } = JSON.parse(jsonMatch[0]);
+            const curatedListData: { title: string; description: string; movies: {title: string, year: string}[] } = JSON.parse(jsonMatch[0]);
             
             // Hydrate movies via TMDB (with year fallback)
-            const hydratePromises = vibeData.movies.map(async (m) => {
+            const hydratePromises = curatedListData.movies.map(async (m) => {
               try {
                 // First try with year for precision
                 let res = await fetch(
@@ -465,7 +461,7 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
                   };
                 }
               } catch (err) {
-                console.error('Failed to hydrate vibe movie:', m.title, err);
+                console.error('Failed to hydrate curated list movie:', m.title, err);
               }
               return null;
             });
@@ -474,28 +470,28 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
             const validMovies = hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
             
             if (validMovies.length > 0) {
-              setVibeList({
-                title: vibeData.title,
-                description: vibeData.description,
+              setCuratedList({
+                title: curatedListData.title,
+                description: curatedListData.description,
                 movies: validMovies,
               });
             }
           }
         } catch (err) {
-          console.error('Failed to parse vibe response:', err);
+          console.error('Failed to parse curated list response:', err);
         }
       }
     } catch (err) {
-      console.error('Failed to generate vibe list:', err);
+      console.error('Failed to generate curated list:', err);
     } finally {
-      setIsLoadingVibe(false);
+      setIsLoadingCuratedList(false);
     }
   }, [user?.uid]);
 
   const clearResults = useCallback(() => {
     setResults([]);
     setError(null);
-    setVibeList(null);
+    setCuratedList(null);
     setSearchMetadata({ mode: 'standard' });
     lastQueryRef.current = '';
   }, []);
@@ -505,8 +501,8 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
     isSearching,
     error,
     searchMetadata,
-    vibeList,
-    isLoadingVibe,
+    curatedList,
+    isLoadingCuratedList,
     searchMovies,
     clearResults,
   };

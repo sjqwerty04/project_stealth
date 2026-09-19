@@ -68,10 +68,10 @@ export const logShowMoreTapped = async () => {
   }
 };
 
-export const logVibeSaved = async (movieCount: number) => {
+export const logTheaterKept = async (movieCount: number) => {
   const analytics = await analyticsPromise;
   if (analytics) {
-    logEvent(analytics, 'vibe_saved', { movie_count: movieCount });
+    logEvent(analytics, 'theater_kept', { movie_count: movieCount });
   }
 };
 

@@ -9,7 +9,7 @@ export type ActivityAction =
   | 'search_performed'
   | 'orbit_started'
   | 'orbit_swipe'
-  | 'vibe_saved'
+  | 'theater_kept'
   | 'session_started'
   | 'error_occurred';
 
@@ -108,8 +108,8 @@ export const createActivityLogger = (userId: string, userEmail: string) => {
         toMovieTitle 
       }),
     
-    vibeSaved: (pattern: string, movieCount: number) =>
-      logActivity(userId, userEmail, 'vibe_saved', { pattern, movieCount }),
+    theaterKept: (insight: string, movieCount: number) =>
+      logActivity(userId, userEmail, 'theater_kept', { insight, movieCount }),
     
     sessionStarted: () =>
       logActivity(userId, userEmail, 'session_started', {}),

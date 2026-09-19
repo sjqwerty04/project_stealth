@@ -3,12 +3,12 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
-import { useSimilarVibes } from '../hooks/useSimilarVibes';
+import { useSimilarFilms } from '../hooks/useSimilarFilms';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useCalendarLogs } from '../hooks/useCalendarLogs';
-import { useExploration } from '../contexts/ExplorationContext';
+import { useTheater } from '../contexts/TheaterContext';
 import MovieActions from '../components/MovieActions';
-import PatternAssistant from '../components/PatternAssistant';
+import TheaterCard from '../components/TheaterCard';
 import RatingBadges from '../components/RatingBadges';
 import TechBadges from '../components/TechBadges';
 import StarterPrompts from '../components/StarterPrompts';
@@ -36,7 +36,7 @@ export default function MovieDetailScreen() {
   
   const { user } = useAuth();
   const { details, isLoading, error, fetchDetails } = useMovieDetails();
-  const { similarMovies, isLoading: isLoadingSimilar, loadMore, hasMore } = useSimilarVibes();
+  const { similarMovies, isLoading: isLoadingSimilar, loadMore, hasMore } = useSimilarFilms();
   const { isInWatchlist, removeFromWatchlist, getWatchlistItem } = useWatchlist();
   const { addEvent } = useCalendarLogs();
   const {
@@ -47,11 +47,11 @@ export default function MovieDetailScreen() {
     showMoreMovies,
     showMoreResults,
     isLoadingMore,
-    saveVibe,
-    isSavingVibe,
-    vibeSaved,
+    keepTheater,
+    isKeepingTheater,
+    theaterKept,
     dismissPattern,
-  } = useExploration();
+  } = useTheater();
   
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
@@ -166,7 +166,7 @@ export default function MovieDetailScreen() {
     setIsMuted(!isMuted);
   };
 
-  const showPatternAssistant = clickedMovies.length >= 3 && patternInsight;
+  const showTheaterCard = clickedMovies.length >= 3 && patternInsight;
 
   const handleAddToCalendar = useCallback(async () => {
     if (!details || !user) return;
@@ -543,7 +543,7 @@ export default function MovieDetailScreen() {
         )}
 
         {/* Pattern Detection */}
-        {showPatternAssistant && (
+        {showTheaterCard && (
           <div className="relative">
             <button
               onClick={dismissPattern}
@@ -552,15 +552,15 @@ export default function MovieDetailScreen() {
             >
               <X size={14} />
             </button>
-            <PatternAssistant
+            <TheaterCard
               compact
               insight={patternInsight}
               isAnalyzing={isAnalyzing}
               onShowMore={showMoreMovies}
-              onSaveVibe={saveVibe}
+              onKeepTheater={keepTheater}
               isLoadingMore={isLoadingMore}
-              isSavingVibe={isSavingVibe}
-              vibeSaved={vibeSaved}
+              isKeepingTheater={isKeepingTheater}
+              theaterKept={theaterKept}
               movieCount={clickedMovies.length}
               showMoreResults={showMoreResults}
               onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
@@ -603,7 +603,7 @@ export default function MovieDetailScreen() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 text-center py-8 text-sm">Finding similar vibes…</p>
+            <p className="text-gray-600 text-center py-8 text-sm">Finding similar films…</p>
           )}
           {hasMore && (
             <button

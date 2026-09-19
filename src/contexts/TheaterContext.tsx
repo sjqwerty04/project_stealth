@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { addDoc, serverTimestamp } from 'firebase/firestore';
+import { legacyTheatersCollection } from '../lib/legacyTheaters';
 import { useAuth } from '../hooks/useAuth';
 import { callLlm } from '../lib/llm';
 import { recordTasteEvent } from '../lib/taste';
@@ -15,7 +15,7 @@ type ExploredMovie = {
   mediaType: 'movie' | 'tv';
 };
 
-type ExplorationContextType = {
+type TheaterContextType = {
   clickedMovies: ExploredMovie[];
   addMovie: (movie: ExploredMovie) => void;
   resetSession: () => void;
@@ -24,20 +24,18 @@ type ExplorationContextType = {
   showMoreMovies: () => Promise<any[]>;
   showMoreResults: any[];
   isLoadingMore: boolean;
-  saveVibe: () => Promise<boolean>;
-  isSavingVibe: boolean;
-  vibeSaved: boolean;
+  keepTheater: () => Promise<boolean>;
+  isKeepingTheater: boolean;
+  theaterKept: boolean;
   dismissPattern: () => void;
 };
 
-const ExplorationContext = createContext<ExplorationContextType | null>(null);
+const TheaterContext = createContext<TheaterContextType | null>(null);
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
-// System prompt for pattern analysis
 const PATTERN_SYSTEM_PROMPT = `You are a film-obsessed cinephile with encyclopedic knowledge of cinema. You excel at identifying meaningful patterns in viewing behavior. Your voice is playful and Letterboxd-style.`;
 
-// Pattern analysis prompt using XML structure
 const PATTERN_PROMPT = `<task>
 Determine if there's a MEANINGFUL pattern in the user's browsed movies.
 </task>
@@ -78,10 +76,8 @@ If NO clear pattern: Respond with exactly "NO_PATTERN"
 - Never force a pattern if none exists
 </rules>`;
 
-// System prompt for show more recommendations
-const SHOW_MORE_SYSTEM_PROMPT = `You are an expert film curator who specializes in pattern recognition and recommending films that match specific vibes, themes, and aesthetics.`;
+const SHOW_MORE_SYSTEM_PROMPT = `You are an expert film curator who specializes in pattern recognition and recommending films that match specific moods, themes, and aesthetics.`;
 
-// Show more recommendations prompt
 const SHOW_MORE_PROMPT = `<task>
 Suggest 10 movies that perfectly match the detected viewing pattern.
 </task>
@@ -127,23 +123,21 @@ const searchTMDB = async (title: string, year?: string): Promise<any | null> => 
   }
 };
 
-export function ExplorationProvider({ children }: { children: ReactNode }) {
+export function TheaterProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [clickedMovies, setClickedMovies] = useState<ExploredMovie[]>([]);
   const [patternInsight, setPatternInsight] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isSavingVibe, setIsSavingVibe] = useState(false);
+  const [isKeepingTheater, setIsKeepingTheater] = useState(false);
   const [showMoreResults, setShowMoreResults] = useState<any[]>([]);
-  const [vibeSaved, setVibeSaved] = useState(false);
+  const [theaterKept, setTheaterKept] = useState(false);
   
-  // Track which movie count we've already analyzed to prevent re-analysis
   const lastAnalyzedCountRef = useRef(0);
 
   const analyzePattern = useCallback(async (movies: ExploredMovie[]) => {
     if (movies.length < 3) return;
     
-    // Only analyze if we have new movies since last analysis
     if (movies.length <= lastAnalyzedCountRef.current) return;
     lastAnalyzedCountRef.current = movies.length;
 
@@ -156,7 +150,6 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
       const prompt = PATTERN_PROMPT.replace('{movieList}', movieList);
       const insight = await callLlm(prompt, PATTERN_SYSTEM_PROMPT);
       
-      // Only set pattern if it's valid (not NO_PATTERN)
       if (insight && !insight.trim().includes('NO_PATTERN')) {
         setPatternInsight(insight.trim());
         if (user?.uid) {
@@ -178,14 +171,12 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
 
   const addMovie = useCallback((movie: ExploredMovie) => {
     setClickedMovies((prev) => {
-      // Don't add duplicates
       if (prev.some((m) => m.id === movie.id && m.mediaType === movie.mediaType)) {
         return prev;
       }
       
       const updated = [...prev, movie];
       
-      // Trigger pattern analysis at 3+ movies (only if new)
       if (updated.length >= 3 && updated.length > lastAnalyzedCountRef.current) {
         analyzePattern(updated);
       }
@@ -198,7 +189,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
     setClickedMovies([]);
     setPatternInsight(null);
     setShowMoreResults([]);
-    setVibeSaved(false);
+    setTheaterKept(false);
     lastAnalyzedCountRef.current = 0;
   }, []);
 
@@ -220,13 +211,11 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
       const response = await callLlm(prompt, SHOW_MORE_SYSTEM_PROMPT);
       if (!response) return [];
 
-      // Parse JSON response
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (!jsonMatch) return [];
 
       const suggestions = JSON.parse(jsonMatch[0]);
       
-      // Fetch TMDB details for each suggestion
       const detailedResults = await Promise.all(
         suggestions.slice(0, 10).map(async (s: { title: string; year: string }) => {
           const tmdb = await searchTMDB(s.title, s.year);
@@ -256,13 +245,12 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
     }
   }, [patternInsight, clickedMovies]);
 
-  const saveVibe = useCallback(async (): Promise<boolean> => {
+  const keepTheater = useCallback(async (): Promise<boolean> => {
     if (!user || !patternInsight || clickedMovies.length < 3) return false;
 
-    setIsSavingVibe(true);
+    setIsKeepingTheater(true);
     try {
-      const vibesRef = collection(db, 'users', user.uid, 'saved_vibes');
-      await addDoc(vibesRef, {
+      await addDoc(legacyTheatersCollection(user.uid), {
         pattern: patternInsight,
         movies: clickedMovies.map((m) => ({
           id: m.id,
@@ -273,18 +261,18 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         })),
         createdAt: serverTimestamp(),
       });
-      setVibeSaved(true);
+      setTheaterKept(true);
       return true;
     } catch (error) {
-      console.error('Failed to save vibe:', error);
+      console.error('Failed to keep Theater:', error);
       return false;
     } finally {
-      setIsSavingVibe(false);
+      setIsKeepingTheater(false);
     }
   }, [user, patternInsight, clickedMovies]);
 
   return (
-    <ExplorationContext.Provider
+    <TheaterContext.Provider
       value={{
         clickedMovies,
         addMovie,
@@ -294,21 +282,21 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         showMoreMovies,
         showMoreResults,
         isLoadingMore,
-        saveVibe,
-        isSavingVibe,
-        vibeSaved,
+        keepTheater,
+        isKeepingTheater,
+        theaterKept,
         dismissPattern,
       }}
     >
       {children}
-    </ExplorationContext.Provider>
+    </TheaterContext.Provider>
   );
 }
 
-export function useExploration() {
-  const context = useContext(ExplorationContext);
+export function useTheater() {
+  const context = useContext(TheaterContext);
   if (!context) {
-    throw new Error('useExploration must be used within an ExplorationProvider');
+    throw new Error('useTheater must be used within a TheaterProvider');
   }
   return context;
 }

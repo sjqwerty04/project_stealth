@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ExplorationProvider } from './contexts/ExplorationContext';
+import { TheaterProvider } from './contexts/TheaterContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import FeedbackFAB from './components/FeedbackFAB';
 import ClaimHandleBanner from './components/ClaimHandleBanner';
@@ -14,7 +14,7 @@ import MovieCalendarApp from './prototype/MovieCalendarApp';
 import CleanupIMDBCalendar from './components/CleanupIMDBCalendar';
 import DiscoverScreen from './screens/DiscoverScreen';
 import MovieDetailScreen from './screens/MovieDetailScreen';
-import SavedVibesScreen from './screens/SavedVibesScreen';
+import TheatersScreen from './screens/TheatersScreen';
 import OrbitScreen from './screens/OrbitScreen';
 import DNAScreen from './screens/DNAScreen';
 import SharedWatchlistsScreen from './screens/SharedWatchlistsScreen';
@@ -28,12 +28,13 @@ import JoinScreen from './screens/JoinScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import AppShell from './components/AppShell';
 import SelectsCarouselPreviewScreen from './screens/SelectsCarouselPreviewScreen';
+import { LEGACY_THEATER_ROUTES } from './lib/legacyTheaters';
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ExplorationProvider>
+        <TheaterProvider>
           <ClaimHandleBanner />
           <AppShell>
           <Routes>
@@ -136,13 +137,16 @@ export default function App() {
               }
             />
             <Route
-              path="/vibes"
+              path="/theaters"
               element={
                 <ProtectedRoute>
-                  <SavedVibesScreen />
+                  <TheatersScreen />
                 </ProtectedRoute>
               }
             />
+            {LEGACY_THEATER_ROUTES.map((legacyPath) => (
+              <Route key={legacyPath} path={legacyPath} element={<Navigate to="/theaters" replace />} />
+            ))}
             <Route
               path="/orbit/:id"
               element={
@@ -171,7 +175,7 @@ export default function App() {
           </Routes>
           </AppShell>
           <PWAUpdatePrompt />
-        </ExplorationProvider>
+        </TheaterProvider>
       </AuthProvider>
     </BrowserRouter>
   );

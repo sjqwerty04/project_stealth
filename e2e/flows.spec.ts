@@ -237,8 +237,8 @@ test('F10 Library', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: /shared lists/i }).click();
   await expect(page).toHaveURL(/\/shared/);
   await page.getByTestId('tab-library').click();
-  await page.getByRole('button', { name: /vibes/i }).click();
-  await expect(page).toHaveURL(/\/vibes/);
+  await page.getByRole('button', { name: /theaters/i }).click();
+  await expect(page).toHaveURL(/\/theaters/);
   await gate(page, 'F10', testInfo.project.name);
   await dumpConsole(page, 'F10', testInfo.project.name, logs);
 });

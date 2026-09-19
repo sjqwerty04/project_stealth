@@ -66,7 +66,7 @@ def main():
             "Action Type",
             ["All Actions", "movie_viewed", "movie_logged", "movie_rated", 
              "search_performed", "orbit_started", "orbit_swipe", 
-             "vibe_saved", "session_started", "error_occurred"]
+             "theater_kept", "vibe_saved", "session_started", "error_occurred"]
         )
     
     # Get all activity logs
@@ -144,7 +144,7 @@ def main():
                     details = metadata.get("movieTitle", "Unknown movie")
                 elif action == "error_occurred":
                     details = metadata.get("errorMessage", "Unknown error")[:50]
-                elif action == "vibe_saved":
+                elif action in ("theater_kept", "vibe_saved"):
                     details = f"{metadata.get('movieCount', 0)} movies"
                 
                 data.append({

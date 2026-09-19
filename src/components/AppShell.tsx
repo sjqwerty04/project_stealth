@@ -12,7 +12,7 @@ const TAB_PREFIXES = [
   '/liked',
   '/saved',
   '/shared',
-  '/vibes',
+  '/theaters',
   '/me',
 ];
 

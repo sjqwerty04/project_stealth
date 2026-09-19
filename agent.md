@@ -29,7 +29,7 @@ Selects solves this by combining:
 1. **Taste memory** (calendar logs, likes/dislikes, watchlist),
 2. **Taste reasoning** (Grok prompts for "why this"),
 3. **Taste exploration** (Orbit directional browsing),
-4. **Taste continuity** (imports, saved vibes, watched timelines).
+4. **Taste continuity** (imports, kept Theaters, watched timelines).
 
 ### Primary user jobs-to-be-done
 
@@ -43,7 +43,7 @@ Selects solves this by combining:
 - **Capture**: Log watched/planned films by date.
 - **Recommend**: Generate one high-confidence recommendation with rationale.
 - **Explore**: Navigate taste space (Orbit).
-- **Remember**: Persist history, skips, vibes, watchlist.
+- **Remember**: Persist history, skips, Theaters, watchlist.
 
 ---
 
@@ -87,6 +87,7 @@ Selects solves this by combining:
 - `firestore.indexes.json`: Firestore query/index performance support.
 - `tsconfig*.json`: TypeScript compile topology (app/node split).
 - `README.md`: developer run/deploy instructions.
+- `scripts/codemod-theater-vocabulary.mjs`: Theater vocabulary codemod and guard (`npm run check:theater-vocabulary`).
 
 ### `src/` (main product app)
 
@@ -97,7 +98,7 @@ Selects solves this by combining:
 ### `src/contexts/`
 
 - `AuthContext.tsx`: source of truth for auth + whitelist gating.
-- `ExplorationContext.tsx`: stateful "taste exploration" logic and vibe intelligence.
+- `TheaterContext.tsx`: stateful "taste exploration" logic and Theater intelligence.
 
 ### `src/hooks/`
 
@@ -110,7 +111,7 @@ Hooks encapsulate each domain boundary so UI remains declarative:
 - `useMovieSearch.ts`: TMDB-backed discovery search.
 - `useMovieDetails.ts`: movie detail aggregation from TMDB/OMDb.
 - `useWatchlist.ts`: watchlist CRUD.
-- `useSimilarVibes.ts`: adjacent recommendations/vibe graph behavior.
+- `useSimilarFilms.ts`: similar-film recommendations for movie detail.
 - `useExplorationSession.ts`: session behavior for discovery interactions.
 - `useIMDBImport.ts`: IMDb URL/CSV ingestion and normalization.
 - `useLetterboxdImport.ts`: Letterboxd ingest path.
@@ -125,6 +126,7 @@ Shared infrastructure/adapters:
 - `orbitEngine.ts`: directional recommendation engine for Orbit.
 - `analytics.ts`: product analytics events.
 - `activityLogger.ts`: durable activity logging.
+- `legacyTheaters.ts`: named adapter for the pre-rename Theater collection and the legacy Theater route redirects.
 - `haptics.ts`: haptic effect abstraction.
 
 ### `src/screens/`
@@ -139,7 +141,7 @@ Route-level product surfaces:
 - `OrbitScreen.tsx`: directional cinematic exploration mode.
 - `WatchedScreen.tsx`: watched timeline + imports.
 - `WatchlistScreen.tsx`: watchlist management + imports.
-- `SavedVibesScreen.tsx`: saved preference pattern retrieval.
+- `TheatersScreen.tsx`: kept Theater retrieval.
 
 ### `src/components/`
 
@@ -148,10 +150,9 @@ Composable UI primitives and vertical features:
 - `ProtectedRoute.tsx`: auth/whitelist route gatekeeper.
 - `RecommendationCard.tsx`: "next watch" interaction unit.
 - `SearchResultCard.tsx`: search result rendering.
-- `PatternAssistant.tsx`: insight UI for discovery patterns.
+- `TheaterCard.tsx`: insight UI for discovery patterns.
 - `MovieActions.tsx`: repeated movie action controls.
 - `RatingBadges.tsx`, `TechBadges.tsx`: attribution/value signal overlays.
-- `ProfileDropdown.tsx`: account controls.
 - `FeedbackFAB.tsx`, `FeedbackModal.tsx`: user feedback capture.
 - `CleanupIMDBCalendar.tsx`: data hygiene tool for imported entries.
 
@@ -245,7 +246,7 @@ Why: transforms static recommendation into an exploratory "taste map."
 
 ### Data continuity
 
-`/watched`, `/watchlist`, `/cleanup`, `/vibes`.
+`/watched`, `/watchlist`, `/cleanup`, `/theaters`. The legacy Theater routes in `src/lib/legacyTheaters.ts` redirect to `/theaters`.
 
 Why: preserve user trust by making data visible, editable, and recoverable.
 
@@ -261,7 +262,7 @@ Defined by `firestore.rules`:
 - `watched_recommendations`: explicit recommendation outcomes.
 - `watchlist`: future intent queue.
 - `skipped_recommendations`: temporary suppression buffer.
-- `saved_vibes`: persisted taste-profile snapshots.
+- `theaters`: kept Theaters. Until copy-forward lands, reads and writes still go to the legacy collection through `src/lib/legacyTheaters.ts`.
 - `feedback_inbox`, `activity_logs`: telemetry and ops lanes.
 
 Rationale: per-user subcollections isolate concerns and simplify rule logic.

@@ -24,7 +24,7 @@ function tabActive(id: string, pathname: string) {
       pathname.startsWith('/liked') ||
       pathname.startsWith('/saved') ||
       pathname.startsWith('/shared') ||
-      pathname.startsWith('/vibes')
+      pathname.startsWith('/theaters')
     );
   }
   return pathname === '/me';
