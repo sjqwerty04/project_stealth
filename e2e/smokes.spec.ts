@@ -51,6 +51,6 @@ test('F-smoke-splash', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await page.goto('/');
   await page.waitForTimeout(800);
-  await expect(page).toHaveURL(/\/(login|app|waitlist|onboarding)/);
+  await expect(page).toHaveURL(/\/(login|app|onboarding)/);
   await dumpConsole(page, 'F-smoke-splash', testInfo.project.name, logs);
 });

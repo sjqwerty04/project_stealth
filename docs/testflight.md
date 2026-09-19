@@ -1,0 +1,46 @@
+# How to ship Selects to TestFlight
+
+Friends install the iOS app from a TestFlight link and create an account.
+
+This Linux cloud VM cannot archive the IPA. GitHub Actions `macos-latest` runs `.github/workflows/ios-testflight.yml`.
+
+`workflow_dispatch` only appears under Actions after this file is on `main`. Until then, a push to `brranchh-testflight-ios-13e6` runs the same workflow. The `require-secrets` job exits if the three API secrets are missing, so a macOS archive does not start.
+
+## 1. Create an App Store Connect API key
+
+You need a paid Apple Developer Program membership on team `L37YSKFC5X`.
+
+1. Open [App Store Connect](https://appstoreconnect.apple.com) and sign in.
+2. Open Users and Access.
+3. Open Integrations, then App Store Connect API.
+4. Click Generate API Key. Name it `selects-testflight`. Access: Admin, so Fastlane can create the Selects app record if it does not exist.
+5. Copy the Issuer ID at the top of the keys list.
+6. Copy the Key ID on the new row.
+7. Download the `.p8` file. Apple lets you download it once. Open it in a text editor and copy the whole PEM, including `BEGIN` and `END` lines.
+
+You do not need to click New App first. The Fastlane `produce` step creates bundle id `com.moviecally.app` and SKU `selects-ios` when they are missing. `get_certificates` and `get_provisioning_profile` then create an Apple Distribution certificate and an App Store profile on team `L37YSKFC5X`. The macos runner has an empty keychain, so those two steps have to run before `build_app`.
+
+## 2. Add GitHub Actions secrets
+
+In this GitHub repo, open Settings, Secrets and variables, Actions. Create these secrets:
+
+- `APP_STORE_CONNECT_API_KEY_ID` is the Key ID.
+- `APP_STORE_CONNECT_ISSUER_ID` is the Issuer ID.
+- `APP_STORE_CONNECT_API_KEY` is the full `.p8` text.
+- `TESTFLIGHT_CONTACT_PHONE` is optional. It is the phone Apple reviewers can call. Without it the IPA still uploads. External Friends review and the public join link wait until this secret exists.
+
+## 3. Run the workflow
+
+After the secrets exist, push to this branch or open Actions, iOS TestFlight, Run workflow (once the file is on `main`).
+
+A green macOS job uploaded a build. The ubuntu `require-secrets` job failing with missing `APP_STORE_CONNECT_*` means step 2 is incomplete. `check-app-icon` failing means `AppIcon-512@2x.png` is not 1024x1024 RGB. Apple rejects marketing icons that still have an alpha channel. Re-run `scripts/generate-selects-icons.py` so the iOS icon is opaque RGB, then confirm with `python3 scripts/check-app-icon.py`.
+
+## 4. Invite friends
+
+If `TESTFLIGHT_CONTACT_PHONE` is set, a green macos job waits for Apple to process the build. It then submits the build to an external TestFlight group named `Friends` and turns on the public link. The first external build still needs Beta App Review. After Apple approves it, the join URL is `https://testflight.apple.com/join/...` in the job summary and in App Store Connect.
+
+If that phone secret is empty, the IPA still uploads. Internal testers (people you add under Users and Access) can install as soon as processing finishes. They do not wait on Beta App Review. External Friends review waits.
+
+The privacy policy Apple fetches is `/privacy`. That path is static HTML, so a crawler does not need JavaScript. Fastlane defaults to `https://selects-film.vercel.app/privacy`. This branch sets `TESTFLIGHT_PRIVACY_URL` to the Vercel preview because production still serves the SPA shell.
+
+Friends open the public link on iPhone, install TestFlight if needed, then install Selects. They create an account on the login screen.

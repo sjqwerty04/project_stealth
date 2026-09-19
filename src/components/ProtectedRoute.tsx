@@ -6,7 +6,7 @@ type ProtectedRouteProps = {
 };
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading, isWhitelisted } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -17,7 +17,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (isWhitelisted === false) return <Navigate to="/waitlist" replace />;
 
   return <>{children}</>;
 }

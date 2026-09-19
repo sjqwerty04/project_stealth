@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isNativePlatform } from '../lib/native';
 import { Mark, Button, Input } from '../components/ui';
 
 type Step = 'email' | 'choose' | 'signin' | 'signup';
 
 export default function LoginScreen() {
-  const { checkWhitelist, signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get('next');
   const isSafeNext = !!nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//');
+  const showGoogle = !isNativePlatform();
   const goAfterAuth = (isNew = false) => {
     if (isNew) {
       const dest = isSafeNext ? nextPath! : '/app';
@@ -33,24 +35,8 @@ export default function LoginScreen() {
       setError('Please enter your email');
       return;
     }
-
-    setLoading(true);
     setError('');
-
-    try {
-      const whitelisted = await checkWhitelist(email);
-      const hasInvite =
-        !!sessionStorage.getItem('pendingInviteCode') || !!sessionStorage.getItem('appInvite');
-      if (whitelisted || hasInvite) {
-        setStep('choose');
-      } else {
-        navigate('/waitlist', { replace: true });
-      }
-    } catch {
-      setError('Unable to verify access. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setStep('choose');
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -99,9 +85,7 @@ export default function LoginScreen() {
       await signUp(email, password);
       goAfterAuth(true);
     } catch (err: any) {
-      if (err.message === 'Email not whitelisted') {
-        navigate('/waitlist', { replace: true });
-      } else if (err.code === 'auth/email-already-in-use') {
+      if (err.code === 'auth/email-already-in-use') {
         setError('Account already exists. Try signing in instead.');
       } else {
         setError('Sign up failed. Please try again.');
@@ -117,12 +101,8 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
       goAfterAuth();
-    } catch (err: any) {
-      if (err.message === 'Email not whitelisted') {
-        navigate('/waitlist', { replace: true });
-      } else {
-        setError('Google sign in failed. Please try again.');
-      }
+    } catch {
+      setError('Google sign in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -159,9 +139,17 @@ export default function LoginScreen() {
             <Button type="submit" className="w-full" loading={loading}>
               Continue
             </Button>
-            <Button type="button" kind="secondary" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
-              Continue with Google
-            </Button>
+            {showGoogle && (
+              <Button type="button" kind="secondary" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+                Continue with Google
+              </Button>
+            )}
+            <Link
+              to="/privacy"
+              className="block text-center font-spec text-[10px] uppercase tracking-widest text-fg-3"
+            >
+              Privacy
+            </Link>
           </form>
         )}
 
@@ -231,9 +219,6 @@ export default function LoginScreen() {
           </form>
         )}
       </div>
-      <p className="absolute bottom-8 font-spec text-[10px] uppercase tracking-widest text-fg-3">
-        Invite only. For now.
-      </p>
     </div>
   );
 }
