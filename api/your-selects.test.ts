@@ -64,4 +64,16 @@ describe('your-selects request', () => {
       { title: 'Manhunter', year: '1986', whyMatch: '', confidence: 0.9, id: '11454' },
     ]);
   });
+
+  it('uniques duplicate titles and ids before slicing to the requested count', () => {
+    const picks = [
+      { title: 'Heat', year: '1995', whyMatch: '', confidence: 0.9, id: '949' },
+      { title: 'HEAT', year: '1995', whyMatch: '', confidence: 0.8, id: '950' },
+      { title: 'Thief', year: '1981', whyMatch: '', confidence: 0.9, id: '77' },
+      { title: 'Manhunter', year: '1986', whyMatch: '', confidence: 0.9, id: '77' },
+      { title: 'Logan', year: '2017', whyMatch: '', confidence: 0.9, id: '263115' },
+    ];
+
+    expect(filterExcludedPicks(picks, [], 3).map((row) => row.title)).toEqual(['Heat', 'Thief', 'Logan']);
+  });
 });

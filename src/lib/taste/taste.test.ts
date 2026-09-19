@@ -118,6 +118,25 @@ describe('buildRecommendContext', () => {
     expect(merged.preferences).toContain('story-driven films');
   });
 
+  it('unions snapshot rec verdicts with diary history so Logan is not dropped', () => {
+    const diary = contextFromCalendarLogs([
+      { title: 'Heat', movieId: 949, rating: 'up' },
+      { title: 'Drive', movieId: 64690, rating: 'up' },
+    ]);
+    const merged = mergeRecommendContext(diary, {
+      preferences: ['story-driven films'],
+      profile: 'Night drives.',
+      constraints: {},
+      history: [
+        { item: 'Logan', rating: 5, id: '263115' },
+        { item: 'Heat', rating: 5, id: '949' },
+        { item: 'Drive', rating: 5, id: '64690' },
+      ],
+    });
+    expect(merged.history.map((row) => row.item)).toEqual(['Logan', 'Heat', 'Drive']);
+    expect(merged.history.some((row) => row.item === 'Logan' && row.id === '263115')).toBe(true);
+  });
+
   it('is empty when the diary is empty', () => {
     expect(hasMeaningfulContext(buildRecommendContext({
       identity: { personaLine: null, axis: null },
@@ -193,6 +212,34 @@ describe('applyTasteEvent', () => {
     expect(next.identity.personaLine).toBe('Mood first.');
     expect(next.generated.lastPicks[0].title).toBe('Sicario');
   });
+
+  it('busts last picks on a rec verdict so the rated film cannot reuse the 6h cache', () => {
+    const seeded = applyTasteEvent(
+      emptySnapshot(),
+      {
+        type: 'last_picks',
+        picks: [
+          {
+            movieId: 263115,
+            title: 'Logan',
+            year: 2017,
+            poster: 'x',
+            whyMatch: 'Wolverine, finally tired.',
+            confidence: 0.9,
+          },
+        ],
+      },
+      'e0',
+    );
+    const next = applyTasteEvent(
+      seeded,
+      { type: 'verdict', movieId: 263115, title: 'Logan', verdict: 'liked', source: 'rec' },
+      'e1',
+    );
+    expect(next.context.history.some((row) => row.item === 'Logan')).toBe(true);
+    expect(next.generated.lastPicks).toEqual([]);
+    expect(next.generated.lastPicksAt).toBeNull();
+  });
 });
 
 describe('parseSnapshot lastPicks', () => {
@@ -226,6 +273,11 @@ describe('parseSelectPicks', () => {
     });
     expect(fromArray[0]?.whyMatch).toBe('You just logged The Odyssey.');
     expect(fromWrapper[0]?.whyMatch).toBe('You just logged The Odyssey.');
+  });
+
+  it('copies a top-level id as well as item.id', () => {
+    expect(parseSelectPicks([{ title: 'Logan', year: '2017', id: 263115, whyMatch: 'Logan.', confidence: 0.9 }])[0]?.id).toBe('263115');
+    expect(parseSelectPicks([{ title: 'Heat', year: '1995', item: { id: '949' }, whyMatch: 'Heat.', confidence: 0.9 }])[0]?.id).toBe('949');
   });
 });
 

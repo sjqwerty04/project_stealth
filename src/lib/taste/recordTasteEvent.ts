@@ -5,6 +5,7 @@ import { applyTasteEvent, shouldRebuildDiary } from './applyEvent';
 import { emptySnapshot } from './buildRecommendContext';
 import { generateSnapshot } from './generateSnapshot';
 import { getTaste, tasteDoc } from './getTaste';
+import { clearSelectsCache } from './selectsCache';
 import { GENERATE_DEBOUNCE_MS, type TasteEvent } from './types';
 
 const pending = new Map<string, ReturnType<typeof setTimeout>>();
@@ -38,6 +39,10 @@ function activityFor(event: TasteEvent): { action: ActivityAction; metadata: Rec
   }
 }
 
+function shouldBustSelectsCache(event: TasteEvent) {
+  return event.type === 'verdict' || event.type === 'skip' || event.type === 'calendar_log';
+}
+
 function scheduleRebuild(uid: string, eventId: string) {
   const existing = pending.get(uid);
   if (existing) clearTimeout(existing);
@@ -64,6 +69,9 @@ export async function recordTasteEvent(
   const current = await getTaste(uid).catch(() => emptySnapshot());
   const next = applyTasteEvent(current, event, docRef.id);
   await setDoc(tasteDoc(uid), next, { merge: true });
+  if (shouldBustSelectsCache(event)) {
+    clearSelectsCache(uid);
+  }
 
   if (shouldRebuildDiary(event)) {
     scheduleRebuild(uid, docRef.id);
