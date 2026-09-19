@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, ClipboardPaste, Eye, Bookmark, Loader2, Undo2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useLibraryImport } from '../hooks/useLibraryImport';
 import { extractFromImages, extractFromText } from '../lib/import/paste/extract';
 import { bucketFor, bundleFromList, type ListIntent, type ParsedList } from '../lib/import/paste/heuristics';
-import { undoImport, type CreatedRefs } from '../lib/import/write';
+import { undoImport, type CreatedRefs, type WriteSummary } from '../lib/import/write';
 
 type Bucket = 'watched' | 'watchlist';
 type Mode = 'paste' | 'screenshot';
@@ -20,9 +20,27 @@ function itemKey(title: string, year?: string) {
  * or answers two buttons, and struck items always land in watched. Commit is immediate
  * with an eight second undo.
  */
-export default function PasteListPanel({ mode, onDone }: { mode: Mode; onDone?: (count: number) => void }) {
+export default function PasteListPanel({
+  mode,
+  onDone,
+  onStart,
+  onError,
+  onResult,
+}: {
+  mode: Mode;
+  onDone?: (count: number) => void;
+  /** Fires when the user commits the list, before writing starts. */
+  onStart?: () => void;
+  onError?: (message: string) => void;
+  onResult?: (summary: WriteSummary) => void;
+}) {
   const { user } = useAuth();
-  const { importBundle, isImporting, progress, label } = useLibraryImport();
+  const { importBundle, isImporting, progress, label, phase, error: importError } = useLibraryImport();
+
+  // The hook's error is only current after a re-render, so report it from an effect.
+  useEffect(() => {
+    if (phase === 'error' && importError) onError?.(importError);
+  }, [phase, importError, onError]);
   const imageInput = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [reading, setReading] = useState(false);
@@ -95,8 +113,10 @@ export default function PasteListPanel({ mode, onDone }: { mode: Mode; onDone?: 
     async (chosen: ListIntent) => {
       if (!parsed || !user) return;
       const bundle = bundleFromList(parsed.items, chosen, mode, overrides);
+      onStart?.();
       const result = await importBundle(bundle);
       if (!result) return;
+      onResult?.(result);
       const count = result.films + result.watchlist;
       setUndo({ created: result.created, count });
       setParsed(null);
@@ -105,7 +125,7 @@ export default function PasteListPanel({ mode, onDone }: { mode: Mode; onDone?: 
       undoTimer.current = window.setTimeout(() => setUndo(null), UNDO_MS);
       onDone?.(count);
     },
-    [parsed, user, mode, overrides, importBundle, onDone],
+    [parsed, user, mode, overrides, importBundle, onDone, onStart, onResult],
   );
 
   const runUndo = useCallback(async () => {
