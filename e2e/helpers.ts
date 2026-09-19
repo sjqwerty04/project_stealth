@@ -93,6 +93,23 @@ export async function completeOnboarding(page: Page) {
   await page.waitForURL(/\/app/, { timeout: 20000 });
 }
 
+export async function signupFreshAccount(page: Page, password = 'SelectsVerify9') {
+  const email = uniqueEmail();
+  await page.goto('/join');
+  await page.waitForURL(/\/login/, { timeout: 15000 });
+  await page.getByLabel(/email/i).fill(email);
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.getByRole('button', { name: /create new account/i }).click();
+  await page.getByLabel(/^password$/i).fill(password);
+  await page.getByLabel(/confirm password/i).fill(password);
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.waitForURL(/\/onboarding/, { timeout: 25000 });
+  await completeOnboarding(page);
+  fs.mkdirSync(path.dirname(CREDS_PATH), { recursive: true });
+  fs.writeFileSync(CREDS_PATH, JSON.stringify({ email, password }));
+  return { email, password };
+}
+
 export async function ensureAuthed(page: Page) {
   const creds = fs.existsSync(CREDS_PATH) ? JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) : null;
   await page.goto('/app');
@@ -113,7 +130,10 @@ export async function ensureAuthed(page: Page) {
     return;
   }
   if (!(await tabs.isVisible().catch(() => false))) {
-    if (!creds) throw new Error('No saved F2 creds');
+    if (!creds) {
+      await signupFreshAccount(page);
+      return;
+    }
     await signIn(page, creds.email, creds.password);
   }
   if (page.url().includes('/onboarding')) {
