@@ -1,9 +1,15 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FolderOpen, Loader2, Upload } from 'lucide-react';
 import { useLibraryImport } from '../hooks/useLibraryImport';
+import type { WriteSummary } from '../lib/import/write';
 
 type Props = {
   onDone?: (count: number) => void;
+  /** Fires the moment files are accepted, before reading starts. */
+  onStart?: () => void;
+  onError?: (message: string) => void;
+  /** The full write summary, for callers that count films rather than rows. */
+  onResult?: (summary: WriteSummary) => void;
   compact?: boolean;
   testId?: string;
 };
@@ -12,19 +18,28 @@ type Props = {
  * Accepts a Letterboxd export zip, its unzipped folder, loose CSVs, or an IMDb ratings.csv.
  * Detection is by CSV header, never by filename.
  */
-export default function ImportDropZone({ onDone, compact = false, testId = 'import-dropzone' }: Props) {
+export default function ImportDropZone({ onDone, onStart, onError, onResult, compact = false, testId = 'import-dropzone' }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const { phase, label, progress, summary, unresolved, error, isImporting, importFiles } = useLibraryImport();
 
+  // The hook's error is only current after a re-render, so report it from an effect.
+  useEffect(() => {
+    if (phase === 'error' && error) onError?.(error);
+  }, [phase, error, onError]);
+
   const handleFiles = useCallback(
     async (list: FileList | File[] | null) => {
       if (!list || !list.length) return;
+      onStart?.();
       const result = await importFiles(Array.from(list));
-      if (result) onDone?.(result.films + result.nights + result.watchlist);
+      if (result) {
+        onResult?.(result);
+        onDone?.(result.films + result.nights + result.watchlist);
+      }
     },
-    [importFiles, onDone],
+    [importFiles, onDone, onStart, onResult],
   );
 
   const onDrop = useCallback(

@@ -7,6 +7,8 @@ describe('parseListLine', () => {
     expect(parseListLine('- "Drive" 2011 - 4/5')).toMatchObject({ title: 'Drive', year: '2011', stars: 4 });
     expect(parseListLine('• Her, 2013 8/10')).toMatchObject({ title: 'Her', year: '2013', stars: 4 });
     expect(parseListLine('Tron 1982 - 1.5')).toMatchObject({ title: 'Tron', year: '1982', stars: 1.5 });
+    expect(parseListLine('Whiplash (2014) *****')).toMatchObject({ title: 'Whiplash', year: '2014', stars: 5 });
+    expect(parseListLine('Sicario *** 2015')).toMatchObject({ title: 'Sicario', year: '2015', stars: 3 });
     expect(parseListLine('Conclave')).toMatchObject({ title: 'Conclave', year: undefined, stars: undefined, struck: false });
   });
 

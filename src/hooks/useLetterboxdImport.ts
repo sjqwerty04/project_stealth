@@ -4,6 +4,12 @@ import { useLibraryImport } from './useLibraryImport';
 
 const CORS_PROXIES = ['https://corsproxy.io/?', 'https://api.codetabs.com/v1/proxy?quest='];
 
+/** Our own function first, since Letterboxd serves the feed to a server with browser headers. Public proxies are the fallback. */
+function feedUrls(username: string): string[] {
+  const rssUrl = `https://letterboxd.com/${username}/rss/`;
+  return [`/api/letterboxd-rating?rss=${encodeURIComponent(username)}`, ...CORS_PROXIES.map((p) => `${p}${encodeURIComponent(rssUrl)}`)];
+}
+
 /** The public RSS feed is the last ~50 diary entries. The export zip is the full library. */
 export function bundleFromRss(xmlText: string): ImportBundle {
   const bundle = emptyBundle('letterboxd');
@@ -56,11 +62,10 @@ export function useLetterboxdImport() {
     async (username: string): Promise<number> => {
       setError(null);
       setImportedCount(0);
-      const rssUrl = `https://letterboxd.com/${username.trim()}/rss/`;
       let xmlText = '';
-      for (const proxy of CORS_PROXIES) {
+      for (const url of feedUrls(username.trim())) {
         try {
-          const res = await fetch(`${proxy}${encodeURIComponent(rssUrl)}`);
+          const res = await fetch(url);
           if (res.status === 404) {
             setError(`User "${username}" not found on Letterboxd`);
             return 0;

@@ -10,6 +10,8 @@ import {
   clearSession,
   signIn,
   completeOnboarding,
+  answerOnboardingQuestions,
+  finishOnboardingReward,
   ensureAuthed,
   gate,
 } from './helpers';
@@ -267,6 +269,9 @@ const LOOKUP_FIXTURE: Record<string, { id: number; title: string; year: string }
   whiplash: { id: 244786, title: 'Whiplash', year: '2014' },
   sinners: { id: 1233413, title: 'Sinners', year: '2025' },
   sicario: { id: 273481, title: 'Sicario', year: '2015' },
+  'good will hunting': { id: 489, title: 'Good Will Hunting', year: '1997' },
+  'the dark knight': { id: 155, title: 'The Dark Knight', year: '2008' },
+  'pulp fiction': { id: 680, title: 'Pulp Fiction', year: '1994' },
 };
 
 async function fixtureZip(): Promise<Buffer> {
@@ -286,25 +291,7 @@ async function fixtureZip(): Promise<Buffer> {
 
 test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
-  await page.route('**/api/movie-lookup**', async (route) => {
-    const url = new URL(route.request().url());
-    const title = (url.searchParams.get('title') || '').toLowerCase();
-    const hit = LOOKUP_FIXTURE[title];
-    if (!hit) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'not_found' }) });
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ...hit,
-        poster: `https://placehold.co/200x300?text=${encodeURIComponent(hit.title)}`,
-        backdrop: null,
-        logo: null,
-        still: null,
-        runtime: '2h 0m',
-        mediaType: 'movie',
-      }),
-    });
-  });
+  await mockMovieLookup(page);
   // A fresh account so counts are exact. Re-importing into an existing one dedupes to zero nights.
   await page.goto('/join');
   await page.waitForURL(/\/login/, { timeout: 15000 });
@@ -349,4 +336,104 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   await expect(page.getByTestId('diary-day-film').first()).toBeVisible();
   await page.screenshot({ path: path.join('artifacts', 'verify', `F15-${testInfo.project.name}`, 'diary-day.png') });
   await dumpConsole(page, 'F15', testInfo.project.name, logs);
+});
+
+async function signUpFresh(page: PageLike) {
+  await page.goto('/join');
+  await page.waitForURL(/\/login/, { timeout: 15000 });
+  await page.getByLabel(/email/i).fill(uniqueEmail());
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.getByRole('button', { name: /create new account/i }).click();
+  await page.getByLabel(/^password$/i).fill('SelectsVerify9');
+  await page.getByLabel(/confirm password/i).fill('SelectsVerify9');
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.waitForURL(/\/onboarding/, { timeout: 25000 });
+}
+
+async function mockMovieLookup(page: PageLike) {
+  await page.route('**/api/movie-lookup**', async (route) => {
+    const url = new URL(route.request().url());
+    const title = (url.searchParams.get('title') || '').toLowerCase();
+    const hit = LOOKUP_FIXTURE[title];
+    if (!hit) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'not_found' }) });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...hit,
+        poster: `https://placehold.co/200x300?text=${encodeURIComponent(hit.title)}`,
+        backdrop: null,
+        logo: null,
+        still: null,
+        runtime: '2h 0m',
+        mediaType: 'movie',
+      }),
+    });
+  });
+}
+
+test('F16 Onboarding import hub, three sources', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await mockMovieLookup(page);
+  await signUpFresh(page);
+  await answerOnboardingQuestions(page);
+  const shot = (name: string) => page.screenshot({ path: path.join('artifacts', 'verify', `F16-${testInfo.project.name}`, `${name}.png`) });
+  await expect(page.getByTestId('import-hub')).toBeVisible();
+  await expect(page.getByTestId('onboarding-cta')).toBeDisabled();
+
+  await page.getByTestId('import-tile-letterboxd').click();
+  const zip = await fixtureZip();
+  await page.getByTestId('import-letterboxd-drop-input').setInputFiles({ name: 'letterboxd-jane.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByTestId('import-letterboxd-drop-done')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('import-films-read')).toContainText('7');
+  await shot('after-letterboxd');
+
+  await page.getByTestId('import-tile-imdb').click();
+  const csv = fs.readFileSync(path.join(process.cwd(), 'e2e', 'fixtures', 'imdb-ratings.csv'));
+  await page.getByTestId('import-imdb-drop-input').setInputFiles({ name: 'ratings.csv', mimeType: 'text/csv', buffer: csv });
+  await expect(page.getByTestId('import-imdb-drop-done')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('import-films-read')).toContainText('10');
+  await shot('after-imdb');
+
+  await page.getByTestId('import-tile-notes').click();
+  const notes = fs.readFileSync(path.join(process.cwd(), 'e2e', 'fixtures', 'notes.txt'), 'utf8');
+  await page.getByTestId('paste-textarea').fill(notes);
+  await page.getByTestId('paste-read').click();
+  await page.getByTestId('paste-commit').click({ timeout: 30000 });
+  await expect(page.getByTestId('paste-done')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('import-films-read')).toContainText('13');
+  await shot('after-notes');
+
+  await expect(page.getByTestId('onboarding-cta')).toBeEnabled();
+  await page.getByTestId('onboarding-cta').click();
+  await page.getByTestId('onboarding-reading').waitFor({ timeout: 20000 });
+  await shot('reading');
+  await finishOnboardingReward(page);
+  await expect(page.getByTestId('home-strip')).toBeVisible();
+  await page.goto('/watched');
+  await expect(page.getByTestId('watched-count')).toContainText(/1[0-9] films/, { timeout: 30000 });
+  await shot('watched');
+  await dumpConsole(page, 'F16', testInfo.project.name, logs);
+});
+
+test('F17 Onboarding reward without an import', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await signUpFresh(page);
+  await answerOnboardingQuestions(page);
+  await page.getByTestId('onboarding-skip-lb').click();
+  await page.getByTestId('onboarding-reading').waitFor({ timeout: 20000 });
+  await page.getByTestId('onboarding-6').waitFor({ timeout: 30000 });
+  await expect(page.getByTestId('taste-graph')).toBeVisible();
+  await expect(page.getByTestId('profile-archetype')).toHaveText('NOCTURNALIST');
+  await expect(page.getByTestId('profile-colour')).toHaveText(/^#[0-9A-F]{6}$/);
+  await page.screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'negative.png') });
+  await page.getByRole('button', { name: /^insights$/i }).click();
+  await page.getByTestId('onboarding-7').waitFor();
+  await expect(page.getByTestId('insight-card')).toHaveCount(10);
+  await expect(page.locator('[data-testid="insight-card"][data-tone="sharp"]')).toHaveCount(2);
+  await page.screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'insights.png'), fullPage: true });
+  await page.getByRole('button', { name: /open the assembly/i }).click();
+  await page.waitForURL(/\/app/, { timeout: 20000 });
+  await expect(page.getByTestId('home-strip')).toBeVisible();
+  await dumpConsole(page, 'F17', testInfo.project.name, logs);
 });

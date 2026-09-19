@@ -62,35 +62,64 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.waitForURL(/\/app|\/onboarding/, { timeout: 20000 });
 }
 
-export async function completeOnboarding(page: Page) {
+/** The Grok author is mocked so the reward is deterministic and the run never depends on xAI. */
+export const PROFILE_FIXTURE = {
+  archetype: 'NOCTURNALIST',
+  read: 'You watch at night, and you go back to the same six people.',
+  insights: [
+    { title: 'THE COUNT', headline: '7', body: 'films read. Fourteen hours, give or take a trailer.', tone: 'warm' },
+    { title: 'THE ANCHOR', headline: 'Heat.', body: 'The one you would rent the theatre for.', tone: 'warm' },
+    { title: 'THE DECADE', headline: '2010s.', body: 'Where most of your logs land.', tone: 'warm' },
+    { title: 'THE COMPANY', headline: 'Denis Villeneuve.', body: 'The name that keeps turning up.', tone: 'warm' },
+    { title: 'THE HOUR', headline: 'You watch late.', body: '61% of your logs start after 10pm.', tone: 'warm' },
+    { title: 'THE GENRE', headline: 'Crime.', body: 'The shelf you reach for first.', tone: 'warm' },
+    { title: 'THE LENS', headline: 'Story.', body: 'How you judge, which is not the same as what you like.', tone: 'warm' },
+    { title: 'THE COLOUR', headline: '#3A6E85', body: 'The average of the posters you have lived with.', tone: 'warm' },
+    { title: 'THE RESISTANCE', headline: 'Dune never landed.', body: 'Everyone else queued twice. You stayed home.', tone: 'sharp' },
+    { title: 'ONE IN FIVE', headline: 'You have never rewatched anything you gave five stars.', body: 'Make of that what you like.', tone: 'sharp' },
+  ],
+};
+
+export async function mockProfileApi(page: Page) {
+  await page.route('**/api/selects-profile', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ profile: PROFILE_FIXTURE, source: 'mock' }) }),
+  );
+}
+
+/** Splash through the three questions, stopping on the import hub. */
+export async function answerOnboardingQuestions(page: Page) {
+  await mockProfileApi(page);
   await page.getByRole('button', { name: /begin/i }).click();
+  await page.getByTestId('onboarding-1').waitFor();
   const film = page.getByTestId('film-pick').first();
   await film.waitFor({ timeout: 20000 });
   await film.click();
-  await page.getByRole('button', { name: /^next$/i }).click();
-  await page.getByTestId('onboarding-2').waitFor();
-  const next = page.getByRole('button', { name: /^next$/i });
-  await next.waitFor({ state: 'visible' });
-  await page.waitForTimeout(500);
-  if (await next.isEnabled()) {
-    await next.click();
-  } else {
-    await next.waitFor({ timeout: 12000 });
-    await next.click({ timeout: 12000 }).catch(async () => {
-      await page.waitForTimeout(2000);
-      await next.click();
-    });
-  }
+  await page.getByTestId('pick-hero').waitFor();
+  await page.getByRole('button', { name: /next · 1 picked/i }).click();
   await page.getByTestId('onboarding-3').waitFor();
-  await page.getByRole('button', { name: /^next$/i }).click();
+  await page.getByRole('button', { name: /next · or skip/i }).click();
   await page.getByTestId('onboarding-4').waitFor();
   await page.getByRole('button', { name: /flawless screenplay/i }).click();
-  await page.getByRole('button', { name: /continue/i }).click();
-  await page.getByTestId('onboarding-5').waitFor();
-  await page.getByTestId('onboarding-skip-lb').click();
-  await page.getByTestId('onboarding-6').waitFor();
-  await page.getByTestId('onboarding-skip').click();
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.getByTestId('onboarding-5').waitFor({ timeout: 20000 });
+}
+
+/** Reading through Insights and into the app. */
+export async function finishOnboardingReward(page: Page) {
+  await page.getByTestId('onboarding-reading').waitFor({ timeout: 20000 });
+  await page.getByTestId('onboarding-6').waitFor({ timeout: 30000 });
+  await page.getByTestId('profile-read').waitFor();
+  await page.getByRole('button', { name: /^insights$/i }).click();
+  await page.getByTestId('onboarding-7').waitFor();
+  await page.getByTestId('insight-card').first().waitFor();
+  await page.getByRole('button', { name: /open the assembly/i }).click();
   await page.waitForURL(/\/app/, { timeout: 20000 });
+}
+
+export async function completeOnboarding(page: Page) {
+  await answerOnboardingQuestions(page);
+  await page.getByTestId('onboarding-skip-lb').click();
+  await finishOnboardingReward(page);
 }
 
 export async function signupFreshAccount(page: Page, password = 'SelectsVerify9') {
