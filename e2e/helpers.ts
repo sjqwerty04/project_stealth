@@ -93,6 +93,35 @@ export async function completeOnboarding(page: Page) {
   await page.waitForURL(/\/app/, { timeout: 20000 });
 }
 
+export async function ensureAuthed(page: Page) {
+  const creds = fs.existsSync(CREDS_PATH) ? JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) : null;
+  await page.goto('/app');
+  await page.waitForLoadState('domcontentloaded');
+  const tabs = page.getByTestId('tab-bar');
+  const email = page.getByLabel(/email/i);
+  try {
+    await Promise.race([
+      tabs.waitFor({ state: 'visible', timeout: 20000 }),
+      email.waitFor({ state: 'visible', timeout: 20000 }),
+      page.getByTestId('onboarding-0').waitFor({ state: 'visible', timeout: 20000 }),
+    ]);
+  } catch {
+    // fall through
+  }
+  if (page.url().includes('/onboarding') || (await page.getByTestId('onboarding-0').isVisible().catch(() => false))) {
+    await completeOnboarding(page);
+    return;
+  }
+  if (!(await tabs.isVisible().catch(() => false))) {
+    if (!creds) throw new Error('No saved F2 creds');
+    await signIn(page, creds.email, creds.password);
+  }
+  if (page.url().includes('/onboarding')) {
+    await completeOnboarding(page);
+  }
+  await tabs.waitFor({ state: 'visible', timeout: 20000 });
+}
+
 export async function gate(page: Page, flowId: string, viewport: string) {
   const report = await runThresholds(page, flowId, viewport);
   if (!report.pass) {

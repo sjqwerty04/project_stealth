@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
 import { relatedFromWhy } from './selectsCarouselLogic';
+import { dayStageKey, isSelectsDismissTarget, parseAppDateParam } from './homeStripLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
@@ -230,11 +232,13 @@ function DayStage({
   onOpen,
   watchCount = 0,
   verdict,
+  stageKey,
 }: {
   film: CalendarEvent;
   onOpen: () => void;
   watchCount?: number;
   verdict?: ReturnType<typeof eventVerdict>;
+  stageKey: string;
 }) {
   const clip = useDayClip(film);
   const shownVerdict = verdict ?? eventVerdict(film);
@@ -242,17 +246,17 @@ function DayStage({
   const logo = clip?.logo;
 
   return (
-    <button
-      type="button"
+    <div
       data-testid="day-stage"
-      aria-label={film.title}
-      onClick={onOpen}
+      data-stage-key={stageKey}
       className="absolute inset-0 overflow-hidden bg-black min-h-11"
       style={{ containerType: 'size' }}
     >
       {clip?.key ? (
         <iframe
           key={clip.key}
+          data-testid="day-stage-iframe"
+          data-clip-key={clip.key}
           title=""
           src={`https://www.youtube-nocookie.com/embed/${clip.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${clip.key}&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0`}
           allow="autoplay; encrypted-media"
@@ -269,7 +273,7 @@ function DayStage({
         )
       )}
       <span className="absolute inset-0 bg-black/30 pointer-events-none" />
-      <span className="absolute inset-0 z-10 flex items-center justify-center px-8">
+      <span className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
         {logo ? (
           <img
             src={logo}
@@ -283,7 +287,7 @@ function DayStage({
           </span>
         )}
       </span>
-      <span className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+      <span className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-none">
         {watchCount > 1 && (
           <span className="px-1.5 py-0.5 bg-black/70 font-spec text-[10px] uppercase tracking-widest text-fg" data-testid="day-stage-count">
             x{watchCount}
@@ -291,7 +295,13 @@ function DayStage({
         )}
         {shownVerdict && <VerdictBadge verdict={shownVerdict} size={18} />}
       </span>
-    </button>
+      <button
+        type="button"
+        aria-label={film.title}
+        onClick={onOpen}
+        className="absolute inset-0 z-20 min-h-11"
+      />
+    </div>
   );
 }
 
@@ -310,7 +320,9 @@ export default function HomeStrip({
   onOpenProfile?: () => void;
   onAddMovie: (date: Date) => void;
 }) {
+  const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
+  const [stageOpen, setStageOpen] = useState(true);
   const [daySheet, setDaySheet] = useState<Date | null>(null);
   const {
     picks,
@@ -377,6 +389,14 @@ export default function HomeStrip({
   }, [picks, events]);
 
   const art = useCarouselArt(slides);
+  const dateParam = searchParams.get('date');
+
+  useEffect(() => {
+    const parsed = parseAppDateParam(dateParam);
+    if (!parsed) return;
+    setSelected(parsed);
+    setStageOpen(true);
+  }, [dateParam]);
 
   useEffect(() => {
     const track = stripTrackRef.current;
@@ -394,7 +414,7 @@ export default function HomeStrip({
       data-build={import.meta.env.VITE_SELECTS_SHA || 'unknown'}
       style={{ height: 'calc(100dvh - var(--tab-h) - env(safe-area-inset-bottom))' }}
     >
-      <header className="px-7 pt-6 pb-4 flex items-start justify-between">
+      <header className="px-7 pt-6 pb-4 flex items-start justify-between shrink-0">
         <Mark variant="lockup" size={36} />
         <button
           type="button"
@@ -410,14 +430,21 @@ export default function HomeStrip({
         <button
           type="button"
           onClick={onOpenProfile}
-          className="px-7 font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-4 text-left"
+          className="px-7 font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-4 text-left shrink-0"
           data-testid="insights-label"
         >
           {insightsLabel}
         </button>
       )}
 
-      <div className="px-7 shrink-0">
+      <div
+        className="px-7 flex-1 min-h-0 overflow-y-auto"
+        data-testid="selects-scroll"
+        onClick={(event) => {
+          if (!isSelectsDismissTarget(event.target)) return;
+          setStageOpen(false);
+        }}
+      >
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
         {status === 'loading' && (
           <div data-testid="selects-skeleton">
@@ -448,22 +475,18 @@ export default function HomeStrip({
             }}
           />
         )}
+        <div className="min-h-11" data-testid="selects-dismiss" />
       </div>
 
-      <div className="flex-1 min-h-0" />
-
-      <div
-        className="fixed left-0 right-0 z-40 bg-base pt-3"
-        data-testid="strip-dock"
-        style={{ bottom: 'calc(var(--tab-h) + env(safe-area-inset-bottom))' }}
-      >
-        {dayFilm ? (
+      <div className="shrink-0 bg-base pt-3" data-testid="strip-dock">
+        {stageOpen && dayFilm ? (
           <div
-            className="relative px-7 mb-2"
+            className="relative px-7 mb-2 overflow-hidden"
             style={{ height: '28vh', maxHeight: 220, minHeight: 140 }}
           >
             <DayStage
-              key={dayFilm.movieId}
+              key={dayStageKey(selected, dayFilm.movieId)}
+              stageKey={dayStageKey(selected, dayFilm.movieId)}
               film={dayFilm}
               watchCount={library.get(dayFilm.movieId)?.watchCount ?? 0}
               verdict={library.get(dayFilm.movieId)?.verdict ?? eventVerdict(dayFilm)}
@@ -518,6 +541,7 @@ export default function HomeStrip({
                       return;
                     }
                     setSelected(d);
+                    setStageOpen(true);
                     if (!film) onAddMovie(d);
                   }}
                   className="relative flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
