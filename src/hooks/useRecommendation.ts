@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
@@ -17,6 +17,20 @@ import {
   type RecommendContext,
   type TastePick,
 } from '../lib/taste';
+import { getTaste } from '../lib/taste/getTaste';
+import {
+  executeSelectReplacement,
+  type SelectExclusion,
+  type SelectSlotId,
+} from './selectReplacement';
+
+export type { SelectSlotId };
+
+export type SelectReplacement =
+  | { slotId: SelectSlotId; phase: 'saving'; feedbackSaved: false }
+  | { slotId: SelectSlotId; phase: 'replacing'; feedbackSaved: true }
+  | { slotId: SelectSlotId; phase: 'failed'; feedbackSaved: true; message: string }
+  | null;
 
 export type RecommendationResult = {
   movieId: number;
@@ -31,6 +45,14 @@ export type RecommendationResult = {
 };
 
 export type SelectsStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
+
+type ApiSelectPick = {
+  title: string;
+  year?: string;
+  whyMatch?: string;
+  confidence?: number;
+  id?: string;
+};
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -142,6 +164,7 @@ async function hydrateTitle(title: string, year?: string, id?: string): Promise<
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
+  const events = opts?.events;
   const [picks, setPicks] = useState<RecommendationResult[]>(() => {
     if (user?.uid) {
       const hit = readSelectsCache(user.uid);
@@ -158,13 +181,25 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     return 'loading';
   });
   const [error, setError] = useState<string | null>(null);
+  const [replacement, setReplacement] = useState<SelectReplacement>(null);
+  const picksRef = useRef(picks);
+  const replacementRef = useRef<SelectReplacement>(replacement);
 
-  const diaryKey = (opts?.events ?? [])
+  const updateReplacement = useCallback((next: SelectReplacement) => {
+    replacementRef.current = next;
+    setReplacement(next);
+  }, []);
+
+  useEffect(() => {
+    picksRef.current = picks;
+  }, [picks]);
+
+  const diaryKey = (events ?? [])
     .map((e) => `${e.movieId ?? ''}:${e.title}:${e.verdict ?? e.rating ?? ''}:${e.date ?? ''}`)
     .join('|');
 
   const context = useMemo((): RecommendContext => {
-    return mergeRecommendContext(contextFromCalendarLogs(opts?.events ?? []), snapshot.context);
+    return mergeRecommendContext(contextFromCalendarLogs(events ?? []), snapshot.context);
   }, [diaryKey, snapshot.context]);
 
   const generateRecommendation = useCallback(async (force = false): Promise<RecommendationResult[] | null> => {
@@ -212,7 +247,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         const raw = Array.isArray(data.picks) ? data.picks : [];
         const hydrated = (
           await Promise.all(
-            raw.map(async (pick: { title: string; year?: string; whyMatch?: string; confidence?: number; id?: string }) => {
+            raw.map(async (pick: ApiSelectPick) => {
               const film = await hydrateTitle(pick.title, pick.year, pick.id);
               if (!film) return null;
               return {
@@ -353,6 +388,109 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
   const refreshRecommendation = useCallback(() => generateRecommendation(true), [generateRecommendation]);
 
+  const runSlotReplacement = useCallback(
+    async (slotId: SelectSlotId, verdict?: Verdict, feedbackSaved = false) => {
+      if (!user || replacementRef.current) return;
+      const current = picksRef.current;
+      const rec = current[slotId];
+      if (!rec) return;
+
+      let saved = feedbackSaved;
+      updateReplacement(
+        feedbackSaved
+          ? { slotId, phase: 'replacing', feedbackSaved: true }
+          : { slotId, phase: 'saving', feedbackSaved: false },
+      );
+      setError(null);
+
+      try {
+        const next = await executeSelectReplacement<
+          RecommendationResult,
+          ApiSelectPick,
+          RecommendContext
+        >({
+          slotId,
+          picks: current,
+          feedbackSaved,
+          saveFeedback: async () => {
+            if (!verdict) throw new Error('Verdict is required');
+            await rateRecommendation(rec, verdict);
+          },
+          onFeedbackSaved: () => {
+            saved = true;
+            updateReplacement({ slotId, phase: 'replacing', feedbackSaved: true });
+          },
+          readContext: async () => {
+            const updated = await getTaste(user.uid);
+            return mergeRecommendContext(
+              contextFromCalendarLogs(events ?? []),
+              updated.context,
+            );
+          },
+          requestPicks: async (updatedContext, excluded: SelectExclusion[]) => {
+            const res = await fetch('/api/your-selects', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ context: updatedContext, count: 1, excluded }),
+            });
+            if (!res.ok) throw new Error('Could not find another select');
+            const data = (await res.json()) as { picks?: unknown };
+            return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
+          },
+          hydratePick: async (pick) => {
+            const film = await hydrateTitle(pick.title, pick.year, pick.id);
+            if (!film) return null;
+            return {
+              ...film,
+              reason: pick.whyMatch || '',
+              confidence: typeof pick.confidence === 'number' ? pick.confidence : 1,
+            };
+          },
+          persistPicks: async (updatedPicks) => {
+            const stored = updatedPicks.map(toStored);
+            writeSelectsCache(user.uid, stored);
+            await recordTasteEvent(
+              user.uid,
+              { type: 'last_picks', picks: stored },
+              { email: user.email },
+            );
+          },
+        });
+        picksRef.current = next;
+        setPicks(next);
+        setStatus('ready');
+        updateReplacement(null);
+      } catch (err) {
+        const message =
+          err instanceof Error && err.message !== 'No new select available'
+            ? err.message
+            : 'Could not find another select';
+        if (saved) {
+          updateReplacement({ slotId, phase: 'failed', feedbackSaved: true, message });
+        } else {
+          updateReplacement(null);
+          setError('Could not save feedback');
+        }
+      }
+    },
+    [user, events, rateRecommendation, updateReplacement],
+  );
+
+  const replaceSelect = useCallback(
+    (slotId: SelectSlotId, verdict: Verdict) => runSlotReplacement(slotId, verdict, false),
+    [runSlotReplacement],
+  );
+
+  const retrySelectReplacement = useCallback(
+    (slotId: SelectSlotId) => {
+      const failed = replacementRef.current;
+      if (!failed || failed.slotId !== slotId || failed.phase !== 'failed') return Promise.resolve();
+      replacementRef.current = null;
+      return runSlotReplacement(slotId, undefined, true);
+    },
+    [runSlotReplacement],
+  );
+
   return {
     picks,
     recommendation: picks[0] ?? null,
@@ -363,5 +501,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     rateRecommendation,
     refreshRecommendation,
     skipRecommendation,
+    replacement,
+    replaceSelect,
+    retrySelectReplacement,
   };
 }

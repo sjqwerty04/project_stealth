@@ -7,7 +7,7 @@ test.describe('selects carousel wrap', () => {
     const carousel = page.getByTestId('selects-carousel');
     const track = page.getByTestId('selects-carousel-track');
     await expect(track).toHaveAttribute('data-slide', '1');
-    await expect(page.getByTestId('ticket-slot').nth(1)).toHaveAttribute('aria-label', 'Zodiac');
+    await expect(page.getByTestId('ticket-slot').nth(1)).toHaveAttribute('data-title', 'Zodiac');
 
     const box = await carousel.boundingBox();
     if (!box) throw new Error('carousel missing');
@@ -45,10 +45,30 @@ test.describe('selects carousel wrap', () => {
   test('slide shows hero, related posters, and full why copy', async ({ page }) => {
     await page.goto('/dev/selects-carousel');
     const card = page.getByTestId('ticket-slot').nth(1);
-    await expect(card).toHaveAttribute('aria-label', 'Zodiac');
+    await expect(card).toHaveAttribute('data-title', 'Zodiac');
     await expect(card.getByTestId('why-watch-label')).toHaveText(/why should i watch this/i);
     await expect(card.getByTestId('why-match-line')).toContainText("All the President's Men");
     await expect(card.getByTestId('why-match-line')).toContainText("Fincher's procedural patience");
     await expect(card.getByTestId('related-posters').locator('img')).toHaveCount(2);
+  });
+
+  test('Watched replaces one stable slot with a slot-local loader', async ({ page }) => {
+    await page.goto('/dev/selects-carousel');
+    const track = page.getByTestId('selects-carousel-track');
+
+    await page.getByTestId('watched-0').first().click();
+    await expect(page.getByRole('radio', { name: 'Liked' }).first()).toBeVisible();
+    await expect(page.getByRole('radio', { name: "It's okay" }).first()).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Nope' }).first()).toBeVisible();
+
+    await page.getByRole('radio', { name: 'Liked' }).first().click();
+    await expect(page.getByLabel(/Saving feedback|Finding another select/).first()).toBeVisible();
+    await expect(page.locator('[data-testid="ticket-slot"][data-title="The Departed"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="ticket-slot"][data-title="Heat"]')).toHaveCount(2);
+
+    await expect(page.getByLabel('Manhunter').first()).toBeVisible();
+    await expect(page.locator('[data-testid="ticket-slot"][data-title="The Departed"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="ticket-slot"][data-title="Heat"]')).toHaveCount(2);
+    await expect(track).toHaveAttribute('data-slide', '1');
   });
 });
