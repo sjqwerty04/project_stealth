@@ -12,7 +12,6 @@ type Props = {
   wall: Wall;
   selected: FilmPick[];
   onToggle: (film: FilmPick) => void;
-  limit: number;
   searchPlaceholder: string;
 };
 
@@ -136,7 +135,7 @@ function tileVariants(reduced: boolean) {
   };
 }
 
-export default function PickWall({ wall, selected, onToggle, limit, searchPlaceholder }: Props) {
+export default function PickWall({ wall, selected, onToggle, searchPlaceholder }: Props) {
   const reduced = useReducedMotion() ?? false;
   const [seed, setSeed] = useState<FilmPick[] | null>(null);
   const [tiles, setTiles] = useState<FilmPick[]>([]);
@@ -148,7 +147,6 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
   const pickSeq = useRef(0);
 
   const selectedIds = useMemo(() => new Set(selected.map((f) => f.id)), [selected]);
-  const atLimit = selected.length >= limit;
 
   useEffect(() => {
     let cancelled = false;
@@ -233,7 +231,6 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
       onToggle(film);
       return;
     }
-    if (atLimit) return;
     onToggle(film);
     if (query) setQuery('');
     void resortAround(film);
@@ -263,7 +260,7 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden"
               >
-                <div className="flex gap-1.5 pb-3">
+                <div className="flex gap-1.5 pb-3 overflow-x-auto no-scrollbar snap-x">
                   {selected.map((film) => (
                     <motion.button
                       key={film.id}
@@ -273,7 +270,9 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
                       aria-label={`Remove ${film.title}`}
                       onClick={() => handleHeroTap(film)}
                       transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-                      className="relative flex-1 h-[132px] min-w-11 overflow-hidden bg-film text-left"
+                      className={`relative h-[132px] overflow-hidden bg-film text-left ${
+                        selected.length <= 2 ? 'flex-1 min-w-0' : 'shrink-0 snap-start w-[104px]'
+                      }`}
                       style={{ borderRadius: 2 }}
                     >
                       {film.posterPath && (
@@ -322,7 +321,7 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
               {label}
             </span>
             <span className="font-spec text-[10px] uppercase tracking-[0.12em] text-fg-3 shrink-0 pl-3">
-              {selected.length}/{limit}
+              {selected.length} picked
             </span>
           </div>
         </div>
@@ -346,7 +345,6 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
               >
                 {visible.map((film, i) => {
                   const isSelected = selectedIds.has(film.id);
-                  const isDisabled = !isSelected && atLimit;
                   return (
                     <motion.button
                       key={film.id}
@@ -357,12 +355,9 @@ export default function PickWall({ wall, selected, onToggle, limit, searchPlaceh
                       data-testid="film-pick"
                       aria-label={film.title}
                       aria-pressed={isSelected}
-                      disabled={isDisabled}
                       onClick={() => handleTileTap(film)}
-                      whileTap={isDisabled ? undefined : { scale: 0.97 }}
-                      className={`relative aspect-[2/3] min-h-11 overflow-hidden bg-base-3 text-left transition-opacity duration-200 ${
-                        isDisabled ? 'opacity-30' : 'opacity-100'
-                      }`}
+                      whileTap={{ scale: 0.97 }}
+                      className="relative aspect-[2/3] min-h-11 overflow-hidden bg-base-3 text-left"
                       style={{ borderRadius: 2 }}
                     >
                       {film.posterPath ? (

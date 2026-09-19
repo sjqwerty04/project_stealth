@@ -27,7 +27,7 @@ describe('onboardingReducer', () => {
     expect(canAdvance(s)).toBe(false);
   });
 
-  it('caps positive at 3 and negative at 2, toggling off on repeat', () => {
+  it('takes any number of picks and toggles off on repeat', () => {
     const s = run([
       { type: 'togglePick', wall: 'positive', film: film(1) },
       { type: 'togglePick', wall: 'positive', film: film(2) },
@@ -38,8 +38,8 @@ describe('onboardingReducer', () => {
       { type: 'togglePick', wall: 'negative', film: film(7) },
       { type: 'togglePick', wall: 'negative', film: film(5) },
     ]);
-    expect(s.positive.map((f) => f.id)).toEqual([1, 2, 3]);
-    expect(s.negative.map((f) => f.id)).toEqual([6]);
+    expect(s.positive.map((f) => f.id)).toEqual([1, 2, 3, 4]);
+    expect(s.negative.map((f) => f.id)).toEqual([6, 7]);
   });
 
   it('negative and neutral are skippable, reading waits for stats', () => {

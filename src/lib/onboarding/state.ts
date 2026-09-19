@@ -40,8 +40,6 @@ export type ImportSourceState =
   | { status: 'done'; films: number; nights: number }
   | { status: 'error'; message: string };
 
-export const PICK_LIMIT: Record<'positive' | 'negative', number> = { positive: 3, negative: 2 };
-
 export type OnboardingState = {
   step: Step;
   positive: FilmPick[];
@@ -99,9 +97,8 @@ export function anyImportDone(state: OnboardingState): boolean {
   return Object.values(state.imports).some((s) => s.status === 'done');
 }
 
-function togglePick(list: FilmPick[], film: FilmPick, limit: number): FilmPick[] {
+function togglePick(list: FilmPick[], film: FilmPick): FilmPick[] {
   if (list.some((f) => f.id === film.id)) return list.filter((f) => f.id !== film.id);
-  if (list.length >= limit) return list;
   return [...list, film];
 }
 
@@ -121,7 +118,7 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
     case 'goto':
       return state.step === action.step ? state : { ...state, step: action.step };
     case 'togglePick': {
-      const next = togglePick(state[action.wall], action.film, PICK_LIMIT[action.wall]);
+      const next = togglePick(state[action.wall], action.film);
       return next === state[action.wall] ? state : { ...state, [action.wall]: next };
     }
     case 'toggleAxis': {

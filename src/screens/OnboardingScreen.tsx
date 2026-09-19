@@ -13,7 +13,6 @@ import {
   filmsRead,
   initialOnboardingState,
   onboardingReducer,
-  PICK_LIMIT,
   STEP_ORDER,
 } from '../lib/onboarding/state';
 import { buildTasteGraph } from '../lib/onboarding/graph';
@@ -138,7 +137,6 @@ export default function OnboardingScreen() {
                   wall="positive"
                   selected={state.positive}
                   onToggle={(film) => dispatch({ type: 'togglePick', wall: 'positive', film })}
-                  limit={PICK_LIMIT.positive}
                   searchPlaceholder="search any film"
                 />
               </div>
@@ -161,7 +159,6 @@ export default function OnboardingScreen() {
                   wall="negative"
                   selected={state.negative}
                   onToggle={(film) => dispatch({ type: 'togglePick', wall: 'negative', film })}
-                  limit={PICK_LIMIT.negative}
                   searchPlaceholder="search the ones you resisted"
                 />
               </div>
