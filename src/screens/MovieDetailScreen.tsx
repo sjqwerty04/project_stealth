@@ -60,7 +60,8 @@ export default function MovieDetailScreen() {
   const [selectedDate, setSelectedDate] = useState(preSelectedDate || new Date().toISOString().split('T')[0]);
   const [showRatingPicker, setShowRatingPicker] = useState(false);
   const [selectedRating, setSelectedRating] = useState<Verdict | null>(null);
-  const { film: libraryFilm } = useLibraryFilm(details?.id);
+  // Key the ledger on the route id, not details.id, so the status survives the offline fallback catalogue.
+  const { film: libraryFilm } = useLibraryFilm(id ? Number(id) : details?.id);
   const [showSuccessState, setShowSuccessState] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);

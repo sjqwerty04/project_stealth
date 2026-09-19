@@ -287,3 +287,96 @@ test('F14 Admin', async ({ page }, testInfo) => {
   await gate(page, 'F14', testInfo.project.name);
   await dumpConsole(page, 'F14', testInfo.project.name, logs);
 });
+
+const LOOKUP_FIXTURE: Record<string, { id: number; title: string; year: string }> = {
+  heat: { id: 949, title: 'Heat', year: '1995' },
+  tron: { id: 97, title: 'Tron', year: '1982' },
+  drive: { id: 64690, title: 'Drive', year: '2011' },
+  her: { id: 152601, title: 'Her', year: '2013' },
+  conclave: { id: 974576, title: 'Conclave', year: '2024' },
+  whiplash: { id: 244786, title: 'Whiplash', year: '2014' },
+  sinners: { id: 1233413, title: 'Sinners', year: '2025' },
+  sicario: { id: 273481, title: 'Sicario', year: '2015' },
+};
+
+async function fixtureZip(): Promise<Buffer> {
+  const { default: JSZip } = await import('jszip');
+  const root = path.join(process.cwd(), 'src', 'lib', 'import', 'letterboxd', '__fixtures__');
+  const zip = new JSZip();
+  const walk = (dir: string) => {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) walk(full);
+      else zip.file(path.relative(root, full).replace(/\\/g, '/'), fs.readFileSync(full));
+    }
+  };
+  walk(root);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+test('F15 Letterboxd export import', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await page.route('**/api/movie-lookup**', async (route) => {
+    const url = new URL(route.request().url());
+    const title = (url.searchParams.get('title') || '').toLowerCase();
+    const hit = LOOKUP_FIXTURE[title];
+    if (!hit) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'not_found' }) });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...hit,
+        poster: `https://placehold.co/200x300?text=${encodeURIComponent(hit.title)}`,
+        backdrop: null,
+        logo: null,
+        still: null,
+        runtime: '2h 0m',
+        mediaType: 'movie',
+      }),
+    });
+  });
+  // A fresh account so counts are exact. Re-importing into an existing one dedupes to zero nights.
+  await page.goto('/join');
+  await page.waitForURL(/\/login/, { timeout: 15000 });
+  await page.getByLabel(/email/i).fill(uniqueEmail());
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.getByRole('button', { name: /create new account/i }).click();
+  await page.getByLabel(/^password$/i).fill('SelectsVerify9');
+  await page.getByLabel(/confirm password/i).fill('SelectsVerify9');
+  await page.getByRole('button', { name: /^continue$/i }).click();
+  await page.waitForURL(/\/onboarding/, { timeout: 25000 });
+  await completeOnboarding(page);
+  await page.goto('/watched');
+  await page.getByTestId('watched-import').click();
+  await page.getByTestId('import-tab-drop').click();
+  const zip = await fixtureZip();
+  await page.getByTestId('import-dropzone-input').setInputFiles({ name: 'letterboxd-jane-2026-01-21-11-21-utc.zip', mimeType: 'application/zip', buffer: zip });
+  const done = page.getByTestId('import-dropzone-done');
+  await expect(done).toBeVisible({ timeout: 60000 });
+  await expect(done).toContainText('7 films');
+  await expect(done).toContainText('5 nights');
+  await expect(done).toContainText('2 to watch');
+  await expect(page.getByTestId('import-dropzone-unresolved')).toContainText('1 could not be matched');
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.locator('[data-testid="import-sheet"] button[aria-label="Close"]').click();
+  await expect(page.getByTestId('watched-count')).toContainText('5 films · 5 nights');
+  await expect(page.getByTestId('watch-count-pill').first()).toContainText('x2');
+  await page.getByTestId('watched-filter-nope').click();
+  await expect(page.getByTestId('watched-poster')).toHaveCount(1);
+  await page.getByTestId('watched-filter-all').click();
+  await page.screenshot({ path: path.join('artifacts', 'verify', `F15-${testInfo.project.name}`, 'watched-after-import.png'), fullPage: true });
+  // Gate here. The home strip's 24px day buttons fail T1 on main already (see F2-mobile/thresholds.json).
+  await gate(page, 'F15', testInfo.project.name);
+  await page.goto('/app');
+  const track = page.getByTestId('strip-track');
+  await expect(track).toBeVisible();
+  const logged = page.locator('[data-testid^="strip-day-"][aria-label^="Mon"], [data-testid^="strip-day-"][aria-label^="Tue"], [data-testid^="strip-day-"][aria-label^="Wed"], [data-testid^="strip-day-"][aria-label^="Thu"], [data-testid^="strip-day-"][aria-label^="Fri"], [data-testid^="strip-day-"][aria-label^="Sat"], [data-testid^="strip-day-"][aria-label^="Sun"]');
+  await expect(logged.first()).toBeVisible({ timeout: 20000 });
+  expect(await logged.count()).toBeGreaterThanOrEqual(5);
+  await logged.last().click();
+  await logged.last().click();
+  await expect(page.getByTestId('diary-day-sheet')).toBeVisible();
+  await expect(page.getByTestId('diary-day-film').first()).toBeVisible();
+  await page.screenshot({ path: path.join('artifacts', 'verify', `F15-${testInfo.project.name}`, 'diary-day.png') });
+  await dumpConsole(page, 'F15', testInfo.project.name, logs);
+});
