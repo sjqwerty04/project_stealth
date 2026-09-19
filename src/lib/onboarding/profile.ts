@@ -147,7 +147,7 @@ export function templateProfile(stats: TasteStats): SelectsProfile {
     },
     {
       title: 'THE HOUR',
-      headline: stats.lateNightPct !== null ? 'You watch late.' : 'No hour yet.',
+      headline: stats.lateNightPct === null ? 'No hour yet.' : stats.lateNightPct >= 50 ? 'You watch late.' : 'Lights down before ten.',
       body: stats.lateNightPct !== null ? `${pct(stats.lateNightPct)} of your dated logs start after 10pm.` : 'Dated logs will tell us when the lights go down.',
       tone: 'warm',
     },

@@ -36,8 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const skill = readSkill('selects-profile');
     const text = await callXai({
       system: skill || 'Write a ten card taste profile as JSON. Eight warm, two sharp.',
-      maxTokens: 1800,
-      reasoningEffort: null,
+      maxTokens: 1400,
+      reasoningEffort: 'low',
       messages: [
         {
           role: 'user',
