@@ -14,6 +14,9 @@
     },
     "api/your-selects.ts": {
       "includeFiles": "src/skills/**"
+    },
+    "api/selects-profile.ts": {
+      "includeFiles": "src/skills/**"
     }
   },
   "headers": [
@@ -46,4 +49,3 @@
     }
   ]
 }
-

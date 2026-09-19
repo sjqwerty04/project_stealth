@@ -5,8 +5,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -23,7 +21,6 @@ type AuthContextType = AuthState & {
   checkWhitelist: (email: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -139,21 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, isWhitelisted: true }));
   };
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    
-    const whitelisted = await checkWhitelistInternal(result.user.email || '');
-    if (!whitelisted) {
-      await firebaseSignOut(auth);
-      throw new Error('Email not whitelisted');
-    }
-    
-    await createUserProfile(result.user);
-    await logUserSignedIn('google');
-    setState((prev) => ({ ...prev, isWhitelisted: true }));
-  };
-
   const signOut = async () => {
     await firebaseSignOut(auth);
     setState({ user: null, loading: false, isWhitelisted: null });
@@ -166,7 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         checkWhitelist,
         signIn,
         signUp,
-        signInWithGoogle,
         signOut,
       }}
     >

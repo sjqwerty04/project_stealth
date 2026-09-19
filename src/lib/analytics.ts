@@ -18,14 +18,14 @@ export const logRecommendationGenerated = async (latencyMs: number, tokenCount: 
   }
 };
 
-export const logUserSignedIn = async (method: 'email' | 'google') => {
+export const logUserSignedIn = async (method: 'email') => {
   const analytics = await analyticsPromise;
   if (analytics) {
     logEvent(analytics, 'login', { method });
   }
 };
 
-export const logUserSignedUp = async (method: 'email' | 'google') => {
+export const logUserSignedUp = async (method: 'email') => {
   const analytics = await analyticsPromise;
   if (analytics) {
     logEvent(analytics, 'sign_up', { method });

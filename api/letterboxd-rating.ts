@@ -46,6 +46,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Public CORS proxies stopped answering, so the diary feed rides on this function too.
+  const rssUser = typeof req.query.rss === 'string' ? req.query.rss.trim() : '';
+  if (rssUser) {
+    if (!/^[A-Za-z0-9_]{1,60}$/.test(rssUser)) return res.status(400).json({ error: 'bad username' });
+    try {
+      const feed = await fetch(`https://letterboxd.com/${rssUser}/rss/`, {
+        redirect: 'follow',
+        headers: {
+          'User-Agent': LB_USER_AGENT,
+          Accept: 'application/rss+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+      if (feed.status === 404) return res.status(404).json({ error: 'not_found' });
+      const xml = await feed.text();
+      if (!feed.ok || !xml.includes('<rss')) return res.status(502).json({ error: 'upstream' });
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('Cache-Control', 's-maxage=300');
+      return res.status(200).send(xml);
+    } catch (err) {
+      console.error('letterboxd rss failed:', err);
+      return res.status(502).json({ error: 'upstream' });
+    }
+  }
+
   const tmdbId = typeof req.query.tmdbId === 'string' ? req.query.tmdbId : '';
   const title = typeof req.query.title === 'string' ? req.query.title : '';
   const year = typeof req.query.year === 'string' ? req.query.year : '';

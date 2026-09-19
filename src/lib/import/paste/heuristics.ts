@@ -51,6 +51,8 @@ export function parseStars(text: string): { stars?: number; rest: string } {
     const stars = Math.min(5, full + (glyphs[2] ? 0.5 : 0));
     return { stars, rest: text.replace(glyphs[0], ' ') };
   }
+  const asciiRun = text.match(/(?:^|\s)(\*{1,5})(?=\s|$)/);
+  if (asciiRun) return { stars: asciiRun[1].length, rest: text.replace(asciiRun[0], ' ') };
   const outOfFive = text.match(/\b(\d(?:\.\d)?)\s*\/\s*5\b/);
   if (outOfFive) return { stars: Math.min(5, Number(outOfFive[1])), rest: text.replace(outOfFive[0], ' ') };
   const outOfTen = text.match(/\b(\d{1,2}(?:\.\d)?)\s*\/\s*10\b/);

@@ -4,8 +4,8 @@ import { callXai, extractJSON, XaiConfigError } from './_lib/xai.js';
 type ExtractedItem = { title: string; year?: string; stars?: number; struck?: boolean };
 type Extracted = { items: ExtractedItem[]; intent: 'watched' | 'watchlist' | 'unknown'; confidence: number };
 
-const SYSTEM = `You read lists of films from screenshots or pasted text: Letterboxd, Notes, Reminders, IMDb, a spreadsheet, a chat.
-Return every film title you can see, one item per film. Keep the user's order.
+const SYSTEM = `You read films from images or pasted text. Images may be app screenshots (Letterboxd, Notes, Reminders, IMDb, a spreadsheet, a chat), but also photos of cinema ticket stubs, cinema marquees or lobby posters, handwritten lists, and pages from a paper diary or notebook.
+Return every film title you can see or confidently read from the image, one item per film. Keep the user's order. Read handwriting and printed stubs as best you can, and treat a ticket stub or marquee as a film the user has watched.
 For each item: title, year if visible, stars on a 0.5 to 5 scale if any rating is visible (convert /10 by halving), struck true if the line is crossed out, checked, ticked, greyed as done, or marked watched or seen.
 Decide intent for the whole list: "watched" if it reads as things they have seen (diary, ratings, ranked, favourites), "watchlist" if it reads as things they want to see (to watch, queue, saved), else "unknown".
 Return ONLY JSON: {"items":[{"title":"Heat","year":"1995","stars":4.5,"struck":false}],"intent":"watched","confidence":0.8}`;

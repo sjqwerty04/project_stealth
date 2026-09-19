@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterExcludedPicks, parseRecommendRequest } from './your-selects';
+import { filterExcludedPicks, parseRecommendRequest } from '../your-selects';
 
 describe('your-selects request', () => {
   const context = {
