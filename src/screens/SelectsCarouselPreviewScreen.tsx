@@ -79,7 +79,7 @@ export default function SelectsCarouselPreviewScreen() {
           timers.current.push(
             window.setTimeout(() => {
               setReplacement({ slotId, phase: 'replacing', feedbackSaved: true });
-            }, 150),
+            }, 500),
             window.setTimeout(() => {
               setSlides((current) =>
                 current.map((film) =>
@@ -95,7 +95,7 @@ export default function SelectsCarouselPreviewScreen() {
                 ),
               );
               setReplacement(null);
-            }, 700),
+            }, 1800),
           );
         }}
         onRetry={() => {}}

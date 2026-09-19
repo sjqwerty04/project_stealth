@@ -3,7 +3,7 @@ export function loopingSlides<T>(slides: T[]): T[] {
   return [slides[slides.length - 1], ...slides, slides[0]];
 }
 
-export function slideIdentityKey(slides: { slotId: number }[]): string {
+export function slideIdentityKey<T extends { slotId: number }>(slides: T[]): string {
   return slides.map((slide) => slide.slotId).join(',');
 }
 

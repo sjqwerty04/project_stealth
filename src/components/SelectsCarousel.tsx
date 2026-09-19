@@ -97,7 +97,7 @@ export function SelectCard({
         </span>
       </button>
       {loading ? (
-        <div className="absolute inset-x-0 top-0 z-20 flex h-[220px] items-center justify-center bg-black/75">
+        <div className="absolute inset-x-0 top-0 z-20 flex h-[220px] items-center justify-center bg-black">
           <SelectsChaseLoader
             size="sm"
             label={
@@ -111,6 +111,7 @@ export function SelectCard({
       <button
         type="button"
         data-testid={`watched-${film.slotId}`}
+        data-carousel-control
         onClick={pickerOpen ? onClosePicker : onOpenPicker}
         disabled={replacement !== null}
         className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
@@ -118,7 +119,10 @@ export function SelectCard({
         Watched
       </button>
       {pickerOpen ? (
-        <div className="relative z-30 border-x border-b border-line bg-base-2 p-3">
+        <div
+          data-carousel-control
+          className="relative z-30 border-x border-b border-line bg-base-2 p-3"
+        >
           <VerdictPicker
             value={null}
             onChange={onVerdict}
@@ -129,6 +133,7 @@ export function SelectCard({
       ) : null}
       {slotReplacement?.phase === 'failed' ? (
         <div
+          data-carousel-control
           className="flex min-h-11 items-center justify-between gap-3 border-x border-b border-line bg-base-2 p-3"
           data-testid={`replacement-failed-${film.slotId}`}
         >
@@ -218,7 +223,8 @@ export default function SelectsCarousel({
   useEffect(() => {
     if (slideIdsRef.current === slideKey) return;
     slideIdsRef.current = slideKey;
-    jumpTo(count < 2 ? 0 : 1);
+    const id = window.requestAnimationFrame(() => jumpTo(count < 2 ? 0 : 1));
+    return () => window.cancelAnimationFrame(id);
   }, [slideKey, count]);
 
   useLayoutEffect(() => {
@@ -276,6 +282,7 @@ export default function SelectsCarousel({
   };
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('[data-carousel-control]')) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     carouselStartX.current = e.clientX;
     setPaused(true);

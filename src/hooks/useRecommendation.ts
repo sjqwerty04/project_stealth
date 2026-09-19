@@ -165,6 +165,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
   const events = opts?.events;
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
   const [picks, setPicks] = useState<RecommendationResult[]>(() => {
     if (user?.uid) {
       const hit = readSelectsCache(user.uid);
@@ -194,13 +196,9 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     picksRef.current = picks;
   }, [picks]);
 
-  const diaryKey = (events ?? [])
-    .map((e) => `${e.movieId ?? ''}:${e.title}:${e.verdict ?? e.rating ?? ''}:${e.date ?? ''}`)
-    .join('|');
-
   const context = useMemo((): RecommendContext => {
     return mergeRecommendContext(contextFromCalendarLogs(events ?? []), snapshot.context);
-  }, [diaryKey, snapshot.context]);
+  }, [events, snapshot.context]);
 
   const generateRecommendation = useCallback(async (force = false): Promise<RecommendationResult[] | null> => {
     if (!user) {
@@ -423,7 +421,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           readContext: async () => {
             const updated = await getTaste(user.uid);
             return mergeRecommendContext(
-              contextFromCalendarLogs(events ?? []),
+              contextFromCalendarLogs(eventsRef.current ?? []),
               updated.context,
             );
           },
@@ -473,7 +471,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         }
       }
     },
-    [user, events, rateRecommendation, updateReplacement],
+    [user, rateRecommendation, updateReplacement],
   );
 
   const replaceSelect = useCallback(
