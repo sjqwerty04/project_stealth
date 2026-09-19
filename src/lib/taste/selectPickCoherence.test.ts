@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   hydratedTitleMatchesPick,
+  mentionNeedles,
   whyMatchNamesRecommended,
 } from './selectPickCoherence';
 
@@ -28,5 +29,11 @@ describe('select pick coherence', () => {
         'Zodiac',
       ),
     ).toBe(false);
+  });
+
+  it('keeps a sequel prefix as a why-copy needle', () => {
+    expect(mentionNeedles('X2: X-Men United')).toEqual(['X2: X-Men United', 'X2']);
+    expect(mentionNeedles('X-Men: The Last Stand')).toEqual(['X-Men: The Last Stand', 'X-Men']);
+    expect(mentionNeedles('Heat')).toEqual(['Heat']);
   });
 });
