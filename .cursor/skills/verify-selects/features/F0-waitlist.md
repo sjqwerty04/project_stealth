@@ -1,3 +1,3 @@
-# F0 Waitlist
+# F0 Open signup
 
-Fresh email not on whitelist → `/waitlist`.
+Unknown email on `/login` Continue reaches Create New Account. No `/waitlist`.

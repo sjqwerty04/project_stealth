@@ -16,11 +16,9 @@ import { logActivity, setupGlobalErrorLogging } from '../lib/activityLogger';
 type AuthState = {
   user: User | null;
   loading: boolean;
-  isWhitelisted: boolean | null;
 };
 
 type AuthContextType = AuthState & {
-  checkWhitelist: (email: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -33,62 +31,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     loading: true,
-    isWhitelisted: null,
   });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const invited =
-          sessionStorage.getItem('isNewUser') === '1' ||
-          sessionStorage.getItem('appInvite') === '1' ||
-          !!sessionStorage.getItem('pendingInviteCode');
-        let whitelisted = await checkWhitelistInternal(user.email || '');
-        if (!whitelisted && (invited || user.uid)) {
-          try {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists() || invited) whitelisted = true;
-          } catch {
-            if (invited) whitelisted = true;
-          }
-        }
-        setState({ user, loading: false, isWhitelisted: whitelisted });
-        
-        // Setup activity tracking for authenticated users
-        if (whitelisted && user.email) {
+        setState({ user, loading: false });
+        if (user.email) {
           logActivity(user.uid, user.email, 'session_started', {});
           setupGlobalErrorLogging(user.uid, user.email);
         }
       } else {
-        setState({ user: null, loading: false, isWhitelisted: null });
+        setState({ user: null, loading: false });
       }
     });
 
     return unsubscribe;
   }, []);
 
-  const checkWhitelistInternal = async (email: string): Promise<boolean> => {
-    if (!email) return false;
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-      const whitelistRef = doc(db, 'whitelist', normalizedEmail);
-      const whitelistDoc = await getDoc(whitelistRef);
-      return whitelistDoc.exists() && whitelistDoc.data()?.allowed === true;
-    } catch (error) {
-      console.error('Error checking whitelist:', error);
-      return false;
-    }
-  };
-
-  const checkWhitelist = async (email: string): Promise<boolean> => {
-    const result = await checkWhitelistInternal(email);
-    return result;
-  };
-
   const createUserProfile = async (user: User) => {
     const userRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userRef);
-    
+
     if (!userDoc.exists()) {
       await setDoc(userRef, {
         profile: {
@@ -104,66 +68,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const result = await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(auth, email, password);
     await logUserSignedIn('email');
-    const whitelisted = await checkWhitelistInternal(result.user.email || '');
-    setState((prev) => ({ ...prev, isWhitelisted: whitelisted }));
   };
 
   const signUp = async (email: string, password: string) => {
-    const pendingInvite = sessionStorage.getItem('pendingInviteCode');
-    const appInvite = sessionStorage.getItem('appInvite');
-    const invited = !!pendingInvite || appInvite === '1';
-    const whitelisted = await checkWhitelistInternal(email);
-
-    if (!whitelisted && !invited) {
-      throw new Error('Email not whitelisted');
-    }
-
     sessionStorage.setItem('isNewUser', '1');
     const result = await createUserWithEmailAndPassword(auth, email, password);
     await createUserProfile(result.user);
-
-    // Auto-whitelist the new user if they arrived via an invite link.
-    if (!whitelisted && invited) {
-      try {
-        const normalizedEmail = email.toLowerCase().trim();
-        await setDoc(doc(db, 'whitelist', normalizedEmail), { allowed: true });
-      } catch {
-        // Non-fatal — user may already exist or rule blocked it.
-      }
-    }
-
     await logUserSignedUp('email');
-    sessionStorage.removeItem('appInvite');
-    setState((prev) => ({ ...prev, isWhitelisted: true }));
   };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    
-    const whitelisted = await checkWhitelistInternal(result.user.email || '');
-    if (!whitelisted) {
-      await firebaseSignOut(auth);
-      throw new Error('Email not whitelisted');
-    }
-    
     await createUserProfile(result.user);
     await logUserSignedIn('google');
-    setState((prev) => ({ ...prev, isWhitelisted: true }));
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
-    setState({ user: null, loading: false, isWhitelisted: null });
+    setState({ user: null, loading: false });
   };
 
   return (
     <AuthContext.Provider
       value={{
         ...state,
-        checkWhitelist,
         signIn,
         signUp,
         signInWithGoogle,
@@ -182,4 +113,3 @@ export function useAuth() {
   }
   return context;
 }
-
