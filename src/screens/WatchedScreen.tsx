@@ -90,10 +90,11 @@ export default function WatchedScreen() {
   const verdictFor = (movieId: number, event?: CalendarEvent | null): Verdict | null =>
     byId.get(movieId)?.verdict ?? (event ? eventVerdict(event) : null);
 
-  const watchedEvents = useMemo(
-    () => events.filter((e) => e.status !== 'planned' && new Date(e.date).getTime() <= Date.now()),
-    [events],
-  );
+  const watchedEvents = useMemo(() => {
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    return events.filter((e) => e.status !== 'planned' && new Date(e.date).getTime() <= endOfToday.getTime());
+  }, [events]);
   const filteredEvents = useMemo(
     () => watchedEvents.filter((e) => matchesFilter(filter, verdictFor(e.movieId, e))),
     [watchedEvents, filter, byId],

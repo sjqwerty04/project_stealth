@@ -44,7 +44,14 @@ export default function ImportDropZone({ onDone, compact = false, testId = 'impo
           );
         } else if (entry.isDirectory) {
           const reader = (entry as FileSystemDirectoryEntry).createReader();
-          const children = await new Promise<FileSystemEntry[]>((resolve) => reader.readEntries(resolve, () => resolve([])));
+          const children: FileSystemEntry[] = [];
+          for (;;) {
+            const batch = await new Promise<FileSystemEntry[]>((resolve) =>
+              reader.readEntries(resolve, () => resolve([])),
+            );
+            if (!batch.length) break;
+            children.push(...batch);
+          }
           for (const child of children) await walk(child, `${prefix}${entry.name}/`);
         }
       };

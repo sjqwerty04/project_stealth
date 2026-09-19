@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, type DocumentData, type Firestore } from 'firebase/firestore';
 import { db as defaultDb } from '../firebase';
 import { emptyFilm, mergeFilm, writeFilms } from './ledger';
+import { withLibraryWriteLock } from './lock';
 import type { FilmSource, LibraryFilm } from './types';
 import { starsOf, verdictFromStars, verdictOf } from './verdict';
 
@@ -144,26 +145,28 @@ export function backfillMarker(uid: string, db: Firestore = defaultDb) {
  * films ledger. Safe to rerun. Returns the number of films written, or -1 if already done.
  */
 export async function backfillLibrary(uid: string, db: Firestore = defaultDb): Promise<number> {
-  const marker = await getDoc(backfillMarker(uid, db));
-  if (marker.exists() && marker.data()?.version === BACKFILL_VERSION) return -1;
+  return withLibraryWriteLock(uid, async () => {
+    const marker = await getDoc(backfillMarker(uid, db));
+    if (marker.exists() && marker.data()?.version === BACKFILL_VERSION) return -1;
 
-  const [cal, watched, watchlist, existing] = await Promise.all([
-    getDocs(collection(db, 'users', uid, 'calendar_logs')),
-    getDocs(collection(db, 'users', uid, 'watched_recommendations')),
-    getDocs(collection(db, 'users', uid, 'watchlist')),
-    getDocs(collection(db, 'users', uid, 'films')),
-  ]);
+    const [cal, watched, watchlist, existing] = await Promise.all([
+      getDocs(collection(db, 'users', uid, 'calendar_logs')),
+      getDocs(collection(db, 'users', uid, 'watched_recommendations')),
+      getDocs(collection(db, 'users', uid, 'watchlist')),
+      getDocs(collection(db, 'users', uid, 'films')),
+    ]);
 
-  const films = foldLegacy({
-    calendarLogs: cal.docs.map((d) => d.data()),
-    watched: watched.docs.map((d) => d.data()),
-    watchlist: watchlist.docs.map((d) => d.data()),
-    existing: existing.docs
-      .map((d) => d.data() as LibraryFilm)
-      .filter((f) => typeof f.movieId === 'number' && typeof f.title === 'string'),
+    const films = foldLegacy({
+      calendarLogs: cal.docs.map((d) => d.data()),
+      watched: watched.docs.map((d) => d.data()),
+      watchlist: watchlist.docs.map((d) => d.data()),
+      existing: existing.docs
+        .map((d) => d.data() as LibraryFilm)
+        .filter((f) => typeof f.movieId === 'number' && typeof f.title === 'string'),
+    });
+
+    const written = await writeFilms(uid, films, db);
+    await setDoc(backfillMarker(uid, db), { version: BACKFILL_VERSION, films: written, at: Date.now() });
+    return written;
   });
-
-  const written = await writeFilms(uid, films, db);
-  await setDoc(backfillMarker(uid, db), { version: BACKFILL_VERSION, films: written, at: Date.now() });
-  return written;
 }
