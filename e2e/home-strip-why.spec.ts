@@ -94,6 +94,9 @@ test.describe('home strip why vs trailer', () => {
     const firstKey = await page.getByTestId('day-stage').getAttribute('data-stage-key');
     expect(firstKey).toContain(dayA);
     await waitForSelects(page);
+    await page.getByTestId('selects-scroll').evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
 
     const whyClear = await whyClearOfDock(page);
     expect(whyClear.ok, whyClear.detail).toBe(true);
