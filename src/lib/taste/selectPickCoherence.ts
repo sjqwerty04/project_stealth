@@ -21,3 +21,18 @@ export function whyMatchNamesRecommended(whyMatch: string, recommendedTitle: str
   const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'iu').test(why);
 }
+
+/** Titles Grok may write for a diary film: the full item, plus the bit before a colon. */
+export function mentionNeedles(title: string): string[] {
+  const trimmed = title.trim();
+  if (!trimmed) return [];
+  const needles = [trimmed];
+  const colon = trimmed.indexOf(':');
+  if (colon >= 2) {
+    const prefix = trimmed.slice(0, colon).trim();
+    if (prefix.length >= 2 && !(prefix.length < 4 && /^[\p{L}]+$/u.test(prefix))) {
+      needles.push(prefix);
+    }
+  }
+  return [...new Set(needles)];
+}

@@ -103,7 +103,7 @@ async function recommendWithGrok(
 
 ${JSON.stringify(context)}
 
-${exclusions}Each whyMatch is two or three sentences about the recommended title. The recommended title must appear in whyMatch. You may mention a history film only as the reason they would like this recommended film. Do not use em dashes.
+${exclusions}Each whyMatch is two or three sentences about the recommended title. The recommended title must appear in whyMatch. Name at most two history films in the first sentence, copied from context.history item strings. Those names are the related posters. Do not use em dashes.
 
 Return ONLY JSON:
 {"picks":[{"title":"Film","year":"2015","whyMatch":"Two or three sentences. Name a history title.","confidence":0.8}]}`,
