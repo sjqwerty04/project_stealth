@@ -157,7 +157,7 @@ export function SelectCard({
               className="block overflow-hidden bg-base-3"
               style={{ width: 56, height: 84, borderRadius: 2 }}
             >
-              <img src={row.poster} alt="" className="h-full w-full object-cover" />
+              <img src={row.poster} alt={row.title} className="h-full w-full object-cover" />
             </span>
           ))}
         </div>
