@@ -11,9 +11,9 @@ describe('select pick coherence', () => {
     expect(hydratedTitleMatchesPick('Heat', 'Heat')).toBe(true);
   });
 
-  it('rejects a hydrated film that is not the recommended title', () => {
-    expect(hydratedTitleMatchesPick('Zodiac', 'Se7en')).toBe(false);
-    expect(hydratedTitleMatchesPick('Heat', 'The Godfather')).toBe(false);
+  it('rejects a sequel pick that hydrated as the original', () => {
+    expect(hydratedTitleMatchesPick('The Godfather Part II', 'The Godfather')).toBe(false);
+    expect(hydratedTitleMatchesPick('Logan', 'The Wolverine')).toBe(false);
   });
 
   it('requires whyMatch to name the recommended film', () => {

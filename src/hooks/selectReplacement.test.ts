@@ -26,6 +26,7 @@ describe('select replacement', () => {
     const next = await executeSelectReplacement<Pick, RawPick, { profile: string }>({
       slotId: 1,
       picks,
+      extraExcluded: [{ id: '263115', title: 'Logan' }],
       feedbackSaved: true,
       saveFeedback: vi.fn(async () => {}),
       onFeedbackSaved: vi.fn(),
@@ -41,6 +42,7 @@ describe('select replacement', () => {
         { id: '1', title: 'Heat' },
         { id: '2', title: 'Zodiac' },
         { id: '3', title: 'Thief' },
+        { id: '263115', title: 'Logan' },
       ],
     );
     expect(next).toEqual([

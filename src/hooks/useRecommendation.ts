@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
-import { setVerdict as setLedgerVerdict, type Verdict } from '../lib/library';
+import { setVerdict as setLedgerVerdict, useLibrary, type Verdict } from '../lib/library';
 import {
   contextFromCalendarLogs,
   hasMeaningfulContext,
@@ -25,6 +25,11 @@ import {
   type SelectExclusion,
   type SelectSlotId,
 } from './selectReplacement';
+import {
+  buildSelectExclusions,
+  buildYourSelectsBody,
+  hydrateUniqueSelectPicks,
+} from './selectExclusions';
 
 export type { SelectSlotId };
 
@@ -178,9 +183,13 @@ async function hydrateSelectPick(pick: ApiSelectPick): Promise<RecommendationRes
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
+  const { films: libraryFilms } = useLibrary();
   const events = opts?.events;
   const eventsRef = useRef(events);
   eventsRef.current = events;
+  const libraryRef = useRef(libraryFilms);
+  libraryRef.current = libraryFilms;
+  const sessionExcludedRef = useRef<SelectExclusion[]>([]);
   const [picks, setPicks] = useState<RecommendationResult[]>(() => {
     if (user?.uid) {
       const hit = readSelectsCache(user.uid);
@@ -212,6 +221,20 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   useEffect(() => {
     picksRef.current = picks;
   }, [picks]);
+
+  const exclusionList = useCallback(() => {
+    return buildSelectExclusions({
+      lastPicks: picksRef.current,
+      ledgerWatched: libraryRef.current.filter((film) => film.watched),
+      sessionRated: sessionExcludedRef.current,
+    });
+  }, []);
+
+  const rememberSessionExclusion = useCallback((rec: { movieId: number; title: string }) => {
+    sessionExcludedRef.current = buildSelectExclusions({
+      sessionRated: [...sessionExcludedRef.current, rec],
+    });
+  }, []);
 
   const context = useMemo((): RecommendContext => {
     return mergeRecommendContext(contextFromCalendarLogs(events ?? []), snapshot.context);
@@ -253,18 +276,24 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setStatus(havePicks ? 'ready' : 'loading');
       setError(null);
       try {
-        const res = await fetch('/api/your-selects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context }),
+        const excluded = exclusionList();
+        const requestPicks = async (nextExcluded: SelectExclusion[], count: 1 | 3) => {
+          const res = await fetch('/api/your-selects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildYourSelectsBody(context, nextExcluded, count)),
+          });
+          const data = res.ok ? await res.json() : { picks: [] };
+          return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
+        };
+        const raw = await requestPicks(excluded, 3);
+        const hydrated = await hydrateUniqueSelectPicks({
+          raw,
+          hydrate: hydrateSelectPick,
+          count: 3,
+          excluded,
+          requestMore: requestPicks,
         });
-        const data = res.ok ? await res.json() : { picks: [] };
-        const raw = Array.isArray(data.picks) ? data.picks : [];
-        const hydrated = (
-          await Promise.all(
-            raw.map((pick: ApiSelectPick) => hydrateSelectPick(pick))
-          )
-        ).filter((row): row is RecommendationResult => row != null);
 
         setPicks(hydrated);
         setStatus(hydrated.length ? 'ready' : 'empty');
@@ -306,7 +335,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     inflight.set(user.uid, run);
     return run;
-  }, [user, snapshot, context]);
+  }, [user, snapshot, context, exclusionList]);
 
   useEffect(() => {
     if (!user) {
@@ -351,6 +380,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const rateRecommendation = useCallback(
     async (rec: RecommendationResult, verdict: Verdict) => {
       if (!user) return;
+      rememberSessionExclusion(rec);
       await setLedgerVerdict(
         user.uid,
         { movieId: rec.movieId, title: rec.title, year: rec.year, poster: rec.poster, backdrop: rec.backdrop, mediaType: rec.mediaType },
@@ -363,12 +393,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         { email: user.email }
       );
     },
-    [user]
+    [user, rememberSessionExclusion]
   );
 
   const skipRecommendation = useCallback(
     async (rec: RecommendationResult) => {
       if (!user) return;
+      rememberSessionExclusion(rec);
       const skippedRef = collection(db, 'users', user.uid, 'skipped_recommendations');
       await addDoc(skippedRef, {
         movieId: rec.movieId,
@@ -390,7 +421,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         { email: user.email }
       );
     },
-    [user]
+    [user, rememberSessionExclusion]
   );
 
   const refreshRecommendation = useCallback(() => generateRecommendation(true), [generateRecommendation]);
@@ -419,6 +450,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         >({
           slotId,
           picks: picksRef.current,
+          extraExcluded: exclusionList(),
           feedbackSaved,
           saveFeedback: async () => {
             if (!verdict) throw new Error('Verdict is required');
@@ -439,7 +471,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             const res = await fetch('/api/your-selects', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ context: updatedContext, count: 1, excluded }),
+            body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, 1)),
             });
             if (!res.ok) throw new Error('Could not find another select');
             const data = (await res.json()) as { picks?: unknown };
@@ -480,7 +512,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         }
       }
     },
-    [user, rateRecommendation, patchReplacement],
+    [user, rateRecommendation, patchReplacement, exclusionList],
   );
 
   const replaceSelect = useCallback(

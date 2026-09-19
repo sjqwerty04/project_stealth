@@ -59,7 +59,7 @@ export function firstSentence(text: string): string {
 
 export function selectsCacheFresh(entry: CachedSelects | null, now = Date.now()): entry is CachedSelects {
   if (!entry?.picks?.length) return false;
-  if (!entry.at) return true;
+  if (!Number.isFinite(entry.at) || entry.at <= 0) return false;
   return now - entry.at < LAST_PICKS_FRESH_MS;
 }
 
@@ -87,6 +87,25 @@ export function writeSelectsCache(uid: string, picks: TastePick[], at = Date.now
 
 export function forgetSelectsCacheMemory(uid: string) {
   memory.delete(uid);
+}
+
+export function clearSelectsCache(uid: string) {
+  memory.delete(uid);
+  persist.delete(storageKey(uid));
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.removeItem(storageKey(uid));
+    } catch {
+      // ignore
+    }
+  }
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.removeItem(storageKey(uid));
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function resetSelectsCacheForTesting() {
@@ -120,8 +139,8 @@ export function hitSelectsCache(
     return selectsCacheFresh(fromSnap, now) ? fromSnap : null;
   }
   if (selectsCacheFresh(cached, now)) return cached;
-  if (snapshotPicks.length) {
-    const fromSnap = writeSelectsCache(uid, snapshotPicks, snapshotAt || now);
+  if (snapshotPicks.length && snapshotAt) {
+    const fromSnap = writeSelectsCache(uid, snapshotPicks, snapshotAt);
     return selectsCacheFresh(fromSnap, now) ? fromSnap : null;
   }
   return null;

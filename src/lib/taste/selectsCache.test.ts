@@ -39,12 +39,12 @@ describe('selectsCache', () => {
     expect(miss).toBeNull();
   });
 
-  it('treats snapshot lastPicks as a hit without lastPicksAt', () => {
+  it('misses when snapshot lastPicksAt is null instead of restamping stale picks', () => {
     forgetSelectsCacheMemory('u2');
-    const hit = hitSelectsCache('u2', picks, null);
-    expect(hit?.picks.map((p) => p.title)).toEqual(['Collateral', 'Thief', 'Ronin']);
+    const miss = hitSelectsCache('u2', picks, null);
+    expect(miss).toBeNull();
     forgetSelectsCacheMemory('u2');
-    expect(readSelectsCache('u2')?.picks[0].title).toBe('Collateral');
+    expect(readSelectsCache('u2')).toBeNull();
   });
 
   it('updates local cache when snapshot has newer picks', () => {

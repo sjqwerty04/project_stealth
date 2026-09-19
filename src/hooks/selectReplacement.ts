@@ -1,4 +1,7 @@
 import { hydratedTitleMatchesPick } from '../lib/taste/selectPickCoherence';
+import { mergeSelectExclusions, type SelectExclusion } from './selectExclusions';
+
+export type { SelectExclusion } from './selectExclusions';
 
 export type SelectSlotId = 0 | 1 | 2;
 
@@ -7,14 +10,10 @@ export type VisibleSelect = {
   title: string;
 };
 
-export type SelectExclusion = {
-  id: string;
-  title: string;
-};
-
 type ReplacementOptions<TPick extends VisibleSelect, TRawPick, TContext> = {
   slotId: SelectSlotId;
   picks: readonly TPick[];
+  extraExcluded?: readonly SelectExclusion[];
   feedbackSaved: boolean;
   saveFeedback: () => Promise<void>;
   onFeedbackSaved: () => void;
@@ -44,6 +43,7 @@ export async function executeSelectReplacement<
 >({
   slotId,
   picks,
+  extraExcluded = [],
   feedbackSaved,
   saveFeedback,
   onFeedbackSaved,
@@ -59,21 +59,21 @@ export async function executeSelectReplacement<
     onFeedbackSaved();
   }
 
-  const excluded = picks.map((pick) => ({
-    id: String(pick.movieId),
-    title: pick.title,
-  }));
+  const excluded = mergeSelectExclusions([
+    ...picks.map((pick) => ({ movieId: pick.movieId, title: pick.title })),
+    ...extraExcluded,
+  ]);
   const context = await readContext();
   const candidates = await requestPicks(context, excluded);
-  const visibleIds = new Set(picks.map((pick) => pick.movieId));
-  const visibleTitles = new Set(picks.map((pick) => normalizedTitle(pick.title)));
+  const excludedIds = new Set(excluded.map((row) => row.id));
+  const excludedTitles = new Set(excluded.map((pick) => normalizedTitle(pick.title)));
 
   for (const candidate of candidates) {
     const hydrated = await hydratePick(candidate);
     if (!hydrated) continue;
     const recommended = rawTitle(candidate) || hydrated.title;
     if (!hydratedTitleMatchesPick(recommended, hydrated.title)) continue;
-    if (visibleIds.has(hydrated.movieId) || visibleTitles.has(normalizedTitle(hydrated.title))) continue;
+    if (excludedIds.has(String(hydrated.movieId)) || excludedTitles.has(normalizedTitle(hydrated.title))) continue;
 
     const next = replacePickAtSlot(picks, slotId, hydrated);
     await persistPicks(next);
