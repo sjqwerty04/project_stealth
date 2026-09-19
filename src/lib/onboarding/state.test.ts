@@ -8,7 +8,7 @@ import {
   type FilmPick,
   type OnboardingState,
 } from './state';
-import { normalizeStats, parseSelectsProfile, templateProfile, type TasteStats } from './profile';
+import { meaningfulStats, normalizeStats, parseSelectsProfile, templateProfile, type TasteStats } from './profile';
 
 const film = (id: number): FilmPick => ({ id, title: `Film ${id}`, year: '1999', posterPath: null });
 
@@ -149,5 +149,18 @@ describe('normalizeStats', () => {
     const p = templateProfile(normalizeStats({ filmsRead: 0 }));
     expect(p.insights).toHaveLength(10);
     expect(normalizeStats({ colourHex: 'nope' }).colourHex).toBe('#3A6E85');
+  });
+
+  it('caps prompt-bound strings and lists', () => {
+    const long = 'x'.repeat(5000);
+    const n = normalizeStats({ positive: Array.from({ length: 40 }, () => long), topPeople: [[long, 3]] });
+    expect(n.positive).toHaveLength(10);
+    expect(n.positive[0]).toHaveLength(120);
+    expect(n.topPeople[0][0]).toHaveLength(120);
+  });
+
+  it('empty stats are not meaningful, one pick is', () => {
+    expect(meaningfulStats(normalizeStats({}))).toBe(false);
+    expect(meaningfulStats(normalizeStats({ positive: ['Heat'] }))).toBe(true);
   });
 });

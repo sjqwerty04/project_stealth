@@ -78,15 +78,26 @@ export function parseSelectsProfile(raw: unknown): SelectsProfile | null {
   return { archetype: archetype ? archetype.toUpperCase() : null, read, insights };
 }
 
+export const MAX_LABEL_CHARS = 120;
+export const MAX_LIST_ITEMS = 10;
+
 const EMPTY_WEIGHTS: Record<Facet, number> = { look: 1, tempo: 1, weather: 1, world: 1, shape: 1, format: 1 };
 
 /** Fill any field a client forgot so the template author never reads undefined. */
 export function normalizeStats(raw: Partial<TasteStats>): TasteStats {
   const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
   const nullable = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  // Every string here is serialised into the model prompt, so caps bound the input-token cost per call.
+  const clip = (s: string) => s.slice(0, MAX_LABEL_CHARS);
   const pairs = (v: unknown): [string, number][] =>
-    Array.isArray(v) ? v.filter((p): p is [string, number] => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'number') : [];
-  const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []);
+    Array.isArray(v)
+      ? v
+          .filter((p): p is [string, number] => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'number')
+          .slice(0, MAX_LIST_ITEMS)
+          .map(([label, count]) => [clip(label), count])
+      : [];
+  const strings = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string').slice(0, MAX_LIST_ITEMS).map(clip) : [];
   return {
     filmsRead: num(raw.filmsRead),
     nights: num(raw.nights),
@@ -100,7 +111,7 @@ export function normalizeStats(raw: Partial<TasteStats>): TasteStats {
     facetWeights: { ...EMPTY_WEIGHTS, ...(raw.facetWeights ?? {}) },
     colourHex: typeof raw.colourHex === 'string' && /^#[0-9a-f]{6}$/i.test(raw.colourHex) ? raw.colourHex : '#3A6E85',
     postersSampled: num(raw.postersSampled),
-    graphSeed: typeof raw.graphSeed === 'string' ? raw.graphSeed : '',
+    graphSeed: typeof raw.graphSeed === 'string' ? raw.graphSeed.slice(0, 64) : '',
     sources: strings(raw.sources) as ImportSourceId[],
     positive: strings(raw.positive),
     negative: strings(raw.negative),
@@ -110,6 +121,11 @@ export function normalizeStats(raw: Partial<TasteStats>): TasteStats {
 
 function pct(n: number | null): string {
   return n === null ? '' : `${Math.round(n)}%`;
+}
+
+/** The model only runs when there is something to read. An empty payload gets the template for free. */
+export function meaningfulStats(stats: TasteStats): boolean {
+  return stats.filmsRead > 0 || stats.positive.length > 0 || stats.negative.length > 0;
 }
 
 /** Deterministic fallback so the reward never blanks when the model is slow or down. */
