@@ -45,6 +45,7 @@ jobs:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
       TESTFLIGHT_CONTACT_PHONE: ${{ secrets.TESTFLIGHT_CONTACT_PHONE }}
+      TESTFLIGHT_PRIVACY_URL: https://selects-git-brranchh-testfligh-df9a6a-theabnormaldudes-projects.vercel.app/privacy
     steps:
       - uses: actions/checkout@v4
 

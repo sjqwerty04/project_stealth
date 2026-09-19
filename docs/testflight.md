@@ -18,7 +18,7 @@ You need a paid Apple Developer Program membership on team `L37YSKFC5X`.
 6. Copy the Key ID on the new row.
 7. Download the `.p8` file. Apple lets you download it once. Open it in a text editor and copy the whole PEM, including `BEGIN` and `END` lines.
 
-You do not need to click New App first. The Fastlane `produce` step creates bundle id `com.moviecally.app` and SKU `selects-ios` when they are missing. `get_certificates` and `get_provisioning_profile` then create an Apple Distribution certificate and an App Store profile on team `L37YSKFC5X`. The macos runner has an empty keychain, so those two steps have to run before `build_app`. Apple allows two distribution certificates. If a later run fails because the limit is full, revoke unused certificates in the Apple Developer portal and re-run.
+You do not need to click New App first. The Fastlane `produce` step creates bundle id `com.moviecally.app` and SKU `selects-ios` when they are missing. `get_certificates` and `get_provisioning_profile` then create an Apple Distribution certificate and an App Store profile on team `L37YSKFC5X`. The macos runner has an empty keychain, so those two steps have to run before `build_app`.
 
 ## 2. Add GitHub Actions secrets
 
@@ -41,6 +41,6 @@ If `TESTFLIGHT_CONTACT_PHONE` is set, a green macos job waits for Apple to proce
 
 If that phone secret is empty, the IPA still uploads. Internal testers (people you add under Users and Access) can install as soon as processing finishes. They do not wait on Beta App Review. External Friends review waits.
 
-The privacy policy Apple fetches is `/privacy`. That path is static HTML, so a crawler does not need JavaScript. Until this branch is on `main`, Fastlane points Beta App Review at the Vercel preview URL for that page.
+The privacy policy Apple fetches is `/privacy`. That path is static HTML, so a crawler does not need JavaScript. Fastlane defaults to `https://selects-film.vercel.app/privacy`. This branch sets `TESTFLIGHT_PRIVACY_URL` to the Vercel preview because production still serves the SPA shell.
 
 Friends open the public link on iPhone, install TestFlight if needed, then install Selects. They create an account on the login screen.

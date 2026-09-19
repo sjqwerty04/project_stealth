@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Fail CI if the App Store 1024 icon is not opaque RGB."""
 
 from __future__ import annotations
 
