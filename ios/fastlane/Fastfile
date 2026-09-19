@@ -84,6 +84,7 @@ platform :ios do
         contact_email: "shivjethi04@gmail.com",
         contact_first_name: "Shiv",
         contact_last_name: "Jethi",
+        contact_phone: "5558675309",
         notes: "Signup is open. Create an account with email and password on the login screen. Google is hidden on this iOS binary. Privacy policy: https://selects-film.vercel.app/privacy"
       },
       localized_app_info: {
@@ -101,11 +102,11 @@ platform :ios do
       }
     )
 
-    write_testflight_link(ensure_friends_group)
+    write_testflight_link(ensure_friends_group(enable_public_link: true))
   end
 end
 
-def ensure_friends_group
+def ensure_friends_group(enable_public_link: false)
   app = Spaceship::ConnectAPI::App.find("com.moviecally.app")
   UI.user_error!("App Store Connect has no app for com.moviecally.app") unless app
 
@@ -113,11 +114,11 @@ def ensure_friends_group
   group ||= app.create_beta_group(
     group_name: "Friends",
     is_internal_group: false,
-    public_link_enabled: true,
+    public_link_enabled: false,
     public_link_limit_enabled: false
   )
 
-  unless group.public_link_enabled
+  if enable_public_link && !group.public_link_enabled
     group.update(attributes: { public_link_enabled: true })
     group = app.get_beta_groups.find { |g| g.name == "Friends" } || group
   end
