@@ -425,7 +425,7 @@ ${historyContext}
 - Tell them why they're basic or pretentious for liking it
 - Maximum 2 short sentences
 - Be witty and specific
-- ABSOLUTELY NO SPOILERS - only reference vibe, genre, reputation, or director's style
+- ABSOLUTELY NO SPOILERS - only reference mood, genre, reputation, or director's style
 - Never describe what happens in the film
 </rules>`;
     } else if (rating === 'nope') {
@@ -451,7 +451,7 @@ ${historyContext}
 - Roast the movie or the fact that they're watching it
 - Maximum 2 short sentences
 - Be witty and playful
-- ABSOLUTELY NO SPOILERS - only reference reputation or vibe
+- ABSOLUTELY NO SPOILERS - only reference reputation or mood
 </rules>`;
     }
 
@@ -1687,7 +1687,7 @@ export default function MovieCalendarApp() {
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
                       <Sparkles size={14} />
-                      Vibe Check
+                      Mood Check
                     </h4>
                     {!aiInsight && !isGeneratingInsight && (
                       <button onClick={handleGenerateInsight} className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded-full font-medium transition-colors">

@@ -6,7 +6,6 @@ const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-// Genre ID to name mapping
 const GENRE_MAP: Record<number, string> = {
   28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
   99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
@@ -53,7 +52,7 @@ const fetchMovieDetails = async (movieId: number): Promise<any | null> => {
   }
 };
 
-export function useSimilarVibes() {
+export function useSimilarFilms() {
   const { id } = useParams<{ id: string }>();
   
   const [similarMovies, setSimilarMovies] = useState<SimilarMovie[]>([]);
@@ -63,10 +62,8 @@ export function useSimilarVibes() {
   const [movieDetails, setMovieDetails] = useState<any>(null);
   const loadedIdsRef = useRef<Set<number>>(new Set());
 
-  // Fetch movie details for context
   useEffect(() => {
     if (id) {
-      // Reset state when movie changes
       setSimilarMovies([]);
       setPage(0);
       setHasMore(true);
@@ -75,7 +72,6 @@ export function useSimilarVibes() {
     }
   }, [id]);
 
-  // Initial load of similar movies using AI
   useEffect(() => {
     if (movieDetails && similarMovies.length === 0) {
       loadSimilarMovies(movieDetails, 0);
@@ -90,10 +86,8 @@ export function useSimilarVibes() {
       const alreadyLoaded = Array.from(loadedIdsRef.current);
       const skipList = similarMovies.map(m => m.title).join(', ');
       
-      // System prompt for similar vibes
       const systemPrompt = `You are a film scholar and critic who specializes in identifying deep connections between films beyond surface-level similarities. You consider directorial style, cinematography, themes, tone, and cultural impact.`;
       
-      // Similar vibes prompt using XML structure
       const prompt = `<task>
 Recommend ${currentPage === 0 ? 8 : 6} films that fans of the reference film would love.
 </task>
@@ -125,7 +119,6 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
 
       const response = await callLlm(prompt, systemPrompt);
       if (!response) {
-        // Fallback to TMDB similar endpoint
         await loadFromTMDBFallback(parseInt(id || '0'));
         return;
       }
@@ -144,7 +137,6 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
         return;
       }
       
-      // Fetch TMDB details for each suggestion (in parallel for speed)
       const detailedMovies = await Promise.all(
         suggestions.map(async (s: { title: string; year: string }) => {
           const tmdb = await searchTMDB(s.title, s.year);
@@ -177,17 +169,14 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
       setHasMore(validMovies.length >= 3);
     } catch (error) {
       console.error('Failed to load similar movies:', error);
-      // Try TMDB fallback
       await loadFromTMDBFallback(parseInt(id || '0'));
     } finally {
       setIsLoading(false);
     }
   }, [id, similarMovies, isLoading]);
 
-  // TMDB fallback if AI fails - use recommendations endpoint (better quality than /similar)
   const loadFromTMDBFallback = async (movieId: number) => {
     try {
-      // Try recommendations first (better quality), fallback to similar
       let response = await fetch(
         `${TMDB_BASE}/movie/${movieId}/recommendations?api_key=${TMDB_API_KEY}&language=en-US&page=1`
       );
@@ -204,7 +193,6 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
       }
       
       const data = await response.json();
-      // Filter for higher quality movies (rating > 6.5) and sort by rating
       const movies = (data.results || [])
         .filter((m: any) => m.vote_average >= 6.5 && m.vote_count > 100)
         .sort((a: any, b: any) => b.vote_average - a.vote_average)
@@ -220,7 +208,6 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
           voteAverage: m.vote_average || 0,
         }));
       
-      // If no high-quality results, take any results
       if (movies.length === 0) {
         const anyMovies = (data.results || []).slice(0, 8).map((m: any) => ({
           id: m.id,
@@ -236,7 +223,7 @@ Return ONLY a valid JSON array, no markdown blocks or explanations:
       } else {
         setSimilarMovies(movies);
       }
-      setHasMore(false); // TMDB fallback doesn't support AI-powered "load more"
+      setHasMore(false);
     } catch {
       setHasMore(false);
     }

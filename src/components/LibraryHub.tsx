@@ -5,9 +5,9 @@ const rows = [
   { label: 'Watched', meta: 'Films you logged', to: '/watched', hash: 'timeline' },
   { label: 'The Wallet', meta: 'Films closest to you', to: '/liked' },
   { label: 'Saved', meta: 'Waiting', to: '/saved' },
-  { label: 'Rooms', meta: 'Lists you keep', to: '/watchlist' },
+  { label: 'Lists', meta: 'Lists you keep', to: '/watchlist' },
   { label: 'Shared lists', meta: 'Watch with others', to: '/shared' },
-  { label: 'Vibes', meta: 'Saved hunts', to: '/vibes' },
+  { label: 'Theaters', meta: 'Saved hunts', to: '/theaters' },
 ];
 
 export default function LibraryHub() {

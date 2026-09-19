@@ -7,7 +7,7 @@ A modern movie discovery and tracking application built with React, TypeScript, 
 - AI-powered movie recommendations using Grok
 - Smart orbit-based discovery system
 - Multi-modal search (actors, genres, AI-curated)
-- Personalized vibe lists
+- Personalized curated lists
 - Movie calendar and watchlist tracking
 - YouTube trailer auto-play
 - Rating badges from IMDb, Rotten Tomatoes, and Metacritic
@@ -52,7 +52,7 @@ vercel dev
 The Vercel dev server will:
 - Start the Vite dev server
 - Emulate the `/api/llm` serverless function locally
-- Enable all AI features (recommendations, orbit, search vibes, etc.)
+- Enable all AI features (recommendations, orbit, curated search lists, etc.)
 
 When prompted by Vercel CLI:
 - Link to your Vercel project or create a new one
@@ -63,6 +63,15 @@ When prompted by Vercel CLI:
 
 ```bash
 npm run build
+```
+
+### Theater vocabulary guard
+
+The session feature is called Theater. Orbit and the named legacy adapters listed in the script keep the old word. The guard lists every other `path:line` that still uses it and exits 1; the codemod rewrites them and then runs the guard.
+
+```bash
+npm run check:theater-vocabulary
+node scripts/codemod-theater-vocabulary.mjs
 ```
 
 ### Deployment

@@ -14,7 +14,8 @@
     "build:ios": "npm run build && npx cap sync ios && npx cap open ios",
     "assert:prod-main": "node scripts/assert-prod-main.mjs",
     "deploy": "node scripts/deploy-main-only.mjs",
-    "figma:fetch": "node scripts/figma-fetch.mjs"
+    "figma:fetch": "node scripts/figma-fetch.mjs",
+    "check:theater-vocabulary": "node scripts/codemod-theater-vocabulary.mjs --check"
   },
   "dependencies": {
     "@capacitor/cli": "^7.4.4",

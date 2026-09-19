@@ -39,7 +39,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // Saved vibes subcollection (user's saved taste patterns)
+      match /theaters/{theaterId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Legacy Theaters subcollection (pre-rename documents, read through src/lib/legacyTheaters.ts)
       match /saved_vibes/{vibeId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }

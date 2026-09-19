@@ -4,8 +4,8 @@ import { Search, X, ArrowLeft, Sparkles } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieSearch, type SearchResult } from '../hooks/useMovieSearch';
 import SearchResultCard from '../components/SearchResultCard';
-import PatternAssistant from '../components/PatternAssistant';
-import { useExploration } from '../contexts/ExplorationContext';
+import TheaterCard from '../components/TheaterCard';
+import { useTheater } from '../contexts/TheaterContext';
 import { useAuth } from '../hooks/useAuth';
 import { recordTasteEvent } from '../lib/taste';
 
@@ -18,7 +18,7 @@ export default function DiscoverScreen() {
   // Initialize query from URL param so it survives back navigation
   const [query, setQuery] = useState(() => searchParams.get('q') || '');
   const [isPatternPanelOpen, setIsPatternPanelOpen] = useState(true);
-  const { results, isSearching, error, searchMetadata, vibeList, isLoadingVibe, searchMovies, clearResults } = useMovieSearch();
+  const { results, isSearching, error, searchMetadata, curatedList, isLoadingCuratedList, searchMovies, clearResults } = useMovieSearch();
   const { 
     clickedMovies, 
     addMovie, 
@@ -28,22 +28,22 @@ export default function DiscoverScreen() {
     showMoreMovies,
     showMoreResults,
     isLoadingMore,
-    saveVibe,
-    isSavingVibe,
-    vibeSaved,
-  } = useExploration();
+    keepTheater,
+    isKeepingTheater,
+    theaterKept,
+  } = useTheater();
 
-  // Sync query changes to URL params (so back navigation restores query)
   useEffect(() => {
-    const updated = new URLSearchParams(searchParams);
-    if (query.trim()) {
-      updated.set('q', query.trim());
-    } else {
-      updated.delete('q');
-    }
-    setSearchParams(updated, { replace: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+    setSearchParams((current) => {
+      const updated = new URLSearchParams(current);
+      if (query.trim()) {
+        updated.set('q', query.trim());
+      } else {
+        updated.delete('q');
+      }
+      return updated;
+    }, { replace: true });
+  }, [query, setSearchParams]);
 
   // Debounced search
   useEffect(() => {
@@ -94,28 +94,27 @@ export default function DiscoverScreen() {
   const handleShowMore = async () => {
     const movies = await showMoreMovies();
     if (movies && movies.length > 0) {
-      // Could navigate to a dedicated pattern results view
-      // For now, we'll show them in the current results
+      return;
     }
   };
 
-  const handleSaveVibe = async () => {
-    await saveVibe();
+  const handleKeepTheater = async () => {
+    await keepTheater();
   };
 
-  const showPatternAssistant = clickedMovies.length >= 3 && patternInsight;
+  const showTheaterCard = clickedMovies.length >= 3 && patternInsight;
 
   useEffect(() => {
-    if (!showPatternAssistant) {
+    if (!showTheaterCard) {
       setIsPatternPanelOpen(true);
     }
-  }, [showPatternAssistant]);
+  }, [showTheaterCard]);
 
-  const contentPadding = showPatternAssistant && isPatternPanelOpen ? 'pb-40' : 'pb-12';
+  const contentPadding = showTheaterCard && isPatternPanelOpen ? 'pb-40' : 'pb-12';
 
   return (
     <div className="min-h-screen bg-base text-fg">
-      {showPatternAssistant && isPatternPanelOpen && (
+      {showTheaterCard && isPatternPanelOpen && (
         <div className="fixed bottom-24 left-0 right-0 px-4 sm:px-6 z-30 pointer-events-none">
           <div className="relative max-w-md mx-auto pointer-events-auto drop-shadow-2xl">
             <button
@@ -125,14 +124,14 @@ export default function DiscoverScreen() {
             >
               <X size={14} />
             </button>
-            <PatternAssistant
+            <TheaterCard
               insight={patternInsight}
               isAnalyzing={isAnalyzing}
               onShowMore={handleShowMore}
-              onSaveVibe={handleSaveVibe}
+              onKeepTheater={handleKeepTheater}
               isLoadingMore={isLoadingMore}
-              isSavingVibe={isSavingVibe}
-              vibeSaved={vibeSaved}
+              isKeepingTheater={isKeepingTheater}
+              theaterKept={theaterKept}
               movieCount={clickedMovies.length}
               showMoreResults={showMoreResults}
               onMovieClick={(movie) => navigate(`/movie/${movie.id}?type=movie`)}
@@ -142,14 +141,14 @@ export default function DiscoverScreen() {
         </div>
       )}
 
-      {showPatternAssistant && !isPatternPanelOpen && (
+      {showTheaterCard && !isPatternPanelOpen && (
         <button
           onClick={() => setIsPatternPanelOpen(true)}
           className="fixed right-4 z-30 inline-flex items-center gap-2 min-h-11 px-4 bg-base-3 border border-line text-fg font-medium"
           style={{ bottom: 'calc(68px + env(safe-area-inset-bottom) + 12px)', borderRadius: 0 }}
         >
           <Sparkles size={16} />
-          Show pattern vibe
+          Show Theater
         </button>
       )}
 
@@ -250,15 +249,14 @@ export default function DiscoverScreen() {
               </div>
             )}
             
-            {/* AI-Generated Vibe List */}
-            {vibeList && (
+            {curatedList && (
               <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/20 rounded-xl p-4 mb-4">
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-purple-400 mt-1 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-white mb-3">{vibeList.title}</h3>
+                    <h3 className="font-semibold text-white mb-3">{curatedList.title}</h3>
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                      {vibeList.movies.map((movie) => (
+                      {curatedList.movies.map((movie) => (
                         <button
                           key={movie.id}
                           onClick={() => handleMovieClick(movie)}
@@ -284,8 +282,7 @@ export default function DiscoverScreen() {
               </div>
             )}
             
-            {/* Vibe loading state */}
-            {isLoadingVibe && !vibeList && (
+            {isLoadingCuratedList && !curatedList && (
               <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/10 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-3">
                   <SelectsChaseLoader size="sm" />

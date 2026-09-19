@@ -32,7 +32,7 @@ function activityFor(event: TasteEvent): { action: ActivityAction; metadata: Rec
         },
       };
     case 'pattern':
-      return { action: 'vibe_saved', metadata: { pattern: event.insight, movieCount: event.movieIds.length } };
+      return null;
     default:
       return null;
   }
