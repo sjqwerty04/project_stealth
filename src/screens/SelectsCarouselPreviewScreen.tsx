@@ -1,57 +1,65 @@
 import { useEffect, useRef, useState } from 'react';
 import SelectsCarousel, { type SelectFilm } from '../components/SelectsCarousel';
+import { relatedFromWhy } from '../components/selectsCarouselLogic';
 import type { SelectReplacement } from '../hooks/useRecommendation';
 
-function still(fill: string) {
+function still(fill: string, label: string) {
   return `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="${fill}"/></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="${fill}"/><text x="400" y="240" text-anchor="middle" fill="white" font-size="72" font-family="Arial">${label}</text></svg>`,
   )}`;
 }
 
-function poster(fill: string) {
+function poster(fill: string, label: string) {
   return `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="${fill}"/></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="200" height="300" fill="${fill}"/><text x="100" y="160" text-anchor="middle" fill="white" font-size="28" font-family="Arial">${label}</text></svg>`,
   )}`;
 }
+
+const LOGAN_WHY =
+  'X-Men and X2 both got a 5 from you, and Logan is the scarred, adult finish of that world. It has the bruised father and child tension you already rewarded in Cape Fear and Sleepers. The western grit should land if you also wanted something like There Will Be Blood.';
+
+const LOGAN_DIARY = [
+  { title: 'Cape Fear', poster: poster('#5a3a12', 'Cape Fear') },
+  { title: 'Sleepers', poster: poster('#3a1d1d', 'Sleepers') },
+  { title: 'There Will Be Blood', poster: poster('#6a4a12', 'TWBB') },
+  { title: 'X-Men', poster: poster('#1d3a8a', 'X-Men') },
+  { title: 'X2', poster: poster('#1d5b8a', 'X2') },
+];
 
 const PREVIEW_SLIDES: SelectFilm[] = [
   {
     slotId: 0,
-    id: 1,
-    title: 'Zodiac',
-    poster: poster('#1a1a1c'),
-    backdrop: still('#1d1d20'),
-    whyMatch:
-      "You rated Se7en a 5 and logged All the President's Men last month. Fincher's procedural patience and that newspaper-room paranoia are the same itch this scratches.",
-    related: [
-      { title: 'Se7en', poster: poster('#3a1d1d') },
-      { title: "All the President's Men", poster: poster('#1d3a5b') },
-    ],
+    id: 263115,
+    title: 'Logan',
+    poster: poster('#1a1a1c', 'Logan'),
+    backdrop: still('#c47a12', 'LOGAN'),
+    whyMatch: LOGAN_WHY,
+    related: relatedFromWhy(LOGAN_WHY, LOGAN_DIARY, 'Logan'),
   },
   {
     slotId: 1,
     id: 2,
     title: 'The Departed',
-    poster: poster('#1a1a1c'),
-    backdrop: still('#24303a'),
+    poster: poster('#1a1a1c', 'Departed'),
+    backdrop: still('#24303a', 'THE DEPARTED'),
     whyMatch:
       'You keep coming back to Infernal Affairs and The Godfather. Scorsese Boston crime web has the same loyalty-as-trap energy you already marked as a 5.',
     related: [
-      { title: 'Infernal Affairs', poster: poster('#1d2a3a') },
-      { title: 'The Godfather', poster: poster('#2a1d12') },
+      { title: 'Infernal Affairs', poster: poster('#1d2a3a', 'Infernal') },
+      { title: 'The Godfather', poster: poster('#2a1d12', 'Godfather') },
     ],
   },
   {
     slotId: 2,
     id: 3,
     title: 'Heat',
-    poster: poster('#1a1a1c'),
-    backdrop: still('#2c2520'),
+    poster: poster('#1a1a1c', 'Heat'),
+    backdrop: still('#2c2520', 'HEAT'),
     whyMatch:
       'You logged Thief and Collateral back to back. Mann night-drive professionalism is the through line, and this is the longest cut of that same job.',
     related: [
-      { title: 'Thief', poster: poster('#2b2b2f') },
-      { title: 'Collateral', poster: poster('#1d5b8a') },
+      { title: 'Thief', poster: poster('#2b2b2f', 'Thief') },
+      { title: 'Collateral', poster: poster('#1d5b8a', 'Collateral') },
     ],
   },
 ];
@@ -88,7 +96,7 @@ export default function SelectsCarouselPreviewScreen() {
                         ...film,
                         id: 4,
                         title: 'Manhunter',
-                        backdrop: still('#302528'),
+                        backdrop: still('#302528', 'MANHUNTER'),
                         whyMatch: 'A new select replaced only this stable carousel slot.',
                       }
                     : film,
