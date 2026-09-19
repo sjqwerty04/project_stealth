@@ -83,6 +83,17 @@ export const MAX_LIST_ITEMS = 10;
 
 const EMPTY_WEIGHTS: Record<Facet, number> = { look: 1, tempo: 1, weather: 1, world: 1, shape: 1, format: 1 };
 
+/** Only the six known facets survive, each as a finite number; foreign keys and strings never reach the prompt. */
+function facetWeightsFrom(raw: unknown): Record<Facet, number> {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out = { ...EMPTY_WEIGHTS };
+  for (const f of FACETS) {
+    const v = src[f];
+    if (typeof v === 'number' && Number.isFinite(v)) out[f] = Math.min(10, Math.max(0, v));
+  }
+  return out;
+}
+
 /** Fill any field a client forgot so the template author never reads undefined. */
 export function normalizeStats(raw: Partial<TasteStats>): TasteStats {
   const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -108,7 +119,7 @@ export function normalizeStats(raw: Partial<TasteStats>): TasteStats {
     topDecades: pairs(raw.topDecades),
     topPeople: pairs(raw.topPeople),
     topGenres: pairs(raw.topGenres),
-    facetWeights: { ...EMPTY_WEIGHTS, ...(raw.facetWeights ?? {}) },
+    facetWeights: facetWeightsFrom(raw.facetWeights),
     colourHex: typeof raw.colourHex === 'string' && /^#[0-9a-f]{6}$/i.test(raw.colourHex) ? raw.colourHex : '#3A6E85',
     postersSampled: num(raw.postersSampled),
     graphSeed: typeof raw.graphSeed === 'string' ? raw.graphSeed.slice(0, 64) : '',

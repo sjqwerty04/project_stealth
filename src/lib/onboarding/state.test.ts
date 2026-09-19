@@ -159,6 +159,14 @@ describe('normalizeStats', () => {
     expect(n.topPeople[0][0]).toHaveLength(120);
   });
 
+  it('facetWeights keeps only the six known facets as bounded numbers', () => {
+    const n = normalizeStats({ facetWeights: { look: 2, junk: 'x'.repeat(9000), shape: 'nope', tempo: 99 } as never });
+    expect(Object.keys(n.facetWeights).sort()).toEqual(['format', 'look', 'shape', 'tempo', 'weather', 'world']);
+    expect(n.facetWeights.look).toBe(2);
+    expect(n.facetWeights.shape).toBe(1);
+    expect(n.facetWeights.tempo).toBe(10);
+  });
+
   it('empty stats are not meaningful, one pick is', () => {
     expect(meaningfulStats(normalizeStats({}))).toBe(false);
     expect(meaningfulStats(normalizeStats({ positive: ['Heat'] }))).toBe(true);
