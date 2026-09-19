@@ -30,7 +30,7 @@ async function logFutureNight(page: Page, movieId: number, day: string) {
   const date = page.locator('input[type="date"]');
   await date.waitFor({ timeout: 15_000 });
   await date.fill(day);
-  await page.getByRole('button', { name: /^Add to Calendar$/i }).click();
+  await page.getByRole('button', { name: 'Add to Calendar', exact: true }).click();
   await page.waitForURL(new RegExp(`/app\\?date=${day}`), { timeout: 20_000 });
 }
 
