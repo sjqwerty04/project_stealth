@@ -210,6 +210,26 @@ const buildPrompt = (
     .replace('{director}', director);
 };
 
+// Ensure hex color is valid and dark enough for background atmosphere
+function clampDarkHex(hex: string): string {
+  let clean = hex.startsWith('#') ? hex.slice(1) : hex;
+  if (clean.length === 3) {
+    clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+  }
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return '#1a1a2e';
+  let r = parseInt(clean.slice(0, 2), 16);
+  let g = parseInt(clean.slice(2, 4), 16);
+  let b = parseInt(clean.slice(4, 6), 16);
+  const max = Math.max(r, g, b);
+  if (max > 60) {
+    const scale = 50 / max;
+    r = Math.round(r * scale);
+    g = Math.round(g * scale);
+    b = Math.round(b * scale);
+  }
+  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
 // Validate and normalize orbit response fields
 const normalizeOrbitResponse = (parsed: any): OrbitResponse | null => {
   // Support both old and new field names for backwards compatibility
@@ -223,14 +243,12 @@ const normalizeOrbitResponse = (parsed: any): OrbitResponse | null => {
   }
   
   // Ensure hex color is valid (default if missing)
-  let hexColor = parsed.hex || parsed.dominant_hex_color || '#1a1a2e';
-  if (!hexColor.startsWith('#')) {
-    hexColor = '#' + hexColor;
-  }
+  const rawHex = parsed.hex || parsed.dominant_hex_color || '#1a1a2e';
+  const hexColor = clampDarkHex(rawHex);
   
   return {
     title: title,
-    year: year,
+    year: String(year),
     hex: hexColor,
     score: parsed.score || parsed.similarity_score || 75,
     reason: parsed.reason || parsed.connection_reason || 'Connected',
@@ -283,17 +301,17 @@ const getMovieDetails = async (tmdbId: number): Promise<any | null> => {
 const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie | null> => {
   try {
     // Search for the movie on TMDB
-    const searchResult = await searchTMDB(orbitResponse.title, orbitResponse.year);
+    let searchResult = await searchTMDB(orbitResponse.title, orbitResponse.year);
     if (!searchResult) {
       // Try without year if first search fails
-      const retryResult = await searchTMDB(orbitResponse.title);
-      if (!retryResult) {
+      searchResult = await searchTMDB(orbitResponse.title);
+      if (!searchResult) {
         console.warn('Could not find movie on TMDB:', orbitResponse.title);
         return null;
       }
     }
     
-    const tmdbData = await getMovieDetails(searchResult?.id || 0);
+    const tmdbData = await getMovieDetails(searchResult.id);
     if (!tmdbData) {
       console.warn('Could not get movie details from TMDB:', orbitResponse.title);
       return null;
