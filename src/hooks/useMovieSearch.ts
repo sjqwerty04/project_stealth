@@ -45,20 +45,63 @@ export type SearchResult = {
   mediaType: 'movie' | 'tv';
 };
 
-export type CuratedList = {
-  title: string;
-  description: string;
-  movies: SearchResult[];
-};
-
 export type SearchMode = 'standard' | 'ai-curated';
 export type SearchMetadata = {
   mode: SearchMode;
   label?: string;
 };
 
+type TmdbHit = {
+  id: number;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  genre_ids?: number[];
+  overview?: string;
+  popularity?: number;
+  vote_average?: number;
+  vote_count?: number;
+};
+
+type TmdbSearchResponse = { results?: TmdbHit[] };
+
+const EMPTY_SEARCH: TmdbSearchResponse = { results: [] };
+
+const genresOf = (hit: TmdbHit): string[] => (hit.genre_ids || []).map((id) => GENRE_MAP[id]).filter(Boolean);
+
+const movieFrom = (hit: TmdbHit): SearchResult => ({
+  id: hit.id,
+  title: hit.title || '',
+  year: hit.release_date?.slice(0, 4) || '',
+  posterPath: hit.poster_path ?? null,
+  backdropPath: hit.backdrop_path ?? null,
+  genres: genresOf(hit),
+  overview: hit.overview || '',
+  popularity: hit.popularity || 0,
+  voteAverage: hit.vote_average || 0,
+  voteCount: hit.vote_count || 0,
+  mediaType: 'movie',
+});
+
+const showFrom = (hit: TmdbHit): SearchResult => ({
+  id: hit.id,
+  title: hit.name || '',
+  year: hit.first_air_date?.slice(0, 4) || '',
+  posterPath: hit.poster_path ?? null,
+  backdropPath: hit.backdrop_path ?? null,
+  genres: genresOf(hit),
+  overview: hit.overview || '',
+  popularity: hit.popularity || 0,
+  voteAverage: hit.vote_average || 0,
+  voteCount: hit.vote_count || 0,
+  mediaType: 'tv',
+});
+
 // Query intent classifier — simple: short queries go to TMDB, everything else to AI
-const classifyQuery = (query: string): { mode: SearchMode } => {
+export const classifyQuery = (query: string): { mode: SearchMode } => {
   const lower = query.toLowerCase().trim();
   const wordCount = lower.split(/\s+/).length;
   
@@ -88,23 +131,11 @@ const classifyQuery = (query: string): { mode: SearchMode } => {
   return { mode: 'standard' };
 };
 
-const fetchUserContext = async (userId: string): Promise<string> => {
-  try {
-    const snapshot = await getTaste(userId);
-    return snapshot.generated.compactForChat || snapshot.context.preferences.join('; ');
-  } catch (err) {
-    console.error('Failed to fetch user context:', err);
-    return '';
-  }
-};
-
 export function useMovieSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchMetadata, setSearchMetadata] = useState<SearchMetadata>({ mode: 'standard' });
-  const [curatedList, setCuratedList] = useState<CuratedList | null>(null);
-  const [isLoadingCuratedList, setIsLoadingCuratedList] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string>('');
   const { user } = useAuth();
@@ -121,7 +152,6 @@ export function useMovieSearch() {
     
     if (!trimmedQuery) {
       setResults([]);
-      setCuratedList(null);
       setSearchMetadata({ mode: 'standard' });
       return [];
     }
@@ -134,14 +164,13 @@ export function useMovieSearch() {
 
     setIsSearching(true);
     setError(null);
-    setCuratedList(null);
 
     try {
       // Classify query intent
       const classification = classifyQuery(trimmedQuery);
       
       let searchResults: SearchResult[] = [];
-      let metadata: SearchMetadata = { mode: classification.mode };
+      const metadata: SearchMetadata = { mode: classification.mode };
       
       // Handle different search modes
       if (classification.mode === 'ai-curated') {
@@ -184,30 +213,18 @@ ${tasteBlock}
                     `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`,
                     { signal }
                   );
-                  let data = res.ok ? await res.json() : { results: [] };
+                  let data: TmdbSearchResponse = res.ok ? await res.json() : EMPTY_SEARCH;
                   // Fallback: search without year if no results (handles year mismatches & new films)
                   if (!data.results?.length) {
                     res = await fetch(
                       `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=en-US`,
                       { signal }
                     );
-                    data = res.ok ? await res.json() : { results: [] };
+                    data = res.ok ? await res.json() : EMPTY_SEARCH;
                   }
-                  if (data.results && data.results.length > 0) {
-                    const movie = data.results[0];
-                    return {
-                      id: movie.id,
-                      title: movie.title,
-                      year: movie.release_date?.slice(0, 4) || '',
-                      posterPath: movie.poster_path,
-                      backdropPath: movie.backdrop_path,
-                      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-                      overview: movie.overview || '',
-                      popularity: movie.popularity || 0,
-                      voteAverage: movie.vote_average || 0,
-                      voteCount: movie.vote_count || 0,
-                      mediaType: 'movie' as const,
-                    };
+                  const hit = data.results?.[0];
+                  if (hit) {
+                    return { ...movieFrom(hit), year: hit.release_date?.slice(0, 4) || m.year };
                   }
                 } catch (err) {
                   console.error('Failed to hydrate movie:', m.title, err);
@@ -216,15 +233,11 @@ ${tasteBlock}
               });
               
               const hydrated = await Promise.all(hydratePromises);
-              searchResults = hydrated.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+              searchResults = hydrated.filter((m): m is SearchResult => m !== null);
             }
           } catch (err) {
             console.error('Failed to parse AI response:', err);
           }
-        }
-        
-        if (user?.uid) {
-          generateCuratedList(trimmedQuery, '');
         }
         
         if (searchResults.length === 0) {
@@ -253,51 +266,24 @@ ${tasteBlock}
 
         if (!movie1Res.ok || !tvRes.ok) throw new Error('Search failed');
 
-        const [movie1Data, movie2Data, tvData] = await Promise.all([
+        const [movie1Data, movie2Data, tvData]: TmdbSearchResponse[] = await Promise.all([
           movie1Res.json(),
-          movie2Res.ok ? movie2Res.json() : { results: [] },
+          movie2Res.ok ? movie2Res.json() : EMPTY_SEARCH,
           tvRes.json(),
         ]);
 
         // Merge page 1+2 movie results, deduplicate by id
         const seenIds = new Set<number>();
         const mergedMovieResults = [...(movie1Data.results || []), ...(movie2Data.results || [])]
-          .filter((m: any) => { if (seenIds.has(m.id)) return false; seenIds.add(m.id); return true; });
+          .filter((m) => { if (seenIds.has(m.id)) return false; seenIds.add(m.id); return true; });
 
-        const movies: SearchResult[] = mergedMovieResults.map((m: any) => ({
-          id: m.id,
-          title: m.title,
-          year: m.release_date?.slice(0, 4) || '',
-          posterPath: m.poster_path,
-          backdropPath: m.backdrop_path,
-          genres: (m.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-          overview: m.overview || '',
-          popularity: m.popularity || 0,
-          voteAverage: m.vote_average || 0,
-          voteCount: m.vote_count || 0,
-          mediaType: 'movie' as const,
-        }));
+        const movies: SearchResult[] = mergedMovieResults.map(movieFrom);
 
-        const tvShows: SearchResult[] = (tvData.results || []).map((t: any) => ({
-          id: t.id,
-          title: t.name,
-          year: t.first_air_date?.slice(0, 4) || '',
-          posterPath: t.poster_path,
-          backdropPath: t.backdrop_path,
-          genres: (t.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-          overview: t.overview || '',
-          popularity: t.popularity || 0,
-          voteAverage: t.vote_average || 0,
-          voteCount: t.vote_count || 0,
-          mediaType: 'tv' as const,
-        }));
+        const tvShows: SearchResult[] = (tvData.results || []).map(showFrom);
 
         // Combine and sort by enhanced relevance algorithm
         const queryLower = trimmedQuery.toLowerCase();
         const queryWords = queryLower.split(/\s+/).filter(Boolean);
-        
-        // For very short queries (< 3 chars), rely more on TMDB's native ordering
-        void trimmedQuery.length; // ranking no longer needs short-query special-case
         
         searchResults = [...movies, ...tvShows].sort((a, b) => {
           const aTitle = a.title.toLowerCase();
@@ -358,8 +344,8 @@ ${tasteBlock}
       setResults(searchResults);
       setSearchMetadata(metadata);
       return searchResults;
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
         return []; // Return empty on abort, don't update state
       }
       console.error('Search failed:', err);
@@ -384,114 +370,9 @@ ${tasteBlock}
     }
   }, [user?.uid]);
 
-  const generateCuratedList = useCallback(async (query: string, genreHint: string) => {
-    if (!user?.uid) return;
-    
-    setIsLoadingCuratedList(true);
-    
-    try {
-      const taste = await fetchUserContext(user.uid);
-      const contextString = taste ? `\nViewer taste: ${taste}` : '';
-      
-      const curatedListPrompt = `<task>
-Create a personalized movie recommendation list based on the user's search query and their viewing history.
-Query: "${query}"
-Genre hint: "${genreHint}"${contextString}
-
-Generate a catchy list title and 6-8 movie recommendations tailored to this user's tastes.
-</task>
-
-<rules>
-- Make the list title punchy and personalized (e.g., "Gritty Crime for the Heat Lover")
-- Include a brief description of the theme
-- Recommend diverse but thematically connected films
-- Consider the user's viewing history when available
-- Output ONLY valid JSON, no markdown
-</rules>
-
-<output_format>
-{
-  "title": "List Title",
-  "description": "Brief description of the theme",
-  "movies": [
-    {"title": "Movie Title", "year": "2020"},
-    {"title": "Another Movie", "year": "2015"}
-  ]
-}
-</output_format>`;
-
-      const aiResponse = await callLlm(curatedListPrompt, 'You are a film curator creating personalized movie lists.');
-      
-      if (aiResponse) {
-        try {
-          // Extract JSON from response
-          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const curatedListData: { title: string; description: string; movies: {title: string, year: string}[] } = JSON.parse(jsonMatch[0]);
-            
-            // Hydrate movies via TMDB (with year fallback)
-            const hydratePromises = curatedListData.movies.map(async (m) => {
-              try {
-                // First try with year for precision
-                let res = await fetch(
-                  `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`
-                );
-                let data = res.ok ? await res.json() : { results: [] };
-                // Fallback: search without year if no results
-                if (!data.results?.length) {
-                  res = await fetch(
-                    `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=en-US`
-                  );
-                  data = res.ok ? await res.json() : { results: [] };
-                }
-                if (data.results && data.results.length > 0) {
-                  const movie = data.results[0];
-                  return {
-                    id: movie.id,
-                    title: movie.title,
-                    year: movie.release_date?.slice(0, 4) || '',
-                    posterPath: movie.poster_path,
-                    backdropPath: movie.backdrop_path,
-                    genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-                    overview: movie.overview || '',
-                    popularity: movie.popularity || 0,
-                    voteAverage: movie.vote_average || 0,
-                    voteCount: movie.vote_count || 0,
-                    mediaType: 'movie' as const,
-                  };
-                }
-              } catch (err) {
-                console.error('Failed to hydrate curated list movie:', m.title, err);
-              }
-              return null;
-            });
-            
-            const hydratedMovies = await Promise.all(hydratePromises);
-            const validMovies = hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
-            
-            if (validMovies.length > 0) {
-              setCuratedList({
-                title: curatedListData.title,
-                description: curatedListData.description,
-                movies: validMovies,
-              });
-            }
-          }
-        } catch (err) {
-          console.error('Failed to parse curated list response:', err);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to generate curated list:', err);
-    } finally {
-      setIsLoadingCuratedList(false);
-    }
-  }, [user?.uid]);
-
   const clearResults = useCallback(() => {
     setResults([]);
     setError(null);
-    setCuratedList(null);
     setSearchMetadata({ mode: 'standard' });
     lastQueryRef.current = '';
   }, []);
@@ -501,8 +382,6 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
     isSearching,
     error,
     searchMetadata,
-    curatedList,
-    isLoadingCuratedList,
     searchMovies,
     clearResults,
   };

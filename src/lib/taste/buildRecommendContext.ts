@@ -229,6 +229,10 @@ export function buildRecommendContext(evidence: DiaryEvidence): RecommendContext
   if (evidence.identity.axis) {
     uniqPush(preferences, AXIS_PREFERENCE[evidence.identity.axis]);
   }
+  const [newestTheater] = evidence.patterns;
+  if (newestTheater) {
+    uniqPush(preferences, `theater: ${newestTheater}`);
+  }
   for (const film of evidence.favorites) {
     uniqPush(preferences, film.title);
   }
