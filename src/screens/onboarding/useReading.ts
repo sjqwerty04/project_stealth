@@ -66,10 +66,13 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
     );
 
     const persist = async (stats: TasteStats, profile: SelectsProfile, source: 'grok' | 'template') => {
+      // Firestore refuses nested arrays, so the [label, count] pairs become objects on the way in.
+      const pairs = (rows: [string, number][]) => rows.map(([label, count]) => ({ label, count }));
+      const storable = { ...stats, topDecades: pairs(stats.topDecades), topPeople: pairs(stats.topPeople), topGenres: pairs(stats.topGenres) };
       try {
         await setDoc(
           doc(db, 'users', uid, 'profile_data', 'selects_profile'),
-          { stats, profile, source, createdAt: serverTimestamp(), version: 1 },
+          { stats: storable, profile, source, createdAt: serverTimestamp(), version: 1 },
           { merge: true },
         );
       } catch (e) {
