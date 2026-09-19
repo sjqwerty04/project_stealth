@@ -21,7 +21,9 @@ async function logFutureNight(page: import('@playwright/test').Page, day: string
 }
 
 test.describe('home strip why vs trailer', () => {
-  test.skip(({}, testInfo) => testInfo.project.name === 'desktop');
+  test.beforeEach(({}, testInfo) => {
+    test.skip(testInfo.project.name === 'desktop', 'phone layouts only');
+  });
 
   test.afterEach(async ({}, testInfo) => {
     await saveEvidence(testInfo, 'home-strip-why');
