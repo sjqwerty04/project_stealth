@@ -7,7 +7,8 @@ export type SelectPick = {
 };
 
 type SelectRec = {
-  item?: { name?: string; title?: string; year?: string | number; id?: string };
+  item?: { name?: string; title?: string; year?: string | number; id?: string | number };
+  id?: string | number;
   name?: string;
   title?: string;
   year?: string | number;
@@ -61,7 +62,8 @@ export function parseSelectPicks(raw: unknown): SelectPick[] {
         whyMatch,
         confidence: typeof confidence === 'number' ? confidence : 1,
       };
-      if (rec.item?.id) pick.id = rec.item.id;
+      const id = rec.item?.id ?? rec.id;
+      if (id != null && String(id).trim()) pick.id = String(id).trim();
       return pick;
     })
     .filter((row): row is SelectPick => row != null);

@@ -66,6 +66,21 @@ function normalizedTitle(title: string) {
   return title.trim().toLocaleLowerCase();
 }
 
+function uniqueSelectPicks(picks: SelectPick[]): SelectPick[] {
+  const titles = new Set<string>();
+  const ids = new Set<string>();
+  const out: SelectPick[] = [];
+  for (const pick of picks) {
+    const title = normalizedTitle(pick.title);
+    if (titles.has(title)) continue;
+    if (pick.id && ids.has(pick.id)) continue;
+    titles.add(title);
+    if (pick.id) ids.add(pick.id);
+    out.push(pick);
+  }
+  return out;
+}
+
 export function filterExcludedPicks(
   picks: SelectPick[],
   excluded: SelectExclusion[],
@@ -75,9 +90,9 @@ export function filterExcludedPicks(
     excluded.flatMap((row) => (row.title ? [normalizedTitle(row.title)] : [])),
   );
   const ids = new Set(excluded.flatMap((row) => (row.id ? [row.id] : [])));
-  return picks
-    .filter((pick) => !titles.has(normalizedTitle(pick.title)) && (!pick.id || !ids.has(pick.id)))
-    .slice(0, count);
+  return uniqueSelectPicks(
+    picks.filter((pick) => !titles.has(normalizedTitle(pick.title)) && (!pick.id || !ids.has(pick.id))),
+  ).slice(0, count);
 }
 
 async function recommendWithGrok(
