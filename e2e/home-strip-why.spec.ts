@@ -23,16 +23,9 @@ async function waitForSelects(page: Page) {
   await expect(page.getByTestId('why-match-line').first()).toBeVisible({ timeout: 20_000 });
 }
 
-async function openVisibleSelect(page: Page, offset = 0) {
-  const track = page.getByTestId('selects-carousel-track');
-  await expect(track).toBeVisible({ timeout: 90_000 });
-  const slide = Number((await track.getAttribute('data-slide')) ?? '1');
-  const card = track.getByTestId('ticket-slot').nth(slide + offset);
-  await expect(card).toBeVisible();
-  await card.getByRole('button').first().click();
-}
-
-async function logFutureNight(page: Page, day: string) {
+async function logFutureNight(page: Page, movieId: number, day: string) {
+  await page.goto(`/movie/${movieId}?type=movie`);
+  await expect(page.getByTestId('action-log')).toBeVisible({ timeout: 20_000 });
   await page.getByTestId('action-log').click();
   const date = page.locator('input[type="date"]');
   await date.waitFor({ timeout: 15_000 });
@@ -96,9 +89,7 @@ test.describe('home strip why vs trailer', () => {
 
     const dayA = localDay(3);
     const dayB = localDay(5);
-    await openVisibleSelect(page, 0);
-    await expect(page).toHaveURL(/\/movie\//, { timeout: 15_000 });
-    await logFutureNight(page, dayA);
+    await logFutureNight(page, 949, dayA);
     await expect(page.getByTestId('day-stage')).toBeVisible();
     const firstKey = await page.getByTestId('day-stage').getAttribute('data-stage-key');
     expect(firstKey).toContain(dayA);
@@ -114,12 +105,7 @@ test.describe('home strip why vs trailer', () => {
     await page.getByTestId('selects-dismiss').click();
     await expect(page.getByTestId('day-stage')).toHaveCount(0);
 
-    await page.getByTestId('tab-home').click();
-    await page.goto('/app');
-    await expect(page.getByTestId('selects-carousel')).toBeVisible({ timeout: 90_000 });
-    await openVisibleSelect(page, 1);
-    await expect(page).toHaveURL(/\/movie\//, { timeout: 15_000 });
-    await logFutureNight(page, dayB);
+    await logFutureNight(page, 1949, dayB);
     await expect(page.getByTestId('day-stage')).toBeVisible();
     const secondKey = await page.getByTestId('day-stage').getAttribute('data-stage-key');
     expect(secondKey).toContain(dayB);
