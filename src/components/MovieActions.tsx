@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Calendar, BookmarkPlus, Eye, Loader2, Check, RotateCcw } from 'lucide-react';
+import { Calendar, BookmarkPlus, Eye, Check, RotateCcw } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import AddToListPicker, { type PickerMovie } from './AddToListPicker';
 import VerdictPicker, { VerdictBadge } from './VerdictPicker';
 import { VERDICT_LABEL, type LibraryFilm, type Verdict } from '../lib/library';
@@ -61,7 +62,7 @@ export default function MovieActions({
           style={{ borderRadius: 0 }}
         >
           {isAddingToCalendar ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />
           ) : watched ? (
             <RotateCcw className="w-5 h-5" />
           ) : (
@@ -97,7 +98,7 @@ export default function MovieActions({
           style={{ borderRadius: 0 }}
         >
           {isSavingVerdict ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <SelectsChaseLoader size="xs" />
           ) : verdict ? (
             <VerdictBadge verdict={verdict} size={20} />
           ) : (

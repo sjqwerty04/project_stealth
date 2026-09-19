@@ -11,11 +11,11 @@ import {
   Edit2,
   Ticket,
   Sparkles,
-  Loader2,
   Repeat,
   User as UserIcon,
   Info,
 } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import type { Verdict } from '../lib/library';
@@ -1229,7 +1229,7 @@ export default function MovieCalendarApp() {
                 }`}
               >
                 {isSubmittingReview ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />
                 ) : (
                   <Check size={16} />
                 )}
@@ -1431,7 +1431,7 @@ export default function MovieCalendarApp() {
                   {hasQuery ? (
                     isSearchingMovies ? (
                       <div className="flex items-center gap-2 text-gray-500 text-sm p-4">
-                        <Loader2 size={16} className="animate-spin" />
+                        <SelectsChaseLoader size="xs" />
                         Searching TMDB...
                       </div>
                     ) : noMatches ? (
@@ -1462,7 +1462,7 @@ export default function MovieCalendarApp() {
                     )
                   ) : isLoadingFeatured ? (
                     <div className="flex items-center gap-2 text-gray-500 text-sm p-4">
-                      <Loader2 size={16} className="animate-spin" />
+                      <SelectsChaseLoader size="xs" />
                       Loading trending...
                     </div>
                   ) : (
@@ -1598,7 +1598,7 @@ export default function MovieCalendarApp() {
                   }`}
                 >
                   {isSaving ? (
-                    <Loader2 size={20} className="animate-spin" />
+                    <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />
                   ) : editingEventId ? (
                     <Edit2 size={20} />
                   ) : (
@@ -1698,8 +1698,8 @@ export default function MovieCalendarApp() {
 
                   <div className="min-h-[40px] flex items-center">
                     {isGeneratingInsight ? (
-                      <div className="flex items-center gap-2 text-gray-500 text-sm animate-pulse">
-                        <Loader2 size={16} className="animate-spin" />
+                      <div className="flex items-center gap-2 text-gray-500 text-sm">
+                        <SelectsChaseLoader size="xs" />
                         Analyzing cinematic patterns...
                       </div>
                     ) : aiInsight ? (

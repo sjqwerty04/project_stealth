@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Film, Plus, X, Calendar, MoreHorizontal, Bookmark, Trash2, CalendarX } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import LibraryHub from '../components/LibraryHub';
-import Skeleton from '../components/ui/Skeleton';
 import ImportSheet from '../components/ImportSheet';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import { clearWatched, setVerdict as setLedgerVerdict, useLibrary, VERDICT_LABEL, type LibraryFilm, type Verdict } from '../lib/library';
@@ -283,7 +283,7 @@ export default function WatchedScreen() {
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Skeleton className="w-24 h-8" />
+            <SelectsChaseLoader size="lg" />
           </div>
         ) : empty ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">

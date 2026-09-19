@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Check, Loader2, Users, X } from 'lucide-react';
+import { Check, Users, X } from 'lucide-react';
+import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { useSharedWatchlists } from '../hooks/useSharedWatchlists';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -102,7 +103,7 @@ export default function AddToSharedListMenu({ movie }: Props) {
                         {memberCount} {memberCount === 1 ? 'member' : 'members'}
                       </p>
                     </div>
-                    {busy && <Loader2 size={16} className="text-gray-400 animate-spin" />}
+                    {busy && <SelectsChaseLoader size="xs" />}
                     {done && <Check size={16} className="text-green-400" />}
                   </button>
                 );

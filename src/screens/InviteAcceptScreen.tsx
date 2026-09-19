@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, Users, X } from 'lucide-react';
+import { Users, X } from 'lucide-react';
+import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useInviteLink, type InviteResolution } from '../hooks/useInviteLink';
 
@@ -50,7 +51,7 @@ export default function InviteAcceptScreen() {
  if (authLoading || resolving) {
   return (
    <div className="min-h-screen bg-base text-fg flex items-center justify-center max-w-md mx-auto">
-    <Loader2 className="w-8 h-8 text-fg-3 animate-spin" />
+    <SelectsChaseLoader size="lg" />
    </div>
   );
  }
@@ -91,7 +92,7 @@ export default function InviteAcceptScreen() {
        disabled={accepting}
        className="w-full py-3 font-semibold bg-white hover:bg-gray-200 text-black flex items-center justify-center gap-2 disabled:opacity-40"
       >
-       {accepting && <Loader2 size={16} className="animate-spin" />}
+       {accepting && <SelectsChaseLoader size="xs" activeColor="#000000" idleColor="#666666" />}
        {user ? 'Join list' : 'Sign in to join'}
       </button>
      </>

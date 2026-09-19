@@ -12,11 +12,16 @@ export type OrbitRequestStatus =
   | { state: 'ready'; value: OrbitRecommendation }
   | { state: 'failed' };
 
-type OrbitLoader = (
+export type OrbitLoader = (
   movie: OrbitMovie,
   direction: SwipeDirection,
   taste?: string | null
 ) => Promise<OrbitRecommendation | null>;
+
+export type OrbitBatchLoader = (
+  movie: OrbitMovie,
+  taste?: string | null
+) => Promise<Record<SwipeDirection, OrbitRecommendation | null> | null>;
 
 type ImageWarmer = (url: string) => void;
 
@@ -90,10 +95,13 @@ export interface OrbitRequestCoordinator {
 
 export const createOrbitRequestCoordinator = (
   load: OrbitLoader,
-  warmImage: ImageWarmer = defaultImageWarmer
+  warmImage: ImageWarmer = defaultImageWarmer,
+  loadBatch?: OrbitBatchLoader
 ): OrbitRequestCoordinator => {
   const entries = new Map<string, Exclude<OrbitRequestStatus, { state: 'idle' }>>();
   let activeSourceKey: string | null = null;
+  const inFlightBatches = new Map<string, Promise<Record<SwipeDirection, OrbitRecommendation | null> | null>>();
+  const batchSubscribers = new Map<string, Set<(sourceKey: string, dir: SwipeDirection, rec: OrbitRecommendation) => void>>();
 
   const status: OrbitRequestCoordinator['status'] = (movie, direction, taste) =>
     entries.get(getRequestKey(movie, direction, taste)) ?? { state: 'idle' };
@@ -138,6 +146,93 @@ export const createOrbitRequestCoordinator = (
     prefetch: (movie, backDirection, taste, publish) => {
       const sourceKey = getOrbitSourceKey(movie, taste);
       activeSourceKey = sourceKey;
+
+      if (loadBatch) {
+        let subs = batchSubscribers.get(sourceKey);
+        if (!subs) {
+          subs = new Set();
+          batchSubscribers.set(sourceKey, subs);
+        }
+        subs.add(publish);
+
+        // Immediately publish any directions already ready
+        for (const direction of directions) {
+          if (direction === backDirection) continue;
+          const key = getRequestKey(movie, direction, taste);
+          const existing = entries.get(key);
+          if (existing?.state === 'ready') {
+            publish(sourceKey, direction, existing.value);
+          }
+        }
+
+        let batchPromise = inFlightBatches.get(sourceKey);
+        if (!batchPromise) {
+          const resolvers: Partial<Record<SwipeDirection, (val: OrbitRecommendation | null) => void>> = {};
+          for (const direction of directions) {
+            const key = getRequestKey(movie, direction, taste);
+            const existing = entries.get(key);
+            if (!existing || existing.state === 'failed') {
+              const p = new Promise<OrbitRecommendation | null>((resolve) => {
+                resolvers[direction] = resolve;
+              });
+              entries.set(key, { state: 'loading', promise: p });
+            }
+          }
+
+          batchPromise = loadBatch(movie, taste)
+            .then((batchResult) => {
+              inFlightBatches.delete(sourceKey);
+              const currentSubs = batchSubscribers.get(sourceKey);
+              batchSubscribers.delete(sourceKey);
+
+              if (batchResult) {
+                for (const direction of directions) {
+                  const result = batchResult[direction];
+                  const key = getRequestKey(movie, direction, taste);
+                  if (result) {
+                    entries.set(key, { state: 'ready', value: result });
+                    try {
+                      warmOrbitImages(result.movie, warmImage);
+                    } catch {}
+                    if (direction !== backDirection && activeSourceKey === sourceKey) {
+                      currentSubs?.forEach((cb) => {
+                        try { cb(sourceKey, direction, result); } catch {}
+                      });
+                    }
+                    resolvers[direction]?.(result);
+                  } else {
+                    entries.set(key, { state: 'failed' });
+                    resolvers[direction]?.(null);
+                  }
+                }
+              } else {
+                for (const direction of directions) {
+                  const key = getRequestKey(movie, direction, taste);
+                  if (entries.get(key)?.state === 'loading') {
+                    entries.set(key, { state: 'failed' });
+                  }
+                  resolvers[direction]?.(null);
+                }
+              }
+              return batchResult;
+            })
+            .catch(() => {
+              inFlightBatches.delete(sourceKey);
+              batchSubscribers.delete(sourceKey);
+              for (const direction of directions) {
+                const key = getRequestKey(movie, direction, taste);
+                if (entries.get(key)?.state === 'loading') {
+                  entries.set(key, { state: 'failed' });
+                }
+                resolvers[direction]?.(null);
+              }
+              return null;
+            });
+
+          inFlightBatches.set(sourceKey, batchPromise);
+        }
+        return sourceKey;
+      }
 
       for (const direction of directions) {
         if (direction === backDirection) continue;

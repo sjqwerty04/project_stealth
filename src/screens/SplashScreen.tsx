@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Mark, Skeleton } from '../components/ui';
+import { Mark, SelectsChaseLoader } from '../components/ui';
 
 export default function SplashScreen() {
   const { user, loading, isWhitelisted } = useAuth();
@@ -25,7 +25,7 @@ export default function SplashScreen() {
       <p className="mt-6 max-w-sm text-center font-display text-lg text-fg leading-snug">
         Selects reads you, and hands you the take worth keeping.
       </p>
-      <Skeleton className="mt-10 h-2 w-24" />
+      <SelectsChaseLoader size="md" className="mt-10" />
       <p className="absolute bottom-8 font-spec text-[10px] uppercase tracking-widest text-fg-3">
         The take worth keeping
       </p>
