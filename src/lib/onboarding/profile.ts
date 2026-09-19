@@ -78,6 +78,36 @@ export function parseSelectsProfile(raw: unknown): SelectsProfile | null {
   return { archetype: archetype ? archetype.toUpperCase() : null, read, insights };
 }
 
+const EMPTY_WEIGHTS: Record<Facet, number> = { look: 1, tempo: 1, weather: 1, world: 1, shape: 1, format: 1 };
+
+/** Fill any field a client forgot so the template author never reads undefined. */
+export function normalizeStats(raw: Partial<TasteStats>): TasteStats {
+  const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const nullable = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const pairs = (v: unknown): [string, number][] =>
+    Array.isArray(v) ? v.filter((p): p is [string, number] => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'number') : [];
+  const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []);
+  return {
+    filmsRead: num(raw.filmsRead),
+    nights: num(raw.nights),
+    hours: num(raw.hours),
+    lateNightPct: nullable(raw.lateNightPct),
+    rewatchOfFiveStarPct: nullable(raw.rewatchOfFiveStarPct),
+    fiveStarCount: num(raw.fiveStarCount),
+    topDecades: pairs(raw.topDecades),
+    topPeople: pairs(raw.topPeople),
+    topGenres: pairs(raw.topGenres),
+    facetWeights: { ...EMPTY_WEIGHTS, ...(raw.facetWeights ?? {}) },
+    colourHex: typeof raw.colourHex === 'string' && /^#[0-9a-f]{6}$/i.test(raw.colourHex) ? raw.colourHex : '#3A6E85',
+    postersSampled: num(raw.postersSampled),
+    graphSeed: typeof raw.graphSeed === 'string' ? raw.graphSeed : '',
+    sources: strings(raw.sources) as ImportSourceId[],
+    positive: strings(raw.positive),
+    negative: strings(raw.negative),
+    axes: strings(raw.axes),
+  };
+}
+
 function pct(n: number | null): string {
   return n === null ? '' : `${Math.round(n)}%`;
 }

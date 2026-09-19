@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callXai } from './_lib/xai.js';
 import { readSkill } from './_lib/readSkill.js';
-import { parseSelectsProfile, templateProfile, type TasteStats } from '../src/lib/onboarding/profile.js';
+import { normalizeStats, parseSelectsProfile, templateProfile, type TasteStats } from '../src/lib/onboarding/profile.js';
 
 type ProfileRequest = {
   stats: TasteStats;
@@ -16,7 +16,7 @@ function parseRequest(body: unknown): ProfileRequest | null {
   const picksRaw = (data.picks && typeof data.picks === 'object' ? data.picks : {}) as Record<string, unknown>;
   const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 5) : []);
   return {
-    stats: stats as TasteStats,
+    stats: normalizeStats(stats as Partial<TasteStats>),
     picks: { positive: list(picksRaw.positive), negative: list(picksRaw.negative), axes: list(picksRaw.axes) },
   };
 }

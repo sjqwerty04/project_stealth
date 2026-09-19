@@ -8,7 +8,7 @@ import {
   type FilmPick,
   type OnboardingState,
 } from './state';
-import { parseSelectsProfile, templateProfile, type TasteStats } from './profile';
+import { normalizeStats, parseSelectsProfile, templateProfile, type TasteStats } from './profile';
 
 const film = (id: number): FilmPick => ({ id, title: `Film ${id}`, year: '1999', posterPath: null });
 
@@ -141,5 +141,13 @@ describe('templateProfile', () => {
     expect(p.insights.filter((c) => c.tone === 'sharp')).toHaveLength(2);
     expect(p.insights[0].headline).toBe('12');
     expect(p.insights[1].headline).toBe('Heat.');
+  });
+});
+
+describe('normalizeStats', () => {
+  it('fills missing fields so the template never reads undefined', () => {
+    const p = templateProfile(normalizeStats({ filmsRead: 0 }));
+    expect(p.insights).toHaveLength(10);
+    expect(normalizeStats({ colourHex: 'nope' }).colourHex).toBe('#3A6E85');
   });
 });
