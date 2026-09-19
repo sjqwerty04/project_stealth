@@ -20,7 +20,7 @@ interface ActivityMetadata {
   mediaType?: 'movie' | 'tv';
   
   // Rating
-  rating?: 'up' | 'down';
+  verdict?: 'liked' | 'okay' | 'nope';
   
   // Search
   searchQuery?: string;
@@ -88,8 +88,8 @@ export const createActivityLogger = (userId: string, userEmail: string) => {
     movieLogged: (movieId: number, movieTitle: string, date: string) =>
       logActivity(userId, userEmail, 'movie_logged', { movieId, movieTitle, logDate: date }),
     
-    movieRated: (movieId: number, movieTitle: string, rating: 'up' | 'down') =>
-      logActivity(userId, userEmail, 'movie_rated', { movieId, movieTitle, rating }),
+    movieRated: (movieId: number, movieTitle: string, verdict: 'liked' | 'okay' | 'nope') =>
+      logActivity(userId, userEmail, 'movie_rated', { movieId, movieTitle, verdict }),
     
     movieAddedToWatchlist: (movieId: number, movieTitle: string) =>
       logActivity(userId, userEmail, 'movie_added_watchlist', { movieId, movieTitle }),

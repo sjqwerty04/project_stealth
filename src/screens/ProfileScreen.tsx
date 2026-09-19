@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Film,
@@ -14,7 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserInsights } from '../hooks/useUserInsights';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
-import { useIMDBImport } from '../hooks/useIMDBImport';
+import ImportDropZone from '../components/ImportDropZone';
 
 const TASTE_DNA_ICONS = [Film, Globe, Clock];
 
@@ -60,20 +60,11 @@ export default function ProfileScreen() {
     progress: lbProgress,
     error: lbError,
   } = useLetterboxdImport();
-  const {
-    importFromCSV,
-    isImporting: imdbImporting,
-    progress: imdbProgress,
-    error: imdbError,
-  } = useIMDBImport();
-
   const [lbUsername, setLbUsername] = useState('');
   const [lbOpen, setLbOpen] = useState(false);
   const [lbSuccess, setLbSuccess] = useState<number | null>(null);
 
   const [imdbOpen, setImdbOpen] = useState(false);
-  const [imdbSuccess, setImdbSuccess] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const displayName =
     profile?.displayName ?? user?.displayName ?? user?.email?.split('@')[0] ?? 'You';
@@ -91,25 +82,6 @@ export default function ProfileScreen() {
         setLbSuccess(null);
       }, 2500);
     }
-  };
-
-  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const csv = ev.target?.result as string;
-      if (!csv) return;
-      const count = await importFromCSV(csv, 'imdb-watchlist');
-      if (count > 0) {
-        setImdbSuccess(count);
-        setTimeout(() => {
-          setImdbOpen(false);
-          setImdbSuccess(null);
-        }, 2500);
-      }
-    };
-    reader.readAsText(file);
   };
 
   const { stats, tasteProfile, personaLine, insightCards, isLoading } = insights;
@@ -305,6 +277,8 @@ export default function ProfileScreen() {
                       Imported {lbSuccess} films
                     </p>
                   )}
+                  <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mt-4 mb-2">Or drop the full export</p>
+                  <ImportDropZone compact testId="profile-letterboxd-drop" />
                 </div>
               )}
             </div>
@@ -322,7 +296,7 @@ export default function ProfileScreen() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium text-sm">IMDB</p>
-                  <p className="text-gray-400 text-xs">Import from CSV export</p>
+                  <p className="text-gray-400 text-xs">Drop your ratings.csv</p>
                 </div>
                 <ChevronRight
                   size={16}
@@ -332,37 +306,7 @@ export default function ProfileScreen() {
 
               {imdbOpen && (
                 <div className="px-4 pb-4 border-t border-white/10 pt-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCSVUpload}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={imdbImporting}
-                    className="w-full min-h-11 py-2 px-4 bg-base-3 text-fg text-sm flex items-center justify-center gap-2 border border-line disabled:opacity-40"
-                  >
-                    {imdbImporting ? (
-                      <>
-                        <SelectsChaseLoader size="xs" />
-                        {imdbProgress.current > 0
-                          ? `${imdbProgress.current}/${imdbProgress.total}`
-                          : 'Importing...'}
-                      </>
-                    ) : (
-                      'Choose CSV file'
-                    )}
-                  </button>
-                  {imdbError && (
-                    <p className="text-red-400 text-xs mt-2">{imdbError}</p>
-                  )}
-                  {imdbSuccess !== null && (
-                    <p className="text-green-400 text-xs mt-2">
-                      Imported {imdbSuccess} films
-                    </p>
-                  )}
+                  <ImportDropZone compact testId="profile-imdb-drop" />
                 </div>
               )}
             </div>

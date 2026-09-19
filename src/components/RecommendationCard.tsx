@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown, CalendarPlus, RefreshCw, SkipForward } from 'lucide-react';
+import { CalendarPlus, RefreshCw, SkipForward } from 'lucide-react';
 import SelectsChaseLoader from './ui/SelectsChaseLoader';
+import { VerdictIcon } from './VerdictPicker';
+import type { Verdict } from '../lib/library';
 import { useRecommendation, type RecommendationResult } from '../hooks/useRecommendation';
 
 type RecommendationCardProps = {
@@ -22,7 +24,7 @@ export default function RecommendationCard({ onAddToCalendar }: RecommendationCa
 
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const handleRate = async (rec: RecommendationResult, rating: 'up' | 'down') => {
+  const handleRate = async (rec: RecommendationResult, rating: Verdict) => {
     setBusyId(rec.movieId);
     await rateRecommendation(rec, rating);
     await refreshRecommendation();
@@ -88,11 +90,14 @@ export default function RecommendationCard({ onAddToCalendar }: RecommendationCa
             </div>
           </div>
           <div className="flex border-t border-line">
-            <button type="button" onClick={() => handleRate(rec, 'up')} disabled={busyId === rec.movieId} className="flex-1 py-2 text-xs">
-              <ThumbsUp size={14} className="inline mr-1" />Like
+            <button type="button" onClick={() => handleRate(rec, 'liked')} disabled={busyId === rec.movieId} className="flex-1 py-2 text-xs">
+              <VerdictIcon verdict="liked" size={14} className="inline mr-1" />Liked
             </button>
-            <button type="button" onClick={() => handleRate(rec, 'down')} disabled={busyId === rec.movieId} className="flex-1 py-2 text-xs">
-              <ThumbsDown size={14} className="inline mr-1" />Pass
+            <button type="button" onClick={() => handleRate(rec, 'okay')} disabled={busyId === rec.movieId} className="flex-1 py-2 text-xs">
+              <VerdictIcon verdict="okay" size={14} className="inline mr-1" />Okay
+            </button>
+            <button type="button" onClick={() => handleRate(rec, 'nope')} disabled={busyId === rec.movieId} className="flex-1 py-2 text-xs">
+              <VerdictIcon verdict="nope" size={14} className="inline mr-1" />Nope
             </button>
             <button type="button" onClick={() => handleSkip(rec)} disabled={busyId === rec.movieId} className="flex-1 py-2 text-xs">
               <SkipForward size={14} className="inline mr-1" />Skip

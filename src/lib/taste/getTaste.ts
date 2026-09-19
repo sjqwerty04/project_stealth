@@ -1,7 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { emptySnapshot, axisFromUnknown } from './buildRecommendContext';
-import type { HistoryItem, TastePick, TasteSnapshot } from './types';
+import type { HistoryItem, LibraryStats, TastePick, TasteSnapshot } from './types';
 
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -85,7 +85,25 @@ export function parseSnapshot(raw: unknown): TasteSnapshot {
       insightCards: asStringArray(generated.insightCards),
       lastPicks: parsePicks(generated.lastPicks),
       lastPicksAt: typeof generated.lastPicksAt === 'number' ? generated.lastPicksAt : null,
+      library: parseLibraryStats(generated.library),
     },
+  };
+}
+
+function parseLibraryStats(raw: unknown): LibraryStats | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const row = raw as Record<string, unknown>;
+  if (typeof row.watched !== 'number') return null;
+  return {
+    watched: row.watched,
+    rated: typeof row.rated === 'number' ? row.rated : 0,
+    avgStars: typeof row.avgStars === 'number' ? row.avgStars : null,
+    canon: asStringArray(row.canon),
+    rewatches: asStringArray(row.rewatches),
+    recent: asStringArray(row.recent),
+    rejects: asStringArray(row.rejects),
+    tags: asStringArray(row.tags),
+    quotes: asStringArray(row.quotes),
   };
 }
 

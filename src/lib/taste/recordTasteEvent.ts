@@ -15,8 +15,8 @@ function activityFor(event: TasteEvent): { action: ActivityAction; metadata: Rec
       return { action: 'movie_viewed', metadata: { movieId: event.movieId, movieTitle: event.title } };
     case 'calendar_log':
       return { action: 'movie_logged', metadata: { movieId: event.movieId, movieTitle: event.title, logDate: event.date } };
-    case 'rate':
-      return { action: 'movie_rated', metadata: { movieId: event.movieId, movieTitle: event.title, rating: event.rating } };
+    case 'verdict':
+      return { action: 'movie_rated', metadata: { movieId: event.movieId, movieTitle: event.title, verdict: event.verdict } };
     case 'watchlist_add':
       return { action: 'movie_added_watchlist', metadata: { movieId: event.movieId, movieTitle: event.title } };
     case 'search':

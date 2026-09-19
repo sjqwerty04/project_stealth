@@ -123,7 +123,7 @@ export default function SelectsCarousel({
   const swallowClick = useRef(false);
   const slideIdsRef = useRef('');
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const resumeTimer = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const resumeTimer = useRef<number | null>(null);
   const looped = useMemo(() => loopingSlides(slides), [slides]);
   const slideKey = slides.map((s) => s.id).join(',');
   const count = slides.length;

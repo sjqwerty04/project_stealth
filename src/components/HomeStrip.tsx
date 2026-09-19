@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { addDays, format, isSameDay, startOfDay, subDays } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
@@ -7,6 +7,10 @@ import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarouse
 import { relatedFromWhy } from './selectsCarouselLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
+import DiaryDaySheet from './DiaryDaySheet';
+import { useLibrary } from '../lib/library';
+import { VerdictBadge } from './VerdictPicker';
+import { eventVerdict } from '../hooks/useCalendarLogs';
 
 export type { SelectFilm };
 
@@ -224,11 +228,16 @@ function useDayClip(film: CalendarEvent | null) {
 function DayStage({
   film,
   onOpen,
+  watchCount = 0,
+  verdict,
 }: {
   film: CalendarEvent;
   onOpen: () => void;
+  watchCount?: number;
+  verdict?: ReturnType<typeof eventVerdict>;
 }) {
   const clip = useDayClip(film);
+  const shownVerdict = verdict ?? eventVerdict(film);
   const still = clip?.still || film.backdrop || film.poster;
   const logo = clip?.logo;
 
@@ -274,6 +283,14 @@ function DayStage({
           </span>
         )}
       </span>
+      <span className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+        {watchCount > 1 && (
+          <span className="px-1.5 py-0.5 bg-black/70 font-spec text-[10px] uppercase tracking-widest text-fg" data-testid="day-stage-count">
+            x{watchCount}
+          </span>
+        )}
+        {shownVerdict && <VerdictBadge verdict={shownVerdict} size={18} />}
+      </span>
     </button>
   );
 }
@@ -294,15 +311,31 @@ export default function HomeStrip({
   onAddMovie: (date: Date) => void;
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
+  const [daySheet, setDaySheet] = useState<Date | null>(null);
   const { picks, status } = useRecommendation({ events });
+  const { byId: library } = useLibrary();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
 
+  // Span from the earliest logged night (floored at five years) to sixty days ahead.
+  const earliest = useMemo(() => {
+    let min: string | null = null;
+    for (const e of events) {
+      const k = eventDayKey(e.date);
+      if (k && (!min || k < min)) min = k;
+    }
+    return min;
+  }, [events]);
   const days = useMemo(() => {
     const today = startOfDay(new Date());
-    const start = subDays(today, 180);
-    const count = 180 + 60 + 1;
+    const floor = subYears(today, 5);
+    let start = subDays(today, 180);
+    if (earliest) {
+      const first = startOfDay(parseISO(earliest));
+      if (first < start) start = first < floor ? floor : first;
+    }
+    const count = differenceInCalendarDays(today, start) + 60 + 1;
     return Array.from({ length: count }, (_, i) => addDays(start, i));
-  }, []);
+  }, [earliest]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -316,7 +349,8 @@ export default function HomeStrip({
     return map;
   }, [events]);
 
-  const dayFilm = (byDay.get(dayKey(selected)) ?? [])[0] ?? null;
+  const dayLogs = byDay.get(dayKey(selected)) ?? [];
+  const dayFilm = dayLogs[0] ?? null;
   const yearCount = events.filter((e) =>
     eventDayKey(e.date).startsWith(String(selected.getFullYear())),
   ).length;
@@ -413,16 +447,23 @@ export default function HomeStrip({
             <DayStage
               key={dayFilm.movieId}
               film={dayFilm}
-              onOpen={() => onOpenMovie(dayFilm.movieId, dayFilm.mediaType)}
+              watchCount={library.get(dayFilm.movieId)?.watchCount ?? 0}
+              verdict={library.get(dayFilm.movieId)?.verdict ?? eventVerdict(dayFilm)}
+              onOpen={() => (dayLogs.length > 1 ? setDaySheet(selected) : onOpenMovie(dayFilm.movieId, dayFilm.mediaType))}
             />
           </div>
         ) : null}
         {dayFilm ? (
-          <p className="px-7 mb-2 font-spec text-[10px] uppercase tracking-widest text-fg-3">
+          <button
+            type="button"
+            data-testid="day-caption"
+            onClick={() => setDaySheet(selected)}
+            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
+          >
             {format(selected, 'EEEE d')}
             {'  ·  '}
-            {yearCount} this year
-          </p>
+            {dayLogs.length > 1 ? `${dayLogs.length} films` : yearCount + ' this year'}
+          </button>
         ) : (
           <button
             type="button"
@@ -454,11 +495,22 @@ export default function HomeStrip({
                   aria-label={film ? format(d, 'EEEE MMM d') : `Log a film on ${format(d, 'EEEE MMM d')}`}
                   aria-pressed={active}
                   onClick={() => {
+                    if (film && active) {
+                      setDaySheet(d);
+                      return;
+                    }
                     setSelected(d);
                     if (!film) onAddMovie(d);
                   }}
-                  className="flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
+                  className="relative flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >
+                  {logs.length > 1 && (
+                    <span
+                      className="absolute -top-1 right-0 w-1.5 h-1.5 rounded-full bg-fg"
+                      data-testid="strip-day-multi"
+                      aria-hidden
+                    />
+                  )}
                   <span
                     className="block shrink-0"
                     style={{
@@ -479,6 +531,20 @@ export default function HomeStrip({
           </div>
         </div>
       </div>
+      <DiaryDaySheet
+        date={daySheet}
+        logs={daySheet ? byDay.get(dayKey(daySheet)) ?? [] : []}
+        library={library}
+        onClose={() => setDaySheet(null)}
+        onOpenMovie={(id, type) => {
+          setDaySheet(null);
+          onOpenMovie(id, type);
+        }}
+        onAddMovie={(d) => {
+          setDaySheet(null);
+          onAddMovie(d);
+        }}
+      />
     </div>
   );
 }

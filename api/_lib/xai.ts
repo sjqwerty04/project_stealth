@@ -32,14 +32,27 @@ export async function callXai(opts: {
   maxTokens?: number;
   reasoningEffort?: 'low' | 'medium' | 'high' | null;
   webSearch?: boolean;
+  /** Data URLs or https URLs attached to the last user message as input_image parts. */
+  images?: string[];
 }): Promise<string> {
   if (!XAI_API_KEY) throw new XaiConfigError();
+
+  const input = opts.messages.map((m) => ({ role: m.role, content: m.content as unknown }));
+  if (opts.images?.length) {
+    const lastUser = [...input].reverse().find((m) => m.role === 'user');
+    if (lastUser) {
+      lastUser.content = [
+        { type: 'input_text', text: String(lastUser.content) },
+        ...opts.images.map((url) => ({ type: 'input_image', image_url: url, detail: 'high' })),
+      ];
+    }
+  }
 
   const body: Record<string, unknown> = {
     model: DEFAULT_MODEL,
     store: false,
     max_output_tokens: opts.maxTokens ?? 4096,
-    input: opts.messages.map((m) => ({ role: m.role, content: m.content })),
+    input,
   };
   if (opts.reasoningEffort !== null && opts.reasoningEffort !== undefined) {
     body.reasoning = { effort: opts.reasoningEffort };
