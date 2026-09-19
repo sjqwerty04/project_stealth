@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { renderToString } from 'react-dom/server';
+import React from 'react';
+import { SelectCard } from './SelectsCarousel';
 import {
   loopingSlides,
   relatedFromWhy,
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_MS,
+  slideIdentityKey,
   snapLoopIndex,
 } from './selectsCarouselLogic';
 
@@ -30,6 +34,22 @@ describe('selects carousel loop', () => {
   it('holds 6.2s and eases 900ms', () => {
     expect(SELECTS_AUTOPLAY_MS).toBe(6200);
     expect(SELECTS_TRANSITION_MS).toBe(900);
+  });
+
+  it('keeps carousel identity when a movie changes in one slot', () => {
+    expect(
+      slideIdentityKey([
+        { slotId: 0, id: 1 },
+        { slotId: 1, id: 2 },
+        { slotId: 2, id: 3 },
+      ]),
+    ).toBe(
+      slideIdentityKey([
+        { slotId: 0, id: 1 },
+        { slotId: 1, id: 99 },
+        { slotId: 2, id: 3 },
+      ]),
+    );
   });
 });
 
@@ -64,5 +84,89 @@ describe('relatedFromWhy', () => {
     expect(
       relatedFromWhy("All the President's Men is the template.", diary, 'Zodiac'),
     ).toEqual([{ title: "All the President's Men", poster: 'atpm.jpg' }]);
+  });
+});
+
+describe('select card watched control', () => {
+  const film = {
+    slotId: 1 as const,
+    id: 2,
+    title: 'Zodiac',
+    poster: 'zodiac.jpg',
+  };
+
+  it("uses the diary verdict labels in the Watched picker", () => {
+    const html = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: true,
+        replacement: null,
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(html).toContain('Watched');
+    expect(html).toContain('Liked');
+    expect(html).toContain("It&#x27;s okay");
+    expect(html).toContain('Nope');
+  });
+
+  it('shows loading only in the affected slot and keeps its title', () => {
+    const affected = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: false,
+        replacement: { slotId: 1, phase: 'replacing', feedbackSaved: true },
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+    const sibling = renderToString(
+      React.createElement(SelectCard, {
+        film: { ...film, slotId: 0, id: 1, title: 'Heat' },
+        pickerOpen: false,
+        replacement: { slotId: 1, phase: 'replacing', feedbackSaved: true },
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(affected).toContain('Finding another select');
+    expect(affected).toContain('aria-label="Zodiac"');
+    expect(sibling).toContain('aria-label="Heat"');
+    expect(sibling).not.toContain('Finding another select');
+  });
+
+  it('shows retry only on the failed slot', () => {
+    const html = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: false,
+        replacement: {
+          slotId: 1,
+          phase: 'failed',
+          feedbackSaved: true,
+          message: 'Could not find another select',
+        },
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(html).toContain('Could not find another select');
+    expect(html).toContain('Retry');
   });
 });
