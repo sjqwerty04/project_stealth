@@ -61,7 +61,7 @@ describe('relatedFromWhy', () => {
     { title: 'The', poster: 'the.jpg' },
   ];
 
-  it('matches diary titles named in whyMatch, longer first, cap 2', () => {
+  it('matches diary titles named in whyMatch, mention order, cap 2', () => {
     expect(
       relatedFromWhy(
         "You rated Se7en a 5 and logged All the President's Men last month.",
@@ -69,8 +69,8 @@ describe('relatedFromWhy', () => {
         'Zodiac',
       ),
     ).toEqual([
-      { title: "All the President's Men", poster: 'atpm.jpg' },
       { title: 'Se7en', poster: 'se7en.jpg' },
+      { title: "All the President's Men", poster: 'atpm.jpg' },
     ]);
   });
 
@@ -84,6 +84,93 @@ describe('relatedFromWhy', () => {
     expect(
       relatedFromWhy("All the President's Men is the template.", diary, 'Zodiac'),
     ).toEqual([{ title: "All the President's Men", poster: 'atpm.jpg' }]);
+  });
+
+  it('uses the first named diary films for Logan, including X2', () => {
+    const loganDiary = [
+      { title: 'Cape Fear', poster: 'cape-fear.jpg' },
+      { title: 'Sleepers', poster: 'sleepers.jpg' },
+      { title: 'There Will Be Blood', poster: 'twbb.jpg' },
+      { title: 'X-Men', poster: 'xmen.jpg' },
+      { title: 'X2', poster: 'x2.jpg' },
+    ];
+    expect(
+      relatedFromWhy(
+        'X-Men and X2 both got a 5 from you, and Logan is the scarred, adult finish of that world. It has the bruised father and child tension you already rewarded in Cape Fear and Sleepers. The western grit should land if you also wanted something like There Will Be Blood.',
+        loganDiary,
+        'Logan',
+      ),
+    ).toEqual([
+      { title: 'X-Men', poster: 'xmen.jpg' },
+      { title: 'X2', poster: 'x2.jpg' },
+    ]);
+  });
+
+  it('resolves short why names to official diary titles on every slide', () => {
+    const diary = [
+      { title: 'Cape Fear', poster: 'cape-fear.jpg' },
+      { title: 'Sleepers', poster: 'sleepers.jpg' },
+      { title: 'There Will Be Blood', poster: 'twbb.jpg' },
+      { title: 'X-Men: The Last Stand', poster: 'xls.jpg' },
+      { title: 'X2: X-Men United', poster: 'x2u.jpg' },
+      { title: 'Se7en', poster: 'se7en.jpg' },
+      { title: "All the President's Men", poster: 'atpm.jpg' },
+      { title: 'Infernal Affairs', poster: 'ia.jpg' },
+      { title: 'The Godfather', poster: 'gf.jpg' },
+      { title: 'Thief', poster: 'thief.jpg' },
+      { title: 'Collateral', poster: 'collateral.jpg' },
+    ];
+
+    expect(
+      relatedFromWhy(
+        'X-Men and X2 both got a 5 from you, and Logan is the scarred, adult finish of that world. It has the bruised father and child tension you already rewarded in Cape Fear and Sleepers.',
+        diary,
+        'Logan',
+      ),
+    ).toEqual([
+      { title: 'X-Men: The Last Stand', poster: 'xls.jpg' },
+      { title: 'X2: X-Men United', poster: 'x2u.jpg' },
+    ]);
+
+    expect(
+      relatedFromWhy(
+        "You rated Se7en a 5 and logged All the President's Men last month. Fincher's procedural patience is the same itch.",
+        diary,
+        'Zodiac',
+      ),
+    ).toEqual([
+      { title: 'Se7en', poster: 'se7en.jpg' },
+      { title: "All the President's Men", poster: 'atpm.jpg' },
+    ]);
+
+    expect(
+      relatedFromWhy(
+        'You keep coming back to Infernal Affairs and The Godfather. Scorsese Boston crime web has the same loyalty-as-trap energy you already marked as a 5.',
+        diary,
+        'The Departed',
+      ),
+    ).toEqual([
+      { title: 'Infernal Affairs', poster: 'ia.jpg' },
+      { title: 'The Godfather', poster: 'gf.jpg' },
+    ]);
+  });
+
+  it('prefers an exact diary title over a sequel that shares the same prefix', () => {
+    expect(
+      relatedFromWhy(
+        'X-Men and X2 both got a 5 from you.',
+        [
+          { title: 'X-Men: The Last Stand', poster: 'xls.jpg' },
+          { title: 'X-Men', poster: 'xmen.jpg' },
+          { title: 'X2: X-Men United', poster: 'x2u.jpg' },
+          { title: 'Cape Fear', poster: 'cape-fear.jpg' },
+        ],
+        'Logan',
+      ),
+    ).toEqual([
+      { title: 'X-Men', poster: 'xmen.jpg' },
+      { title: 'X2: X-Men United', poster: 'x2u.jpg' },
+    ]);
   });
 });
 
