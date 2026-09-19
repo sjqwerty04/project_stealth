@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
+import { setVerdict as setLedgerVerdict, type Verdict } from '../lib/library';
 import {
   contextFromCalendarLogs,
   hasMeaningfulContext,
@@ -159,7 +160,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const [error, setError] = useState<string | null>(null);
 
   const diaryKey = (opts?.events ?? [])
-    .map((e) => `${e.movieId ?? ''}:${e.title}:${e.rating ?? ''}:${e.date ?? ''}`)
+    .map((e) => `${e.movieId ?? ''}:${e.title}:${e.verdict ?? e.rating ?? ''}:${e.date ?? ''}`)
     .join('|');
 
   const context = useMemo((): RecommendContext => {
@@ -306,24 +307,17 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   }, [user, picks, generateRecommendation]);
 
   const rateRecommendation = useCallback(
-    async (rec: RecommendationResult, rating: 'up' | 'down') => {
+    async (rec: RecommendationResult, verdict: Verdict) => {
       if (!user) return;
-      const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
-      await addDoc(watchedRef, {
-        movieId: rec.movieId,
-        title: rec.title,
-        year: rec.year,
-        poster: rec.poster,
-        backdrop: rec.backdrop,
-        runtime: rec.runtime,
-        mediaType: rec.mediaType,
-        rating,
-        ratedAt: serverTimestamp(),
-        llmReason: rec.reason,
-      });
+      await setLedgerVerdict(
+        user.uid,
+        { movieId: rec.movieId, title: rec.title, year: rec.year, poster: rec.poster, backdrop: rec.backdrop, mediaType: rec.mediaType },
+        verdict,
+        'rec',
+      );
       await recordTasteEvent(
         user.uid,
-        { type: 'rate', movieId: rec.movieId, title: rec.title, year: rec.year, rating, source: 'rec' },
+        { type: 'verdict', movieId: rec.movieId, title: rec.title, year: rec.year, verdict, source: 'rec' },
         { email: user.email }
       );
     },

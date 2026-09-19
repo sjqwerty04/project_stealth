@@ -5,7 +5,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { callLlm } from '../lib/llm';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
-import { useIMDBImport } from '../hooks/useIMDBImport';
+import ImportDropZone from '../components/ImportDropZone';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
 import { recordTasteEvent } from '../lib/taste';
 import FilmPickerScroll from '../components/FilmPickerScroll';
@@ -36,10 +36,8 @@ export default function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
   const [lbUsername, setLbUsername] = useState('');
   const [lbStatus, setLbStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [imdbStatus, setImdbStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
 
   const { importFromLetterboxd, isImporting: lbImporting } = useLetterboxdImport();
-  const { importFromCSV } = useIMDBImport();
   const { claimHandle, isAvailable } = useHandle();
 
   const finish = useCallback(() => {
@@ -129,23 +127,6 @@ export default function OnboardingScreen() {
     }
     setTimeout(() => setPage(6), 1500);
   }, [lbUsername, importFromLetterboxd]);
-
-  const handleIMDBFile = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      setImdbStatus('loading');
-      try {
-        const text = await file.text();
-        await importFromCSV(text, 'imdb-ratings');
-        setImdbStatus('done');
-      } catch {
-        setImdbStatus('error');
-      }
-      setTimeout(() => finish(), 1500);
-    },
-    [importFromCSV, finish]
-  );
 
   function toggleQ1(film: FilmItem) {
     setQ1Films((prev) => {
@@ -302,7 +283,10 @@ export default function OnboardingScreen() {
         <Armature state="stack" />
         <div className="flex-1 flex flex-col items-center justify-center px-7 gap-4">
           <h2 className="font-display text-2xl text-fg text-center">Already logging on Letterboxd?</h2>
-          <p className="text-fg-2 text-sm text-center">Username first. Skip stays skippable.</p>
+          <p className="text-fg-2 text-sm text-center">Drop the export zip, or type a username. Skip stays skippable.</p>
+          <div className="w-full">
+            <ImportDropZone compact testId="onboarding-drop" onDone={() => setTimeout(() => setPage(6), 1200)} />
+          </div>
           <Input
             value={lbUsername}
             onChange={(e) => setLbUsername(e.target.value)}
@@ -334,22 +318,10 @@ export default function OnboardingScreen() {
       <Armature state="stack" />
       <div className="flex-1 flex flex-col items-center justify-center px-7 gap-4">
         <h2 className="font-display text-2xl text-fg text-center">Import your IMDB ratings?</h2>
-        <p className="text-fg-2 text-sm text-center">CSV export. Optional.</p>
-        <label className="w-full cursor-pointer" htmlFor="imdb-csv">
-          <span className="sr-only">Upload CSV</span>
-          <span className="inline-flex w-full min-h-11 items-center justify-center bg-fg text-base text-sm font-semibold">
-            {imdbStatus === 'done' ? 'Imported' : imdbStatus === 'loading' ? 'Working' : 'Upload CSV'}
-          </span>
-          <input
-            id="imdb-csv"
-            type="file"
-            accept=".csv"
-            className="sr-only"
-            onChange={handleIMDBFile}
-            disabled={imdbStatus === 'loading'}
-          />
-        </label>
-        {imdbStatus === 'error' && <p className="text-fg-2 text-sm">Could not import that CSV.</p>}
+        <p className="text-fg-2 text-sm text-center">Drop ratings.csv. Optional.</p>
+        <div className="w-full">
+          <ImportDropZone compact testId="onboarding-imdb-drop" onDone={() => setTimeout(() => finish(), 1200)} />
+        </div>
       </div>
       <button
         onClick={() => {

@@ -1,3 +1,5 @@
+import type { FilmSource, Verdict } from '../library/types';
+
 export type Axis = 'story' | 'visual' | 'mood';
 
 export type FilmRef = {
@@ -57,18 +59,52 @@ export type TasteSnapshot = {
     insightCards: string[];
     lastPicks: TastePick[];
     lastPicksAt: number | null;
+    library?: LibraryStats | null;
   };
+};
+
+export type RatedFilm = FilmRef & {
+  verdict: Verdict | null;
+  stars?: number | null;
+  at?: number;
+  watchCount?: number;
+  hearted?: boolean;
+};
+
+export type LibraryStats = {
+  watched: number;
+  rated: number;
+  avgStars: number | null;
+  canon: string[];
+  rewatches: string[];
+  recent: string[];
+  rejects: string[];
+  tags: string[];
+  quotes: string[];
 };
 
 export type DiaryEvidence = {
   identity: TasteIdentity;
   favorites: FilmRef[];
   disliked: FilmRef[];
-  rated: Array<FilmRef & { rating: 'up' | 'down' | number; at?: number }>;
+  rated: RatedFilm[];
   watchlist: FilmRef[];
   skipped: FilmRef[];
   searches: string[];
   patterns: string[];
+  /** Films the user showed curiosity about without watching (liked reviews). */
+  curious?: FilmRef[];
+  library?: LibraryStats | null;
+};
+
+/** Compact summary an import carries so the snapshot can update before the rebuild. */
+export type ImportDigest = {
+  canon: FilmRef[];
+  rejects: FilmRef[];
+  recent: FilmRef[];
+  avgStars: number | null;
+  counts: { watched: number; rated: number; diary: number; watchlist: number };
+  curious?: FilmRef[];
 };
 
 export type TasteEvent =
@@ -80,13 +116,15 @@ export type TasteEvent =
       personaLine?: string | null;
     }
   | {
-      type: 'rate';
+      type: 'verdict';
       movieId: number;
       title: string;
       year?: string | number;
-      rating: 'up' | 'down';
-      source: 'calendar' | 'rec' | 'detail';
+      verdict: Verdict;
+      stars?: number | null;
+      source: 'calendar' | 'rec' | 'detail' | 'watched';
     }
+  | { type: 'watched_remove'; movieId: number; title: string }
   | { type: 'skip'; movieId: number; title: string; year?: string | number }
   | { type: 'watchlist_add'; movieId: number; title: string; year?: string | number }
   | { type: 'watchlist_remove'; movieId: number; title: string }
@@ -96,7 +134,8 @@ export type TasteEvent =
       title: string;
       year?: string | number;
       date: string;
-      rating?: 'up' | 'down' | null;
+      verdict?: Verdict | null;
+      stars?: number | null;
     }
   | { type: 'search'; query: string; openedMovieId?: number; openedTitle?: string }
   | { type: 'movie_viewed'; movieId: number; title: string }
@@ -108,7 +147,7 @@ export type TasteEvent =
       toMovieId: number;
       toTitle: string;
     }
-  | { type: 'import'; source: 'letterboxd' | 'imdb'; count: number }
+  | { type: 'import'; source: FilmSource; count: number; digest?: ImportDigest }
   | { type: 'pattern'; insight: string; movieIds: number[] }
   | { type: 'identity'; personaLine: string; insightCards?: string[] }
   | { type: 'last_picks'; picks: TastePick[] };

@@ -12,18 +12,15 @@ import {
   Ticket,
   Sparkles,
   Repeat,
-  ThumbsUp,
-  ThumbsDown,
   User as UserIcon,
   Info,
 } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { useCalendarLogs, type CalendarEvent } from '../hooks/useCalendarLogs';
+import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
+import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
+import type { Verdict } from '../lib/library';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useHandle, isValidHandle, normalizeHandle } from '../hooks/useHandle';
-import { useAuth } from '../hooks/useAuth';
 import { logMovieAdded } from '../lib/analytics';
 import RecommendationCard from '../components/RecommendationCard';
 import type { RecommendationResult } from '../hooks/useRecommendation';
@@ -33,7 +30,7 @@ import Skeleton from '../components/ui/Skeleton';
 import { useUserInsights } from '../hooks/useUserInsights';
 import { FALLBACK_FILMS, posterUrl } from '../lib/fallbackCatalog';
 
-type RatingValue = 'up' | 'down' | null;
+type RatingValue = Verdict | null;
 
 type Movie = {
   id: number;
@@ -418,7 +415,7 @@ const generateMovieInsight = async (movieTitle: string, otherMovies: Array<{ tit
     
     let prompt = '';
 
-    if (rating === 'up') {
+    if (rating === 'liked') {
       prompt = `<task>
 User watched "${movieTitle}" and LIKED it. Roast them sarcastically for this taste.
 </task>
@@ -431,7 +428,7 @@ ${historyContext}
 - ABSOLUTELY NO SPOILERS - only reference vibe, genre, reputation, or director's style
 - Never describe what happens in the film
 </rules>`;
-    } else if (rating === 'down') {
+    } else if (rating === 'nope') {
       prompt = `<task>
 User watched "${movieTitle}" and HATED it. Roast the movie mercilessly and validate their hatred.
 </task>
@@ -480,7 +477,6 @@ const MOCK_DB: Movie[] = [
 
 export default function MovieCalendarApp() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { events, loading: eventsLoading, addEvent, updateEvent, deleteEvent, getEventsForDate, getPendingReviewEvents } = useCalendarLogs();
   const { profile, profileImage, updateProfileImage } = useUserProfile();
   const { claimHandle, isAvailable } = useHandle();
@@ -850,7 +846,7 @@ export default function MovieCalendarApp() {
       poster: selectedMovie.poster,
       date: selectedDate.toISOString(),
       inviteFriend,
-      rating: isPast ? rating : null,
+      verdict: isPast ? rating : null,
       status: isPast ? 'watched' as const : 'planned' as const,
       backdrop: selectedMovie.backdrop,
       mediaType: selectedMovie.mediaType,
@@ -868,22 +864,6 @@ export default function MovieCalendarApp() {
       } else {
         await addEvent(eventData);
         
-        // ALSO save to watched_recommendations if it's a past date with rating
-        if (isPast && rating && user) {
-          const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
-          await addDoc(watchedRef, {
-            movieId: selectedMovie.id,
-            title: selectedMovie.title,
-            year: selectedMovie.year,
-            poster: selectedMovie.poster,
-            backdrop: selectedMovie.backdrop,
-            runtime: selectedMovie.runtime,
-            mediaType: selectedMovie.mediaType,
-            rating,
-            ratedAt: serverTimestamp(),
-            source: 'calendar',
-          });
-        }
         
         // Log analytics event
         await logMovieAdded(selectedMovie.mediaType || 'movie', selectedDate.toISOString());
@@ -988,26 +968,10 @@ export default function MovieCalendarApp() {
     setIsSubmittingReview(true);
     try {
       await updateEvent(reviewingEvent.id, {
-        rating: reviewRating,
+        verdict: reviewRating,
         status: 'watched' as const,
       });
 
-      // Also save to watched_recommendations so it shows in the Watched library
-      if (user) {
-        const watchedRef = collection(db, 'users', user.uid, 'watched_recommendations');
-        await addDoc(watchedRef, {
-          movieId: reviewingEvent.movieId,
-          title: reviewingEvent.title,
-          year: reviewingEvent.year,
-          poster: reviewingEvent.poster,
-          backdrop: reviewingEvent.backdrop,
-          runtime: reviewingEvent.runtimeLabel,
-          mediaType: reviewingEvent.mediaType,
-          rating: reviewRating,
-          ratedAt: serverTimestamp(),
-          source: 'calendar',
-        });
-      }
 
       setReviewingEvent(null);
       setReviewRating(null);
@@ -1242,30 +1206,7 @@ export default function MovieCalendarApp() {
             
             <div>
               <label className="text-sm font-bold text-gray-400 mb-2 block">How was it?</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setReviewRating('up')}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
-                    reviewRating === 'up'
-                      ? 'border-green-500 bg-green-900/20 text-green-400'
-                      : 'border-gray-700 bg-gray-800 text-gray-500 hover:bg-gray-700'
-                  }`}
-                >
-                  <ThumbsUp size={24} className={reviewRating === 'up' ? 'fill-current' : ''} />
-                  <span className="mt-1 font-bold text-xs">Loved it</span>
-                </button>
-                <button
-                  onClick={() => setReviewRating('down')}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
-                    reviewRating === 'down'
-                      ? 'border-red-500 bg-red-900/20 text-red-400'
-                      : 'border-gray-700 bg-gray-800 text-gray-500 hover:bg-gray-700'
-                  }`}
-                >
-                  <ThumbsDown size={24} className={reviewRating === 'down' ? 'fill-current' : ''} />
-                  <span className="mt-1 font-bold text-xs">Not for me</span>
-                </button>
-              </div>
+              <VerdictPicker value={reviewRating} onChange={setReviewRating} />
             </div>
 
             <div className="flex gap-2">
@@ -1429,7 +1370,7 @@ export default function MovieCalendarApp() {
                         setSelectedMovie(hydratedMovie);
                         setInviteFriend(event.inviteFriend);
                         setEditingEventId(event.id);
-                        setRating(event.rating || null);
+                        setRating(eventVerdict(event));
                         setViewMode('details');
                         if (event.accentStart && event.accentEnd && event.accentText) {
                           setSelectedAccent({
@@ -1446,11 +1387,9 @@ export default function MovieCalendarApp() {
                         <span className="font-semibold text-gray-200">{event.title}</span>
                         <span className="text-xs text-gray-500">{event.year} • {event.runtimeLabel}</span>
                       </div>
-                      {event.rating && (
-                        <div className={`self-center px-2 py-1 rounded-full text-xs font-bold ${
-                          event.rating === 'up' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
-                        }`}>
-                          {event.rating === 'up' ? '👍' : '👎'}
+                      {eventVerdict(event) && (
+                        <div className="self-center">
+                          <VerdictBadge verdict={eventVerdict(event)!} size={22} />
                         </div>
                       )}
                     </div>
@@ -1599,30 +1538,7 @@ export default function MovieCalendarApp() {
                 {isPast ? (
                   <div>
                     <label className="text-sm font-bold text-gray-400 mb-3 block">How was it?</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => setRating('up')}
-                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                          rating === 'up'
-                            ? 'border-green-500 bg-green-900/20 text-green-400'
-                            : 'border-gray-800 bg-gray-900 text-gray-500 hover:bg-gray-800'
-                        }`}
-                      >
-                        <ThumbsUp size={32} className={rating === 'up' ? 'fill-current' : ''} />
-                        <span className="mt-2 font-bold text-sm">Loved it</span>
-                      </button>
-                      <button
-                        onClick={() => setRating('down')}
-                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                          rating === 'down'
-                            ? 'border-red-500 bg-red-900/20 text-red-400'
-                            : 'border-gray-800 bg-gray-900 text-gray-500 hover:bg-gray-800'
-                        }`}
-                      >
-                        <ThumbsDown size={32} className={rating === 'down' ? 'fill-current' : ''} />
-                        <span className="mt-2 font-bold text-sm">Not for me</span>
-                      </button>
-                    </div>
+                    <VerdictPicker value={rating} onChange={setRating} size="lg" />
                   </div>
                 ) : (
                   <div>
@@ -1756,25 +1672,13 @@ export default function MovieCalendarApp() {
                         <div className="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden shadow-lg bg-white">
                           <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                         </div>
-                        <div
-                          className={`absolute -top-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow ${
-                            rating
-                              ? rating === 'up'
-                                ? 'bg-green-500 text-white'
-                                : 'bg-red-500 text-white'
-                              : 'bg-amber-400 text-amber-900'
-                          }`}
-                        >
-                          {rating ? (
-                            rating === 'up' ? (
-                              <ThumbsUp size={12} className="fill-current" />
-                            ) : (
-                              <ThumbsDown size={12} className="fill-current" />
-                            )
-                          ) : (
+                        {rating ? (
+                          <div className="absolute -top-1 -right-1"><VerdictBadge verdict={rating} size={24} /></div>
+                        ) : (
+                          <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow bg-amber-400 text-amber-900">
                             <Ticket size={12} className="text-amber-900" />
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                   </div>
                 </div>
@@ -1830,17 +1734,7 @@ export default function MovieCalendarApp() {
                     <h3 className="font-bold text-white text-lg">{lastSavedMovie.title}</h3>
                     <p className="text-sm text-gray-400">{lastSavedMovie.year} • {lastSavedMovie.runtime}</p>
                   </div>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    lastSavedRating === 'up' 
-                      ? 'bg-green-500/20 text-green-400' 
-                      : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    {lastSavedRating === 'up' ? (
-                      <ThumbsUp size={24} className="fill-current" />
-                    ) : (
-                      <ThumbsDown size={24} className="fill-current" />
-                    )}
-                  </div>
+                  {lastSavedRating && <VerdictBadge verdict={lastSavedRating} size={48} />}
                 </div>
 
                 <div className="space-y-3 pt-2">
