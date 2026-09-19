@@ -229,13 +229,15 @@ function DayStage({
   film,
   onOpen,
   watchCount = 0,
+  verdict,
 }: {
   film: CalendarEvent;
   onOpen: () => void;
   watchCount?: number;
+  verdict?: ReturnType<typeof eventVerdict>;
 }) {
   const clip = useDayClip(film);
-  const verdict = eventVerdict(film);
+  const shownVerdict = verdict ?? eventVerdict(film);
   const still = clip?.still || film.backdrop || film.poster;
   const logo = clip?.logo;
 
@@ -287,7 +289,7 @@ function DayStage({
             x{watchCount}
           </span>
         )}
-        {verdict && <VerdictBadge verdict={verdict} size={18} />}
+        {shownVerdict && <VerdictBadge verdict={shownVerdict} size={18} />}
       </span>
     </button>
   );
@@ -446,6 +448,7 @@ export default function HomeStrip({
               key={dayFilm.movieId}
               film={dayFilm}
               watchCount={library.get(dayFilm.movieId)?.watchCount ?? 0}
+              verdict={library.get(dayFilm.movieId)?.verdict ?? eventVerdict(dayFilm)}
               onOpen={() => (dayLogs.length > 1 ? setDaySheet(selected) : onOpenMovie(dayFilm.movieId, dayFilm.mediaType))}
             />
           </div>

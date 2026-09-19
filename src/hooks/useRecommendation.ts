@@ -160,7 +160,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const [error, setError] = useState<string | null>(null);
 
   const diaryKey = (opts?.events ?? [])
-    .map((e) => `${e.movieId ?? ''}:${e.title}:${e.rating ?? ''}:${e.date ?? ''}`)
+    .map((e) => `${e.movieId ?? ''}:${e.title}:${e.verdict ?? e.rating ?? ''}:${e.date ?? ''}`)
     .join('|');
 
   const context = useMemo((): RecommendContext => {

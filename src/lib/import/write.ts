@@ -2,6 +2,7 @@ import { collection, doc, getDoc, getDocs, setDoc, writeBatch, type Firestore } 
 import { generateSnapshot } from '../taste/generateSnapshot';
 import { db as defaultDb } from '../firebase';
 import { BATCH_LIMIT, emptyFilm, mergeFilm, parseFilm } from '../library/ledger';
+import { withLibraryWriteLock } from '../library/lock';
 import type { ImportBundle, LibraryFilm } from '../library/types';
 import { verdictFromStars } from '../library/verdict';
 import type { ImportDigest, FilmRef } from '../taste/types';
@@ -168,6 +169,16 @@ export async function writeLibrary(
   opts: { email?: string | null; db?: Firestore; onProgress?: (phase: string, done: number, total: number) => void } = {},
 ): Promise<WriteSummary> {
   const db = opts.db ?? defaultDb;
+  return withLibraryWriteLock(uid, () => writeLibraryUnlocked(uid, bundle, matched, { ...opts, db }));
+}
+
+async function writeLibraryUnlocked(
+  uid: string,
+  bundle: ImportBundle,
+  matched: Map<string, MatchedFilm>,
+  opts: { email?: string | null; db: Firestore; onProgress?: (phase: string, done: number, total: number) => void },
+): Promise<WriteSummary> {
+  const db = opts.db;
   const existingSnap = await getDocs(collection(db, 'users', uid, 'films'));
   const existing = new Map<number, LibraryFilm>();
   for (const d of existingSnap.docs) {
