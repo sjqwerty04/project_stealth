@@ -3,6 +3,10 @@ export function loopingSlides<T>(slides: T[]): T[] {
   return [slides[slides.length - 1], ...slides, slides[0]];
 }
 
+export function slideIdentityKey<T extends { slotId: number }>(slides: T[]): string {
+  return slides.map((slide) => slide.slotId).join(',');
+}
+
 /** After a wrap animation lands on a clone, jump to the matching real slide. */
 export function snapLoopIndex(index: number, count: number): number | null {
   if (count < 2) return null;

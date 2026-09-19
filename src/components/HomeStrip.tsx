@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
-import { useRecommendation } from '../hooks/useRecommendation';
+import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
 import { relatedFromWhy } from './selectsCarouselLogic';
@@ -312,7 +312,13 @@ export default function HomeStrip({
 }) {
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
   const [daySheet, setDaySheet] = useState<Date | null>(null);
-  const { picks, status } = useRecommendation({ events });
+  const {
+    picks,
+    status,
+    replacement,
+    replaceSelect,
+    retrySelectReplacement,
+  } = useRecommendation({ events });
   const { byId: library } = useLibrary();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
 
@@ -356,7 +362,8 @@ export default function HomeStrip({
   ).length;
 
   const slides = useMemo(() => {
-    return picks.slice(0, 3).map((p) => ({
+    return picks.slice(0, 3).map((p, slotId) => ({
+      slotId: slotId as SelectSlotId,
       id: p.movieId,
       title: p.title,
       poster: p.poster,
@@ -428,7 +435,18 @@ export default function HomeStrip({
           </p>
         )}
         {slides.length > 0 && (
-          <SelectsCarousel slides={slides} art={art} onOpenMovie={onOpenMovie} />
+          <SelectsCarousel
+            slides={slides}
+            art={art}
+            onOpenMovie={onOpenMovie}
+            replacement={replacement}
+            onVerdict={(slotId, verdict) => {
+              void replaceSelect(slotId, verdict);
+            }}
+            onRetry={(slotId) => {
+              void retrySelectReplacement(slotId);
+            }}
+          />
         )}
       </div>
 
