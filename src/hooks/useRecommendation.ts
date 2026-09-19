@@ -183,7 +183,7 @@ async function hydrateSelectPick(pick: ApiSelectPick): Promise<RecommendationRes
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
-  const { films: libraryFilms } = useLibrary();
+  const { films: libraryFilms, loading: libraryLoading } = useLibrary();
   const events = opts?.events;
   const eventsRef = useRef(events);
   eventsRef.current = events;
@@ -342,6 +342,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setStatus('idle');
       return;
     }
+    if (
+      Object.values(replacementsRef.current).some(
+        (entry) => entry.phase === 'saving' || entry.phase === 'replacing',
+      )
+    ) {
+      return;
+    }
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
     if (hit?.length) {
       setPicks(hit);
@@ -353,7 +360,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setPicks(stale.picks.map(fromStored));
       setStatus('ready');
     }
-    if (tasteLoading) {
+    if (tasteLoading || libraryLoading) {
       if (!stale?.picks.length) setStatus('loading');
       return;
     }
@@ -363,7 +370,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     void generateRecommendation(false);
-  }, [user, tasteLoading, snapshot, context, generateRecommendation]);
+  }, [user, tasteLoading, libraryLoading, snapshot, context, generateRecommendation]);
 
   useEffect(() => {
     if (!user) return;
