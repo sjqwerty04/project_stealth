@@ -1,0 +1,23 @@
+export function normalizeFilmTitle(title: string): string {
+  return title
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/^the\s+/u, '')
+    .replace(/[^a-z0-9]+/giu, ' ')
+    .trim();
+}
+
+export function hydratedTitleMatchesPick(pickTitle: string, hydratedTitle: string): boolean {
+  const pick = normalizeFilmTitle(pickTitle);
+  const hydrated = normalizeFilmTitle(hydratedTitle);
+  if (!pick || !hydrated) return false;
+  return pick === hydrated || pick.startsWith(`${hydrated} `) || hydrated.startsWith(`${pick} `);
+}
+
+export function whyMatchNamesRecommended(whyMatch: string, recommendedTitle: string): boolean {
+  const why = whyMatch.trim();
+  const title = recommendedTitle.trim();
+  if (!why || !title) return false;
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'iu').test(why);
+}
