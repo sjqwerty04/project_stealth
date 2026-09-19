@@ -31,19 +31,15 @@ platform :ios do
       build_number: build_number
     )
 
-    if ENV["MATCH_KEYCHAIN_NAME"]
-      get_certificates(
-        api_key: api_key,
-        keychain_path: ENV["MATCH_KEYCHAIN_NAME"],
-        keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"].to_s
-      )
-    else
-      get_certificates(api_key: api_key)
-    end
+    get_certificates(
+      api_key: api_key,
+      team_id: "L37YSKFC5X"
+    )
 
     get_provisioning_profile(
       api_key: api_key,
       app_identifier: "com.moviecally.app",
+      team_id: "L37YSKFC5X",
       force: true
     )
 
