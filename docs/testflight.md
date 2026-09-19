@@ -18,7 +18,7 @@ You need a paid Apple Developer Program membership on team `L37YSKFC5X`.
 6. Copy the Key ID on the new row.
 7. Download the `.p8` file. Apple lets you download it once. Open it in a text editor and copy the whole PEM, including `BEGIN` and `END` lines.
 
-The Fastlane `produce` step creates bundle id `com.moviecally.app` and SKU `selects-ios` when they are missing. `get_certificates` and `get_provisioning_profile` then create an Apple Distribution certificate and an App Store profile on team `L37YSKFC5X`. The macos runner has an empty keychain, so those two steps have to run before `build_app`. Apple allows two distribution certificates. If a later run fails because the limit is full, revoke unused certificates in the Apple Developer portal and re-run.
+You do not need to click New App first. The Fastlane `produce` step creates bundle id `com.moviecally.app` and SKU `selects-ios` when they are missing. `get_certificates` and `get_provisioning_profile` then create an Apple Distribution certificate and an App Store profile on team `L37YSKFC5X`. The macos runner has an empty keychain, so those two steps have to run before `build_app`. Apple allows two distribution certificates. If a later run fails because the limit is full, revoke unused certificates in the Apple Developer portal and re-run.
 
 ## 2. Add GitHub Actions secrets
 
