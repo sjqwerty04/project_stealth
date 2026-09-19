@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { oklabCentroid, samplePosterColours } from '../../lib/onboarding/colour';
-import { computeTasteStats, loadStatsInput } from '../../lib/onboarding/stats';
+import { computeTasteStats, loadStatsInput, posterUrlsFor } from '../../lib/onboarding/stats';
 import { parseSelectsProfile, templateProfile, type SelectsProfile, type TasteStats } from '../../lib/onboarding/profile';
 import type { OnboardingAction, OnboardingState } from '../../lib/onboarding/state';
 
@@ -38,7 +38,14 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
   const { step } = state;
 
   // Only unmount cancels the pipeline. Leaving the Reading step must not, or a slow read is lost.
-  useEffect(() => () => run.current?.cancel(), []);
+  // Reset started so StrictMode's remount (cleanup then setup on the same instance) can run again.
+  useEffect(
+    () => () => {
+      started.current = false;
+      run.current?.cancel();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (step !== 'reading' || !uid || started.current) return;
@@ -107,7 +114,7 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
       const early = computeTasteStats(input, '', 0);
       const profilePromise = fetchProfile(early, picks, controller.signal).catch(() => null);
 
-      const posters = input.films.map((f) => f.poster).filter((p): p is string => !!p);
+      const posters = posterUrlsFor(input);
       const total = Math.min(posters.length, 60);
       setProgress({ count: input.films.filter((f) => f.watched).length, sampled: 0, total, colours: [] });
       let colours: string[] = [];
