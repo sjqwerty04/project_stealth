@@ -11,7 +11,7 @@ export function hydratedTitleMatchesPick(pickTitle: string, hydratedTitle: strin
   const pick = normalizeFilmTitle(pickTitle);
   const hydrated = normalizeFilmTitle(hydratedTitle);
   if (!pick || !hydrated) return false;
-  return pick === hydrated || pick.startsWith(`${hydrated} `) || hydrated.startsWith(`${pick} `);
+  return pick === hydrated;
 }
 
 export function whyMatchNamesRecommended(whyMatch: string, recommendedTitle: string): boolean {

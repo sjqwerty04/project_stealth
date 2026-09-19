@@ -1,5 +1,6 @@
 import { historyScore } from '../library/verdict';
 import type { Verdict } from '../library/types';
+import { normalizeFilmTitle } from './selectPickCoherence';
 import {
   AXIS_PREFERENCE,
   HISTORY_LIMIT,
@@ -122,18 +123,30 @@ export function contextFromCalendarLogs(logs: CalendarLogLike[]): RecommendConte
   });
 }
 
+function historyIdentity(item: HistoryItem): string {
+  if (item.id) return `id:${item.id}`;
+  return `title:${normalizeFilmTitle(item.item)}`;
+}
+
 export function mergeRecommendContext(
   diary: RecommendContext,
   snapshot: RecommendContext
 ): RecommendContext {
-  const history = diary.history.length ? diary.history : snapshot.history;
+  const seen = new Set<string>();
+  const history: HistoryItem[] = [];
+  for (const item of [...snapshot.history, ...diary.history]) {
+    const key = historyIdentity(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    history.push(item);
+  }
   const preferences = snapshot.preferences.length ? snapshot.preferences : diary.preferences;
   const profile = snapshot.profile.trim() || diary.profile;
   return {
     preferences,
     profile,
     constraints: Object.keys(snapshot.constraints).length ? snapshot.constraints : diary.constraints,
-    history,
+    history: history.slice(0, HISTORY_LIMIT),
   };
 }
 

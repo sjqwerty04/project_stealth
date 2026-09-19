@@ -40,6 +40,18 @@ function dropHistory(snapshot: TasteSnapshot, title: string): TasteSnapshot {
   };
 }
 
+function bustLastPicks(snapshot: TasteSnapshot): TasteSnapshot {
+  if (!snapshot.generated.lastPicks.length && snapshot.generated.lastPicksAt == null) return snapshot;
+  return {
+    ...snapshot,
+    generated: {
+      ...snapshot.generated,
+      lastPicks: [],
+      lastPicksAt: null,
+    },
+  };
+}
+
 export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, eventId: string): TasteSnapshot {
   let next: TasteSnapshot = {
     ...snapshot,
@@ -77,7 +89,7 @@ export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, even
       let preferences = dropPref(next.context.preferences, event.title);
       if (event.verdict === 'liked') preferences = uniqPref(preferences, event.title);
       if (event.verdict === 'nope') preferences = uniqPref(preferences, `dislikes: ${event.title}`);
-      next = { ...next, context: { ...next.context, preferences } };
+      next = bustLastPicks({ ...next, context: { ...next.context, preferences } });
       break;
     }
     case 'watched_remove': {
@@ -89,13 +101,13 @@ export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, even
       break;
     }
     case 'skip': {
-      next = {
+      next = bustLastPicks({
         ...next,
         context: {
           ...next.context,
           preferences: uniqPref(next.context.preferences, `dislikes: ${event.title}`),
         },
-      };
+      });
       break;
     }
     case 'watchlist_add': {
@@ -113,6 +125,7 @@ export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, even
     case 'calendar_log': {
       const score = historyScore(event.verdict ?? null, event.stars);
       if (score != null) next = prependHistory(next, event.title, score, event.movieId);
+      next = bustLastPicks(next);
       break;
     }
     case 'search': {

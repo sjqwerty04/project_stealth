@@ -29,6 +29,11 @@ export default defineConfig({
       use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
     {
+      name: 'phone-se',
+      testMatch: /home-strip-why\.spec\.ts/,
+      use: { viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true },
+    },
+    {
       name: 'desktop',
       use: { viewport: { width: 1280, height: 720 } },
     },
