@@ -25,7 +25,11 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Diary titles named in whyMatch. Longer titles first, exclude the current film, cap at two. */
+function isGenericShortTitle(title: string) {
+  return title.length < 4 && /^[\p{L}]+$/u.test(title);
+}
+
+/** Diary titles named in whyMatch, in mention order. Exclude the current film, cap at two. */
 export function relatedFromWhy(
   whyMatch: string | undefined,
   diary: { title: string; poster?: string }[],
@@ -39,25 +43,34 @@ export function relatedFromWhy(
   const candidates: RelatedPoster[] = [];
   for (const row of diary) {
     const title = row.title?.trim();
-    if (!title || title.length < 4 || !row.poster) continue;
+    if (!title || !row.poster || isGenericShortTitle(title)) continue;
     const key = title.toLowerCase();
     if (key === exclude || seen.has(key)) continue;
     seen.add(key);
     candidates.push({ title, poster: row.poster });
   }
-  candidates.sort((a, b) => b.title.length - a.title.length);
-  let remaining = why;
-  const found: RelatedPoster[] = [];
+
+  const matches: { start: number; end: number; candidate: RelatedPoster }[] = [];
   for (const candidate of candidates) {
-    if (found.length >= limit) break;
     const pattern = new RegExp(
-      `(^|[^\\p{L}\\p{N}])${escapeRegExp(candidate.title)}($|[^\\p{L}\\p{N}])`,
+      `(^|[^\\p{L}\\p{N}])(${escapeRegExp(candidate.title)})($|[^\\p{L}\\p{N}])`,
       'iu',
     );
-    const match = remaining.match(pattern);
+    const match = why.match(pattern);
     if (!match || match.index == null) continue;
-    found.push(candidate);
-    remaining = remaining.slice(0, match.index) + remaining.slice(match.index + match[0].length);
+    const start = match.index + (match[1]?.length ?? 0);
+    matches.push({ start, end: start + candidate.title.length, candidate });
+  }
+
+  matches.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
+
+  const found: RelatedPoster[] = [];
+  let cursor = 0;
+  for (const match of matches) {
+    if (found.length >= limit) break;
+    if (match.start < cursor) continue;
+    found.push(match.candidate);
+    cursor = match.end;
   }
   return found;
 }
