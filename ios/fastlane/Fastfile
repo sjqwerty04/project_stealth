@@ -31,11 +31,29 @@ platform :ios do
       build_number: build_number
     )
 
+    if ENV["MATCH_KEYCHAIN_NAME"]
+      get_certificates(
+        api_key: api_key,
+        keychain_path: ENV["MATCH_KEYCHAIN_NAME"],
+        keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"].to_s
+      )
+    else
+      get_certificates(api_key: api_key)
+    end
+
+    get_provisioning_profile(
+      api_key: api_key,
+      app_identifier: "com.moviecally.app",
+      force: true
+    )
+
     update_code_signing_settings(
-      use_automatic_signing: true,
+      use_automatic_signing: false,
       path: "App/App.xcodeproj",
       team_id: "L37YSKFC5X",
-      bundle_identifier: "com.moviecally.app"
+      bundle_identifier: "com.moviecally.app",
+      code_sign_identity: "Apple Distribution",
+      profile_name: lane_context[SharedValues::SIGH_NAME]
     )
 
     build_app(
@@ -43,7 +61,12 @@ platform :ios do
       scheme: "App",
       configuration: "Release",
       export_method: "app-store",
-      xcargs: "-allowProvisioningUpdates"
+      export_options: {
+        signingStyle: "manual",
+        provisioningProfiles: {
+          "com.moviecally.app" => lane_context[SharedValues::SIGH_NAME]
+        }
+      }
     )
 
     upload_to_testflight(
