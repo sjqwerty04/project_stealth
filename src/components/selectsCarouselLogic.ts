@@ -1,4 +1,4 @@
-import { hydratedTitleMatchesPick, mentionNeedles } from '../lib/taste/selectPickCoherence';
+import { mentionNeedles } from '../lib/taste/selectPickCoherence';
 
 export function loopingSlides<T>(slides: T[]): T[] {
   if (slides.length < 2) return slides;
@@ -59,7 +59,7 @@ export function relatedFromWhy(
     if (!title || !row.poster || isGenericShortTitle(title)) continue;
     const key = title.toLowerCase();
     if (seen.has(key)) continue;
-    if (exclude && (key === exclude.toLowerCase() || hydratedTitleMatchesPick(exclude, title))) {
+    if (exclude && key === exclude.toLowerCase()) {
       continue;
     }
     seen.add(key);
@@ -82,9 +82,9 @@ export function relatedFromWhy(
       const next = { ...hit, needleLen: needle.length, exact, candidate };
       if (
         !best ||
-        next.start < best.start ||
-        (next.start === best.start && next.needleLen > best.needleLen) ||
-        (next.start === best.start && next.needleLen === best.needleLen && next.exact && !best.exact)
+        (next.exact && !best.exact) ||
+        (next.exact === best.exact && next.start < best.start) ||
+        (next.exact === best.exact && next.start === best.start && next.needleLen > best.needleLen)
       ) {
         best = next;
       }

@@ -155,6 +155,36 @@ describe('relatedFromWhy', () => {
     ]);
   });
 
+  it('keeps both official franchise titles when they share a colon prefix', () => {
+    expect(
+      relatedFromWhy(
+        'X-Men: First Class and X-Men: The Last Stand both got a 5 from you, and Logan is the scarred finish. Cape Fear is named later.',
+        [
+          { title: 'X-Men: First Class', poster: 'fc.jpg' },
+          { title: 'X-Men: The Last Stand', poster: 'xls.jpg' },
+          { title: 'Cape Fear', poster: 'cape-fear.jpg' },
+        ],
+        'Logan',
+      ),
+    ).toEqual([
+      { title: 'X-Men: First Class', poster: 'fc.jpg' },
+      { title: 'X-Men: The Last Stand', poster: 'xls.jpg' },
+    ]);
+  });
+
+  it('does not treat a sequel as the current film', () => {
+    expect(
+      relatedFromWhy(
+        'You already gave The Godfather Part II a 5. The same family trap is here.',
+        [
+          { title: 'The Godfather Part II', poster: 'gf2.jpg' },
+          { title: 'Heat', poster: 'heat.jpg' },
+        ],
+        'The Godfather',
+      ),
+    ).toEqual([{ title: 'The Godfather Part II', poster: 'gf2.jpg' }]);
+  });
+
   it('prefers an exact diary title over a sequel that shares the same prefix', () => {
     expect(
       relatedFromWhy(
