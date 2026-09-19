@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { filterExcludedPicks, parseRecommendRequest } from './your-selects';
 
@@ -21,6 +22,12 @@ describe('your-selects request', () => {
       excluded: [],
     });
     expect(parseRecommendRequest({ context, count: 2 })).toBeNull();
+  });
+
+  it('names the recommended title in the whyMatch schema example', async () => {
+    const source = await readFile(new URL('./your-selects.ts', import.meta.url), 'utf8');
+    expect(source).toContain('"whyMatch":"Two or three sentences about Film."');
+    expect(source).not.toContain('Name a history title');
   });
 
   it('normalizes excluded titles and IDs', () => {

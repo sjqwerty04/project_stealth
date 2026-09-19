@@ -22,6 +22,7 @@ import { hydratedTitleMatchesPick, whyMatchNamesRecommended } from '../lib/taste
 import {
   executeSelectReplacement,
   replacePickAtSlot,
+  replacementConflictsWithSiblings,
   type SelectExclusion,
   type SelectSlotId,
 } from './selectReplacement';
@@ -200,6 +201,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const [replacements, setReplacements] = useState<Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>>({});
   const picksRef = useRef(picks);
   const replacementsRef = useRef(replacements);
+  const persistTailRef = useRef(Promise.resolve());
 
   const patchReplacement = useCallback((slotId: SelectSlotId, next: SelectReplacement) => {
     const current = { ...replacementsRef.current };
@@ -419,6 +421,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         >({
           slotId,
           picks: picksRef.current,
+          getPicks: () => picksRef.current,
           feedbackSaved,
           saveFeedback: async () => {
             if (!verdict) throw new Error('Verdict is required');
@@ -448,15 +451,25 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           hydratePick: hydrateSelectPick,
           persistPicks: async (updatedPicks) => {
             const incoming = updatedPicks[slotId];
-            if (!incoming) return;
-            const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
-            picksRef.current = merged;
-            writeSelectsCache(user.uid, merged.map(toStored));
-            await recordTasteEvent(
-              user.uid,
-              { type: 'last_picks', picks: merged.map(toStored) },
-              { email: user.email },
+            if (!incoming) return false;
+            const queued = persistTailRef.current.then(async () => {
+              const current = picksRef.current;
+              if (replacementConflictsWithSiblings(current, slotId, incoming)) return false;
+              const merged = replacePickAtSlot(current, slotId, incoming);
+              picksRef.current = merged;
+              writeSelectsCache(user.uid, merged.map(toStored));
+              await recordTasteEvent(
+                user.uid,
+                { type: 'last_picks', picks: merged.map(toStored) },
+                { email: user.email },
+              );
+              return true;
+            });
+            persistTailRef.current = queued.then(
+              () => undefined,
+              () => undefined,
             );
+            return queued;
           },
         });
         const incoming = nextFromStart[slotId];

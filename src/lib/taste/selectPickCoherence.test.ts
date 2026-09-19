@@ -28,5 +28,9 @@ describe('select pick coherence', () => {
         'Zodiac',
       ),
     ).toBe(false);
+    expect(whyMatchNamesRecommended('Two or three sentences about Film.', 'Film')).toBe(true);
+    expect(
+      whyMatchNamesRecommended('Two or three sentences. Name a history title.', 'Film'),
+    ).toBe(false);
   });
 });
