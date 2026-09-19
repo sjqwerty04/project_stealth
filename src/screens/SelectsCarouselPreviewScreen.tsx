@@ -18,13 +18,23 @@ function poster(fill: string, label: string) {
 const LOGAN_WHY =
   'X-Men and X2 both got a 5 from you, and Logan is the scarred, adult finish of that world. It has the bruised father and child tension you already rewarded in Cape Fear and Sleepers. The western grit should land if you also wanted something like There Will Be Blood.';
 
-const LOGAN_DIARY = [
+const DIARY = [
   { title: 'Cape Fear', poster: poster('#5a3a12', 'Cape Fear') },
   { title: 'Sleepers', poster: poster('#3a1d1d', 'Sleepers') },
   { title: 'There Will Be Blood', poster: poster('#6a4a12', 'TWBB') },
-  { title: 'X-Men', poster: poster('#1d3a8a', 'X-Men') },
-  { title: 'X2', poster: poster('#1d5b8a', 'X2') },
+  { title: 'X-Men: The Last Stand', poster: poster('#1d3a8a', 'X-Men') },
+  { title: 'X2: X-Men United', poster: poster('#1d5b8a', 'X2') },
+  { title: 'Infernal Affairs', poster: poster('#1d2a3a', 'Infernal') },
+  { title: 'The Godfather', poster: poster('#2a1d12', 'Godfather') },
+  { title: 'Thief', poster: poster('#2b2b2f', 'Thief') },
+  { title: 'Collateral', poster: poster('#1d5b8a', 'Collateral') },
 ];
+
+const DEPARTED_WHY =
+  'You keep coming back to Infernal Affairs and The Godfather. Scorsese Boston crime web has the same loyalty-as-trap energy you already marked as a 5.';
+
+const HEAT_WHY =
+  'You logged Thief and Collateral back to back. Mann night-drive professionalism is the through line, and this is the longest cut of that same job.';
 
 const PREVIEW_SLIDES: SelectFilm[] = [
   {
@@ -34,7 +44,7 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     poster: poster('#1a1a1c', 'Logan'),
     backdrop: still('#c47a12', 'LOGAN'),
     whyMatch: LOGAN_WHY,
-    related: relatedFromWhy(LOGAN_WHY, LOGAN_DIARY, 'Logan'),
+    related: relatedFromWhy(LOGAN_WHY, DIARY, 'Logan'),
   },
   {
     slotId: 1,
@@ -42,12 +52,8 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     title: 'The Departed',
     poster: poster('#1a1a1c', 'Departed'),
     backdrop: still('#24303a', 'THE DEPARTED'),
-    whyMatch:
-      'You keep coming back to Infernal Affairs and The Godfather. Scorsese Boston crime web has the same loyalty-as-trap energy you already marked as a 5.',
-    related: [
-      { title: 'Infernal Affairs', poster: poster('#1d2a3a', 'Infernal') },
-      { title: 'The Godfather', poster: poster('#2a1d12', 'Godfather') },
-    ],
+    whyMatch: DEPARTED_WHY,
+    related: relatedFromWhy(DEPARTED_WHY, DIARY, 'The Departed'),
   },
   {
     slotId: 2,
@@ -55,12 +61,8 @@ const PREVIEW_SLIDES: SelectFilm[] = [
     title: 'Heat',
     poster: poster('#1a1a1c', 'Heat'),
     backdrop: still('#2c2520', 'HEAT'),
-    whyMatch:
-      'You logged Thief and Collateral back to back. Mann night-drive professionalism is the through line, and this is the longest cut of that same job.',
-    related: [
-      { title: 'Thief', poster: poster('#2b2b2f', 'Thief') },
-      { title: 'Collateral', poster: poster('#1d5b8a', 'Collateral') },
-    ],
+    whyMatch: HEAT_WHY,
+    related: relatedFromWhy(HEAT_WHY, DIARY, 'Heat'),
   },
 ];
 
