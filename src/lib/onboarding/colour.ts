@@ -99,7 +99,10 @@ export type SampleOptions = {
 async function defaultExtract(url: string): Promise<string> {
   // Lazy so the pure colour maths stays importable in node tests without dragging in the TMDB/LLM module.
   const mod = await import('../orbitEngine');
-  return mod.extractDominantColor(url);
+  // The PWA caches poster <img> loads as opaque responses. A canvas read needs a CORS response,
+  // so the sampler asks for a URL the service worker has never seen.
+  const corsUrl = url.includes('?') ? `${url}&cors=1` : `${url}?cors=1`;
+  return mod.extractDominantColor(corsUrl);
 }
 
 export async function samplePosterColours(posterUrls: string[], opts: SampleOptions = {}): Promise<string[]> {
