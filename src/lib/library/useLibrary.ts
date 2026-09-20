@@ -6,39 +6,39 @@ import { filmsRef, parseFilm } from './ledger';
 import type { LibraryFilm } from './types';
 
 const backfilled = new Set<string>();
+const EMPTY: LibraryFilm[] = [];
+
+type Snapshot = { uid: string; films: LibraryFilm[] };
 
 /** Live view of the user's film ledger. Runs the legacy backfill once per session. */
 export function useLibrary() {
   const { user } = useAuth();
-  const [films, setFilms] = useState<LibraryFilm[]>([]);
-  const [loading, setLoading] = useState(true);
+  const uid = user?.uid ?? null;
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      setFilms([]);
-      setLoading(false);
-      return;
+    if (!uid) return;
+    if (!backfilled.has(uid)) {
+      backfilled.add(uid);
+      void backfillLibrary(uid).catch((err) => console.warn('library backfill failed:', err));
     }
-    if (!backfilled.has(user.uid)) {
-      backfilled.add(user.uid);
-      void backfillLibrary(user.uid).catch((err) => console.warn('library backfill failed:', err));
-    }
-    const unsubscribe = onSnapshot(
-      filmsRef(user.uid),
+    return onSnapshot(
+      filmsRef(uid),
       (snap) => {
         const next = snap.docs
           .map((d) => parseFilm(d.data(), Number(d.id)))
           .filter((f): f is LibraryFilm => f != null);
-        setFilms(next);
-        setLoading(false);
+        setSnapshot({ uid, films: next });
       },
       (err) => {
         console.error('library snapshot failed:', err);
-        setLoading(false);
+        setSnapshot((prev) => ({ uid, films: prev?.uid === uid ? prev.films : [] }));
       },
     );
-    return unsubscribe;
-  }, [user]);
+  }, [uid]);
+
+  const films = !uid || snapshot?.uid !== uid ? EMPTY : snapshot.films;
+  const loading = Boolean(uid) && snapshot?.uid !== uid;
 
   const byId = useMemo(() => {
     const map = new Map<number, LibraryFilm>();
