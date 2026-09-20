@@ -379,6 +379,8 @@ test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   await expect(card.getByTestId('theater-lineup').locator('li')).toHaveCount(8);
   await expect(card.getByTestId('theater-lineup')).toContainText(THEATER_FIXTURE.lineup[0][3]);
   await expect(card.getByRole('button', { name: /close theater/i })).toBeVisible();
+  await expect(rows).toHaveCount(8);
+  await expect(page.getByTestId('film-axes-pending')).toHaveCount(0);
   await gate(page, 'F13', testInfo.project.name);
   await dumpConsole(page, 'F13', testInfo.project.name, logs);
 });
