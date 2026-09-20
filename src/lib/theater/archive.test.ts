@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { filmTheaterSection, parseTheaterDoc, theaterCardView, type KeptTheater } from './archive';
+import {
+  filmTheaterSection,
+  parseTheaterDoc,
+  theaterArchiveState,
+  theaterCardView,
+  type KeptTheater,
+} from './archive';
 import { theaterFromLegacy } from './legacyStore';
 import { FALLBACK_SWATCHES } from './types';
 
@@ -195,6 +201,69 @@ describe('theaterCardView', () => {
     expect(theaterCardView(theater({ films: films(949) }), new Set()).accessibleName).toBe(
       'Men who are good at their jobs and lose anyway. COMPETENCE PORN and NOBODY WINS. 1 film, 1 unseen.',
     );
+  });
+});
+
+describe('theaterArchiveState', () => {
+  const KEPT = theater({ films: films(949, 10858) });
+
+  function sources(overrides: Partial<Parameters<typeof theaterArchiveState>[0]> = {}) {
+    return {
+      theaters: [KEPT],
+      archiveLoading: false,
+      archiveError: null,
+      ledgerLoading: false,
+      watchedFilmIds: new Set([949]),
+      ...overrides,
+    };
+  }
+
+  it('publishes counts once the archive and the ledger have both landed', () => {
+    const state = theaterArchiveState(sources());
+    expect(state.status).toBe('ready');
+    expect(state.status === 'ready' && state.rows).toEqual([
+      { theater: KEPT, card: theaterCardView(KEPT, new Set([949])) },
+    ]);
+    expect(state.status === 'ready' && state.rows[0].card.countLine).toBe('2 FILMS · 1 UNSEEN');
+  });
+
+  it('publishes nothing while the ledger is still loading, however complete the archive is', () => {
+    expect(theaterArchiveState(sources({ ledgerLoading: true, watchedFilmIds: new Set() }))).toEqual({
+      status: 'loading',
+    });
+    expect(theaterArchiveState(sources({ ledgerLoading: true, watchedFilmIds: new Set([949]) }))).toEqual({
+      status: 'loading',
+    });
+  });
+
+  it('never publishes the count a partially loaded ledger would produce', () => {
+    const half = theaterArchiveState(sources({ ledgerLoading: true, watchedFilmIds: new Set() }));
+    const whole = theaterArchiveState(sources({ watchedFilmIds: new Set([949, 10858]) }));
+    expect(half.status).toBe('loading');
+    expect('rows' in half).toBe(false);
+    expect(whole.status === 'ready' && whole.rows[0].card.countLine).toBe('2 FILMS · 0 UNSEEN');
+  });
+
+  it('publishes nothing while the archive is still loading', () => {
+    expect(theaterArchiveState(sources({ archiveLoading: true, theaters: [] }))).toEqual({ status: 'loading' });
+  });
+
+  it('shows a snapshot failure over either loading state', () => {
+    expect(theaterArchiveState(sources({ archiveError: 'permission-denied' }))).toEqual({ status: 'error' });
+    expect(
+      theaterArchiveState(sources({ archiveError: 'permission-denied', ledgerLoading: true, theaters: [] })),
+    ).toEqual({ status: 'error' });
+  });
+
+  it('shows the empty state only when both sources are done and nothing was kept', () => {
+    expect(theaterArchiveState(sources({ theaters: [] }))).toEqual({ status: 'empty' });
+    expect(theaterArchiveState(sources({ theaters: [], ledgerLoading: true }))).toEqual({ status: 'loading' });
+  });
+
+  it('keeps the archive order it was handed', () => {
+    const older = theater({ id: 'older', films: films(64690) });
+    const state = theaterArchiveState(sources({ theaters: [KEPT, older] }));
+    expect(state.status === 'ready' && state.rows.map((row) => row.theater.id)).toEqual(['trail', 'older']);
   });
 });
 

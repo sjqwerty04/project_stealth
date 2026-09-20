@@ -16,13 +16,13 @@
     "serializedHydrationFloorMs": 2200
   },
   "timingsMs": {
-    "huntCommitToFirstResult": 109,
-    "huntInputToFirstResult": 475,
-    "inferringShellToReady": 821,
-    "detailHeadingToReady": 3341,
+    "huntCommitToFirstResult": 108,
+    "huntInputToFirstResult": 471,
+    "inferringShellToReady": 820,
+    "detailHeadingToReady": 3342,
     "inferenceDebounceReportedMs": 2500,
-    "reloadNavigationToRestoredTitle": 358,
-    "clientOverheadAfterControlledNetwork": 21
+    "reloadNavigationToRestoredTitle": 398,
+    "clientOverheadAfterControlledNetwork": 20
   },
   "requests": {
     "beforeReload": {

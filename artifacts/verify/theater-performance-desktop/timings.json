@@ -18,11 +18,11 @@
   "timingsMs": {
     "huntCommitToFirstResult": 108,
     "huntInputToFirstResult": 475,
-    "inferringShellToReady": 822,
-    "detailHeadingToReady": 3341,
+    "inferringShellToReady": 821,
+    "detailHeadingToReady": 3339,
     "inferenceDebounceReportedMs": 2500,
-    "reloadNavigationToRestoredTitle": 384,
-    "clientOverheadAfterControlledNetwork": 22
+    "reloadNavigationToRestoredTitle": 397,
+    "clientOverheadAfterControlledNetwork": 21
   },
   "requests": {
     "beforeReload": {

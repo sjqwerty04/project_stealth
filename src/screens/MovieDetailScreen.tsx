@@ -477,6 +477,7 @@ export default function MovieDetailScreen() {
           }}
           onAddToCalendar={handleAddToCalendar}
           onVerdict={handleVerdict}
+          onSaveIntent={() => markTheaterEngaged(details.id)}
           isInWatchlist={isInWatchlist(details.id) || libraryFilm?.onWatchlist === true}
           film={libraryFilm}
           isAddingToCalendar={isAddingToCalendar}
@@ -572,7 +573,7 @@ export default function MovieDetailScreen() {
                     <span data-testid="axis-value" className="font-spec text-[12px] leading-tight text-fg flex-1 min-w-0 break-words">
                       {row.value}
                     </span>
-                    <AxisMeter score={row.score} className="shrink-0" />
+                    <AxisMeter name={row.name} score={row.score} className="shrink-0" />
                     <span data-testid="axis-count" className="text-[15px] tabular-nums text-fg w-6 text-right shrink-0">
                       {row.count}
                     </span>

@@ -5,6 +5,7 @@ export * from './filmAxes';
 export * from './fingerprint';
 export * from './session';
 export * from './infer';
+export * from './posterColor';
 export * from './persist';
 export * from './legacyStore';
 export * from './runtime';

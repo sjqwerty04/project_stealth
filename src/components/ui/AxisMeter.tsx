@@ -1,17 +1,19 @@
 import BarUnit from './BarUnit';
-import { AXIS_BARS, type AxisScore } from '../../lib/theater';
+import { axisMeterName, AXIS_BARS, type AxisScore, type FilmAxisName } from '../../lib/theater';
 
 export default function AxisMeter({
+  name,
   score,
   className = '',
 }: {
+  name: FilmAxisName;
   score: AxisScore;
   className?: string;
 }) {
   return (
     <span
       role="img"
-      aria-label={`${score} of ${AXIS_BARS}`}
+      aria-label={axisMeterName(name, score)}
       data-testid="axis-meter"
       className={`inline-flex items-center gap-[3px] ${className}`}
     >

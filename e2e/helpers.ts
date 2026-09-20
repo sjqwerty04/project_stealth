@@ -202,6 +202,16 @@ function assertEmulatorTarget(baseURL: string | undefined) {
   }
 }
 
+function assertTheaterEmulatorTarget(baseURL: string | undefined) {
+  if (!LOOPBACK.test(FIRESTORE_EMULATOR_HOST)) {
+    throw new Error(`Refusing to touch users/{uid}/theaters: FIRESTORE_EMULATOR_HOST ${FIRESTORE_EMULATOR_HOST} is not loopback.`);
+  }
+  const host = baseURL ? new URL(baseURL).host : '';
+  if (process.env.VITE_FIREBASE_EMULATOR !== '1' && !LOOPBACK.test(host)) {
+    throw new Error(`Refusing to touch users/{uid}/theaters: set VITE_FIREBASE_EMULATOR=1 or run against localhost, not ${host || 'an unset baseURL'}.`);
+  }
+}
+
 export async function clearFilmAxesFixtures(baseURL: string | undefined, ownerUid: string, filmKeys: string[]) {
   assertEmulatorTarget(baseURL);
   for (const filmKey of filmKeys) {
@@ -353,6 +363,126 @@ export async function deleteFilmAxesDocAs(actor: EmulatorAccount, ownerUid: stri
     headers: actorHeaders(actor),
   });
   return response.status;
+}
+
+const POSTER_FIXTURES: Record<string, string> = {
+  '/sodium.svg': '#c88c28',
+  '/cyan.svg': '#2878a0',
+  '/slate.svg': '#3d3d42',
+};
+
+/** TMDB serves posters with `access-control-allow-origin: *`, so the fixtures answer the same way a real poster does. */
+export async function routePosterFixtures(page: Page) {
+  await page.route('https://image.tmdb.org/t/p/w92/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace('/t/p/w92', '');
+    const color = POSTER_FIXTURES[path];
+    if (!color) return route.fulfill({ status: 404, body: '' });
+    return route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      headers: { 'access-control-allow-origin': '*' },
+      body: `<svg xmlns="http://www.w3.org/2000/svg" width="92" height="138"><rect width="92" height="138" fill="${color}"/></svg>`,
+    });
+  });
+}
+
+export type SampledPosters = { colors: string[]; swatches: string[]; requested: string[] };
+
+export async function samplePostersInBrowser(page: Page, posterPaths: string[]): Promise<SampledPosters> {
+  return page.evaluate(async (paths) => {
+    const poster = await import('/src/lib/theater/posterColor.ts');
+    const infer = await import('/src/lib/theater/infer.ts');
+    const requested: string[] = [];
+    const sampler = poster.imagePosterSampler();
+    const colors = await poster.posterColorsFrom((url: string) => {
+      requested.push(url);
+      return sampler(url);
+    })(paths.map((posterPath) => ({ posterPath })));
+    return { colors, swatches: infer.swatchesFrom(colors), requested };
+  }, posterPaths);
+}
+
+export const RULES_FIXTURE_THEATER_ID: Record<string, string> = {
+  mobile: 'e2e-theater-rules-mobile',
+  desktop: 'e2e-theater-rules-desktop',
+};
+
+function theatersRestUrl(ownerUid: string) {
+  return `${firestoreDocumentsUrl()}/users/${encodeURIComponent(ownerUid)}/theaters`;
+}
+
+export type TheaterRestDoc = {
+  schema?: number;
+  title?: string;
+  facets?: string[];
+  insight?: string;
+  keptAt?: number;
+};
+
+export function theaterRestFields(doc: TheaterRestDoc) {
+  const fields: Record<string, unknown> = {};
+  if (doc.schema !== undefined) fields.schema = { integerValue: String(doc.schema) };
+  if (doc.title !== undefined) fields.title = { stringValue: doc.title };
+  if (doc.insight !== undefined) fields.insight = { stringValue: doc.insight };
+  if (doc.keptAt !== undefined) fields.keptAt = { integerValue: String(doc.keptAt) };
+  if (doc.facets !== undefined) {
+    fields.facets = { arrayValue: { values: doc.facets.map((facet) => ({ stringValue: facet })) } };
+  }
+  return fields;
+}
+
+export async function createTheaterDocAs(
+  actor: EmulatorAccount | null,
+  ownerUid: string,
+  theaterId: string,
+  doc: TheaterRestDoc,
+) {
+  const response = await fetch(`${theatersRestUrl(ownerUid)}?documentId=${encodeURIComponent(theaterId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
+    body: JSON.stringify({ fields: theaterRestFields(doc) }),
+  });
+  return response.status;
+}
+
+export async function readTheaterDocAs(actor: EmulatorAccount | null, ownerUid: string, theaterId: string) {
+  const response = await fetch(`${theatersRestUrl(ownerUid)}/${encodeURIComponent(theaterId)}`, {
+    headers: actorHeaders(actor),
+  });
+  return response.status;
+}
+
+export async function rewriteTheaterDocAs(
+  actor: EmulatorAccount | null,
+  ownerUid: string,
+  theaterId: string,
+  doc: TheaterRestDoc,
+) {
+  const response = await fetch(`${theatersRestUrl(ownerUid)}/${encodeURIComponent(theaterId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
+    body: JSON.stringify({ fields: theaterRestFields(doc) }),
+  });
+  return response.status;
+}
+
+export async function deleteTheaterDocAs(actor: EmulatorAccount | null, ownerUid: string, theaterId: string) {
+  const response = await fetch(`${theatersRestUrl(ownerUid)}/${encodeURIComponent(theaterId)}`, {
+    method: 'DELETE',
+    headers: actorHeaders(actor),
+  });
+  return response.status;
+}
+
+export async function clearTheaterFixtures(baseURL: string | undefined, ownerUid: string, theaterIds: string[]) {
+  assertTheaterEmulatorTarget(baseURL);
+  for (const theaterId of theaterIds) {
+    const url = `${theatersRestUrl(ownerUid)}/${encodeURIComponent(theaterId)}`;
+    const response = await fetch(url, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } });
+    if (!response.ok) {
+      throw new Error(`Emulator refused to clear ${theaterId}: ${response.status} ${await response.text()}`);
+    }
+  }
 }
 
 /** The signed-in uid, read where the Firebase SDK keeps it. IndexedDB is the default, localStorage the fallback. */

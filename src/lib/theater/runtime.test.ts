@@ -253,7 +253,8 @@ describe('dwellSignal', () => {
 
   it('drops a bounce that no person could feel', () => {
     expect(dwellSignal(949, 999, false)).toBeNull();
-    expect(dwellSignal(949, 0, true)).toBeNull();
+    expect(dwellSignal(949, 0, true)).toEqual({ kind: 'dwell', filmId: 949, ms: 0, engaged: true });
+    expect(dwellSignal(949, -1, true)).toBeNull();
     expect(dwellSignal(949, Number.NaN, false)).toBeNull();
   });
 });
@@ -787,6 +788,24 @@ describe('theaterInference', () => {
       'Nicolas Winding Refn',
     ]);
     expect(tmdb.details()).toBe(8);
+  });
+
+  it('colours the swatches from the hydrated lineup posters', async () => {
+    stubBoundaries();
+    const sampled: (string | null)[] = [];
+    const theater = await theaterInference('test-key', async (films) => {
+      sampled.push(...films.map((film) => film.posterPath));
+      return ['#0b3d91', '#7a1f1f', '#2878a0'];
+    })([QUERY_THIEF, VIEW_THIEF], new AbortController().signal);
+
+    expect(theater?.swatches).toEqual(['#0b3d91', '#7a1f1f', '#2878a0', FALLBACK_SWATCHES[3]]);
+    expect(sampled).toEqual(LINEUP_ROWS.map(([id]) => `/${id}.jpg`));
+  });
+
+  it('keeps the fallback palette where no browser can sample a poster', async () => {
+    stubBoundaries();
+    const theater = await theaterInference('test-key')([QUERY_THIEF, VIEW_THIEF], new AbortController().signal);
+    expect(theater?.swatches).toEqual(FALLBACK_SWATCHES);
   });
 
   it('publishes nothing once the caller aborts, and never reads details', async () => {

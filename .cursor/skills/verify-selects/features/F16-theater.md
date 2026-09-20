@@ -24,8 +24,17 @@ Numbered F16 because F15 already belongs to the Letterboxd export-import flow in
 - Cards are `data-testid="theater-archive-card"`, 334 × 190 at 390 width, Surface/raised fill, 1 px Surface/line stroke, radius 0. Height is fixed, so a long title clamps at two lines.
 - Each card carries the title, the uppercase facets joined by `×`, four square swatches, and `<n> FILMS · <m> UNSEEN` in Text/secondary at `theater-card-counts`.
 - Both counts derive at render. `filmCount` is the distinct film ids in the lineup. `unseenCount` is the ones absent from `watchedFilmIds(films)`, the canonical ledger, not a stored number.
+- `theaterArchiveState` is the one state machine over two live sources. A half-loaded ledger would make `unseenCount` too high, so the archive snapshot and `useLibrary` share a single loading state and no card renders until both have landed. A snapshot failure outranks either loading state.
 - Tapping a card opens `theater-sheet` with the insight and the full lineup. A lineup row routes to `/movie/<id>?type=<mediaType>`. Close is `aria-label="Close Theater"`.
 - Empty state is `theaters-empty` with `START HUNTING` to `/discover`. A snapshot failure is `theaters-error`.
+
+## Swatches
+
+A live Theater colours its strip from its own lineup. `theaterInference` hands `inferTheater` the poster sampler, and `posterColorsFrom` samples up to four hydrated lineup posters at `https://image.tmdb.org/t/p/w92`.
+
+- `dominantPosterColor` is the whole aggregation and it is pure. Opaque mid-tone pixels fall into a coarse 8 × 8 × 8 colour grid, the fullest cell wins, and its mean is that poster's colour. Transparent pixels, black bars, and blown-out white drop out. A tie goes to the lower cell, so the same poster always reads the same way.
+- `imagePosterSampler` is the only browser part: one `Image` at `crossOrigin="anonymous"`, a 16 px canvas, and `getImageData`. TMDB serves posters with `access-control-allow-origin: *`, so the canvas stays clean. A CORS refusal, a failed load, a missing 2D context, or a poster that answers nothing worth sampling all contribute no colour, and a poster that never answers gives up its turn after `POSTER_LOAD_TIMEOUT_MS`, because swatches are decorative and must not hold the Theater reveal.
+- `swatchesFrom` then fills what the posters left from `FALLBACK_SWATCHES`, so a strip is always four valid six-digit hex values. Off a browser there is no sampler and every Theater keeps the verified fallback palette.
 
 ## Legacy documents
 
@@ -48,6 +57,10 @@ A copied-forward `saved_vibes` document names itself with `pattern`, carries `fa
 - `library-row-theaters` routes to `/theaters` and quotes `<n> FACETS YOU KEPT` from the same hook. See F10.
 - The `THEATERS` stat on `/me` is `useTheaters().theaters.length`. See F11.
 
+## Ownership
+
+The canonical Theater lives at `users/{uid}/theaters/{id}`, so the path is the ownership claim and no document carries an author field. The owner may create, read, update, and delete their own. Nobody unauthenticated may read or write one, and a second signed-in person may not read, write, or delete another person's, nor create one under their uid.
+
 ## Performance verification
 
 `e2e/theater-performance.spec.ts` measures four user-visible intervals. Hunt commit is the first standard TMDB request for the settled query. Theater ready is the first rendered title after `theater-inferring`. Detail-to-ready starts when the Heat heading appears. Reload restore starts before navigation and ends when the restored Theater title appears.
@@ -58,7 +71,10 @@ Hunt commit-to-result and inferring-shell-to-ready must each finish within 1500 
 
 - `e2e/flows.spec.ts` test `F16 Theater archive` seeds a live Theater, keeps it, walks Library to `/theaters`, asserts the card `aria-label`, the counts line, four swatches, the 190 px height, the sheet lineup, and the matching `/me` count.
 - `e2e/flows.spec.ts` test `F13 Movie detail chrome` asserts the compact card on a film page.
+- `e2e/flows.spec.ts` test `F16 Theater poster swatches` runs the production sampler and `swatchesFrom` inside the page against routed poster fixtures that answer the way TMDB does, so the real `crossOrigin`, canvas, and aggregation path is what produces the three sampled colours and the fourth fallback. A lineup whose posters all refuse keeps the whole fallback palette.
+- `e2e/flows.spec.ts` test `F16 Theater ownership rules` drives the emulator's REST API as the saved account and a second signed-up one and proves the ownership boundary above. The helpers refuse to touch `users/{uid}/theaters` unless `VITE_FIREBASE_EMULATOR` is set or the base URL is loopback, and refuse outright when the emulator host is not loopback.
 - `e2e/theater-performance.spec.ts` drives a standard `heat` Hunt through the live runtime, asserts one Theater inference and no reload inference, checks all eight literal reasons, and writes project-specific timing JSON and screenshots. Its second lane holds the film-axes cache to one model call per film per person. See F17.
 - `artifacts/verify/F16-mobile/` and `artifacts/verify/F16-desktop/`, including `archive.png` and `thresholds.json`.
-- `src/lib/theater/archive.test.ts` pins canonical parsing, legacy parsing, swatch fallback, derived unseen, the exact counts line, both accessible-name shapes, and the `1 FILM` singular.
+- `src/lib/theater/archive.test.ts` pins canonical parsing, legacy parsing, swatch fallback, derived unseen, the exact counts line, both accessible-name shapes, the `1 FILM` singular, and `theaterArchiveState` holding every count back while either source loads.
+- `src/lib/theater/posterColor.test.ts` pins the pixel aggregation literally, the four-poster limit, every refusal path, and the fallback the strip lands on. `src/lib/theater/runtime.test.ts` pins that production `theaterInference` passes the sampler through.
 - `src/lib/theater/contrast.test.ts` pins the Text/secondary and Accent/select ratios the card depends on.

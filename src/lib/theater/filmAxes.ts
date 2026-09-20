@@ -32,6 +32,10 @@ export type FilmAxes = readonly [
 
 export type FilmAxisRow = FilmAxis & { count: number };
 
+export function axisMeterName(name: FilmAxisName, score: AxisScore): string {
+  return `${name}: ${score} of ${AXIS_BARS}`;
+}
+
 export const FILM_AXES_COLLECTION = 'film_axes';
 
 export const FILM_AXES_SCHEMA = 1;
@@ -195,27 +199,28 @@ function significantWords(text: string): string[] {
     .filter((word) => word.length >= 3 && !COUNT_STOPWORDS.has(word));
 }
 
-export function theaterFilmMatchesAxisValue(axisValue: string, theaterEvidence: string): boolean {
-  const evidence = new Set(significantWords(theaterEvidence));
-  return significantWords(axisValue).some((word) => evidence.has(word));
+export function axisValueSharesWordWithFacets(axisValue: string, facets: readonly string[]): boolean {
+  const facetWords = new Set(facets.flatMap(significantWords));
+  return significantWords(axisValue).some((word) => facetWords.has(word));
 }
 
-export function theaterEvidenceByFilm(theaters: readonly KeptTheater[]): string[] {
-  const evidence = new Map<string, string>();
+export function facetsByFilm(theaters: readonly KeptTheater[]): string[][] {
+  const facetsPerFilm = new Map<string, string[]>();
   for (const theater of theaters) {
-    const shared = [theater.title, ...(theater.facets ?? [])].join(' ');
+    if (!theater.facets) continue;
     for (const film of theater.films) {
       const key = filmIdentity(film);
-      evidence.set(key, `${evidence.get(key) ?? ''} ${shared} ${film.reason}`);
+      facetsPerFilm.set(key, [...(facetsPerFilm.get(key) ?? []), ...theater.facets]);
     }
   }
-  return [...evidence.values()];
+  return [...facetsPerFilm.values()];
+}
+
+export function countFilmsOnAxisValue(axisValue: string, facetsPerFilm: readonly string[][]): number {
+  return facetsPerFilm.filter((facets) => axisValueSharesWordWithFacets(axisValue, facets)).length;
 }
 
 export function deriveUserAxisRows(axes: FilmAxes, theaters: readonly KeptTheater[]): FilmAxisRow[] {
-  const evidence = theaterEvidenceByFilm(theaters);
-  return axes.map((axis) => ({
-    ...axis,
-    count: evidence.filter((text) => theaterFilmMatchesAxisValue(axis.value, text)).length,
-  }));
+  const facetsPerFilm = facetsByFilm(theaters);
+  return axes.map((axis) => ({ ...axis, count: countFilmsOnAxisValue(axis.value, facetsPerFilm) }));
 }

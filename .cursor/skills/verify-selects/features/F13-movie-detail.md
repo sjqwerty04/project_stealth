@@ -11,7 +11,7 @@ The film page. `artifacts/figma/film-axes-table.png` is the design authority for
 - The header is `AXES` on the left and `THE FILM / YOUR MAP` on the right, the slash in Surface/line.
 - A row is `axis-row`: a Martian Mono label in Text/tertiary at Label 10, the value in Martian Mono at 12 in Text/primary, five slanted marks, and the count right aligned on tabular figures. Rules are 1 px Surface/line, radius 0 throughout.
 - The model supplies `value` and `score` only. The count is the person's own data and never comes back from Grok.
-- `deriveUserAxisRows` is the one counting rule. `theaterEvidenceByFilm` pools everything the kept Theaters say about a film — their titles, their facets, and that film's stored reason — into one text per distinct film, so a film kept in two Theaters counts once. `theaterFilmMatchesAxisValue` then decides a single row: the film meets the axis when the two texts share a significant word. Words shorter than three letters and a fixed stopword list drop out, so `two-hander` does not meet a reason that merely says `TWO`.
+- `deriveUserAxisRows` is the one counting rule, and kept Theater facets are its whole evidence. `facetsByFilm` pools the facets of every Theater holding a film under that film's identity, so a film kept in two Theaters counts once. `axisValueSharesWordWithFacets` then decides a single row: the film meets the axis when a facet and the axis value share a significant word. A Theater's title and a film's stored reason never count, so a title that happens to echo `night` buys nothing. Words shorter than three letters and a fixed stopword list drop out, so `two-hander` does not meet a facet that merely says `TWO`. A legacy Theater carries no facets and therefore no evidence.
 
 ## The axes boundary
 
@@ -23,7 +23,11 @@ The film page. `artifacts/figma/film-axes-table.png` is the design authority for
 - `useFilmAxes` reads the cache first and calls Grok only on a miss: one call, `reasoningEffort` low, `maxTokens` 500, zero repair retries. A cache hit makes no call at all.
 - A refused cache create is not an error the person sees. `loadFilmAxes` returns the axes it just generated and logs the refusal.
 - Every result carries the `filmKey` it was asked for. Navigating to another film shows loading rather than the previous film's table.
-- `AxisMeter` is the reusable part: `role="img"`, `aria-label` like `4 of 5`, and exactly five `bar-unit` children whatever the score.
+- `AxisMeter` is the reusable part: `role="img"`, exactly five `bar-unit` children whatever the score, and an `aria-label` that names the axis with its reading, `LOOK: 4 of 5`. `axisMeterName` owns that string and the row supplies the name, so a meter never speaks a bare number.
+
+## Save as engagement
+
+`MovieActions` takes one narrow callback, `onSaveIntent`, and `openSavePicker` spends it in the same press that opens `AddToListPicker`. The film page passes `markTheaterEngaged(details.id)`, so choosing to save a film counts as engagement even when the person closes the picker without filing it anywhere. The dwell signal that leaves with the screen then carries `engaged: true` below the twelve-second floor. The picker's close control carries `aria-label="Close list picker"`.
 
 ## The Orbit CTA
 
@@ -45,11 +49,13 @@ At 320 px the value wraps to a second line and the label, marks, and count keep 
 
 ## Evidence
 
-- `e2e/flows.spec.ts` test `F13 Movie detail chrome` asserts the eight rows and their values, the first meter's `aria-label`, the full-width CTA, the absent reason section, and the compact Theater card.
+- `e2e/flows.spec.ts` test `F13 Movie detail chrome` asserts the eight rows and their values, the first meter's `aria-label` of `LOOK: 4 of 5`, the full-width CTA, the absent reason section, and the compact Theater card.
+- `e2e/flows.spec.ts` test `F13 Save engagement` presses Save, closes the picker, leaves through the Orbit CTA, and reads the stored session: one dwell signal for that film, `engaged: true`.
+- `src/components/saveIntent.test.ts` pins the press: the picker opens, one intent is published per press, and a caller that listens for nothing still gets its picker.
 - `e2e/flows.spec.ts` test `F17 Film axes first visit` clears one deterministic fixture document through the Firestore emulator REST API, then asserts exactly one Grok call, the eight names and values, five bars per row, the hidden reason section for a film no Theater holds, and no sideways scroll at 320 px. `clearFilmAxesFixtures` refuses to delete anything unless `VITE_FIREBASE_EMULATOR` is set or the base URL is loopback, and it refuses outright when the emulator host is not loopback.
 - `e2e/flows.spec.ts` test `F17 Film axes cache hit and Theater reasons` opens the same film in the next test's own browser context, where the prompt cache in `src/lib/llm.ts` is empty, so the eight rows with zero Grok calls can only have come from Firestore. It then asserts the kicker, the literal reasons, and the excluded current film on a film a Theater does hold.
 - `e2e/flows.spec.ts` test `F17 Film axes cache rules` drives the emulator's REST API as two signed-in people and proves the ownership boundary. See `F17-film-axes.md`.
 - `e2e/theater-performance.spec.ts` test `Film axes cost one model call on a first visit and none in a fresh session` closes the first context and signs in again in a second one, so the zero calls it records come from the person's own cached document rather than from browser state. It writes `artifacts/verify/theater-performance-<project>/film-axes-cache.json`.
 - `artifacts/verify/F13-mobile/`, `artifacts/verify/F17-mobile/`, and `artifacts/verify/F17-desktop/`, including `axes.png`, `axes-320.png`, `theater-reasons.png`, and `thresholds.json`.
-- `src/lib/theater/filmAxes.test.ts` pins the Thief fixture, every parser rejection, the document round trip, the refusal of a document filed under another film, the prompt, the call parameters, the word-overlap rule and the counts it produces, the cache hit, the one-call miss, and the refused write that still shows its axes.
+- `src/lib/theater/filmAxes.test.ts` pins the Thief fixture, every parser rejection, the document round trip, the refusal of a document filed under another film, the prompt, the call parameters, the meter name, the facets-only counting rule and the counts it produces, the cache hit, the one-call miss, and the refused write that still shows its axes.
 - `src/lib/theater/archive.test.ts` pins `filmTheaterSection`: the newest Theater wins, the current film leaves the list, the swatches cycle, and a Theater holding only this film returns nothing.

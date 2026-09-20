@@ -3,8 +3,12 @@ import firestoreRules from '../../../firestore.rules?raw';
 import { loadSkill } from '../skills';
 import type { KeptTheater } from './archive';
 import {
+  axisMeterName,
+  axisValueSharesWordWithFacets,
   buildFilmAxesPrompt,
+  countFilmsOnAxisValue,
   deriveUserAxisRows,
+  facetsByFilm,
   filmAxesDocFrom,
   filmAxesDocId,
   filmAxesDocPath,
@@ -15,8 +19,6 @@ import {
   parseFilmAxes,
   parseFilmAxesDoc,
   parseFilmAxesResult,
-  theaterEvidenceByFilm,
-  theaterFilmMatchesAxisValue,
   MAX_AXIS_VALUE_LENGTH,
   MAX_CACHED_TITLE_LENGTH,
   MAX_CACHED_YEAR_LENGTH,
@@ -268,68 +270,152 @@ describe('the cache rules', () => {
   });
 });
 
-describe('theaterFilmMatchesAxisValue', () => {
-  it('meets an axis on one shared word, whatever the case and punctuation', () => {
-    expect(
-      theaterFilmMatchesAxisValue(
-        'sodium-and-cyan night',
-        'Because of the night COMPETENCE PORN THE PROFESSIONAL AS MONK. BOTH MEN ARE ALONE BY CHOICE.',
-      ),
-    ).toBe(true);
-    expect(theaterFilmMatchesAxisValue('locked-off', 'A CAB BECOMES A LOCKED-OFF FRAME FOR TWO MEN.')).toBe(true);
+describe('axisMeterName', () => {
+  it('speaks the axis and its reading in one name', () => {
+    expect(axisMeterName('LOOK', 4)).toBe('LOOK: 4 of 5');
+    expect(axisMeterName('FORMAT', 1)).toBe('FORMAT: 1 of 5');
   });
 
-  it('spends no match on a stopword the two texts happen to share', () => {
-    expect(theaterFilmMatchesAxisValue('two-hander', 'A CAB BECOMES A LOCKED-OFF FRAME FOR TWO MEN.')).toBe(false);
-  });
-
-  it('spends no match on a word shorter than three letters', () => {
-    expect(theaterFilmMatchesAxisValue('1.85 spherical', 'A 1.85 FRAME')).toBe(false);
-    expect(theaterFilmMatchesAxisValue('1.85 spherical', 'SHOT 1.85 SPHERICAL ON KODAK')).toBe(true);
-  });
-
-  it('meets nothing when the Theater says nothing about the film', () => {
-    expect(theaterFilmMatchesAxisValue('synth pulse', '')).toBe(false);
-    expect(theaterFilmMatchesAxisValue('synth pulse', 'THE HEIST RUNS ON A CLOCK AND THE CLOCK RUNS OUT.')).toBe(false);
+  it('names every axis of a film the way the rows render them', () => {
+    expect(THIEF_AXES.map((axis) => axisMeterName(axis.name, axis.score))).toEqual([
+      'LOOK: 4 of 5',
+      'CAMERA: 2 of 5',
+      'TEMPO: 5 of 5',
+      'WEATHER: 4 of 5',
+      'SOUND: 2 of 5',
+      'WORLD: 3 of 5',
+      'SHAPE: 1 of 5',
+      'FORMAT: 3 of 5',
+    ]);
   });
 });
 
-describe('theaterEvidenceByFilm', () => {
-  it('gathers one text per distinct film and pools what both Theaters said', () => {
-    const evidence = theaterEvidenceByFilm([BECAUSE_OF_THE_NIGHT, LOCKED_OFF_FRAMES]);
-    expect(evidence).toHaveLength(5);
-    const collateral = evidence.filter((text) => text.includes('MANN AGAIN. SAME CITY LOGIC, TWENTY-THREE YEARS LATER.'));
-    expect(collateral).toHaveLength(1);
-    expect(collateral[0]).toContain('Because of the night');
-    expect(collateral[0]).toContain('Locked-off frames, procedural men');
-    expect(collateral[0]).toContain('A CAB BECOMES A LOCKED-OFF FRAME FOR TWO MEN.');
+describe('axisValueSharesWordWithFacets', () => {
+  it('meets an axis on one shared word, whatever the case and punctuation', () => {
+    expect(axisValueSharesWordWithFacets('competence porn', ['COMPETENCE PORN', 'NOBODY WINS'])).toBe(true);
+    expect(axisValueSharesWordWithFacets('locked-off', ['LOCKED-OFF', 'PROCEDURAL'])).toBe(true);
+    expect(axisValueSharesWordWithFacets('procedural', ['LOCKED-OFF', 'PROCEDURAL'])).toBe(true);
+  });
+
+  it('spends no match on a stopword the axis and the facets happen to share', () => {
+    expect(axisValueSharesWordWithFacets('two-hander', ['ALL OR NOTHING', 'TWO MEN, ONE ROOM'])).toBe(false);
+  });
+
+  it('spends no match on a word shorter than three letters', () => {
+    expect(axisValueSharesWordWithFacets('1.85 spherical', ['1.85 FRAMING'])).toBe(false);
+    expect(axisValueSharesWordWithFacets('1.85 spherical', ['SPHERICAL 1.85'])).toBe(true);
+  });
+
+  it('meets nothing when the facets say nothing the axis says', () => {
+    expect(axisValueSharesWordWithFacets('synth pulse', [])).toBe(false);
+    expect(axisValueSharesWordWithFacets('synth pulse', ['COMPETENCE PORN', 'NOBODY WINS'])).toBe(false);
+  });
+});
+
+describe('facetsByFilm', () => {
+  it('gathers one facet list per distinct film and pools the facets of both Theaters holding it', () => {
+    const perFilm = facetsByFilm([BECAUSE_OF_THE_NIGHT, LOCKED_OFF_FRAMES]);
+    expect(perFilm).toHaveLength(5);
+    expect(perFilm).toContainEqual(['COMPETENCE PORN', 'NOBODY WINS', 'LOCKED-OFF', 'PROCEDURAL']);
+    expect(perFilm.filter((facets) => facets.includes('LOCKED-OFF'))).toHaveLength(2);
+  });
+
+  it('carries no Theater title and no per-film reason into the evidence', () => {
+    const evidence = facetsByFilm([BECAUSE_OF_THE_NIGHT, LOCKED_OFF_FRAMES]).flat().join(' ');
+    expect(evidence).not.toContain('night');
+    expect(evidence).not.toContain('Because');
+    expect(evidence).not.toContain('SYNTH PULSE');
+    expect(evidence).not.toContain('MONK');
+    expect(evidence).toEqual(expect.stringContaining('COMPETENCE PORN'));
+  });
+
+  it('holds no evidence for a legacy Theater that carries no facets', () => {
+    expect(facetsByFilm([{ ...BECAUSE_OF_THE_NIGHT, facets: null }])).toEqual([]);
+  });
+});
+
+describe('countFilmsOnAxisValue', () => {
+  const perFilm = facetsByFilm([BECAUSE_OF_THE_NIGHT, LOCKED_OFF_FRAMES]);
+
+  it('counts the distinct kept films whose Theater facets meet the axis', () => {
+    expect(countFilmsOnAxisValue('competence porn', perFilm)).toBe(4);
+    expect(countFilmsOnAxisValue('procedural', perFilm)).toBe(2);
+    expect(countFilmsOnAxisValue('sodium-and-cyan night', perFilm)).toBe(0);
+  });
+
+  it('counts nothing when no Theater is kept', () => {
+    expect(countFilmsOnAxisValue('competence porn', [])).toBe(0);
   });
 });
 
 describe('deriveUserAxisRows', () => {
-  it('counts the kept films whose Theater words meet each axis', () => {
+  it('counts the kept films whose Theater facets meet each axis', () => {
     expect(deriveUserAxisRows(THIEF_AXES, [BECAUSE_OF_THE_NIGHT, LOCKED_OFF_FRAMES])).toEqual([
-      { name: 'LOOK', value: 'sodium-and-cyan night', score: 4, count: 4 },
+      { name: 'LOOK', value: 'sodium-and-cyan night', score: 4, count: 0 },
       { name: 'CAMERA', value: 'locked-off', score: 2, count: 2 },
       { name: 'TEMPO', value: 'procedural', score: 5, count: 2 },
       { name: 'WEATHER', value: 'competence porn', score: 4, count: 4 },
-      { name: 'SOUND', value: 'synth pulse', score: 2, count: 1 },
-      { name: 'WORLD', value: 'rain-slick city night', score: 3, count: 4 },
+      { name: 'SOUND', value: 'synth pulse', score: 2, count: 0 },
+      { name: 'WORLD', value: 'rain-slick city night', score: 3, count: 0 },
       { name: 'SHAPE', value: 'two-hander', score: 1, count: 0 },
       { name: 'FORMAT', value: '1.85 spherical', score: 3, count: 0 },
     ]);
+  });
+
+  it('counts nothing from a Theater title, however exactly it echoes the axis', () => {
+    const titled: KeptTheater = {
+      ...BECAUSE_OF_THE_NIGHT,
+      title: 'Sodium-and-cyan night, synth pulse, rain-slick city',
+      facets: ['NOBODY WINS', 'ALL PLAN, NO EXIT'],
+    };
+    expect(deriveUserAxisRows(THIEF_AXES, [titled]).map((row) => row.count)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it('counts nothing from a per-film reason, however exactly it echoes the axis', () => {
+    const reasoned: KeptTheater = {
+      ...LOCKED_OFF_FRAMES,
+      title: 'Nobody wins',
+      facets: ['NOBODY WINS', 'ALL PLAN, NO EXIT'],
+      films: [keptFilm(949, 'Heat', '1995', 'SYNTH PULSE OVER A SODIUM-AND-CYAN NIGHT, SHOT 1.85 SPHERICAL.')],
+    };
+    expect(deriveUserAxisRows(THIEF_AXES, [reasoned]).map((row) => row.count)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
   it('counts every axis zero when no Theater is kept', () => {
     expect(deriveUserAxisRows(THIEF_AXES, []).map((row) => row.count)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
 
-  it('counts a film kept in two Theaters once', () => {
+  it('counts a film held by two Theaters once', () => {
+    const collateral = BECAUSE_OF_THE_NIGHT.films[2];
     const twice = deriveUserAxisRows(THIEF_AXES, [
-      { ...BECAUSE_OF_THE_NIGHT, films: [BECAUSE_OF_THE_NIGHT.films[1]] },
-      { ...LOCKED_OFF_FRAMES, id: 'second', title: 'Synth pulse', films: [BECAUSE_OF_THE_NIGHT.films[1]] },
+      { ...BECAUSE_OF_THE_NIGHT, films: [collateral] },
+      { ...LOCKED_OFF_FRAMES, id: 'second', films: [collateral] },
     ]);
-    expect(twice.find((row) => row.name === 'SOUND')?.count).toBe(1);
+    expect(twice.find((row) => row.name === 'WEATHER')?.count).toBe(1);
+    expect(twice.find((row) => row.name === 'CAMERA')?.count).toBe(1);
+  });
+
+  it('counts a film once for an axis both of its Theaters meet', () => {
+    const collateral = BECAUSE_OF_THE_NIGHT.films[2];
+    const both = deriveUserAxisRows(THIEF_AXES, [
+      { ...LOCKED_OFF_FRAMES, id: 'first', films: [collateral] },
+      { ...LOCKED_OFF_FRAMES, id: 'second', films: [collateral] },
+    ]);
+    expect(both.find((row) => row.name === 'CAMERA')?.count).toBe(1);
+  });
+
+  it('counts a film and the series of the same id apart', () => {
+    const film = { ...keptFilm(10858, 'Thief', '1981', ''), mediaType: 'movie' as const };
+    const series = { ...film, mediaType: 'tv' as const };
+    const rows = deriveUserAxisRows(THIEF_AXES, [{ ...LOCKED_OFF_FRAMES, films: [film, series] }]);
+    expect(rows.find((row) => row.name === 'CAMERA')?.count).toBe(2);
+  });
+
+  it('leaves the values and scores exactly as the model reported them', () => {
+    const rows = deriveUserAxisRows(THIEF_AXES, [BECAUSE_OF_THE_NIGHT]);
+    expect(rows.map((row) => [row.name, row.value, row.score])).toEqual(
+      THIEF_ROWS.map((row) => [row.name, row.value, row.score]),
+    );
   });
 });
 

@@ -16,26 +16,34 @@ import {
   mockFilmAxes,
   mockTmdb,
   clearFilmAxesFixtures,
+  clearTheaterFixtures,
   createFilmAxesDoc,
   createSharedFilmAxesDoc,
+  createTheaterDocAs,
   currentUid,
   deleteFilmAxesDocAs,
+  deleteTheaterDocAs,
   readSharedFilmAxesDoc,
   emulatorSignIn,
   emulatorSignUp,
   readFilmAxesDoc,
+  readTheaterDocAs,
   rewriteFilmAxesDoc,
+  rewriteTheaterDocAs,
+  routePosterFixtures,
+  samplePostersInBrowser,
   FILM_AXES_FIXTURE,
   FILM_PAGE_THEATER,
   FIRST_VISIT_FILM_ID,
   RULES_FIXTURE_FILM_ID,
+  RULES_FIXTURE_THEATER_ID,
   type FilmAxesRestAxis,
   THEATER_FIXTURE,
 } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
-test.afterEach(async ({}, testInfo) => {
+test.afterEach(async (_fixtures, testInfo) => {
   const m = testInfo.title.match(/^(F\d+|F-smoke-[^\s]+)/);
   const flowId = m?.[1] ?? 'unknown';
   await saveEvidence(testInfo, flowId);
@@ -312,6 +320,34 @@ test('F12 Share', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F12', testInfo.project.name, logs);
 });
 
+test('F13 Save engagement', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await ensureAuthed(page);
+  await mockFilmAxes(page);
+  await page.goto('/movie/155');
+  const picker = page.getByRole('heading', { name: 'Add to list' });
+  await expect(page.getByTestId('action-watchlist')).toBeVisible();
+  await expect(picker).toHaveCount(0);
+
+  await page.getByTestId('action-watchlist').click();
+  await expect(picker).toBeVisible();
+  await page.getByRole('button', { name: /close list picker/i }).click();
+  await expect(picker).toHaveCount(0);
+
+  await page.getByTestId('orbit-cta').click();
+  await expect(page).toHaveURL(/\/orbit\/155/);
+
+  const uid = await currentUid(page);
+  const dwells = await page.evaluate((uid) => {
+    const raw = sessionStorage.getItem(`theater-session:v1:${uid}`);
+    const signals = (raw ? JSON.parse(raw) : { signals: [] }).signals as { kind: string; filmId?: number; engaged?: boolean }[];
+    return signals.filter((signal) => signal.kind === 'dwell' && signal.filmId === 155);
+  }, uid);
+  expect(dwells).toHaveLength(1);
+  expect(dwells[0].engaged).toBe(true);
+  await dumpConsole(page, 'F13', testInfo.project.name, logs);
+});
+
 test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
@@ -324,7 +360,10 @@ test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   const rows = page.getByTestId('film-axes').getByTestId('axis-row');
   await expect(rows).toHaveCount(8);
   await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
-  await expect(page.getByTestId('film-axes').getByTestId('axis-meter').first()).toHaveAttribute('aria-label', '4 of 5');
+  await expect(page.getByTestId('film-axes').getByTestId('axis-meter').first()).toHaveAttribute(
+    'aria-label',
+    'LOOK: 4 of 5',
+  );
   const cta = page.getByTestId('orbit-cta');
   const ctaBox = await cta.boundingBox();
   const contentWidth = await page.evaluate(() => document.documentElement.clientWidth);
@@ -446,6 +485,29 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F15', testInfo.project.name, logs);
 });
 
+test('F16 Theater poster swatches', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await routePosterFixtures(page);
+  await page.goto('/login');
+
+  const sampled = await samplePostersInBrowser(page, ['/sodium.svg', '/cyan.svg', '/slate.svg', '/missing.svg']);
+  expect(sampled).toEqual({
+    colors: ['#c88c28', '#2878a0', '#3d3d42'],
+    swatches: ['#c88c28', '#2878a0', '#3d3d42', '#1D1D20'],
+    requested: [
+      'https://image.tmdb.org/t/p/w92/sodium.svg',
+      'https://image.tmdb.org/t/p/w92/cyan.svg',
+      'https://image.tmdb.org/t/p/w92/slate.svg',
+      'https://image.tmdb.org/t/p/w92/missing.svg',
+    ],
+  });
+
+  const refused = await samplePostersInBrowser(page, ['/missing.svg', '/missing.svg']);
+  expect(refused.colors).toEqual([]);
+  expect(refused.swatches).toEqual(['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20']);
+  await dumpConsole(page, 'F16', testInfo.project.name, logs);
+});
+
 test('F16 Theater archive', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
@@ -504,6 +566,46 @@ test('F16 Theater archive', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F16', testInfo.project.name, logs);
 });
 
+test('F16 Theater ownership rules', async ({ baseURL }, testInfo) => {
+  const owner = await emulatorSignIn(baseURL);
+  const intruder = await emulatorSignUp(baseURL);
+  const theaterId = RULES_FIXTURE_THEATER_ID[testInfo.project.name];
+  await clearTheaterFixtures(baseURL, owner.uid, [theaterId]);
+  await clearTheaterFixtures(baseURL, intruder.uid, [theaterId]);
+  const kept = {
+    schema: 1,
+    title: THEATER_FIXTURE.title,
+    facets: THEATER_FIXTURE.facets,
+    insight: THEATER_FIXTURE.insight,
+    keptAt: 1758240000000,
+  };
+
+  expect(await createTheaterDocAs(null, owner.uid, theaterId, kept)).toBe(403);
+  expect(await readTheaterDocAs(null, owner.uid, theaterId)).toBe(403);
+
+  expect(await createTheaterDocAs(owner, owner.uid, theaterId, kept)).toBe(200);
+  expect(await readTheaterDocAs(owner, owner.uid, theaterId)).toBe(200);
+  expect(await rewriteTheaterDocAs(owner, owner.uid, theaterId, { ...kept, title: 'Because of the night' })).toBe(200);
+
+  expect(await readTheaterDocAs(null, owner.uid, theaterId)).toBe(403);
+  expect(await rewriteTheaterDocAs(null, owner.uid, theaterId, { ...kept, title: 'Taken' })).toBe(403);
+  expect(await deleteTheaterDocAs(null, owner.uid, theaterId)).toBe(403);
+
+  expect(await readTheaterDocAs(intruder, owner.uid, theaterId)).toBe(403);
+  expect(await rewriteTheaterDocAs(intruder, owner.uid, theaterId, { ...kept, title: 'Taken' })).toBe(403);
+  expect(await deleteTheaterDocAs(intruder, owner.uid, theaterId)).toBe(403);
+  expect(await createTheaterDocAs(intruder, owner.uid, `${theaterId}-2`, kept)).toBe(403);
+  expect(await readTheaterDocAs(intruder, owner.uid, `${theaterId}-2`)).toBe(403);
+
+  expect(await createTheaterDocAs(intruder, intruder.uid, theaterId, kept)).toBe(200);
+  expect(await readTheaterDocAs(owner, intruder.uid, theaterId)).toBe(403);
+
+  expect(await readTheaterDocAs(owner, owner.uid, theaterId)).toBe(200);
+  expect(await deleteTheaterDocAs(owner, owner.uid, theaterId)).toBe(200);
+  expect(await readTheaterDocAs(owner, owner.uid, theaterId)).toBe(404);
+  expect(await deleteTheaterDocAs(intruder, intruder.uid, theaterId)).toBe(200);
+});
+
 test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
   const filmId = FIRST_VISIT_FILM_ID[testInfo.project.name];
   const logs = await attachPageLog(page);
@@ -527,7 +629,7 @@ test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
 
   const meters = rows.getByTestId('axis-meter');
   expect(await meters.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))).toEqual(
-    FILM_AXES_FIXTURE.map((axis) => `${axis.score} of 5`),
+    FILM_AXES_FIXTURE.map((axis) => `${axis.name}: ${axis.score} of 5`),
   );
   expect(
     await meters.evaluateAll((els) => els.map((el) => el.querySelectorAll('[data-testid="bar-unit"]').length)),
