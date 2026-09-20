@@ -202,10 +202,10 @@ function assertEmulatorTarget(baseURL: string | undefined) {
   }
 }
 
-export async function clearFilmAxesFixtures(baseURL: string | undefined, filmKeys: string[]) {
+export async function clearFilmAxesFixtures(baseURL: string | undefined, ownerUid: string, filmKeys: string[]) {
   assertEmulatorTarget(baseURL);
   for (const filmKey of filmKeys) {
-    const url = `${filmAxesRestUrl()}/${encodeURIComponent(filmKey)}`;
+    const url = `${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`;
     const response = await fetch(url, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } });
     if (!response.ok) {
       throw new Error(`Emulator refused to clear ${filmKey}: ${response.status} ${await response.text()}`);
@@ -217,21 +217,36 @@ export const RULES_FIXTURE_FILM_ID: Record<string, number> = { mobile: 9_000_201
 
 const AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 
-function filmAxesRestUrl() {
-  return `http://${FIRESTORE_EMULATOR_HOST}/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/film_axes`;
+function firestoreDocumentsUrl() {
+  return `http://${FIRESTORE_EMULATOR_HOST}/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 }
 
-export async function emulatorIdToken(baseURL: string | undefined) {
+function filmAxesRestUrl(ownerUid: string) {
+  return `${firestoreDocumentsUrl()}/users/${encodeURIComponent(ownerUid)}/film_axes`;
+}
+
+export type EmulatorAccount = { uid: string; idToken: string };
+
+async function identityToolkit(baseURL: string | undefined, method: string, body: object): Promise<EmulatorAccount> {
   assertEmulatorTarget(baseURL);
-  const creds = JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) as { email: string; password: string };
-  const url = `http://${AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`;
+  const url = `http://${AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:${method}?key=fake-api-key`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: creds.email, password: creds.password, returnSecureToken: true }),
+    body: JSON.stringify({ ...body, returnSecureToken: true }),
   });
-  if (!response.ok) throw new Error(`Auth emulator refused the saved creds: ${response.status}`);
-  return (await response.json()).idToken as string;
+  if (!response.ok) throw new Error(`Auth emulator refused ${method}: ${response.status} ${await response.text()}`);
+  const account = await response.json();
+  return { uid: account.localId as string, idToken: account.idToken as string };
+}
+
+export async function emulatorSignIn(baseURL: string | undefined) {
+  const creds = JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) as { email: string; password: string };
+  return identityToolkit(baseURL, 'signInWithPassword', { email: creds.email, password: creds.password });
+}
+
+export async function emulatorSignUp(baseURL: string | undefined) {
+  return identityToolkit(baseURL, 'signUp', { email: uniqueEmail(), password: `pw-${Date.now()}` });
 }
 
 export type FilmAxesRestDoc = {
@@ -240,10 +255,12 @@ export type FilmAxesRestDoc = {
   filmId?: number;
   title?: string;
   year?: string;
-  axes?: { name: string; value: string; score: number }[];
+  axes?: FilmAxesRestAxis[];
   createdAt?: number;
   extra?: string;
 };
+
+export type FilmAxesRestAxis = { name: string; value: string; score: number; extra?: string };
 
 export function filmAxesRestFields(doc: FilmAxesRestDoc) {
   const fields: Record<string, unknown> = {};
@@ -262,7 +279,10 @@ export function filmAxesRestFields(doc: FilmAxesRestDoc) {
             fields: {
               name: { stringValue: axis.name },
               value: { stringValue: axis.value },
-              score: { integerValue: String(axis.score) },
+              score: Number.isInteger(axis.score)
+                ? { integerValue: String(axis.score) }
+                : { doubleValue: axis.score },
+              ...(axis.extra === undefined ? {} : { extra: { stringValue: axis.extra } }),
             },
           },
         })),
@@ -272,38 +292,65 @@ export function filmAxesRestFields(doc: FilmAxesRestDoc) {
   return fields;
 }
 
-export async function createFilmAxesDoc(idToken: string | null, filmKey: string, doc: FilmAxesRestDoc) {
-  const response = await fetch(`${filmAxesRestUrl()}?documentId=${encodeURIComponent(filmKey)}`, {
+function actorHeaders(actor: EmulatorAccount | null): Record<string, string> {
+  return actor ? { Authorization: `Bearer ${actor.idToken}` } : {};
+}
+
+export async function createFilmAxesDoc(
+  actor: EmulatorAccount | null,
+  ownerUid: string,
+  filmKey: string,
+  doc: FilmAxesRestDoc,
+) {
+  const response = await fetch(`${filmAxesRestUrl(ownerUid)}?documentId=${encodeURIComponent(filmKey)}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
     body: JSON.stringify({ fields: filmAxesRestFields(doc) }),
   });
   return response.status;
 }
 
-export async function readFilmAxesDoc(idToken: string | null, filmKey: string) {
-  const response = await fetch(`${filmAxesRestUrl()}/${encodeURIComponent(filmKey)}`, {
-    headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+export async function createSharedFilmAxesDoc(actor: EmulatorAccount, filmKey: string, doc: FilmAxesRestDoc) {
+  const response = await fetch(`${firestoreDocumentsUrl()}/film_axes?documentId=${encodeURIComponent(filmKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
+    body: JSON.stringify({ fields: filmAxesRestFields(doc) }),
   });
   return response.status;
 }
 
-export async function rewriteFilmAxesDoc(idToken: string, filmKey: string, doc: FilmAxesRestDoc) {
-  const response = await fetch(`${filmAxesRestUrl()}/${encodeURIComponent(filmKey)}`, {
+export async function readSharedFilmAxesDoc(actor: EmulatorAccount, filmKey: string) {
+  const response = await fetch(`${firestoreDocumentsUrl()}/film_axes/${encodeURIComponent(filmKey)}`, {
+    headers: actorHeaders(actor),
+  });
+  return response.status;
+}
+
+export async function readFilmAxesDoc(actor: EmulatorAccount | null, ownerUid: string, filmKey: string) {
+  const response = await fetch(`${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`, {
+    headers: actorHeaders(actor),
+  });
+  return response.status;
+}
+
+export async function rewriteFilmAxesDoc(
+  actor: EmulatorAccount,
+  ownerUid: string,
+  filmKey: string,
+  doc: FilmAxesRestDoc,
+) {
+  const response = await fetch(`${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
     body: JSON.stringify({ fields: filmAxesRestFields(doc) }),
   });
   return response.status;
 }
 
-export async function deleteFilmAxesDocAs(idToken: string, filmKey: string) {
-  const response = await fetch(`${filmAxesRestUrl()}/${encodeURIComponent(filmKey)}`, {
+export async function deleteFilmAxesDocAs(actor: EmulatorAccount, ownerUid: string, filmKey: string) {
+  const response = await fetch(`${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${idToken}` },
+    headers: actorHeaders(actor),
   });
   return response.status;
 }

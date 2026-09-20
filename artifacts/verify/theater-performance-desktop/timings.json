@@ -17,12 +17,12 @@
   },
   "timingsMs": {
     "huntCommitToFirstResult": 108,
-    "huntInputToFirstResult": 479,
-    "inferringShellToReady": 820,
-    "detailHeadingToReady": 3337,
+    "huntInputToFirstResult": 475,
+    "inferringShellToReady": 822,
+    "detailHeadingToReady": 3341,
     "inferenceDebounceReportedMs": 2500,
-    "reloadNavigationToRestoredTitle": 376,
-    "clientOverheadAfterControlledNetwork": 20
+    "reloadNavigationToRestoredTitle": 384,
+    "clientOverheadAfterControlledNetwork": 22
   },
   "requests": {
     "beforeReload": {

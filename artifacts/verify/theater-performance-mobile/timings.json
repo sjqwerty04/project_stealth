@@ -16,12 +16,12 @@
     "serializedHydrationFloorMs": 2200
   },
   "timingsMs": {
-    "huntCommitToFirstResult": 111,
-    "huntInputToFirstResult": 476,
+    "huntCommitToFirstResult": 109,
+    "huntInputToFirstResult": 475,
     "inferringShellToReady": 821,
-    "detailHeadingToReady": 3340,
+    "detailHeadingToReady": 3341,
     "inferenceDebounceReportedMs": 2500,
-    "reloadNavigationToRestoredTitle": 401,
+    "reloadNavigationToRestoredTitle": 358,
     "clientOverheadAfterControlledNetwork": 21
   },
   "requests": {

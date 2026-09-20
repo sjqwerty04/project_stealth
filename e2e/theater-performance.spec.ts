@@ -1,13 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CREDS_PATH, signIn } from './helpers';
+import {
+  clearFilmAxesFixtures,
+  currentUid,
+  mockFilmAxes,
+  mockTmdb,
+  signIn,
+  CREDS_PATH,
+  FILM_AXES_FIXTURE,
+} from './helpers';
 
 const THEATER_TITLE = 'Men who are good at their jobs and lose anyway';
 const THEATER_FACETS = ['COMPETENCE PORN', 'NOBODY WINS'] as const;
 const THEATER_INSIGHT = 'You keep opening films where the plan is perfect and the ending is not.';
 const LLM_DELAY_MS = 600;
 const TMDB_DELAY_MS = 100;
+const PERFORMANCE_FILM_ID: Record<string, number> = { mobile: 9_000_301, desktop: 9_000_302 };
 
 const HEAT = {
   id: 949,
@@ -420,6 +429,8 @@ test('Theater meets generation and restore budgets without duplicate inference',
   expect(countsAfterReload.theaterInfer).toBe(1);
   expect(countsAfterReload.theaterInfer - countsBeforeReload.theaterInfer).toBe(0);
   expect(countsAfterReload.aiSearch).toBe(0);
+  expect(countsBeforeReload.filmAxes).toBe(1);
+  expect(countsAfterReload.filmAxes - countsBeforeReload.filmAxes).toBe(1);
   expect(countsBeforeReload.lineupSearch).toBe(8);
   expect(countsBeforeReload.lineupDetail).toBe(8);
   expect(result.restoredUi).toEqual({
@@ -432,4 +443,59 @@ test('Theater meets generation and restore budgets without duplicate inference',
   expect(inferringShellToReadyMs).toBeLessThanOrEqual(1500);
   expect(reloadNavigationToRestoredTitleMs).toBeLessThanOrEqual(500);
   expect(clientOverheadMs).toBeLessThanOrEqual(500);
+});
+
+test('Film axes cost one model call on a first visit and none in a fresh session', async ({
+  browser,
+  baseURL,
+}, testInfo) => {
+  assertEmulatorTarget(baseURL);
+  if (!fs.existsSync(CREDS_PATH)) {
+    throw new Error('No saved E2E credentials. Run F2 New account against the Firebase emulators first.');
+  }
+  const credentials = JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) as { email: string; password: string };
+  const filmId = PERFORMANCE_FILM_ID[testInfo.project.name];
+  const film = { id: filmId, title: 'Heat', year: '1995', director: 'Michael Mann', genres: ['Crime', 'Drama'] };
+
+  async function openFilmAxes() {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await mockTmdb(page, [film]);
+    const calls = await mockFilmAxes(page);
+    await signIn(page, credentials.email, credentials.password);
+    return { context, page, calls, uid: await currentUid(page) };
+  }
+
+  const first = await openFilmAxes();
+  await clearFilmAxesFixtures(baseURL, first.uid, [`movie:${filmId}`]);
+  await first.page.goto(`/movie/${filmId}?type=movie`);
+  await expect(first.page.getByTestId('film-axes').getByTestId('axis-row')).toHaveCount(8);
+  expect(first.calls.count).toBe(1);
+  await first.context.close();
+
+  const second = await openFilmAxes();
+  await second.page.goto(`/movie/${filmId}?type=movie`);
+  const rows = second.page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  expect(second.calls.count).toBe(0);
+  expect(second.uid).toBe(first.uid);
+
+  const outputDir = path.join(process.cwd(), 'artifacts', 'verify', `theater-performance-${testInfo.project.name}`);
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(outputDir, 'film-axes-cache.json'),
+    JSON.stringify(
+      {
+        project: testInfo.project.name,
+        cachePath: `users/${first.uid}/film_axes/movie:${filmId}`,
+        firstVisitModelCalls: first.calls.count,
+        freshSessionModelCalls: second.calls.count,
+        freshContextPerVisit: true,
+      },
+      null,
+      2,
+    ),
+  );
+  await second.context.close();
 });

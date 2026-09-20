@@ -36,6 +36,12 @@ export const FILM_AXES_COLLECTION = 'film_axes';
 
 export const FILM_AXES_SCHEMA = 1;
 
+export const MAX_AXIS_VALUE_LENGTH = 80;
+
+export const MAX_CACHED_TITLE_LENGTH = 200;
+
+export const MAX_CACHED_YEAR_LENGTH = 16;
+
 export type FilmAxesSubject = {
   id: number;
   mediaType: MediaType;
@@ -59,14 +65,20 @@ export function filmAxesDocId(mediaType: MediaType, filmId: number): string {
   return filmIdentity({ id: filmId, mediaType });
 }
 
+export function filmAxesDocPath(uid: string, filmKey: string): string {
+  return `users/${uid}/${FILM_AXES_COLLECTION}/${filmKey}`;
+}
+
 function parseScore(raw: unknown): AxisScore | null {
   return AXIS_SCORES.find((score) => score === raw) ?? null;
 }
 
 function parseAxis<Name extends FilmAxisName>(name: Name, raw: unknown): FilmAxis<Name> | null {
   if (!isRecord(raw) || raw.name !== name || !nonEmptyString(raw.value)) return null;
+  const value = raw.value.trim();
+  if (value.length > MAX_AXIS_VALUE_LENGTH) return null;
   const score = parseScore(raw.score);
-  return score === null ? null : { name, value: raw.value.trim(), score };
+  return score === null ? null : { name, value, score };
 }
 
 export function parseFilmAxes(raw: unknown): FilmAxes | null {
@@ -92,8 +104,8 @@ export function filmAxesDocFrom(subject: FilmAxesSubject, axes: FilmAxes, create
     schema: FILM_AXES_SCHEMA,
     mediaType: subject.mediaType,
     filmId: subject.id,
-    title: subject.title,
-    year: subject.year,
+    title: subject.title.slice(0, MAX_CACHED_TITLE_LENGTH),
+    year: subject.year.slice(0, MAX_CACHED_YEAR_LENGTH),
     axes,
     createdAt,
   };
@@ -101,7 +113,8 @@ export function filmAxesDocFrom(subject: FilmAxesSubject, axes: FilmAxes, create
 
 export function parseFilmAxesDoc(raw: unknown): FilmAxesDoc | null {
   if (!isRecord(raw) || raw.schema !== FILM_AXES_SCHEMA || !finiteNumber(raw.filmId)) return null;
-  if (!nonEmptyString(raw.title) || typeof raw.year !== 'string') return null;
+  if (!nonEmptyString(raw.title) || raw.title.length > MAX_CACHED_TITLE_LENGTH) return null;
+  if (typeof raw.year !== 'string' || raw.year.length > MAX_CACHED_YEAR_LENGTH) return null;
   if (raw.mediaType !== 'movie' && raw.mediaType !== 'tv') return null;
   const axes = parseFilmAxes(raw.axes);
   if (!axes || !finiteNumber(raw.createdAt)) return null;
@@ -168,7 +181,8 @@ export async function loadFilmAxes(subject: FilmAxesSubject, source: FilmAxesSou
   if (cached) return { filmKey, axes: cached };
   const axes = await source.generate(subject);
   if (!axes) return { filmKey, axes: null };
-  await source.writeCache(filmKey, filmAxesDocFrom(subject, axes, source.now())).catch(() => {});
+  const doc = filmAxesDocFrom(subject, axes, source.now());
+  if (parseFilmAxesDoc(doc)) await source.writeCache(filmKey, doc).catch(() => {});
   return { filmKey, axes };
 }
 

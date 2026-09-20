@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import firestoreRules from '../../../firestore.rules?raw';
 import { loadSkill } from '../skills';
 import type { KeptTheater } from './archive';
 import {
@@ -6,6 +7,7 @@ import {
   deriveUserAxisRows,
   filmAxesDocFrom,
   filmAxesDocId,
+  filmAxesDocPath,
   filmAxesLlm,
   generateFilmAxes,
   loadFilmAxes,
@@ -15,6 +17,9 @@ import {
   parseFilmAxesResult,
   theaterEvidenceByFilm,
   theaterFilmMatchesAxisValue,
+  MAX_AXIS_VALUE_LENGTH,
+  MAX_CACHED_TITLE_LENGTH,
+  MAX_CACHED_YEAR_LENGTH,
   type FilmAxes,
   type FilmAxesDoc,
   type FilmAxesSource,
@@ -142,6 +147,21 @@ describe('parseFilmAxes', () => {
     expect(parseFilmAxes(THIEF_ROWS.map((row, i) => (i === 5 ? { ...row, value: 3 } : row)))).toBeNull();
   });
 
+  it('keeps a value of 80 characters and throws away 81', () => {
+    const value = (length: number) => 'sodium '.repeat(20).slice(0, length);
+    expect(parseFilmAxes(THIEF_ROWS.map((row, i) => (i === 0 ? { ...row, value: value(80) } : row)))?.[0].value).toBe(
+      value(80),
+    );
+    expect(parseFilmAxes(THIEF_ROWS.map((row, i) => (i === 0 ? { ...row, value: value(81) } : row)))).toBeNull();
+  });
+
+  it('measures the value the document will hold, not its padding', () => {
+    const padded = `${'a'.repeat(80)}   `;
+    expect(parseFilmAxes(THIEF_ROWS.map((row, i) => (i === 0 ? { ...row, value: padded } : row)))?.[0].value).toBe(
+      'a'.repeat(80),
+    );
+  });
+
   it('rejects anything that is not an array of rows', () => {
     expect(parseFilmAxes(null)).toBeNull();
     expect(parseFilmAxes({ axes: THIEF_ROWS })).toBeNull();
@@ -166,6 +186,15 @@ describe('the film axes cache document', () => {
   it('keys a film by media type and id', () => {
     expect(filmAxesDocId('movie', 10858)).toBe('movie:10858');
     expect(filmAxesDocId('tv', 1396)).toBe('tv:1396');
+  });
+
+  it('files a film under the person who opened it', () => {
+    expect(filmAxesDocPath('uid-1', filmAxesDocId('movie', 10858))).toBe('users/uid-1/film_axes/movie:10858');
+    expect(filmAxesDocPath('uid-1', filmAxesDocId('tv', 1396))).toBe('users/uid-1/film_axes/tv:1396');
+  });
+
+  it('gives two people separate paths for the same film', () => {
+    expect(filmAxesDocPath('uid-1', 'movie:10858')).not.toBe(filmAxesDocPath('uid-2', 'movie:10858'));
   });
 
   it('stores schema, film identity, axes, and createdAt', () => {
@@ -193,6 +222,27 @@ describe('the film axes cache document', () => {
     expect(parseFilmAxesDoc('{}')).toBeNull();
   });
 
+  it('keeps a title of 200 characters and refuses 201', () => {
+    expect(parseFilmAxesDoc({ ...doc, title: 'T'.repeat(200) })?.title).toBe('T'.repeat(200));
+    expect(parseFilmAxesDoc({ ...doc, title: 'T'.repeat(201) })).toBeNull();
+    expect(parseFilmAxesDoc({ ...doc, title: '' })).toBeNull();
+  });
+
+  it('keeps a year of 16 characters and refuses 17', () => {
+    expect(parseFilmAxesDoc({ ...doc, year: '1'.repeat(16) })?.year).toBe('1'.repeat(16));
+    expect(parseFilmAxesDoc({ ...doc, year: '1'.repeat(17) })).toBeNull();
+    expect(parseFilmAxesDoc({ ...doc, year: '' })?.year).toBe('');
+  });
+
+  it('files a long title and year at the lengths the cache accepts', () => {
+    const subject = { ...THIEF, title: 'T'.repeat(250), year: 'Y'.repeat(20) };
+    const long = filmAxesDocFrom(subject, THIEF_AXES, 1758240000000);
+    expect(long.title).toBe('T'.repeat(200));
+    expect(long.year).toBe('Y'.repeat(16));
+    expect(parseFilmAxesDoc(long)).toEqual(long);
+    expect(subject.title).toHaveLength(250);
+  });
+
   it('reads a document that names the film its path names', () => {
     expect(parseCachedFilmAxes('movie:10858', doc)).toEqual(THIEF_AXES);
   });
@@ -207,6 +257,14 @@ describe('the film axes cache document', () => {
   it('refuses malformed data whatever the path', () => {
     expect(parseCachedFilmAxes('movie:10858', { ...doc, schema: 2 })).toBeNull();
     expect(parseCachedFilmAxes('movie:10858', null)).toBeNull();
+  });
+});
+
+describe('the cache rules', () => {
+  it('hold the same three lengths the parser holds', () => {
+    expect(firestoreRules).toContain(`axis.value.size() <= ${MAX_AXIS_VALUE_LENGTH}`);
+    expect(firestoreRules).toContain(`data.title.size() <= ${MAX_CACHED_TITLE_LENGTH}`);
+    expect(firestoreRules).toContain(`data.year.size() <= ${MAX_CACHED_YEAR_LENGTH}`);
   });
 });
 
@@ -378,6 +436,12 @@ describe('loadFilmAxes', () => {
     expect(await loadFilmAxes(THIEF, deps)).toEqual({ filmKey: 'movie:10858', axes: THIEF_AXES });
     expect(deps.calls.generated).toEqual([THIEF]);
     expect(deps.calls.written).toEqual([['movie:10858', filmAxesDocFrom(THIEF, THIEF_AXES, 1758240000000)]]);
+  });
+
+  it('shows a film with no title without offering the cache a document it would refuse', async () => {
+    const deps = source();
+    expect(await loadFilmAxes({ ...THIEF, title: ' ' }, deps)).toEqual({ filmKey: 'movie:10858', axes: THIEF_AXES });
+    expect(deps.calls.written).toEqual([]);
   });
 
   it('keeps the generated axes when the cache write is denied', async () => {

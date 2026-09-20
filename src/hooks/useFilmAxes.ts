@@ -3,8 +3,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import {
-  FILM_AXES_COLLECTION,
   filmAxesDocId,
+  filmAxesDocPath,
   filmAxesLlm,
   generateFilmAxes,
   loadFilmAxes,
@@ -26,36 +26,39 @@ const IDLE: FilmAxesState = { axes: null, loading: false, error: null };
 const PENDING: FilmAxesState = { axes: null, loading: true, error: null };
 const UNAVAILABLE: FilmAxesState = { axes: null, loading: false, error: 'Axes unavailable' };
 
-const firestoreSource: FilmAxesSource = {
-  readCache: async (filmKey: string): Promise<FilmAxes | null> => {
-    try {
-      const snapshot = await getDoc(doc(db, FILM_AXES_COLLECTION, filmKey));
-      return snapshot.exists() ? parseCachedFilmAxes(filmKey, snapshot.data()) : null;
-    } catch (error) {
-      console.warn('Film axes cache read failed:', error);
-      return null;
-    }
-  },
-  generate: (subject: FilmAxesSubject) => generateFilmAxes(subject, filmAxesLlm),
-  writeCache: async (filmKey: string, axesDoc: FilmAxesDoc) => {
-    try {
-      await setDoc(doc(db, FILM_AXES_COLLECTION, filmKey), axesDoc);
-    } catch (error) {
-      console.warn('Film axes cache write refused:', error);
-    }
-  },
-  now: () => Date.now(),
-};
+function firestoreSource(uid: string): FilmAxesSource {
+  return {
+    readCache: async (filmKey: string): Promise<FilmAxes | null> => {
+      try {
+        const snapshot = await getDoc(doc(db, filmAxesDocPath(uid, filmKey)));
+        return snapshot.exists() ? parseCachedFilmAxes(filmKey, snapshot.data()) : null;
+      } catch (error) {
+        console.warn('Film axes cache read failed:', error);
+        return null;
+      }
+    },
+    generate: (subject: FilmAxesSubject) => generateFilmAxes(subject, filmAxesLlm),
+    writeCache: async (filmKey: string, axesDoc: FilmAxesDoc) => {
+      try {
+        await setDoc(doc(db, filmAxesDocPath(uid, filmKey)), axesDoc);
+      } catch (error) {
+        console.warn('Film axes cache write refused:', error);
+      }
+    },
+    now: () => Date.now(),
+  };
+}
 
 /** One load per film while it runs, so a Strict Mode remount and a second reader share the one model call. */
 const inFlight = new Map<string, Promise<FilmAxesResult>>();
 
-function loadFilmAxesOnce(subject: FilmAxesSubject): Promise<FilmAxesResult> {
+function loadFilmAxesOnce(uid: string, subject: FilmAxesSubject): Promise<FilmAxesResult> {
   const filmKey = filmAxesDocId(subject.mediaType, subject.id);
-  const running = inFlight.get(filmKey);
+  const path = filmAxesDocPath(uid, filmKey);
+  const running = inFlight.get(path);
   if (running) return running;
-  const started = loadFilmAxes(subject, firestoreSource).finally(() => inFlight.delete(filmKey));
-  inFlight.set(filmKey, started);
+  const started = loadFilmAxes(subject, firestoreSource(uid)).finally(() => inFlight.delete(path));
+  inFlight.set(path, started);
   return started;
 }
 
@@ -68,7 +71,7 @@ export function useFilmAxes(subject: FilmAxesSubject | null): FilmAxesState {
     if (!subject || !uid) return;
     const filmKey = filmAxesDocId(subject.mediaType, subject.id);
     let current = true;
-    loadFilmAxesOnce(subject)
+    loadFilmAxesOnce(uid, subject)
       .then((loaded) => {
         if (current) setResult(loaded);
       })

@@ -58,7 +58,7 @@ Hunt commit-to-result and inferring-shell-to-ready must each finish within 1500 
 
 - `e2e/flows.spec.ts` test `F16 Theater archive` seeds a live Theater, keeps it, walks Library to `/theaters`, asserts the card `aria-label`, the counts line, four swatches, the 190 px height, the sheet lineup, and the matching `/me` count.
 - `e2e/flows.spec.ts` test `F13 Movie detail chrome` asserts the compact card on a film page.
-- `e2e/theater-performance.spec.ts` drives a standard `heat` Hunt through the live runtime, asserts one Theater inference and no reload inference, checks all eight literal reasons, and writes project-specific timing JSON and screenshots.
+- `e2e/theater-performance.spec.ts` drives a standard `heat` Hunt through the live runtime, asserts one Theater inference and no reload inference, checks all eight literal reasons, and writes project-specific timing JSON and screenshots. Its second lane holds the film-axes cache to one model call per film per person. See F17.
 - `artifacts/verify/F16-mobile/` and `artifacts/verify/F16-desktop/`, including `archive.png` and `thresholds.json`.
 - `src/lib/theater/archive.test.ts` pins canonical parsing, legacy parsing, swatch fallback, derived unseen, the exact counts line, both accessible-name shapes, and the `1 FILM` singular.
 - `src/lib/theater/contrast.test.ts` pins the Text/secondary and Accent/select ratios the card depends on.

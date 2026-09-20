@@ -17,14 +17,19 @@ import {
   mockTmdb,
   clearFilmAxesFixtures,
   createFilmAxesDoc,
+  createSharedFilmAxesDoc,
+  currentUid,
   deleteFilmAxesDocAs,
-  emulatorIdToken,
+  readSharedFilmAxesDoc,
+  emulatorSignIn,
+  emulatorSignUp,
   readFilmAxesDoc,
   rewriteFilmAxesDoc,
   FILM_AXES_FIXTURE,
   FILM_PAGE_THEATER,
   FIRST_VISIT_FILM_ID,
   RULES_FIXTURE_FILM_ID,
+  type FilmAxesRestAxis,
   THEATER_FIXTURE,
 } from './helpers';
 
@@ -501,9 +506,10 @@ test('F16 Theater archive', async ({ page }, testInfo) => {
 
 test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
   const filmId = FIRST_VISIT_FILM_ID[testInfo.project.name];
-  await clearFilmAxesFixtures(baseURL, [`movie:${filmId}`]);
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
+  const uid = await currentUid(page);
+  await clearFilmAxesFixtures(baseURL, uid, [`movie:${filmId}`]);
   await mockTmdb(page, [
     { id: filmId, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
   ]);
@@ -543,34 +549,65 @@ test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
     .screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'axes-320.png') });
   if (original) await page.setViewportSize(original);
 
+  const owner = await emulatorSignIn(baseURL);
+  await expect.poll(() => readFilmAxesDoc(owner, uid, `movie:${filmId}`)).toBe(200);
+
+  await page.getByTestId('orbit-cta').scrollIntoViewIfNeeded();
   await gate(page, 'F17', testInfo.project.name);
   await dumpConsole(page, 'F17', testInfo.project.name, logs);
 });
 
 test('F17 Film axes cache rules', async ({ baseURL }, testInfo) => {
+  const owner = await emulatorSignIn(baseURL);
+  const intruder = await emulatorSignUp(baseURL);
   const filmId = RULES_FIXTURE_FILM_ID[testInfo.project.name];
   const filmKey = `movie:${filmId}`;
-  await clearFilmAxesFixtures(baseURL, [filmKey]);
-  const idToken = await emulatorIdToken(baseURL);
+  await clearFilmAxesFixtures(baseURL, owner.uid, [filmKey]);
+  await clearFilmAxesFixtures(baseURL, intruder.uid, [filmKey]);
   const axes = FILM_AXES_FIXTURE.map((axis) => ({ name: axis.name, value: axis.value, score: axis.score }));
   const valid = { schema: 1, mediaType: 'movie', filmId, title: 'Thief', year: '1981', axes, createdAt: 1758240000000 };
+  const withAxis = (index: number, axis: Partial<FilmAxesRestAxis>) => ({
+    ...valid,
+    axes: axes.map((row, at) => (at === index ? { ...row, ...axis } : row)),
+  });
 
-  expect(await createFilmAxesDoc(null, filmKey, valid)).toBe(403);
-  expect(await createFilmAxesDoc(idToken, `movie:${filmId + 1}`, valid)).toBe(403);
-  expect(await createFilmAxesDoc(idToken, `tv:${filmId}`, valid)).toBe(403);
-  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, schema: 2 })).toBe(403);
-  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, mediaType: 'book' })).toBe(403);
-  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, axes: axes.slice(0, 7) })).toBe(403);
-  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, extra: 'counts' })).toBe(403);
-  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, title: undefined })).toBe(403);
+  expect(await createSharedFilmAxesDoc(owner, filmKey, valid)).toBe(403);
+  expect(await readSharedFilmAxesDoc(owner, filmKey)).toBe(403);
 
-  expect(await createFilmAxesDoc(idToken, filmKey, valid)).toBe(200);
-  expect(await readFilmAxesDoc(idToken, filmKey)).toBe(200);
-  expect(await readFilmAxesDoc(null, filmKey)).toBe(403);
-  expect(await rewriteFilmAxesDoc(idToken, filmKey, { ...valid, title: 'Heat' })).toBe(403);
-  expect(await deleteFilmAxesDocAs(idToken, filmKey)).toBe(403);
+  expect(await createFilmAxesDoc(null, owner.uid, filmKey, valid)).toBe(403);
+  expect(await readFilmAxesDoc(null, owner.uid, filmKey)).toBe(403);
+  expect(await createFilmAxesDoc(intruder, owner.uid, filmKey, valid)).toBe(403);
+  expect(await readFilmAxesDoc(intruder, owner.uid, filmKey)).toBe(403);
 
-  await clearFilmAxesFixtures(baseURL, [filmKey]);
+  expect(await createFilmAxesDoc(owner, owner.uid, `movie:${filmId + 1}`, valid)).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, `tv:${filmId}`, valid)).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, schema: 2 })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, mediaType: 'book' })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, extra: 'counts' })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: undefined })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: '' })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: 'T'.repeat(201) })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, year: '1'.repeat(17) })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, axes: axes.slice(0, 7) })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, axes: [...axes, axes[0]] })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, axes: [...axes].reverse() })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(0, { name: 'MOOD' }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(3, { value: '' }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(3, { value: 'v'.repeat(81) }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(5, { score: 0 }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(5, { score: 6 }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(5, { score: 2.5 }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(7, { extra: 'count' }))).toBe(403);
+
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, valid)).toBe(200);
+  expect(await readFilmAxesDoc(owner, owner.uid, filmKey)).toBe(200);
+  expect(await readFilmAxesDoc(intruder, owner.uid, filmKey)).toBe(403);
+  expect(await rewriteFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: 'Heat' })).toBe(403);
+  expect(await deleteFilmAxesDocAs(owner, owner.uid, filmKey)).toBe(403);
+  expect(await createFilmAxesDoc(intruder, intruder.uid, filmKey, valid)).toBe(200);
+
+  await clearFilmAxesFixtures(baseURL, owner.uid, [filmKey]);
+  await clearFilmAxesFixtures(baseURL, intruder.uid, [filmKey]);
 });
 
 test('F17 Film axes cache hit and Theater reasons', async ({ page }, testInfo) => {
@@ -608,6 +645,7 @@ test('F17 Film axes cache hit and Theater reasons', async ({ page }, testInfo) =
     path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'theater-reasons.png'),
   });
 
+  await page.getByTestId('orbit-cta').scrollIntoViewIfNeeded();
   await gate(page, 'F17', testInfo.project.name);
 
   await page.getByTestId('orbit-cta').click();
