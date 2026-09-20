@@ -11,6 +11,7 @@ import {
   signIn,
   completeOnboarding,
   gate,
+  revealAboveTabBar,
   seedShowingTheater,
   keepSeededTheater,
   mockFilmAxes,
@@ -656,7 +657,7 @@ test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
   const owner = await emulatorSignIn(baseURL);
   await expect.poll(() => readFilmAxesDoc(owner, uid, `movie:${filmId}`)).toBe(200);
 
-  await page.getByTestId('orbit-cta').scrollIntoViewIfNeeded();
+  await revealAboveTabBar(page, 'orbit-cta');
   await gate(page, 'F17', testInfo.project.name);
   await dumpConsole(page, 'F17', testInfo.project.name, logs);
 });
@@ -749,7 +750,7 @@ test('F17 Film axes cache hit and Theater reasons', async ({ page }, testInfo) =
     path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'theater-reasons.png'),
   });
 
-  await page.getByTestId('orbit-cta').scrollIntoViewIfNeeded();
+  await revealAboveTabBar(page, 'orbit-cta');
   await gate(page, 'F17', testInfo.project.name);
 
   await page.getByTestId('orbit-cta').click();

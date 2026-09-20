@@ -548,6 +548,16 @@ export async function keepSeededTheater(page: Page, fixture: typeof THEATER_FIXT
   await page.getByTestId('theater-keep').filter({ hasText: 'Kept' }).waitFor({ timeout: 20000 });
 }
 
+export async function revealAboveTabBar(page: Page, testId: string) {
+  await page.getByTestId(testId).evaluate((el) => {
+    el.scrollIntoView({ block: 'center' });
+    const tab = document.querySelector('[data-testid="tab-bar"]');
+    if (!tab) return;
+    const overlap = el.getBoundingClientRect().bottom - tab.getBoundingClientRect().top;
+    if (overlap > 0) window.scrollBy(0, overlap + 8);
+  });
+}
+
 export async function gate(page: Page, flowId: string, viewport: string) {
   const report = await runThresholds(page, flowId, viewport);
   if (!report.pass) {
