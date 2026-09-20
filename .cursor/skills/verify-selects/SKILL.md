@@ -30,7 +30,7 @@ Videos: `artifacts/verify/<flow>-<viewport>/flow.webm`
 
 ## Drive
 
-Flows live in `e2e/flows.spec.ts` (F0–F16) and `e2e/smokes.spec.ts`. Feature map: `features/` in this skill.
+Flows live in `e2e/flows.spec.ts` (F0–F17) and `e2e/smokes.spec.ts`. Feature map: `features/` in this skill.
 
 ## Evidence
 

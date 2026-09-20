@@ -71,6 +71,24 @@ service cloud.firestore {
       }
     }
 
+    match /film_axes/{filmKey} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasOnly([
+                      'schema', 'mediaType', 'filmId', 'title', 'year', 'axes', 'createdAt'
+                    ])
+                    && request.resource.data.schema == 1
+                    && request.resource.data.mediaType in ['movie', 'tv']
+                    && request.resource.data.filmId is int
+                    && filmKey == request.resource.data.mediaType + ':' + string(request.resource.data.filmId)
+                    && request.resource.data.title is string
+                    && request.resource.data.year is string
+                    && request.resource.data.axes is list
+                    && request.resource.data.axes.size() == 8
+                    && request.resource.data.createdAt is number;
+      allow update, delete: if false;
+    }
+
     // Shared watchlists - collaborative lists with multiple members
     match /shared_watchlists/{listId} {
       function isMember() {

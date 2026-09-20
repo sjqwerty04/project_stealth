@@ -9,6 +9,7 @@ import movieChat from '../skills/movie-chat.md?raw';
 import searchIntent from '../skills/search-intent.md?raw';
 import yourSelects from '../skills/your-selects.md?raw';
 import theaterInfer from '../skills/theater-infer.md?raw';
+import filmAxes from '../skills/film-axes.md?raw';
 
 const SKILLS: Record<string, string> = {
   'movie-hook': movieHook,
@@ -18,6 +19,7 @@ const SKILLS: Record<string, string> = {
   'search-intent': searchIntent,
   'your-selects': yourSelects,
   'theater-infer': theaterInfer,
+  'film-axes': filmAxes,
 };
 
 export function loadSkill(name: string): string {

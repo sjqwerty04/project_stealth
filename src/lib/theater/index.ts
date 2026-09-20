@@ -1,6 +1,7 @@
 export * from './types';
 export * from './archive';
 export * from './gate';
+export * from './filmAxes';
 export * from './fingerprint';
 export * from './session';
 export * from './infer';

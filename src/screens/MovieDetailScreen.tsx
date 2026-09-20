@@ -1,13 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Orbit, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
+import AxisMeter from '../components/ui/AxisMeter';
+import Skeleton from '../components/ui/Skeleton';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useSimilarFilms, type SimilarMovie } from '../hooks/useSimilarFilms';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useCalendarLogs } from '../hooks/useCalendarLogs';
+import { useFilmAxes } from '../hooks/useFilmAxes';
 import { useTheater } from '../contexts/useTheater';
-import { theaterCardModel } from '../lib/theater';
+import { deriveUserAxisRows, filmTheaterSection, theaterCardModel, useTheaters, type FilmAxesSubject } from '../lib/theater';
 import MovieActions from '../components/MovieActions';
 import TheaterCard from '../components/TheaterCard';
 import RatingBadges from '../components/RatingBadges';
@@ -50,7 +53,28 @@ export default function MovieDetailScreen() {
     isKeeping,
   } = useTheater();
   const theater = theaterCardModel(session);
-  
+  const { theaters: keptTheaters } = useTheaters();
+
+  const axesSubject = useMemo<FilmAxesSubject | null>(
+    () =>
+      details
+        ? {
+            id: details.id,
+            mediaType: details.mediaType,
+            title: details.title,
+            year: details.year,
+            director: details.director,
+            genres: details.genres,
+          }
+        : null,
+    [details],
+  );
+  const filmAxes = useFilmAxes(axesSubject);
+  const axisRows = filmAxes.axes ? deriveUserAxisRows(filmAxes.axes, keptTheaters) : [];
+  const theaterSection = details
+    ? filmTheaterSection(keptTheaters, { id: details.id, mediaType: details.mediaType })
+    : null;
+
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
   const [isMarkingSeen, setIsMarkingSeen] = useState(false);
@@ -459,28 +483,6 @@ export default function MovieDetailScreen() {
           isSavingVerdict={isMarkingSeen}
         />
 
-        {/* Orbit + Ask — side by side */}
-        {mediaType === 'movie' && (
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              data-testid="orbit-cta"
-              onClick={() => navigate(`/orbit/${details.id}`)}
-              className="flex items-center justify-center gap-2 min-h-11 py-3 bg-fg text-base font-semibold text-sm"
-            >
-              <Orbit className="w-4 h-4" />
-              <span>Enter Orbit</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setChatOpen(true)}
-              className="flex items-center justify-center gap-2 min-h-11 py-3 bg-base-3 border border-line text-fg font-semibold text-sm"
-            >
-              <Sparkles className="w-4 h-4 text-fg-2" />
-              <span>Ask AI</span>
-            </button>
-          </div>
-        )}
         {mediaType !== 'movie' && (
           <button
             onClick={() => setChatOpen(true)}
@@ -545,6 +547,100 @@ export default function MovieDetailScreen() {
               ))}
             </div>
           </div>
+        )}
+
+        {(filmAxes.loading || axisRows.length > 0) && (
+          <section data-testid="film-axes">
+            <div className="flex items-baseline justify-between mb-2">
+              <h3 className="font-spec text-[13px] tracking-[0.16em] text-fg">AXES</h3>
+              <p className="font-spec text-[10px] tracking-[0.1em] text-fg-3">
+                THE FILM <span className="text-line">/</span> YOUR MAP
+              </p>
+            </div>
+            {axisRows.length > 0 ? (
+              <ul className="border-t border-line">
+                {axisRows.map((row) => (
+                  <li
+                    key={row.name}
+                    data-testid="axis-row"
+                    data-axis={row.name}
+                    className="flex items-center gap-2 border-b border-line py-2.5"
+                  >
+                    <span data-testid="axis-name" className="font-spec text-[10px] tracking-[0.08em] text-fg-3 w-[60px] shrink-0">
+                      {row.name}
+                    </span>
+                    <span data-testid="axis-value" className="font-spec text-[12px] leading-tight text-fg flex-1 min-w-0 break-words">
+                      {row.value}
+                    </span>
+                    <AxisMeter score={row.score} className="shrink-0" />
+                    <span data-testid="axis-count" className="text-[15px] tabular-nums text-fg w-6 text-right shrink-0">
+                      {row.count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div data-testid="film-axes-pending">
+                <Skeleton className="h-40 w-full" />
+              </div>
+            )}
+          </section>
+        )}
+
+        {mediaType === 'movie' && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              data-testid="orbit-cta"
+              onClick={() => navigate(`/orbit/${details.id}`)}
+              className="w-full min-h-14 py-4 bg-fg text-base font-semibold text-[17px]"
+            >
+              Open in Orbit
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatOpen(true)}
+              className="w-full flex items-center justify-center gap-2 min-h-11 py-3 bg-base-3 border border-line text-fg font-semibold text-sm"
+            >
+              <Sparkles className="w-4 h-4 text-fg-2" />
+              <span>Ask AI</span>
+            </button>
+          </div>
+        )}
+
+        {theaterSection && (
+          <section data-testid="film-theater-reasons">
+            <h3 data-testid="film-theater-kicker" className="font-spec text-[10px] tracking-[0.16em] text-fg-3 mb-3">
+              {theaterSection.kicker}
+            </h3>
+            <ul className="space-y-3">
+              {theaterSection.rows.map((row) => (
+                <li key={`${row.mediaType}:${row.id}`} data-testid="theater-reason-row">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/movie/${row.id}?type=${row.mediaType}`)}
+                    className="w-full min-h-11 flex items-start gap-3 text-left"
+                  >
+                    <span aria-hidden className="w-11 h-11 shrink-0" style={{ backgroundColor: row.swatch }} />
+                    <span className="min-w-0">
+                      <span className="block text-[15px] leading-tight text-fg">
+                        {row.title}
+                        <span className="ml-1">{row.year}</span>
+                      </span>
+                      {row.reason && (
+                        <span
+                          data-testid="theater-reason"
+                          className="block font-spec text-[10px] leading-[1.6] tracking-[0.04em] text-fg-3 uppercase mt-1"
+                        >
+                          {row.reason}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {theater && (

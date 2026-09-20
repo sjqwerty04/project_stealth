@@ -12,6 +12,19 @@ import {
   completeOnboarding,
   gate,
   seedShowingTheater,
+  keepSeededTheater,
+  mockFilmAxes,
+  mockTmdb,
+  clearFilmAxesFixtures,
+  createFilmAxesDoc,
+  deleteFilmAxesDocAs,
+  emulatorIdToken,
+  readFilmAxesDoc,
+  rewriteFilmAxesDoc,
+  FILM_AXES_FIXTURE,
+  FILM_PAGE_THEATER,
+  FIRST_VISIT_FILM_ID,
+  RULES_FIXTURE_FILM_ID,
   THEATER_FIXTURE,
 } from './helpers';
 
@@ -297,10 +310,21 @@ test('F12 Share', async ({ page }, testInfo) => {
 test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
+  await mockFilmAxes(page);
   await page.goto('/movie/155');
   await expect(page.getByTestId('action-watchlist')).toBeVisible();
   await page.getByTestId('action-watchlist').click();
   await page.getByTestId('action-like').click().catch(() => {});
+
+  const rows = page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  await expect(page.getByTestId('film-axes').getByTestId('axis-meter').first()).toHaveAttribute('aria-label', '4 of 5');
+  const cta = page.getByTestId('orbit-cta');
+  const ctaBox = await cta.boundingBox();
+  const contentWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(Math.round(ctaBox?.width ?? 0)).toBe(contentWidth - 32);
+  await expect(page.getByTestId('film-theater-reasons')).toHaveCount(0);
 
   await seedShowingTheater(page);
   const card = page.getByTestId('theater-card');
@@ -473,4 +497,120 @@ test('F16 Theater archive', async ({ page }, testInfo) => {
 
   await gate(page, 'F16', testInfo.project.name);
   await dumpConsole(page, 'F16', testInfo.project.name, logs);
+});
+
+test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
+  const filmId = FIRST_VISIT_FILM_ID[testInfo.project.name];
+  await clearFilmAxesFixtures(baseURL, [`movie:${filmId}`]);
+  const logs = await attachPageLog(page);
+  await ensureAuthed(page);
+  await mockTmdb(page, [
+    { id: filmId, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
+  ]);
+  const axes = await mockFilmAxes(page);
+
+  await page.goto('/discover');
+  await keepSeededTheater(page, FILM_PAGE_THEATER);
+
+  await page.goto(`/movie/${filmId}?type=movie`);
+  const rows = page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-name')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.name));
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  expect(axes.count).toBe(1);
+
+  const meters = rows.getByTestId('axis-meter');
+  expect(await meters.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))).toEqual(
+    FILM_AXES_FIXTURE.map((axis) => `${axis.score} of 5`),
+  );
+  expect(
+    await meters.evaluateAll((els) => els.map((el) => el.querySelectorAll('[data-testid="bar-unit"]').length)),
+  ).toEqual([5, 5, 5, 5, 5, 5, 5, 5]);
+  const weather = await rows.filter({ hasText: 'competence porn' }).getByTestId('axis-count').textContent();
+  expect(Number(weather)).toBeGreaterThanOrEqual(8);
+  await expect(page.getByTestId('film-theater-reasons')).toHaveCount(0);
+
+  await page
+    .getByTestId('film-axes')
+    .screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'axes.png') });
+
+  const original = page.viewportSize();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await expect(rows).toHaveCount(8);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(2);
+  await page
+    .getByTestId('film-axes')
+    .screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'axes-320.png') });
+  if (original) await page.setViewportSize(original);
+
+  await gate(page, 'F17', testInfo.project.name);
+  await dumpConsole(page, 'F17', testInfo.project.name, logs);
+});
+
+test('F17 Film axes cache rules', async ({ baseURL }, testInfo) => {
+  const filmId = RULES_FIXTURE_FILM_ID[testInfo.project.name];
+  const filmKey = `movie:${filmId}`;
+  await clearFilmAxesFixtures(baseURL, [filmKey]);
+  const idToken = await emulatorIdToken(baseURL);
+  const axes = FILM_AXES_FIXTURE.map((axis) => ({ name: axis.name, value: axis.value, score: axis.score }));
+  const valid = { schema: 1, mediaType: 'movie', filmId, title: 'Thief', year: '1981', axes, createdAt: 1758240000000 };
+
+  expect(await createFilmAxesDoc(null, filmKey, valid)).toBe(403);
+  expect(await createFilmAxesDoc(idToken, `movie:${filmId + 1}`, valid)).toBe(403);
+  expect(await createFilmAxesDoc(idToken, `tv:${filmId}`, valid)).toBe(403);
+  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, schema: 2 })).toBe(403);
+  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, mediaType: 'book' })).toBe(403);
+  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, axes: axes.slice(0, 7) })).toBe(403);
+  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, extra: 'counts' })).toBe(403);
+  expect(await createFilmAxesDoc(idToken, filmKey, { ...valid, title: undefined })).toBe(403);
+
+  expect(await createFilmAxesDoc(idToken, filmKey, valid)).toBe(200);
+  expect(await readFilmAxesDoc(idToken, filmKey)).toBe(200);
+  expect(await readFilmAxesDoc(null, filmKey)).toBe(403);
+  expect(await rewriteFilmAxesDoc(idToken, filmKey, { ...valid, title: 'Heat' })).toBe(403);
+  expect(await deleteFilmAxesDocAs(idToken, filmKey)).toBe(403);
+
+  await clearFilmAxesFixtures(baseURL, [filmKey]);
+});
+
+test('F17 Film axes cache hit and Theater reasons', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await ensureAuthed(page);
+  const filmId = FIRST_VISIT_FILM_ID[testInfo.project.name];
+  await mockTmdb(page, [
+    { id: 10858, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
+    { id: filmId, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
+  ]);
+  const axes = await mockFilmAxes(page);
+
+  await page.goto('/discover');
+  await keepSeededTheater(page, FILM_PAGE_THEATER);
+
+  await page.goto(`/movie/${filmId}?type=movie`);
+  const rows = page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  expect(axes.count).toBe(0);
+
+  await page.goto('/movie/10858?type=movie');
+  await expect(rows).toHaveCount(8);
+  const section = page.getByTestId('film-theater-reasons');
+  await expect(section.getByTestId('film-theater-kicker')).toHaveText('BECAUSE OF THE NIGHT');
+  await expect(section.getByTestId('theater-reason-row')).toHaveCount(7);
+  await expect(section.getByTestId('theater-reason').first()).toHaveText(
+    'THE PROFESSIONAL AS MONK. BOTH MEN ARE ALONE BY CHOICE.',
+  );
+  await expect(section).toContainText('Le Samouraï 1967');
+  await expect(section).toContainText('SYNTH PULSE, SODIUM LIGHT, AND A CITY THAT DOES THE TALKING.');
+  await expect(section).toContainText('MANN AGAIN. SAME CITY LOGIC, TWENTY-THREE YEARS LATER.');
+  await expect(section).not.toContainText('Thief 1981');
+  await section.screenshot({
+    path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'theater-reasons.png'),
+  });
+
+  await gate(page, 'F17', testInfo.project.name);
+
+  await page.getByTestId('orbit-cta').click();
+  await expect(page).toHaveURL(/\/orbit\/10858/);
+  await dumpConsole(page, 'F17', testInfo.project.name, logs);
 });

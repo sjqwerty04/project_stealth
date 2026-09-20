@@ -1,5 +1,6 @@
 import {
   FALLBACK_SWATCHES,
+  filmIdentity,
   finiteNumber,
   isRecord,
   nonEmptyString,
@@ -79,6 +80,29 @@ export function parseTheaterDoc(id: string, raw: unknown): KeptTheater | null {
     films,
     keptAt: timestampMillis(raw.keptAt) ?? timestampMillis(raw.createdAt) ?? 0,
   };
+}
+
+export type TheaterReasonRow = TheaterArchiveFilm & { swatch: string };
+
+export type FilmTheaterSection = {
+  theaterId: string;
+  kicker: string;
+  rows: TheaterReasonRow[];
+};
+
+export function filmTheaterSection(
+  theaters: readonly KeptTheater[],
+  film: { id: number; mediaType: MediaType },
+): FilmTheaterSection | null {
+  const identity = filmIdentity(film);
+  const holding = theaters.filter((theater) => theater.films.some((entry) => filmIdentity(entry) === identity));
+  if (holding.length === 0) return null;
+  const newest = holding.reduce((best, theater) => (theater.keptAt > best.keptAt ? theater : best));
+  const rows = newest.films
+    .filter((entry) => filmIdentity(entry) !== identity)
+    .map((entry, index) => ({ ...entry, swatch: newest.swatches[index % newest.swatches.length] }));
+  if (rows.length === 0) return null;
+  return { theaterId: newest.id, kicker: newest.title.toUpperCase(), rows };
 }
 
 function plural(count: number, one: string, many: string): string {
