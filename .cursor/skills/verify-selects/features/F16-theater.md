@@ -48,10 +48,17 @@ A copied-forward `saved_vibes` document names itself with `pattern`, carries `fa
 - `library-row-theaters` routes to `/theaters` and quotes `<n> FACETS YOU KEPT` from the same hook. See F10.
 - The `THEATERS` stat on `/me` is `useTheaters().theaters.length`. See F11.
 
+## Performance verification
+
+`e2e/theater-performance.spec.ts` measures four user-visible intervals. Hunt commit is the first standard TMDB request for the settled query. Theater ready is the first rendered title after `theater-inferring`. Detail-to-ready starts when the Heat heading appears. Reload restore starts before navigation and ends when the restored Theater title appears.
+
+Hunt commit-to-result and inferring-shell-to-ready must each finish within 1500 ms. Reload restore must finish within 500 ms. The test delays the Theater model by 600 ms and each lineup search and detail route by 100 ms. Eight picks hydrate in parallel, so the shell-to-ready controlled floor is 800 ms. Client overhead above that floor must stay within 500 ms. The 2500 ms inference debounce appears only in detail-to-ready and has no shell-to-ready budget.
+
 ## Evidence
 
 - `e2e/flows.spec.ts` test `F16 Theater archive` seeds a live Theater, keeps it, walks Library to `/theaters`, asserts the card `aria-label`, the counts line, four swatches, the 190 px height, the sheet lineup, and the matching `/me` count.
 - `e2e/flows.spec.ts` test `F13 Movie detail chrome` asserts the compact card on a film page.
+- `e2e/theater-performance.spec.ts` drives a standard `heat` Hunt through the live runtime, asserts one Theater inference and no reload inference, checks all eight literal reasons, and writes project-specific timing JSON and screenshots.
 - `artifacts/verify/F16-mobile/` and `artifacts/verify/F16-desktop/`, including `archive.png` and `thresholds.json`.
 - `src/lib/theater/archive.test.ts` pins canonical parsing, legacy parsing, swatch fallback, derived unseen, the exact counts line, both accessible-name shapes, and the `1 FILM` singular.
 - `src/lib/theater/contrast.test.ts` pins the Text/secondary and Accent/select ratios the card depends on.

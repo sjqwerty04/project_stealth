@@ -1,0 +1,64 @@
+{
+  "project": "mobile",
+  "budgetsMs": {
+    "huntCommitToFirstResult": 1500,
+    "inferringShellToReady": 1500,
+    "reloadNavigationToRestoredTitle": 500,
+    "clientOverheadAfterControlledNetwork": 500
+  },
+  "controlledNetwork": {
+    "llmDelayMs": 600,
+    "lineupSearchDelayMs": 100,
+    "lineupDetailDelayMs": 100,
+    "lineupPicks": 8,
+    "routeShape": "one LLM request, then eight parallel pick hydrations with search and detail in series",
+    "controlledFloorMs": 800,
+    "serializedHydrationFloorMs": 2200
+  },
+  "timingsMs": {
+    "huntCommitToFirstResult": 111,
+    "huntInputToFirstResult": 476,
+    "inferringShellToReady": 821,
+    "detailHeadingToReady": 3340,
+    "inferenceDebounceReportedMs": 2500,
+    "reloadNavigationToRestoredTitle": 401,
+    "clientOverheadAfterControlledNetwork": 21
+  },
+  "requests": {
+    "beforeReload": {
+      "llmTotal": 3,
+      "theaterInfer": 1,
+      "theaterInferForHeatFingerprint": 1,
+      "unexpectedTheaterInfer": 0,
+      "aiSearch": 0,
+      "filmAxes": 1,
+      "otherLlm": 1,
+      "huntSearch": 3,
+      "heatDetail": 15,
+      "lineupSearch": 8,
+      "lineupDetail": 8,
+      "otherTmdb": 0
+    },
+    "afterReload": {
+      "llmTotal": 6,
+      "theaterInfer": 1,
+      "theaterInferForHeatFingerprint": 1,
+      "unexpectedTheaterInfer": 0,
+      "aiSearch": 0,
+      "filmAxes": 2,
+      "otherLlm": 3,
+      "huntSearch": 3,
+      "heatDetail": 30,
+      "lineupSearch": 8,
+      "lineupDetail": 8,
+      "otherTmdb": 0
+    },
+    "theaterInferDeltaOnReload": 0
+  },
+  "restoredUi": {
+    "title": "Men who are good at their jobs and lose anyway",
+    "facets": "COMPETENCE PORN × and NOBODY WINS",
+    "lineupRows": 8,
+    "reasonedRows": 8
+  }
+}
