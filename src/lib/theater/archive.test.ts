@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { libraryView } from '../library/useLibrary';
 import {
   filmTheaterSection,
   parseTheaterDoc,
@@ -225,6 +226,14 @@ describe('theaterArchiveState', () => {
       { theater: KEPT, card: theaterCardView(KEPT, new Set([949])) },
     ]);
     expect(state.status === 'ready' && state.rows[0].card.countLine).toBe('2 FILMS · 1 UNSEEN');
+  });
+
+  it('holds cards while a signed-in ledger still belongs to someone else', () => {
+    const ledger = libraryView('guest', { uid: 'owner', films: [] });
+    expect(ledger.loading).toBe(true);
+    expect(theaterArchiveState(sources({ ledgerLoading: ledger.loading, watchedFilmIds: new Set() }))).toEqual({
+      status: 'loading',
+    });
   });
 
   it('publishes nothing while the ledger is still loading, however complete the archive is', () => {

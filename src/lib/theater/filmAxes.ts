@@ -151,10 +151,18 @@ export const filmAxesLlm: FilmAxesLlm = (prompt, system) =>
     maxTokens: FILM_AXES_MAX_TOKENS,
   });
 
+function filmFact(value: string): string {
+  return value.replace(/<\/?[a-zA-Z][^>\n]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export function buildFilmAxesPrompt(subject: FilmAxesSubject): string {
-  const facts = [`${subject.title} (${subject.year})`];
-  if (subject.director) facts.push(`dir. ${subject.director}`);
-  if (subject.genres.length) facts.push(subject.genres.join(', '));
+  const title = filmFact(subject.title);
+  const year = filmFact(subject.year);
+  const facts = [year ? `${title} (${year})` : title];
+  const director = subject.director ? filmFact(subject.director) : '';
+  if (director) facts.push(`dir. ${director}`);
+  const genres = subject.genres.map(filmFact).filter(Boolean);
+  if (genres.length) facts.push(genres.join(', '));
   return [
     '<film>',
     facts.join(' | '),

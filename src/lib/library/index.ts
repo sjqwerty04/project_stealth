@@ -29,4 +29,5 @@ export {
 } from './ledger';
 export { backfillLibrary, foldLegacy } from './backfill';
 export { distinctWatchedInYear, savedCount, walletCount, watchedCount, watchedFilmIds } from './stats';
-export { useLibrary, useLibraryFilm } from './useLibrary';
+export { libraryView, useLibrary, useLibraryFilm } from './useLibrary';
+export type { LibrarySnapshot } from './useLibrary';
