@@ -43,7 +43,7 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
-test.afterEach(async (_fixtures, testInfo) => {
+test.afterEach(async ({ page: _page }, testInfo) => {
   const m = testInfo.title.match(/^(F\d+|F-smoke-[^\s]+)/);
   const flowId = m?.[1] ?? 'unknown';
   await saveEvidence(testInfo, flowId);
