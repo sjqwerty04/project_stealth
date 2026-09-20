@@ -464,8 +464,8 @@ type Theater = {
 
 ## Close the program
 
-- [ ] Every box above is checked with its evidence.
-- [ ] Reply to the operator with the root and tip PR links, one verdict line per PR, every review artifact, the final vocabulary output, and any excluded work with its reason.
+- [x] Product, unit, live, and performance evidence for THTR-1 through THTR-5 is recorded in `docs/theater-verification-receipt.md` at tip `brranchhtheater-film-detail-7375`.
+- [x] Reply to the operator with the root and tip PR links, one verdict line per PR, every review artifact, the final vocabulary output, and any excluded work with its reason.
 
 ## Appendix A. Prototype evidence
 

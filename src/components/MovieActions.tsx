@@ -3,19 +3,21 @@ import { Calendar, BookmarkPlus, Eye, Check, RotateCcw } from 'lucide-react';
 import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import AddToListPicker, { type PickerMovie } from './AddToListPicker';
 import VerdictPicker, { VerdictBadge } from './VerdictPicker';
+import { openSavePicker } from './saveIntent';
 import { VERDICT_LABEL, type LibraryFilm, type Verdict } from '../lib/library';
 
 type MovieActionsProps = {
   movie: PickerMovie;
   onAddToCalendar: () => void;
   onVerdict: (verdict: Verdict) => void;
+  onSaveIntent?: () => void;
   isInWatchlist: boolean;
   film: LibraryFilm | null;
   isAddingToCalendar?: boolean;
   isSavingVerdict?: boolean;
 };
 
-export function watchCountLabel(count: number): string {
+function watchCountLabel(count: number): string {
   if (count <= 0) return '';
   if (count === 1) return 'Watched once';
   if (count === 2) return 'Watched twice';
@@ -26,6 +28,7 @@ export default function MovieActions({
   movie,
   onAddToCalendar,
   onVerdict,
+  onSaveIntent,
   isInWatchlist,
   film,
   isAddingToCalendar = false,
@@ -72,7 +75,7 @@ export default function MovieActions({
         </button>
 
         <button
-          onClick={() => setShowPicker(true)}
+          onClick={() => openSavePicker({ openPicker: () => setShowPicker(true), onSaveIntent })}
           aria-label={isInWatchlist ? 'Saved' : 'Save'}
           data-testid="action-watchlist"
           className={`flex items-center justify-center gap-2 min-h-11 py-3.5 px-4 font-semibold ${

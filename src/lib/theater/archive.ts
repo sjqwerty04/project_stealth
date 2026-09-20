@@ -1,5 +1,6 @@
 import {
   FALLBACK_SWATCHES,
+  filmIdentity,
   finiteNumber,
   isRecord,
   nonEmptyString,
@@ -81,8 +82,60 @@ export function parseTheaterDoc(id: string, raw: unknown): KeptTheater | null {
   };
 }
 
+export type TheaterReasonRow = TheaterArchiveFilm & { swatch: string };
+
+export type FilmTheaterSection = {
+  theaterId: string;
+  kicker: string;
+  rows: TheaterReasonRow[];
+};
+
+export function filmTheaterSection(
+  theaters: readonly KeptTheater[],
+  film: { id: number; mediaType: MediaType },
+): FilmTheaterSection | null {
+  const identity = filmIdentity(film);
+  const holding = theaters.filter((theater) => theater.films.some((entry) => filmIdentity(entry) === identity));
+  if (holding.length === 0) return null;
+  const newest = holding.reduce((best, theater) => (theater.keptAt > best.keptAt ? theater : best));
+  const rows = newest.films
+    .filter((entry) => filmIdentity(entry) !== identity)
+    .map((entry, index) => ({ ...entry, swatch: newest.swatches[index % newest.swatches.length] }));
+  if (rows.length === 0) return null;
+  return { theaterId: newest.id, kicker: newest.title.toUpperCase(), rows };
+}
+
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many;
+}
+
+export type TheaterArchiveRow = { theater: KeptTheater; card: TheaterCardView };
+
+export type TheaterArchiveState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'empty' }
+  | { status: 'ready'; rows: TheaterArchiveRow[] };
+
+export type TheaterArchiveSources = {
+  theaters: readonly KeptTheater[];
+  archiveLoading: boolean;
+  archiveError: string | null;
+  ledgerLoading: boolean;
+  watchedFilmIds: ReadonlySet<number>;
+};
+
+export function theaterArchiveState(sources: TheaterArchiveSources): TheaterArchiveState {
+  if (sources.archiveError) return { status: 'error' };
+  if (sources.archiveLoading || sources.ledgerLoading) return { status: 'loading' };
+  if (sources.theaters.length === 0) return { status: 'empty' };
+  return {
+    status: 'ready',
+    rows: sources.theaters.map((theater) => ({
+      theater,
+      card: theaterCardView(theater, sources.watchedFilmIds),
+    })),
+  };
 }
 
 export function theaterCardView(theater: KeptTheater, watchedFilmIds: ReadonlySet<number>): TheaterCardView {

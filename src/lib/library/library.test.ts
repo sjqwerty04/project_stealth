@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { foldLegacy } from './backfill';
 import { emptyFilm, mergeFilm, parseFilm } from './ledger';
+import { libraryView } from './useLibrary';
 import { historyScore, starsOf, verdictFromImdb, verdictFromLegacy, verdictFromStars, verdictOf } from './verdict';
 
 describe('verdictFromStars', () => {
@@ -142,5 +143,26 @@ describe('foldLegacy', () => {
     const once = foldLegacy(input);
     const twice = foldLegacy({ ...input, existing: once });
     expect(twice).toEqual(once);
+  });
+});
+
+describe('libraryView', () => {
+  const heat = emptyFilm(949, 'Heat');
+  const owner = { uid: 'owner', films: [heat] };
+
+  it('is empty and idle when signed out, even if a previous snapshot is still in memory', () => {
+    expect(libraryView(null, owner)).toEqual({ films: [], loading: false });
+  });
+
+  it('stays loading until a snapshot arrives for the signed-in user', () => {
+    expect(libraryView('owner', null)).toEqual({ films: [], loading: true });
+  });
+
+  it('stays loading when the snapshot belongs to someone else', () => {
+    expect(libraryView('guest', owner)).toEqual({ films: [], loading: true });
+  });
+
+  it('publishes films only after the snapshot matches the signed-in user', () => {
+    expect(libraryView('owner', owner)).toEqual({ films: [heat], loading: false });
   });
 });

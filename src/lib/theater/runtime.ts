@@ -1,5 +1,6 @@
 import { filmsOf, IDLE_CLOSE_MS, INFER_WAIT_MS } from './gate';
 import { inferTheater, theaterLlm } from './infer';
+import { theaterPosterColors, type PosterColors } from './posterColor';
 import { inferDue, theaterReducer } from './session';
 import { tmdbTheaterSearch } from './tmdb';
 import type { TheaterWriter } from './legacyStore';
@@ -22,8 +23,10 @@ export const DWELL_ENGAGED_MS = 12000;
 type DwellSignal = Extract<TheaterSignal, { kind: 'dwell' }>;
 
 export function dwellSignal(filmId: number, ms: number, acted: boolean): DwellSignal | null {
-  if (!Number.isFinite(ms) || ms < DWELL_MIN_MS) return null;
-  return { kind: 'dwell', filmId, ms, engaged: acted || ms >= DWELL_ENGAGED_MS };
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  if (acted) return { kind: 'dwell', filmId, ms, engaged: true };
+  if (ms < DWELL_MIN_MS) return null;
+  return { kind: 'dwell', filmId, ms, engaged: ms >= DWELL_ENGAGED_MS };
 }
 
 export type TheaterRuntimeEvent = TheaterEvent | { type: 'restore'; session: TheaterSession };
@@ -57,11 +60,12 @@ export function nextDeadline(session: TheaterSession, now: number): TheaterDeadl
 
 export type TheaterInfer = (signals: readonly TheaterSignal[], signal: AbortSignal) => Promise<Theater | null>;
 
-export function theaterInference(tmdbApiKey: string): TheaterInfer {
+export function theaterInference(tmdbApiKey: string, posterColors: PosterColors = theaterPosterColors()): TheaterInfer {
   return (signals, signal) =>
     inferTheater(signals, {
       llm: theaterLlm,
       searchFilm: tmdbTheaterSearch({ apiKey: tmdbApiKey, fetch: (url) => fetch(url, { signal }) }),
+      posterColors,
     });
 }
 

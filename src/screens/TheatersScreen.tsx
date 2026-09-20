@@ -5,22 +5,19 @@ import FacetLine from '../components/ui/FacetLine';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import SwatchStrip from '../components/ui/SwatchStrip';
 import { useLibrary, watchedFilmIds } from '../lib/library';
-import { theaterCardView, useTheaters, type KeptTheater, type TheaterArchiveFilm } from '../lib/theater';
+import {
+  theaterArchiveState,
+  useTheaters,
+  type KeptTheater,
+  type TheaterArchiveFilm,
+  type TheaterCardView,
+} from '../lib/theater';
 
 const CARD_HEIGHT = 190;
 
 const posterUrl = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w200${path}` : null);
 
-function ArchiveCard({
-  theater,
-  watched,
-  onOpen,
-}: {
-  theater: KeptTheater;
-  watched: ReadonlySet<number>;
-  onOpen: () => void;
-}) {
-  const view = theaterCardView(theater, watched);
+function ArchiveCard({ view, onOpen }: { view: TheaterCardView; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -106,9 +103,10 @@ function TheaterSheet({ theater, onClose }: { theater: KeptTheater; onClose: () 
 
 export default function TheatersScreen() {
   const navigate = useNavigate();
-  const { theaters, loading, error } = useTheaters();
-  const { films } = useLibrary();
+  const { theaters, loading: archiveLoading, error: archiveError } = useTheaters();
+  const { films, loading: ledgerLoading } = useLibrary();
   const watched = useMemo(() => watchedFilmIds(films), [films]);
+  const archive = theaterArchiveState({ theaters, archiveLoading, archiveError, ledgerLoading, watchedFilmIds: watched });
   const [selected, setSelected] = useState<KeptTheater | null>(null);
 
   return (
@@ -118,15 +116,15 @@ export default function TheatersScreen() {
         <p className="mt-2 font-spec text-label tracking-widest text-fg-3">FACETS YOU KEPT WALKING BACK INTO</p>
 
         <div className="mt-6 flex flex-col gap-3">
-          {loading ? (
+          {archive.status === 'loading' ? (
             <div className="flex justify-center py-16">
               <SelectsChaseLoader size="lg" />
             </div>
-          ) : error ? (
+          ) : archive.status === 'error' ? (
             <p className="py-16 text-center text-body text-fg-2" data-testid="theaters-error">
               The archive could not load. Try again.
             </p>
-          ) : theaters.length === 0 ? (
+          ) : archive.status === 'empty' ? (
             <div className="py-16" data-testid="theaters-empty">
               <p className="font-display text-lead text-fg">Nothing kept yet.</p>
               <p className="mt-2 text-body text-fg-2">
@@ -142,8 +140,8 @@ export default function TheatersScreen() {
               </button>
             </div>
           ) : (
-            theaters.map((theater) => (
-              <ArchiveCard key={theater.id} theater={theater} watched={watched} onOpen={() => setSelected(theater)} />
+            archive.rows.map(({ theater, card }) => (
+              <ArchiveCard key={theater.id} view={card} onOpen={() => setSelected(theater)} />
             ))
           )}
         </div>

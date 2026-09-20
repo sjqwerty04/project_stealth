@@ -45,6 +45,9 @@ export async function runThresholds(page: Page, flowId: string, viewport: string
     const all = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
     for (const el of all) {
       const cs = window.getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+      const box = el.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) continue;
       // An unset border-color resolves to currentColor, so a border only counts accent when it has width.
       const borderAccent = ['top', 'right', 'bottom', 'left'].some(
         (side) =>

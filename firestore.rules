@@ -69,6 +69,56 @@ service cloud.firestore {
       match /imports/{importId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /film_axes/{filmKey} {
+        function axisIs(axis, name) {
+          return axis is map
+                 && axis.keys().hasOnly(['name', 'value', 'score'])
+                 && axis.keys().hasAll(['name', 'value', 'score'])
+                 && axis.name == name
+                 && axis.value is string
+                 && axis.value.size() > 0
+                 && axis.value.size() <= 80
+                 && axis.score is int
+                 && axis.score >= 1
+                 && axis.score <= 5;
+        }
+
+        function axesAreCanonical(axes) {
+          return axes is list
+                 && axes.size() == 8
+                 && axisIs(axes[0], 'LOOK')
+                 && axisIs(axes[1], 'CAMERA')
+                 && axisIs(axes[2], 'TEMPO')
+                 && axisIs(axes[3], 'WEATHER')
+                 && axisIs(axes[4], 'SOUND')
+                 && axisIs(axes[5], 'WORLD')
+                 && axisIs(axes[6], 'SHAPE')
+                 && axisIs(axes[7], 'FORMAT');
+        }
+
+        function documentIsCanonical() {
+          let data = request.resource.data;
+          let fields = ['schema', 'mediaType', 'filmId', 'title', 'year', 'axes', 'createdAt'];
+          return data.keys().hasOnly(fields)
+                 && data.keys().hasAll(fields)
+                 && data.schema == 1
+                 && data.mediaType in ['movie', 'tv']
+                 && data.filmId is int
+                 && filmKey == data.mediaType + ':' + string(data.filmId)
+                 && data.title is string
+                 && data.title.size() > 0
+                 && data.title.size() <= 200
+                 && data.year is string
+                 && data.year.size() <= 16
+                 && data.createdAt is number
+                 && axesAreCanonical(data.axes);
+        }
+
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId && documentIsCanonical();
+        allow update, delete: if false;
+      }
     }
 
     // Shared watchlists - collaborative lists with multiple members

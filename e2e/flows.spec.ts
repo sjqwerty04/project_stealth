@@ -11,13 +11,40 @@ import {
   signIn,
   completeOnboarding,
   gate,
+  revealAboveTabBar,
   seedShowingTheater,
+  keepSeededTheater,
+  mockFilmAxes,
+  mockTmdb,
+  clearFilmAxesFixtures,
+  clearTheaterFixtures,
+  createFilmAxesDoc,
+  createSharedFilmAxesDoc,
+  createTheaterDocAs,
+  currentUid,
+  deleteFilmAxesDocAs,
+  deleteTheaterDocAs,
+  readSharedFilmAxesDoc,
+  emulatorSignIn,
+  emulatorSignUp,
+  readFilmAxesDoc,
+  readTheaterDocAs,
+  rewriteFilmAxesDoc,
+  rewriteTheaterDocAs,
+  routePosterFixtures,
+  samplePostersInBrowser,
+  FILM_AXES_FIXTURE,
+  FILM_PAGE_THEATER,
+  FIRST_VISIT_FILM_ID,
+  RULES_FIXTURE_FILM_ID,
+  RULES_FIXTURE_THEATER_ID,
+  type FilmAxesRestAxis,
   THEATER_FIXTURE,
 } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
-test.afterEach(async ({}, testInfo) => {
+test.afterEach(async ({ page: _page }, testInfo) => {
   const m = testInfo.title.match(/^(F\d+|F-smoke-[^\s]+)/);
   const flowId = m?.[1] ?? 'unknown';
   await saveEvidence(testInfo, flowId);
@@ -294,13 +321,55 @@ test('F12 Share', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F12', testInfo.project.name, logs);
 });
 
+test('F13 Save engagement', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await ensureAuthed(page);
+  await mockFilmAxes(page);
+  await page.goto('/movie/155');
+  const picker = page.getByRole('heading', { name: 'Add to list' });
+  await expect(page.getByTestId('action-watchlist')).toBeVisible();
+  await expect(picker).toHaveCount(0);
+
+  await page.getByTestId('action-watchlist').click();
+  await expect(picker).toBeVisible();
+  await page.getByRole('button', { name: /close list picker/i }).click();
+  await expect(picker).toHaveCount(0);
+
+  await page.getByTestId('orbit-cta').click();
+  await expect(page).toHaveURL(/\/orbit\/155/);
+
+  const uid = await currentUid(page);
+  const dwells = await page.evaluate((uid) => {
+    const raw = sessionStorage.getItem(`theater-session:v1:${uid}`);
+    const signals = (raw ? JSON.parse(raw) : { signals: [] }).signals as { kind: string; filmId?: number; engaged?: boolean }[];
+    return signals.filter((signal) => signal.kind === 'dwell' && signal.filmId === 155);
+  }, uid);
+  expect(dwells).toHaveLength(1);
+  expect(dwells[0].engaged).toBe(true);
+  await dumpConsole(page, 'F13', testInfo.project.name, logs);
+});
+
 test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
+  await mockFilmAxes(page);
   await page.goto('/movie/155');
   await expect(page.getByTestId('action-watchlist')).toBeVisible();
   await page.getByTestId('action-watchlist').click();
   await page.getByTestId('action-like').click().catch(() => {});
+
+  const rows = page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  await expect(page.getByTestId('film-axes').getByTestId('axis-meter').first()).toHaveAttribute(
+    'aria-label',
+    'LOOK: 4 of 5',
+  );
+  const cta = page.getByTestId('orbit-cta');
+  const ctaBox = await cta.boundingBox();
+  const contentWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(Math.round(ctaBox?.width ?? 0)).toBe(contentWidth - 32);
+  await expect(page.getByTestId('film-theater-reasons')).toHaveCount(0);
 
   await seedShowingTheater(page);
   const card = page.getByTestId('theater-card');
@@ -311,6 +380,8 @@ test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   await expect(card.getByTestId('theater-lineup').locator('li')).toHaveCount(8);
   await expect(card.getByTestId('theater-lineup')).toContainText(THEATER_FIXTURE.lineup[0][3]);
   await expect(card.getByRole('button', { name: /close theater/i })).toBeVisible();
+  await expect(rows).toHaveCount(8);
+  await expect(page.getByTestId('film-axes-pending')).toHaveCount(0);
   await gate(page, 'F13', testInfo.project.name);
   await dumpConsole(page, 'F13', testInfo.project.name, logs);
 });
@@ -417,6 +488,29 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F15', testInfo.project.name, logs);
 });
 
+test('F16 Theater poster swatches', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await routePosterFixtures(page);
+  await page.goto('/login');
+
+  const sampled = await samplePostersInBrowser(page, ['/sodium.svg', '/cyan.svg', '/slate.svg', '/missing.svg']);
+  expect(sampled).toEqual({
+    colors: ['#c88c28', '#2878a0', '#3d3d42'],
+    swatches: ['#c88c28', '#2878a0', '#3d3d42', '#1D1D20'],
+    requested: [
+      'https://image.tmdb.org/t/p/w92/sodium.svg',
+      'https://image.tmdb.org/t/p/w92/cyan.svg',
+      'https://image.tmdb.org/t/p/w92/slate.svg',
+      'https://image.tmdb.org/t/p/w92/missing.svg',
+    ],
+  });
+
+  const refused = await samplePostersInBrowser(page, ['/missing.svg', '/missing.svg']);
+  expect(refused.colors).toEqual([]);
+  expect(refused.swatches).toEqual(['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20']);
+  await dumpConsole(page, 'F16', testInfo.project.name, logs);
+});
+
 test('F16 Theater archive', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
@@ -473,4 +567,193 @@ test('F16 Theater archive', async ({ page }, testInfo) => {
 
   await gate(page, 'F16', testInfo.project.name);
   await dumpConsole(page, 'F16', testInfo.project.name, logs);
+});
+
+test('F16 Theater ownership rules', async ({ baseURL }, testInfo) => {
+  const owner = await emulatorSignIn(baseURL);
+  const intruder = await emulatorSignUp(baseURL);
+  const theaterId = RULES_FIXTURE_THEATER_ID[testInfo.project.name];
+  await clearTheaterFixtures(baseURL, owner.uid, [theaterId]);
+  await clearTheaterFixtures(baseURL, intruder.uid, [theaterId]);
+  const kept = {
+    schema: 1,
+    title: THEATER_FIXTURE.title,
+    facets: THEATER_FIXTURE.facets,
+    insight: THEATER_FIXTURE.insight,
+    keptAt: 1758240000000,
+  };
+
+  expect(await createTheaterDocAs(null, owner.uid, theaterId, kept)).toBe(403);
+  expect(await readTheaterDocAs(null, owner.uid, theaterId)).toBe(403);
+
+  expect(await createTheaterDocAs(owner, owner.uid, theaterId, kept)).toBe(200);
+  expect(await readTheaterDocAs(owner, owner.uid, theaterId)).toBe(200);
+  expect(await rewriteTheaterDocAs(owner, owner.uid, theaterId, { ...kept, title: 'Because of the night' })).toBe(200);
+
+  expect(await readTheaterDocAs(null, owner.uid, theaterId)).toBe(403);
+  expect(await rewriteTheaterDocAs(null, owner.uid, theaterId, { ...kept, title: 'Taken' })).toBe(403);
+  expect(await deleteTheaterDocAs(null, owner.uid, theaterId)).toBe(403);
+
+  expect(await readTheaterDocAs(intruder, owner.uid, theaterId)).toBe(403);
+  expect(await rewriteTheaterDocAs(intruder, owner.uid, theaterId, { ...kept, title: 'Taken' })).toBe(403);
+  expect(await deleteTheaterDocAs(intruder, owner.uid, theaterId)).toBe(403);
+  expect(await createTheaterDocAs(intruder, owner.uid, `${theaterId}-2`, kept)).toBe(403);
+  expect(await readTheaterDocAs(intruder, owner.uid, `${theaterId}-2`)).toBe(403);
+
+  expect(await createTheaterDocAs(intruder, intruder.uid, theaterId, kept)).toBe(200);
+  expect(await readTheaterDocAs(owner, intruder.uid, theaterId)).toBe(403);
+
+  expect(await readTheaterDocAs(owner, owner.uid, theaterId)).toBe(200);
+  expect(await deleteTheaterDocAs(owner, owner.uid, theaterId)).toBe(200);
+  expect(await readTheaterDocAs(owner, owner.uid, theaterId)).toBe(404);
+  expect(await deleteTheaterDocAs(intruder, intruder.uid, theaterId)).toBe(200);
+});
+
+test('F17 Film axes first visit', async ({ page, baseURL }, testInfo) => {
+  const filmId = FIRST_VISIT_FILM_ID[testInfo.project.name];
+  const logs = await attachPageLog(page);
+  await ensureAuthed(page);
+  const uid = await currentUid(page);
+  await clearFilmAxesFixtures(baseURL, uid, [`movie:${filmId}`]);
+  await mockTmdb(page, [
+    { id: filmId, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
+  ]);
+  const axes = await mockFilmAxes(page);
+
+  await page.goto('/discover');
+  await keepSeededTheater(page, FILM_PAGE_THEATER);
+
+  await page.goto(`/movie/${filmId}?type=movie`);
+  const rows = page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-name')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.name));
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  expect(axes.count).toBe(1);
+
+  const meters = rows.getByTestId('axis-meter');
+  expect(await meters.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))).toEqual(
+    FILM_AXES_FIXTURE.map((axis) => `${axis.name}: ${axis.score} of 5`),
+  );
+  expect(
+    await meters.evaluateAll((els) => els.map((el) => el.querySelectorAll('[data-testid="bar-unit"]').length)),
+  ).toEqual([5, 5, 5, 5, 5, 5, 5, 5]);
+  const weather = await rows.filter({ hasText: 'competence porn' }).getByTestId('axis-count').textContent();
+  expect(Number(weather)).toBeGreaterThanOrEqual(8);
+  await expect(page.getByTestId('film-theater-reasons')).toHaveCount(0);
+
+  await page
+    .getByTestId('film-axes')
+    .screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'axes.png') });
+
+  const original = page.viewportSize();
+  await page.setViewportSize({ width: 320, height: 720 });
+  await expect(rows).toHaveCount(8);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(2);
+  await page
+    .getByTestId('film-axes')
+    .screenshot({ path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'axes-320.png') });
+  if (original) await page.setViewportSize(original);
+
+  const owner = await emulatorSignIn(baseURL);
+  await expect.poll(() => readFilmAxesDoc(owner, uid, `movie:${filmId}`)).toBe(200);
+
+  await revealAboveTabBar(page, 'orbit-cta');
+  await gate(page, 'F17', testInfo.project.name);
+  await dumpConsole(page, 'F17', testInfo.project.name, logs);
+});
+
+test('F17 Film axes cache rules', async ({ baseURL }, testInfo) => {
+  const owner = await emulatorSignIn(baseURL);
+  const intruder = await emulatorSignUp(baseURL);
+  const filmId = RULES_FIXTURE_FILM_ID[testInfo.project.name];
+  const filmKey = `movie:${filmId}`;
+  await clearFilmAxesFixtures(baseURL, owner.uid, [filmKey]);
+  await clearFilmAxesFixtures(baseURL, intruder.uid, [filmKey]);
+  const axes = FILM_AXES_FIXTURE.map((axis) => ({ name: axis.name, value: axis.value, score: axis.score }));
+  const valid = { schema: 1, mediaType: 'movie', filmId, title: 'Thief', year: '1981', axes, createdAt: 1758240000000 };
+  const withAxis = (index: number, axis: Partial<FilmAxesRestAxis>) => ({
+    ...valid,
+    axes: axes.map((row, at) => (at === index ? { ...row, ...axis } : row)),
+  });
+
+  expect(await createSharedFilmAxesDoc(owner, filmKey, valid)).toBe(403);
+  expect(await readSharedFilmAxesDoc(owner, filmKey)).toBe(403);
+
+  expect(await createFilmAxesDoc(null, owner.uid, filmKey, valid)).toBe(403);
+  expect(await readFilmAxesDoc(null, owner.uid, filmKey)).toBe(403);
+  expect(await createFilmAxesDoc(intruder, owner.uid, filmKey, valid)).toBe(403);
+  expect(await readFilmAxesDoc(intruder, owner.uid, filmKey)).toBe(403);
+
+  expect(await createFilmAxesDoc(owner, owner.uid, `movie:${filmId + 1}`, valid)).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, `tv:${filmId}`, valid)).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, schema: 2 })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, mediaType: 'book' })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, extra: 'counts' })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: undefined })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: '' })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: 'T'.repeat(201) })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, year: '1'.repeat(17) })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, axes: axes.slice(0, 7) })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, axes: [...axes, axes[0]] })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, axes: [...axes].reverse() })).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(0, { name: 'MOOD' }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(3, { value: '' }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(3, { value: 'v'.repeat(81) }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(5, { score: 0 }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(5, { score: 6 }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(5, { score: 2.5 }))).toBe(403);
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, withAxis(7, { extra: 'count' }))).toBe(403);
+
+  expect(await createFilmAxesDoc(owner, owner.uid, filmKey, valid)).toBe(200);
+  expect(await readFilmAxesDoc(owner, owner.uid, filmKey)).toBe(200);
+  expect(await readFilmAxesDoc(intruder, owner.uid, filmKey)).toBe(403);
+  expect(await rewriteFilmAxesDoc(owner, owner.uid, filmKey, { ...valid, title: 'Heat' })).toBe(403);
+  expect(await deleteFilmAxesDocAs(owner, owner.uid, filmKey)).toBe(403);
+  expect(await createFilmAxesDoc(intruder, intruder.uid, filmKey, valid)).toBe(200);
+
+  await clearFilmAxesFixtures(baseURL, owner.uid, [filmKey]);
+  await clearFilmAxesFixtures(baseURL, intruder.uid, [filmKey]);
+});
+
+test('F17 Film axes cache hit and Theater reasons', async ({ page }, testInfo) => {
+  const logs = await attachPageLog(page);
+  await ensureAuthed(page);
+  const filmId = FIRST_VISIT_FILM_ID[testInfo.project.name];
+  await mockTmdb(page, [
+    { id: 10858, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
+    { id: filmId, title: 'Thief', year: '1981', director: 'Michael Mann', genres: ['Crime', 'Thriller'] },
+  ]);
+  const axes = await mockFilmAxes(page);
+
+  await page.goto('/discover');
+  await keepSeededTheater(page, FILM_PAGE_THEATER);
+
+  await page.goto(`/movie/${filmId}?type=movie`);
+  const rows = page.getByTestId('film-axes').getByTestId('axis-row');
+  await expect(rows).toHaveCount(8);
+  await expect(rows.getByTestId('axis-value')).toHaveText(FILM_AXES_FIXTURE.map((axis) => axis.value));
+  expect(axes.count).toBe(0);
+
+  await page.goto('/movie/10858?type=movie');
+  await expect(rows).toHaveCount(8);
+  const section = page.getByTestId('film-theater-reasons');
+  await expect(section.getByTestId('film-theater-kicker')).toHaveText('BECAUSE OF THE NIGHT');
+  await expect(section.getByTestId('theater-reason-row')).toHaveCount(7);
+  await expect(section.getByTestId('theater-reason').first()).toHaveText(
+    'THE PROFESSIONAL AS MONK. BOTH MEN ARE ALONE BY CHOICE.',
+  );
+  await expect(section).toContainText('Le Samouraï 1967');
+  await expect(section).toContainText('SYNTH PULSE, SODIUM LIGHT, AND A CITY THAT DOES THE TALKING.');
+  await expect(section).toContainText('MANN AGAIN. SAME CITY LOGIC, TWENTY-THREE YEARS LATER.');
+  await expect(section).not.toContainText('Thief 1981');
+  await section.screenshot({
+    path: path.join('artifacts', 'verify', `F17-${testInfo.project.name}`, 'theater-reasons.png'),
+  });
+
+  await revealAboveTabBar(page, 'orbit-cta');
+  await gate(page, 'F17', testInfo.project.name);
+
+  await page.getByTestId('orbit-cta').click();
+  await expect(page).toHaveURL(/\/orbit\/10858/);
+  await dumpConsole(page, 'F17', testInfo.project.name, logs);
 });

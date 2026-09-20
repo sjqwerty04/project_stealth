@@ -111,7 +111,11 @@ export default function AddToListPicker({ movie, open, onClose }: Props) {
             <h3 className="font-bold text-white text-lg">Add to list</h3>
             <p className="text-xs text-gray-500 truncate max-w-[240px]">{movie.title}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800">
+          <button
+            onClick={onClose}
+            aria-label="Close list picker"
+            className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-800"
+          >
             <X size={18} />
           </button>
         </div>
