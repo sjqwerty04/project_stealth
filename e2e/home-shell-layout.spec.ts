@@ -10,7 +10,8 @@ type Measurement = {
   stripTrack: Frame;
   tabBar: Frame;
   stripBelowTabBarPx: number | null;
-  fabOverlapsDockPx: number | null;
+  fabOverlapsStripPx: number | null;
+  fabCoversWhyCopy: boolean;
   scrollportOverflowPx: number;
   dayStageInScrollport: boolean | null;
 };
@@ -25,8 +26,11 @@ async function measure(page: Page): Promise<Measurement> {
     };
     const stripTrack = frame('[data-testid="strip-track"]');
     const tabBar = frame('[data-testid="tab-bar"]');
-    const dock = frame('[data-testid="strip-dock"]');
     const fab = frame('button[aria-label="Send feedback"]');
+    const fabBox = document.querySelector('button[aria-label="Send feedback"]')?.getBoundingClientRect();
+    const whyBoxes = Array.from(document.querySelectorAll('[data-testid="why-match-line"]')).map((n) =>
+      n.getBoundingClientRect(),
+    );
     const scrollport = document.querySelector('[data-testid="selects-scroll"]');
     const stage = document.querySelector('[data-testid="day-stage"]');
     return {
@@ -36,7 +40,19 @@ async function measure(page: Page): Promise<Measurement> {
       stripTrack,
       tabBar,
       stripBelowTabBarPx: stripTrack && tabBar ? stripTrack.bottom - tabBar.top : null,
-      fabOverlapsDockPx: fab && dock ? fab.bottom - dock.top : null,
+      fabOverlapsStripPx: fab && stripTrack ? fab.bottom - stripTrack.top : null,
+      fabCoversWhyCopy: Boolean(
+        fabBox &&
+          whyBoxes.some(
+            (why) =>
+              why.width > 0 &&
+              why.height > 0 &&
+              fabBox.left < why.right &&
+              fabBox.right > why.left &&
+              fabBox.top < why.bottom &&
+              fabBox.bottom > why.top,
+          ),
+      ),
       scrollportOverflowPx: scrollport ? scrollport.scrollHeight - scrollport.clientHeight : 0,
       dayStageInScrollport: stage ? Boolean(stage.closest('[data-testid="selects-scroll"]')) : null,
     };
@@ -52,9 +68,10 @@ function expectChromePinned(m: Measurement, label: string) {
   ).toBeLessThanOrEqual(1);
   expect(m.docOverflowPx, `${label}: the page scrolls by ${m.docOverflowPx}px`).toBeLessThanOrEqual(1);
   expect(
-    m.fabOverlapsDockPx,
-    `${label}: the feedback button covers ${m.fabOverlapsDockPx}px of the date dock`,
+    m.fabOverlapsStripPx,
+    `${label}: the feedback button covers ${m.fabOverlapsStripPx}px of the date strip`,
   ).toBeLessThanOrEqual(1);
+  expect(m.fabCoversWhyCopy, `${label}: the feedback button sits on the why copy`).toBe(false);
 }
 
 test.describe('home shell layout', () => {

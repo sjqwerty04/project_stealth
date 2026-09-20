@@ -16,6 +16,7 @@ import {
   Info,
 } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
+import FeedbackFAB from '../components/FeedbackFAB';
 import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import type { Verdict } from '../lib/library';
@@ -1111,6 +1112,7 @@ export default function MovieCalendarApp() {
 
   return (
     <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto overflow-hidden border-x border-line" data-testid="year-zoom-calendar">
+      <FeedbackFAB />
       <div className="bg-base px-6 py-6 flex items-center justify-between sticky top-0 z-10 border-b border-line">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-fg">Selects</h1>

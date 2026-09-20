@@ -11,6 +11,7 @@ import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
 import { useLibrary } from '../lib/library';
+import FeedbackFAB from './FeedbackFAB';
 import { VerdictBadge } from './VerdictPicker';
 import { eventVerdict } from '../hooks/useCalendarLogs';
 
@@ -333,7 +334,6 @@ export default function HomeStrip({
   } = useRecommendation({ events });
   const { byId: library } = useLibrary();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
-  const dockRef = useRef<HTMLDivElement | null>(null);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
   const earliest = useMemo(() => {
@@ -399,21 +399,6 @@ export default function HomeStrip({
     setStageOpen(true);
   }, [dateParam]);
 
-  // Floating chrome anchored to the tab bar has to clear the dock, or it sits on the dates.
-  useEffect(() => {
-    const dock = dockRef.current;
-    if (!dock) return;
-    const apply = () =>
-      document.documentElement.style.setProperty('--home-dock-h', `${dock.offsetHeight}px`);
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(dock);
-    return () => {
-      observer.disconnect();
-      document.documentElement.style.removeProperty('--home-dock-h');
-    };
-  }, []);
-
   useEffect(() => {
     const track = stripTrackRef.current;
     if (!track) return;
@@ -431,14 +416,17 @@ export default function HomeStrip({
     >
       <header className="px-7 pt-6 pb-4 flex items-start justify-between shrink-0">
         <Mark variant="lockup" size={36} />
-        <button
-          type="button"
-          data-testid="year-zoom"
-          onClick={onYearZoom}
-          className="min-h-11 min-w-11 px-3 font-spec text-[10px] uppercase tracking-widest text-fg-2 border border-line"
-        >
-          Year
-        </button>
+        <div className="flex items-start gap-2">
+          <FeedbackFAB variant="inline" />
+          <button
+            type="button"
+            data-testid="year-zoom"
+            onClick={onYearZoom}
+            className="min-h-11 min-w-11 px-3 font-spec text-[10px] uppercase tracking-widest text-fg-2 border border-line"
+          >
+            Year
+          </button>
+        </div>
       </header>
 
       {insightsLabel && (
@@ -508,7 +496,7 @@ export default function HomeStrip({
         <div className="min-h-11" data-testid="selects-dismiss" />
       </div>
 
-      <div ref={dockRef} className="shrink-0 bg-base pt-3" data-testid="strip-dock">
+      <div className="shrink-0 bg-base pt-3" data-testid="strip-dock">
         {dayFilm ? (
           <button
             type="button"
@@ -525,7 +513,7 @@ export default function HomeStrip({
             type="button"
             data-testid="ticket-slot-empty"
             onClick={() => onAddMovie(selected)}
-            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3"
+            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
           >
             {format(selected, 'EEEE d')}
             {'  ·  '}
