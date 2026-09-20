@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { collection, doc, getDocs, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { callLlmForJSON } from '../lib/llm';
 import { loadSkill } from '../lib/skills';
 import { hasMeaningfulContext, recordTasteEvent, SNAPSHOT_FRESH_MS, useTaste } from '../lib/taste';
 
-type InsightsStats = {
-  watchedCount: number;
-  watchlistCount: number;
-  likedPercent: number;
+export type TasteProfileFilm = { title?: string; posterPath?: string; poster_path?: string };
+
+export type TasteProfile = {
+  aiPersonaLine: string | null;
+  favoriteFilms: (string | TasteProfileFilm)[];
+  dislikedFilms: (string | TasteProfileFilm)[];
+  filmPreference: string | null;
 };
 
 type AIInsightsResult = {
@@ -18,18 +21,39 @@ type AIInsightsResult = {
 };
 
 export type UserInsights = {
-  stats: InsightsStats | null;
-  tasteProfile: any | null;
+  tasteProfile: TasteProfile | null;
   personaLine: string | null;
   insightCards: string[];
   isLoading: boolean;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function filmList(value: unknown): (string | TasteProfileFilm)[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string | TasteProfileFilm => typeof entry === 'string' || isRecord(entry));
+}
+
+function optionalText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+export function parseTasteProfile(raw: unknown): TasteProfile | null {
+  if (!isRecord(raw)) return null;
+  return {
+    aiPersonaLine: optionalText(raw.aiPersonaLine),
+    favoriteFilms: filmList(raw.favoriteFilms),
+    dislikedFilms: filmList(raw.dislikedFilms),
+    filmPreference: optionalText(raw.filmPreference),
+  };
+}
+
 export function useUserInsights(): UserInsights {
   const { user } = useAuth();
   const { snapshot } = useTaste();
-  const [stats, setStats] = useState<InsightsStats | null>(null);
-  const [tasteProfile, setTasteProfile] = useState<any | null>(null);
+  const [tasteProfile, setTasteProfile] = useState<TasteProfile | null>(null);
   const [personaLine, setPersonaLine] = useState<string | null>(null);
   const [insightCards, setInsightCards] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,9 +67,11 @@ export function useUserInsights(): UserInsights {
     }
   }, [snapshot.identity.personaLine, snapshot.generated.insightCards]);
 
+  const uid = user?.uid;
+  const email = user?.email;
+
   useEffect(() => {
-    if (!user?.uid) {
-      setStats(null);
+    if (!uid) {
       setTasteProfile(null);
       setPersonaLine(null);
       setInsightCards([]);
@@ -57,25 +83,13 @@ export function useUserInsights(): UserInsights {
 
     (async () => {
       try {
-        const [filmsSnap, watchlistSnap, tasteProfileDoc] = await Promise.all([
-          getDocs(collection(db, 'users', user.uid, 'films')),
-          getDocs(collection(db, 'users', user.uid, 'watchlist')),
-          getDoc(doc(db, 'users', user.uid, 'profile_data', 'taste_profile')),
-        ]);
-
+        const tasteProfileDoc = await getDoc(doc(db, 'users', uid, 'profile_data', 'taste_profile'));
         if (cancelled) return;
 
-        const watchedDocs = filmsSnap.docs.map((d) => d.data()).filter((d) => d.watched === true);
-        const watchedCount = watchedDocs.length;
-        const watchlistCount = watchlistSnap.size;
-        const likedCount = watchedDocs.filter((d) => d.verdict === 'liked').length;
-        const likedPercent = watchedCount > 0 ? Math.round((likedCount / watchedCount) * 100) : 0;
-        const rawTasteProfile = tasteProfileDoc.exists() ? tasteProfileDoc.data() : null;
+        const profile = tasteProfileDoc.exists() ? parseTasteProfile(tasteProfileDoc.data()) : null;
+        setTasteProfile(profile);
 
-        setStats({ watchedCount, watchlistCount, likedPercent });
-        setTasteProfile(rawTasteProfile);
-
-        const storedLine = snapshot.identity.personaLine || rawTasteProfile?.aiPersonaLine || null;
+        const storedLine = snapshot.identity.personaLine || profile?.aiPersonaLine || null;
         const storedCards = snapshot.generated.insightCards;
         const fresh =
           snapshot.generated.updatedAt != null &&
@@ -84,10 +98,7 @@ export function useUserInsights(): UserInsights {
         if (storedLine) setPersonaLine(storedLine);
         if (storedCards.length) setInsightCards(storedCards);
 
-        const shouldGenerateAI =
-          !fresh &&
-          !storedLine &&
-          hasMeaningfulContext(snapshot.context);
+        const shouldGenerateAI = !fresh && !storedLine && hasMeaningfulContext(snapshot.context);
 
         if (!shouldGenerateAI) {
           if (!cancelled) setIsLoading(false);
@@ -109,9 +120,9 @@ Output JSON only:
           const cards = Array.isArray(result.insights) ? result.insights.slice(0, 3) : [];
           setInsightCards(cards);
           await recordTasteEvent(
-            user.uid,
+            uid,
             { type: 'identity', personaLine: result.personaLine, insightCards: cards },
-            { email: user.email }
+            { email }
           );
         }
       } catch (err) {
@@ -124,7 +135,15 @@ Output JSON only:
     return () => {
       cancelled = true;
     };
-  }, [user?.uid, snapshot.identity.personaLine, snapshot.generated.updatedAt, snapshot.generated.insightCards, snapshot.generated.compactForChat, snapshot.context]);
+  }, [
+    uid,
+    email,
+    snapshot.identity.personaLine,
+    snapshot.generated.updatedAt,
+    snapshot.generated.insightCards,
+    snapshot.generated.compactForChat,
+    snapshot.context,
+  ]);
 
-  return { stats, tasteProfile, personaLine, insightCards, isLoading };
+  return { tasteProfile, personaLine, insightCards, isLoading };
 }

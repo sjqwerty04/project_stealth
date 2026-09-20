@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Film,
@@ -12,9 +12,11 @@ import {
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
-import { useUserInsights } from '../hooks/useUserInsights';
+import { useUserInsights, type TasteProfileFilm } from '../hooks/useUserInsights';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import ImportDropZone from '../components/ImportDropZone';
+import { distinctWatchedInYear, useLibrary, walletCount, watchedCount } from '../lib/library';
+import { useTheaters } from '../lib/theater';
 
 const TASTE_DNA_ICONS = [Film, Globe, Clock];
 
@@ -47,6 +49,27 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span className="font-display text-numeral font-black text-fg" data-testid="you-stat-value">
+        {value}
+      </span>
+      <span className="font-spec text-label whitespace-nowrap text-fg-2" data-testid="you-stat-label">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function filmPoster(film: string | TasteProfileFilm): string | undefined {
+  return typeof film === 'string' ? undefined : film.posterPath ?? film.poster_path;
+}
+
+function filmTitle(film: string | TasteProfileFilm): string | undefined {
+  return typeof film === 'string' ? film : film.title;
 }
 
 export default function ProfileScreen() {
@@ -84,15 +107,24 @@ export default function ProfileScreen() {
     }
   };
 
-  const { stats, tasteProfile, personaLine, insightCards, isLoading } = insights;
+  const { tasteProfile, personaLine, insightCards, isLoading } = insights;
+  const { films, loading: filmsLoading } = useLibrary();
+  const { theaters } = useTheaters();
 
-  const hasData =
-    (stats?.watchedCount ?? 0) > 0 ||
-    (tasteProfile?.favoriteFilms?.length ?? 0) > 0;
+  const stats = useMemo(
+    () => ({
+      watched: watchedCount(films),
+      wallet: walletCount(films),
+      thisYear: distinctWatchedInYear(films, String(new Date().getFullYear())),
+    }),
+    [films],
+  );
 
-  const favoriteFilms: any[] = tasteProfile?.favoriteFilms ?? [];
-  const dislikedFilms: any[] = tasteProfile?.dislikedFilms ?? [];
-  const filmPref: string | undefined = tasteProfile?.filmPreference;
+  const hasData = stats.watched > 0 || (tasteProfile?.favoriteFilms.length ?? 0) > 0;
+
+  const favoriteFilms = tasteProfile?.favoriteFilms ?? [];
+  const dislikedFilms = tasteProfile?.dislikedFilms ?? [];
+  const filmPref = tasteProfile?.filmPreference;
 
   return (
     <div className="min-h-screen bg-base text-fg max-w-md mx-auto relative overflow-x-hidden" data-testid="you-screen">
@@ -114,32 +146,18 @@ export default function ProfileScreen() {
       </div>
 
       <div className="px-7 mt-2 space-y-6 pb-8">
-        <div className="border border-line p-4 flex items-stretch">
-          {isLoading ? (
-            <div className="flex-1 h-14 bg-base-3" data-testid="skeleton" />
-          ) : (
-            <>
-              <div className="flex-1 flex flex-col items-center">
-                <span className="text-fg text-2xl font-black">{stats?.watchedCount ?? 0}</span>
-                <span className="text-fg-3 text-xs mt-0.5">watched</span>
-              </div>
-              <div className="w-px bg-line self-stretch" />
-              <div className="flex-1 flex flex-col items-center">
-                <span className="text-fg text-2xl font-black">{stats?.watchlistCount ?? 0}</span>
-                <span className="text-fg-3 text-xs mt-0.5">watchlist</span>
-              </div>
-              <div className="w-px bg-line self-stretch" />
-              <div className="flex-1 flex flex-col items-center">
-                <span className="text-fg text-2xl font-black">
-                  {stats?.watchedCount ? `${stats.likedPercent}%` : '—'}
-                </span>
-                <span className="text-fg-3 text-xs mt-0.5">loved</span>
-              </div>
-            </>
-          )}
-        </div>
+        {filmsLoading ? (
+          <div className="h-14 bg-base-3" data-testid="skeleton" />
+        ) : (
+          <div className="grid grid-cols-4 gap-2" data-testid="you-stats">
+            <Stat value={stats.watched} label="WATCHED" />
+            <Stat value={stats.wallet} label="WALLET" />
+            <Stat value={theaters.length} label="THEATERS" />
+            <Stat value={stats.thisYear} label="THIS YEAR" />
+          </div>
+        )}
 
-        {!isLoading && !hasData ? (
+        {!isLoading && !filmsLoading && !hasData ? (
           <div className="border border-line p-8 flex flex-col items-center gap-3 text-center">
             <Film size={32} className="text-fg-3" />
             <p className="text-fg-2 text-sm">Watch some films first</p>
@@ -184,12 +202,8 @@ export default function ProfileScreen() {
                   Loved
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {favoriteFilms.map((film: any, i: number) => (
-                    <PosterThumb
-                      key={i}
-                      posterPath={film?.posterPath ?? film?.poster_path}
-                      title={typeof film === 'string' ? film : film?.title}
-                    />
+                  {favoriteFilms.map((film, i) => (
+                    <PosterThumb key={i} posterPath={filmPoster(film)} title={filmTitle(film)} />
                   ))}
                 </div>
               </div>
@@ -200,12 +214,8 @@ export default function ProfileScreen() {
                     Passed
                   </p>
                   <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                    {dislikedFilms.map((film: any, i: number) => (
-                      <PosterThumb
-                        key={i}
-                        posterPath={film?.posterPath ?? film?.poster_path}
-                        title={typeof film === 'string' ? film : film?.title}
-                      />
+                    {dislikedFilms.map((film, i) => (
+                      <PosterThumb key={i} posterPath={filmPoster(film)} title={filmTitle(film)} />
                     ))}
                   </div>
                 </div>

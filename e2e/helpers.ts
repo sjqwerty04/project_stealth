@@ -93,6 +93,81 @@ export async function completeOnboarding(page: Page) {
   await page.waitForURL(/\/app/, { timeout: 20000 });
 }
 
+export const THEATER_FIXTURE = {
+  fingerprint: 'e2e-theater-fixture',
+  title: 'Men who are good at their jobs and lose anyway',
+  facets: ['COMPETENCE PORN', 'NOBODY WINS'] as [string, string],
+  insight: 'You keep landing on people whose craft is the exact thing that ruins them.',
+  swatches: ['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20'],
+  lineup: [
+    [5511, 'Le Samouraï', '1967', 'A contract killer follows his routine flawlessly and it still closes on him.'],
+    [9526, 'To Live and Die in L.A.', '1985', 'A Secret Service agent so good at the chase he becomes the crime.'],
+    [1538, 'Collateral', '2004', 'One long night where the professional and the amateur both lose the map.'],
+    [31672, 'The Friends of Eddie Coyle', '1973', 'Every hood in Boston knows his trade and none of it saves Eddie.'],
+    [24559, 'Sorcerer', '1977', 'Four experts drive nitroglycerin through a jungle that does not care.'],
+    [379, "Miller's Crossing", '1990', 'Tom plays every angle in the room and still ends up alone.'],
+    [273481, 'Sicario', '2015', 'Kate does everything right and learns the job was never hers.'],
+    [10858, 'Thief', '1981', 'Frank builds the whole life on paper and burns every page of it.'],
+  ] as [number, string, string, string][],
+};
+
+/** The signed-in uid, read where the Firebase SDK keeps it. IndexedDB is the default, localStorage the fallback. */
+export async function currentUid(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const localKey = Object.keys(localStorage).find((key) => key.startsWith('firebase:authUser:'));
+    if (localKey) return (JSON.parse(localStorage.getItem(localKey) as string) as { uid: string }).uid;
+
+    const store = await new Promise<IDBDatabase>((resolve, reject) => {
+      const open = indexedDB.open('firebaseLocalStorageDb');
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const uid = await new Promise<string | null>((resolve, reject) => {
+      const rows = store.transaction('firebaseLocalStorage', 'readonly').objectStore('firebaseLocalStorage').getAll();
+      rows.onsuccess = () => {
+        const entries = rows.result as { fbase_key?: string; value?: { uid?: string } }[];
+        const row = entries.find((entry) => entry.fbase_key?.startsWith('firebase:authUser:'));
+        resolve(row?.value?.uid ?? null);
+      };
+      rows.onerror = () => reject(rows.error);
+    });
+    if (!uid) throw new Error('no signed-in Firebase user');
+    return uid;
+  });
+}
+
+export async function seedShowingTheater(page: Page) {
+  const theater = {
+    title: THEATER_FIXTURE.title,
+    facets: THEATER_FIXTURE.facets,
+    insight: THEATER_FIXTURE.insight,
+    swatches: THEATER_FIXTURE.swatches,
+    sourceFilmIds: [10858],
+    lineup: THEATER_FIXTURE.lineup.map(([id, title, year, reason]) => ({
+      id,
+      title,
+      year,
+      posterPath: null,
+      backdropPath: null,
+      genres: ['Crime'],
+      director: 'Michael Mann',
+      mediaType: 'movie',
+      reason,
+    })),
+  };
+  const uid = await currentUid(page);
+  await page.evaluate(
+    ({ theater, fingerprint, uid }) => {
+      sessionStorage.setItem(
+        `theater-session:v1:${uid}`,
+        JSON.stringify({ status: 'showing', theater, signals: [], fingerprint, lastActiveAt: Date.now() }),
+      );
+    },
+    { theater, fingerprint: THEATER_FIXTURE.fingerprint, uid },
+  );
+  await page.reload();
+}
+
 export async function gate(page: Page, flowId: string, viewport: string) {
   const report = await runThresholds(page, flowId, viewport);
   if (!report.pass) {
