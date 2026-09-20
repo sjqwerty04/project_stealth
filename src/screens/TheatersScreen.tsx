@@ -107,7 +107,7 @@ function TheaterSheet({ theater, onClose }: { theater: KeptTheater; onClose: () 
 export default function TheatersScreen() {
   const navigate = useNavigate();
   const { theaters, loading, error } = useTheaters();
-  const { films } = useLibrary();
+  const { films, loading: filmsLoading } = useLibrary();
   const watched = useMemo(() => watchedFilmIds(films), [films]);
   const [selected, setSelected] = useState<KeptTheater | null>(null);
 
@@ -118,7 +118,7 @@ export default function TheatersScreen() {
         <p className="mt-2 font-spec text-label tracking-widest text-fg-3">FACETS YOU KEPT WALKING BACK INTO</p>
 
         <div className="mt-6 flex flex-col gap-3">
-          {loading ? (
+          {loading || filmsLoading ? (
             <div className="flex justify-center py-16">
               <SelectsChaseLoader size="lg" />
             </div>
