@@ -48,11 +48,23 @@ body {
   margin: 0;
   background-color: var(--base);
   color: var(--fg);
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   font-family: var(--font-display);
-  padding-top: env(safe-area-inset-top);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Owns the visible viewport so screens size against it instead of guessing at 100dvh themselves. */
+.app-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+}
+
+/* A locked route gets a definite height, so its own scrollport scrolls and the document does not. */
+.app-shell-locked {
+  height: 100dvh;
+  overflow: hidden;
 }
 
 h1, h2, h3 {

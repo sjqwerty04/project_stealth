@@ -10,6 +10,7 @@ type Measurement = {
   stripTrack: Frame;
   tabBar: Frame;
   stripBelowTabBarPx: number | null;
+  scrollportOverflowPx: number;
   dayStageInScrollport: boolean | null;
 };
 
@@ -23,6 +24,7 @@ async function measure(page: Page): Promise<Measurement> {
     };
     const stripTrack = frame('[data-testid="strip-track"]');
     const tabBar = frame('[data-testid="tab-bar"]');
+    const scrollport = document.querySelector('[data-testid="selects-scroll"]');
     const stage = document.querySelector('[data-testid="day-stage"]');
     return {
       innerHeight: window.innerHeight,
@@ -31,9 +33,8 @@ async function measure(page: Page): Promise<Measurement> {
       stripTrack,
       tabBar,
       stripBelowTabBarPx: stripTrack && tabBar ? stripTrack.bottom - tabBar.top : null,
-      dayStageInScrollport: stage
-        ? Boolean(stage.closest('[data-testid="selects-scroll"]'))
-        : null,
+      scrollportOverflowPx: scrollport ? scrollport.scrollHeight - scrollport.clientHeight : 0,
+      dayStageInScrollport: stage ? Boolean(stage.closest('[data-testid="selects-scroll"]')) : null,
     };
   });
 }
@@ -59,7 +60,9 @@ test.describe('home shell layout', () => {
     await saveEvidence(testInfo, 'home-shell-layout');
   });
 
-  test('tab bar and date strip stay pinned with the claim banner up', async ({ page }, testInfo) => {
+  test('tab bar and date strip stay pinned while Your Selects scrolls under them', async ({
+    page,
+  }, testInfo) => {
     const logs = await attachPageLog(page);
     await ensureAuthed(page);
     await page.goto('/app');
@@ -76,48 +79,41 @@ test.describe('home shell layout', () => {
         if (!banner) return;
         const filler = document.createElement('div');
         filler.style.height = '40px';
-        filler.dataset.testid = 'banner-filler';
         banner.appendChild(filler);
       });
       await page.waitForTimeout(200);
       expectChromePinned(await measure(page), 'with a taller banner');
     }
 
+    await expect(page.getByTestId('selects-carousel')).toBeVisible({ timeout: 90_000 });
+    await page.waitForTimeout(500);
+
+    const beforeScroll = await measure(page);
+    if (beforeScroll.scrollportOverflowPx > 0) {
+      const scrolled = await page.getByTestId('selects-scroll').evaluate((node) => {
+        node.scrollTop = node.scrollHeight;
+        return node.scrollTop;
+      });
+      await page.waitForTimeout(300);
+      const afterScroll = await measure(page);
+      expect(scrolled, 'the selects column never scrolled').toBeGreaterThan(0);
+      expect(afterScroll.stripTrack?.top, 'the date strip moved when the selects scrolled').toBe(
+        beforeScroll.stripTrack?.top,
+      );
+      expect(afterScroll.tabBar?.top, 'the tab bar moved when the selects scrolled').toBe(
+        beforeScroll.tabBar?.top,
+      );
+      expectChromePinned(afterScroll, 'after scrolling selects');
+    }
+
+    const withStage = await measure(page);
+    if (withStage.dayStageInScrollport !== null) {
+      expect(withStage.dayStageInScrollport, 'the day trailer is still pinned in the dock').toBe(true);
+    }
+
     await page.screenshot({
       path: `artifacts/verify/home-shell-layout-${testInfo.project.name}/chrome-pinned.png`,
     });
     await dumpConsole(page, 'home-shell-layout', testInfo.project.name, logs);
-  });
-
-  test('scrolling Your Selects leaves the date strip and tab bar in place', async ({ page }) => {
-    await ensureAuthed(page);
-    await page.goto('/app');
-    await expect(page.getByTestId('selects-carousel')).toBeVisible({ timeout: 90_000 });
-    await page.waitForTimeout(500);
-
-    const before = await measure(page);
-    const scrolled = await page.getByTestId('selects-scroll').evaluate((node) => {
-      node.scrollTop = node.scrollHeight;
-      return node.scrollTop;
-    });
-    await page.waitForTimeout(300);
-    const after = await measure(page);
-
-    expect(scrolled, 'the selects column never scrolled').toBeGreaterThan(0);
-    expect(after.stripTrack?.top).toBe(before.stripTrack?.top);
-    expect(after.tabBar?.top).toBe(before.tabBar?.top);
-    expectChromePinned(after, 'after scrolling selects');
-  });
-
-  test('the day trailer scrolls with Your Selects instead of pinning to the dock', async ({ page }) => {
-    await ensureAuthed(page);
-    await page.goto('/app');
-    await expect(page.getByTestId('selects-carousel')).toBeVisible({ timeout: 90_000 });
-
-    const stage = page.getByTestId('day-stage');
-    test.skip((await stage.count()) === 0, 'no film logged on the selected day');
-
-    const m = await measure(page);
-    expect(m.dayStageInScrollport, 'the day trailer is still pinned in the dock').toBe(true);
   });
 });

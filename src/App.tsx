@@ -3,7 +3,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ExplorationProvider } from './contexts/ExplorationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import FeedbackFAB from './components/FeedbackFAB';
-import ClaimHandleBanner from './components/ClaimHandleBanner';
 import PWAUpdatePrompt from './components/PWAUpdatePrompt';
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -34,7 +33,6 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ExplorationProvider>
-          <ClaimHandleBanner />
           <AppShell>
           <Routes>
             <Route path="/" element={<SplashScreen />} />

@@ -90,10 +90,7 @@ export default function ClaimHandleBanner() {
 
   return (
     <>
-      <div
-        className="sticky top-0 z-40 bg-base-3 text-fg text-sm border-b border-line"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
+      <div className="sticky top-0 z-40 shrink-0 bg-base-3 text-fg text-sm border-b border-line">
         <div className="max-w-md mx-auto px-4 py-2 flex items-center gap-3">
           <AtSign size={16} className="shrink-0" />
           <span className="flex-1 leading-snug">
