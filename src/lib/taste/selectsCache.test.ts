@@ -59,6 +59,16 @@ describe('selectsCache', () => {
     expect(readSelectsCache('u3')?.picks[0].title).toBe('Heat');
   });
 
+  it('heals a trio that an older build cached with the same film three times', () => {
+    const collateral = picks[0];
+    writeSelectsCache('u-dupe', [collateral, { ...collateral, whyMatch: 'Second copy.' }, picks[1]], 1000);
+    forgetSelectsCacheMemory('u-dupe');
+
+    const hit = readSelectsCache('u-dupe');
+    expect(hit?.picks.map((p) => p.movieId)).toEqual([1538, 11524]);
+    expect(hit?.at).toBe(1000);
+  });
+
   it('isolates cache entries by UID', () => {
     writeSelectsCache('user-a', picks, 100);
     expect(readSelectsCache('user-b')).toBeNull();

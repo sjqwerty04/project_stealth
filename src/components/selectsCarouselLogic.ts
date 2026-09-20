@@ -42,6 +42,27 @@ function firstMention(why: string, needle: string): { start: number; end: number
   return { start, end: start + needle.length };
 }
 
+/**
+ * Films whose posters can illustrate why copy, in priority order. A film rated
+ * straight from Selects never gets a logged night, and an onboarding pick lands
+ * in neither, so all three sources have to be offered.
+ */
+export function relatedPosterPool(
+  ...sources: { title: string; poster?: string }[][]
+): { title: string; poster?: string }[] {
+  const pool: { title: string; poster?: string }[] = [];
+  const seen = new Set<string>();
+  for (const row of sources.flat()) {
+    const title = row.title?.trim();
+    if (!title || !row.poster) continue;
+    const key = title.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pool.push({ title, poster: row.poster });
+  }
+  return pool;
+}
+
 /** Diary films named in whyMatch, in mention order. Exclude the current film, cap at two. */
 export function relatedFromWhy(
   whyMatch: string | undefined,

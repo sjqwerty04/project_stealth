@@ -5,11 +5,47 @@ import { SelectCard } from './SelectsCarousel';
 import {
   loopingSlides,
   relatedFromWhy,
+  relatedPosterPool,
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_MS,
   slideIdentityKey,
   snapLoopIndex,
 } from './selectsCarouselLogic';
+
+describe('related poster pool', () => {
+  it('finds a film rated from Selects, which has a ledger poster but no logged night', () => {
+    const nights = [{ title: 'The Dark Knight', poster: 'tdk.jpg' }];
+    const ledger = [
+      { title: 'The Dark Knight', poster: 'tdk.jpg' },
+      { title: 'The Prestige', poster: 'prestige.jpg' },
+    ];
+
+    const pool = relatedPosterPool(nights, ledger);
+    expect(pool).toEqual([
+      { title: 'The Dark Knight', poster: 'tdk.jpg' },
+      { title: 'The Prestige', poster: 'prestige.jpg' },
+    ]);
+
+    expect(
+      relatedFromWhy(
+        'The Prestige and The Dark Knight already proved you want story architecture, and Inception is built the same way.',
+        pool,
+        'Inception',
+      ),
+    ).toEqual([
+      { title: 'The Prestige', poster: 'prestige.jpg' },
+      { title: 'The Dark Knight', poster: 'tdk.jpg' },
+    ]);
+  });
+
+  it('drops ledger films with no poster and prefers the logged night', () => {
+    const pool = relatedPosterPool(
+      [{ title: 'Heat', poster: 'night.jpg' }],
+      [{ title: 'heat', poster: 'ledger.jpg' }, { title: 'Thief', poster: '' }],
+    );
+    expect(pool).toEqual([{ title: 'Heat', poster: 'night.jpg' }]);
+  });
+});
 
 describe('selects carousel loop', () => {
   const slides = [{ id: 1 }, { id: 2 }, { id: 3 }];
