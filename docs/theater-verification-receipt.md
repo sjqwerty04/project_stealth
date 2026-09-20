@@ -1,6 +1,6 @@
 # Theater verification receipt
 
-Head: `37d28ed` on `brranchhtheater-film-detail-7375`.
+Head: `952b431` on `brranchhtheater-film-detail-7375`.
 Tip PR: https://github.com/sjqwerty04/project_stealth/pull/31
 Root PR: https://github.com/sjqwerty04/project_stealth/pull/21
 
