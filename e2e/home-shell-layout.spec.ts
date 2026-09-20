@@ -10,6 +10,7 @@ type Measurement = {
   stripTrack: Frame;
   tabBar: Frame;
   stripBelowTabBarPx: number | null;
+  fabOverlapsDockPx: number | null;
   scrollportOverflowPx: number;
   dayStageInScrollport: boolean | null;
 };
@@ -24,6 +25,8 @@ async function measure(page: Page): Promise<Measurement> {
     };
     const stripTrack = frame('[data-testid="strip-track"]');
     const tabBar = frame('[data-testid="tab-bar"]');
+    const dock = frame('[data-testid="strip-dock"]');
+    const fab = frame('button[aria-label="Send feedback"]');
     const scrollport = document.querySelector('[data-testid="selects-scroll"]');
     const stage = document.querySelector('[data-testid="day-stage"]');
     return {
@@ -33,6 +36,7 @@ async function measure(page: Page): Promise<Measurement> {
       stripTrack,
       tabBar,
       stripBelowTabBarPx: stripTrack && tabBar ? stripTrack.bottom - tabBar.top : null,
+      fabOverlapsDockPx: fab && dock ? fab.bottom - dock.top : null,
       scrollportOverflowPx: scrollport ? scrollport.scrollHeight - scrollport.clientHeight : 0,
       dayStageInScrollport: stage ? Boolean(stage.closest('[data-testid="selects-scroll"]')) : null,
     };
@@ -47,6 +51,10 @@ function expectChromePinned(m: Measurement, label: string) {
     `${label}: date strip runs ${m.stripBelowTabBarPx}px past the top of the tab bar`,
   ).toBeLessThanOrEqual(1);
   expect(m.docOverflowPx, `${label}: the page scrolls by ${m.docOverflowPx}px`).toBeLessThanOrEqual(1);
+  expect(
+    m.fabOverlapsDockPx,
+    `${label}: the feedback button covers ${m.fabOverlapsDockPx}px of the date dock`,
+  ).toBeLessThanOrEqual(1);
 }
 
 test.describe('home shell layout', () => {

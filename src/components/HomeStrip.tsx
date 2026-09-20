@@ -333,6 +333,7 @@ export default function HomeStrip({
   } = useRecommendation({ events });
   const { byId: library } = useLibrary();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
+  const dockRef = useRef<HTMLDivElement | null>(null);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
   const earliest = useMemo(() => {
@@ -397,6 +398,21 @@ export default function HomeStrip({
     setSelected(parsed);
     setStageOpen(true);
   }, [dateParam]);
+
+  // Floating chrome anchored to the tab bar has to clear the dock, or it sits on the dates.
+  useEffect(() => {
+    const dock = dockRef.current;
+    if (!dock) return;
+    const apply = () =>
+      document.documentElement.style.setProperty('--home-dock-h', `${dock.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(dock);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--home-dock-h');
+    };
+  }, []);
 
   useEffect(() => {
     const track = stripTrackRef.current;
@@ -492,7 +508,7 @@ export default function HomeStrip({
         <div className="min-h-11" data-testid="selects-dismiss" />
       </div>
 
-      <div className="shrink-0 bg-base pt-3" data-testid="strip-dock">
+      <div ref={dockRef} className="shrink-0 bg-base pt-3" data-testid="strip-dock">
         {dayFilm ? (
           <button
             type="button"

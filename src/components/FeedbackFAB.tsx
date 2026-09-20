@@ -11,7 +11,8 @@ export default function FeedbackFAB() {
         onClick={() => setIsModalOpen(true)}
         className="fixed right-4 z-40 w-11 h-11 bg-base-3 border border-line text-fg flex items-center justify-center"
         style={{
-          bottom: 'calc(var(--tab-h) + env(safe-area-inset-bottom) + 12px)',
+          bottom:
+            'calc(var(--tab-h) + env(safe-area-inset-bottom) + var(--home-dock-h, 0px) + 12px)',
           borderRadius: 0,
         }}
         title="Send Feedback"
