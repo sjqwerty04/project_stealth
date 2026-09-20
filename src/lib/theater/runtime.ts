@@ -6,6 +6,7 @@ import type { TheaterWriter } from './legacyStore';
 import type { TheaterTasteEvent } from '../taste/types';
 import {
   THEATER_DOC_SCHEMA,
+  type Swatches,
   type Theater,
   type TheaterDoc,
   type TheaterEvent,
@@ -183,13 +184,14 @@ export type TheaterCardModel = {
   title: string | null;
   facets: [string, string] | null;
   insight: string | null;
+  swatches: Swatches | null;
   lineup: TheaterLineupItem[];
 };
 
 export function theaterCardModel(session: TheaterSession): TheaterCardModel | null {
   switch (session.status) {
     case 'inferring':
-      return { status: 'inferring', title: null, facets: null, insight: null, lineup: [] };
+      return { status: 'inferring', title: null, facets: null, insight: null, swatches: null, lineup: [] };
     case 'showing':
     case 'kept':
       return {
@@ -197,6 +199,7 @@ export function theaterCardModel(session: TheaterSession): TheaterCardModel | nu
         title: session.theater.title,
         facets: session.theater.facets,
         insight: session.theater.insight,
+        swatches: session.theater.swatches,
         lineup: session.theater.lineup,
       };
     default:

@@ -92,6 +92,13 @@ export function finiteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+/** Normalize a stored instant to epoch milliseconds. Firestore hands back `{ seconds }`, older writes hand back a number. */
+export function timestampMillis(value: unknown): number | null {
+  if (finiteNumber(value)) return value;
+  if (isRecord(value) && finiteNumber(value.seconds)) return value.seconds * 1000;
+  return null;
+}
+
 function nullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string';
 }
@@ -110,7 +117,7 @@ export function parseFacets(value: unknown): [string, string] | null {
   return nonEmptyString(a) && nonEmptyString(b) ? [a.trim(), b.trim()] : null;
 }
 
-function parseSwatches(value: unknown): Swatches | null {
+export function parseSwatches(value: unknown): Swatches | null {
   if (!Array.isArray(value) || value.length !== 4) return null;
   const [a, b, c, d]: unknown[] = value;
   return isHexColor(a) && isHexColor(b) && isHexColor(c) && isHexColor(d) ? [a, b, c, d] : null;

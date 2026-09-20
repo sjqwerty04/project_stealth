@@ -261,7 +261,14 @@ describe('dwellSignal', () => {
 describe('theaterCardModel', () => {
   it('shows the inferring shell with no model copy', () => {
     const inferring: TheaterSession = { status: 'inferring', signals: TRAIL, revision: 1, fingerprint: TRAIL_FINGERPRINT, lastActiveAt: 100 };
-    expect(theaterCardModel(inferring)).toEqual({ status: 'inferring', title: null, facets: null, insight: null, lineup: [] });
+    expect(theaterCardModel(inferring)).toEqual({
+      status: 'inferring',
+      title: null,
+      facets: null,
+      insight: null,
+      swatches: null,
+      lineup: [],
+    });
   });
 
   it('carries title, facets, insight, and the eight lineup reasons for showing and kept', () => {
@@ -270,6 +277,7 @@ describe('theaterCardModel', () => {
       expect(model?.title).toBe('Men who are good at their jobs and lose anyway');
       expect(model?.facets).toEqual(['COMPETENCE PORN', 'NOBODY WINS']);
       expect(model?.insight).toBe(INSIGHT);
+      expect(model?.swatches).toEqual(FALLBACK_SWATCHES);
       expect(model?.lineup.map((item) => item.reason)).toEqual(LINEUP_ROWS.map(([, , , reason]) => reason));
     }
   });

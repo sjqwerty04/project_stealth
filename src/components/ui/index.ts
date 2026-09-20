@@ -7,3 +7,5 @@ export { default as TicketStub } from './TicketStub';
 export { default as BarUnit } from './BarUnit';
 export { default as Skeleton } from './Skeleton';
 export { default as SelectsChaseLoader } from './SelectsChaseLoader';
+export { default as SwatchStrip } from './SwatchStrip';
+export { default as FacetLine } from './FacetLine';

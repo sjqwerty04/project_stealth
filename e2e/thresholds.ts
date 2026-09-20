@@ -9,12 +9,8 @@ export type ThresholdReport = {
   failures: { id: string; detail: string }[];
 };
 
-const ACCENT = /rgb\(\s*255,\s*59,\s*20\s*\)|#ff3b14/i;
-
 export async function runThresholds(page: Page, flowId: string, viewport: string): Promise<ThresholdReport> {
-  const failures: { id: string; detail: string }[] = [];
-
-  const result = await page.evaluate(() => {
+  const failures = await page.evaluate(() => {
     const issues: { id: string; detail: string }[] = [];
     const interactive = Array.from(
       document.querySelectorAll(
@@ -44,18 +40,26 @@ export async function runThresholds(page: Page, flowId: string, viewport: string
       }
     }
 
-    const accentEls: string[] = [];
+    const isAccent = (value: string) => /rgb\(\s*255,\s*59,\s*20\s*\)|#ff3b14/i.test(value);
+    const accentRoles = new Set<string>();
     const all = Array.from(document.querySelectorAll('body *')) as HTMLElement[];
     for (const el of all) {
       const cs = window.getComputedStyle(el);
-      const fill = el.getAttribute('fill') || '';
-      const blob = `${cs.color} ${cs.backgroundColor} ${cs.borderColor} ${fill}`;
-      if (/rgb\(\s*255,\s*59,\s*20\s*\)|#ff3b14/i.test(blob)) {
-        accentEls.push(el.tagName + (el.getAttribute('data-testid') || ''));
-      }
+      // An unset border-color resolves to currentColor, so a border only counts accent when it has width.
+      const borderAccent = ['top', 'right', 'bottom', 'left'].some(
+        (side) =>
+          parseFloat(cs.getPropertyValue(`border-${side}-width`)) > 0 &&
+          isAccent(cs.getPropertyValue(`border-${side}-color`)),
+      );
+      const painted = borderAccent || isAccent(cs.backgroundColor) || isAccent(el.getAttribute('fill') || '');
+      const parent = el.parentElement;
+      const ownText = isAccent(cs.color) && !(parent && isAccent(window.getComputedStyle(parent).color));
+      if (!painted && !ownText) continue;
+      const className = el.getAttribute('class');
+      accentRoles.add(el.getAttribute('data-testid') || `${el.tagName}${className ? `.${className.split(/\s+/)[0]}` : ''}`);
     }
-    if (accentEls.length > 1) {
-      issues.push({ id: 'T5', detail: `accent count ${accentEls.length}: ${accentEls.slice(0, 6).join(',')}` });
+    if (accentRoles.size > 1) {
+      issues.push({ id: 'T5', detail: `accent roles ${accentRoles.size}: ${[...accentRoles].slice(0, 6).join(',')}` });
     }
 
     const primary = document.querySelector('[data-testid="btn-primary"], [data-testid="orbit-cta"]') as HTMLElement | null;
@@ -66,10 +70,12 @@ export async function runThresholds(page: Page, flowId: string, viewport: string
       }
     }
 
-    const heading = document.querySelector('h1, h2, [data-testid="mark-lockup"]');
-    if (heading) {
-      const ff = window.getComputedStyle(heading).fontFamily;
-      if (!/archivo/i.test(ff)) {
+    const headings = Array.from(document.querySelectorAll('h1, h2, [data-testid="mark-lockup"]')) as HTMLElement[];
+    for (const el of headings) {
+      const ff = window.getComputedStyle(el).fontFamily;
+      if (el.hasAttribute('data-spec')) {
+        if (!/martian/i.test(ff)) issues.push({ id: 'T7', detail: `kicker font ${ff}` });
+      } else if (!/archivo/i.test(ff)) {
         issues.push({ id: 'T7', detail: `heading font ${ff}` });
       }
     }
@@ -108,13 +114,6 @@ export async function runThresholds(page: Page, flowId: string, viewport: string
     return issues;
   });
 
-  for (const issue of result) {
-    if (issue.id === 'T5' && /mark/i.test(issue.detail) && (issue.detail.match(/accent count 1/) || issue.detail.includes('count 1'))) {
-      continue;
-    }
-    failures.push(issue);
-  }
-
   const report: ThresholdReport = {
     flowId,
     viewport,
@@ -127,9 +126,3 @@ export async function runThresholds(page: Page, flowId: string, viewport: string
   fs.writeFileSync(path.join(dir, 'thresholds.json'), JSON.stringify(report, null, 2));
   return report;
 }
-
-export function luminanceContrastOk(_fg: string, _bg: string) {
-  return true;
-}
-
-export { ACCENT };

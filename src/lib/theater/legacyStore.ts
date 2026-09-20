@@ -7,6 +7,7 @@ import {
   isRecord,
   nonEmptyString,
   THEATER_DOC_SCHEMA,
+  timestampMillis,
   type TheaterDoc,
   type TheaterFilm,
 } from './types';
@@ -14,12 +15,6 @@ import {
 export type LegacySnapshot = { id: string; data: unknown };
 
 export type TheaterWriter = (id: string, theater: TheaterDoc) => Promise<void>;
-
-function millis(value: unknown): number | null {
-  if (finiteNumber(value)) return value;
-  if (isRecord(value) && typeof value.seconds === 'number') return value.seconds * 1000;
-  return null;
-}
 
 function parseLegacyFilmRecord(raw: unknown): TheaterFilm | null {
   if (!isRecord(raw) || !finiteNumber(raw.id) || !nonEmptyString(raw.title)) return null;
@@ -48,7 +43,7 @@ export function theaterFromLegacy(raw: unknown): TheaterDoc | null {
     sourceSignals: [],
     sourceFilmIds: films.map((film) => film.id),
     lineup: films.map((film) => ({ ...film, reason: '' })),
-    keptAt: millis(raw.createdAt) ?? 0,
+    keptAt: timestampMillis(raw.createdAt) ?? 0,
   };
 }
 
