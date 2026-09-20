@@ -625,7 +625,7 @@ export default function MovieDetailScreen() {
                     <span className="min-w-0">
                       <span className="block text-[15px] leading-tight text-fg">
                         {row.title}
-                        <span className="ml-1">{row.year}</span>
+                        <span> {row.year}</span>
                       </span>
                       {row.reason && (
                         <span
