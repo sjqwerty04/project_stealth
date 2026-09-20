@@ -30,7 +30,7 @@ export default defineConfig({
     },
     {
       name: 'phone-se',
-      testMatch: /home-strip-why\.spec\.ts/,
+      testMatch: /home-(shell-layout|strip-why)\.spec\.ts/,
       use: { viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true },
     },
     {
