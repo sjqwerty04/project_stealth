@@ -89,25 +89,6 @@ export function forgetSelectsCacheMemory(uid: string) {
   memory.delete(uid);
 }
 
-export function clearSelectsCache(uid: string) {
-  memory.delete(uid);
-  persist.delete(storageKey(uid));
-  if (typeof localStorage !== 'undefined') {
-    try {
-      localStorage.removeItem(storageKey(uid));
-    } catch {
-      // ignore
-    }
-  }
-  if (typeof sessionStorage !== 'undefined') {
-    try {
-      sessionStorage.removeItem(storageKey(uid));
-    } catch {
-      // ignore
-    }
-  }
-}
-
 export function resetSelectsCacheForTesting() {
   memory.clear();
   persist.clear();

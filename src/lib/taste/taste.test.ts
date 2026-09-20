@@ -213,22 +213,18 @@ describe('applyTasteEvent', () => {
     expect(next.generated.lastPicks[0].title).toBe('Sicario');
   });
 
-  it('busts last picks on a rec verdict so the rated film cannot reuse the 6h cache', () => {
+  it('retires only the rated film from last picks and keeps the rest of the trio', () => {
+    const pick = (movieId: number, title: string) => ({
+      movieId,
+      title,
+      year: 2017,
+      poster: 'x',
+      whyMatch: `${title}.`,
+      confidence: 0.9,
+    });
     const seeded = applyTasteEvent(
       emptySnapshot(),
-      {
-        type: 'last_picks',
-        picks: [
-          {
-            movieId: 263115,
-            title: 'Logan',
-            year: 2017,
-            poster: 'x',
-            whyMatch: 'Wolverine, finally tired.',
-            confidence: 0.9,
-          },
-        ],
-      },
+      { type: 'last_picks', picks: [pick(263115, 'Logan'), pick(949, 'Heat'), pick(1949, 'Zodiac')] },
       'e0',
     );
     const next = applyTasteEvent(
@@ -237,8 +233,29 @@ describe('applyTasteEvent', () => {
       'e1',
     );
     expect(next.context.history.some((row) => row.item === 'Logan')).toBe(true);
-    expect(next.generated.lastPicks).toEqual([]);
-    expect(next.generated.lastPicksAt).toBeNull();
+    expect(next.generated.lastPicks.map((p) => p.title)).toEqual(['Heat', 'Zodiac']);
+    expect(next.generated.lastPicksAt).toBe(seeded.generated.lastPicksAt);
+  });
+
+  it('retires a logged film from last picks without clearing the list', () => {
+    const seeded = applyTasteEvent(
+      emptySnapshot(),
+      {
+        type: 'last_picks',
+        picks: [
+          { movieId: 949, title: 'Heat', year: 1995, poster: 'x', whyMatch: 'Heat.', confidence: 0.9 },
+          { movieId: 1949, title: 'Zodiac', year: 2007, poster: 'y', whyMatch: 'Zodiac.', confidence: 0.9 },
+        ],
+      },
+      'e0',
+    );
+    const next = applyTasteEvent(
+      seeded,
+      { type: 'calendar_log', movieId: 949, title: 'Heat', date: '2026-09-20' },
+      'e1',
+    );
+    expect(next.generated.lastPicks.map((p) => p.title)).toEqual(['Zodiac']);
+    expect(next.generated.lastPicksAt).toBe(seeded.generated.lastPicksAt);
   });
 });
 
