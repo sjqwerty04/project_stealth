@@ -1,5 +1,4 @@
-import type { FilmAdjacency, FilmNeighbor, NeighborAxis } from './types';
-import { ADJACENCY_MAX_NEIGHBORS } from './types';
+import { ADJACENCY_MAX_NEIGHBORS, type FilmAdjacency, type FilmNeighbor, type NeighborAxis } from './types.js';
 
 const AXES: NeighborAxis[] = ['story', 'visual', 'mood'];
 
