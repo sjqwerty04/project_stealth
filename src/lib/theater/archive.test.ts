@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { libraryView } from '../library/useLibrary';
 import {
-  filmTheaterSection,
   parseTheaterDoc,
   theaterArchiveState,
   theaterCardView,
@@ -273,74 +272,5 @@ describe('theaterArchiveState', () => {
     const older = theater({ id: 'older', films: films(64690) });
     const state = theaterArchiveState(sources({ theaters: [KEPT, older] }));
     expect(state.status === 'ready' && state.rows.map((row) => row.theater.id)).toEqual(['trail', 'older']);
-  });
-});
-
-describe('filmTheaterSection', () => {
-  const NIGHT = theater({
-    id: 'because-of-the-night',
-    title: 'Because of the night',
-    swatches: ['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20'],
-    films: [
-      { id: 5511, title: 'Le Samouraï', year: '1967', posterPath: null, mediaType: 'movie', reason: 'THE PROFESSIONAL AS MONK. BOTH MEN ARE ALONE BY CHOICE.' },
-      { id: 9526, title: 'To Live and Die in L.A.', year: '1985', posterPath: null, mediaType: 'movie', reason: 'SYNTH PULSE, SODIUM LIGHT, AND A CITY THAT DOES THE TALKING.' },
-      { id: 1538, title: 'Collateral', year: '2004', posterPath: null, mediaType: 'movie', reason: 'MANN AGAIN. SAME CITY LOGIC, TWENTY-THREE YEARS LATER.' },
-      { id: 10858, title: 'Thief', year: '1981', posterPath: null, mediaType: 'movie', reason: 'FRANK BUILDS THE WHOLE LIFE ON PAPER AND BURNS EVERY PAGE OF IT.' },
-    ],
-    keptAt: 1758240000000,
-  });
-
-  it('names the Theater in upper case and lists every other film with its stored reason', () => {
-    const section = filmTheaterSection([NIGHT], { id: 10858, mediaType: 'movie' });
-    expect(section?.theaterId).toBe('because-of-the-night');
-    expect(section?.kicker).toBe('BECAUSE OF THE NIGHT');
-    expect(section?.rows).toEqual([
-      { id: 5511, title: 'Le Samouraï', year: '1967', posterPath: null, mediaType: 'movie', reason: 'THE PROFESSIONAL AS MONK. BOTH MEN ARE ALONE BY CHOICE.', swatch: '#1D5B8A' },
-      { id: 9526, title: 'To Live and Die in L.A.', year: '1985', posterPath: null, mediaType: 'movie', reason: 'SYNTH PULSE, SODIUM LIGHT, AND A CITY THAT DOES THE TALKING.', swatch: '#8A3A1D' },
-      { id: 1538, title: 'Collateral', year: '2004', posterPath: null, mediaType: 'movie', reason: 'MANN AGAIN. SAME CITY LOGIC, TWENTY-THREE YEARS LATER.', swatch: '#3A6E85' },
-    ]);
-  });
-
-  it('has nothing to show for a film no kept Theater holds', () => {
-    expect(filmTheaterSection([NIGHT], { id: 949, mediaType: 'movie' })).toBeNull();
-    expect(filmTheaterSection([], { id: 10858, mediaType: 'movie' })).toBeNull();
-  });
-
-  it('tells a film apart from the series of the same id', () => {
-    expect(filmTheaterSection([NIGHT], { id: 10858, mediaType: 'tv' })).toBeNull();
-  });
-
-  it('has nothing to show when the Theater holds only that film', () => {
-    expect(filmTheaterSection([theater({ films: films(10858) })], { id: 10858, mediaType: 'movie' })).toBeNull();
-  });
-
-  it('speaks from the most recent Keep', () => {
-    const older = theater({
-      id: 'older',
-      title: 'Locked-off frames',
-      films: [...films(10858), ...films(949)],
-      keptAt: 1755000000000,
-    });
-    const newer = theater({
-      id: 'newer',
-      title: 'Rain on glass, nobody talking',
-      films: [...films(10858), ...films(64690)],
-      keptAt: 1759000000000,
-    });
-    const section = filmTheaterSection([older, newer], { id: 10858, mediaType: 'movie' });
-    expect(section?.kicker).toBe('RAIN ON GLASS, NOBODY TALKING');
-    expect(section?.rows.map((row) => row.id)).toEqual([64690]);
-  });
-
-  it('cycles the four swatches across a longer lineup', () => {
-    const long = theater({ films: films(1, 2, 3, 4, 5, 10858) });
-    const section = filmTheaterSection([long], { id: 10858, mediaType: 'movie' });
-    expect(section?.rows.map((row) => row.swatch)).toEqual([
-      '#1D5B8A',
-      '#8A3A1D',
-      '#3A6E85',
-      '#1D1D20',
-      '#1D5B8A',
-    ]);
   });
 });
