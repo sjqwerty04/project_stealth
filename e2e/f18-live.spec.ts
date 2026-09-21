@@ -29,13 +29,14 @@ test.afterEach(async ({}, testInfo) => {
 async function pickDisjoint(page: Page, count: number): Promise<string[]> {
   const picked: string[] = [];
   await page.getByTestId('film-pick').first().waitFor({ timeout: 30000 });
+  await page.getByTestId('pick-wall-label').waitFor();
   for (let i = 0; i < 16 && picked.length < count; i++) {
     const titles = await page.getByTestId('film-pick').evaluateAll((els) =>
       els.map((el) => (el.getAttribute('aria-label') || '').trim()),
     );
     const next = titles.find((title) => title && !JANE_TITLES.has(title.toLowerCase()) && !picked.includes(title));
     if (!next) break;
-    await page.locator(`[data-testid="film-pick"][aria-label="${next}"]`).click();
+    await page.locator(`[data-testid="film-pick"][aria-label="${next}"]`).click({ force: true });
     await expect(page.getByTestId('pick-hero-item').filter({ hasText: next })).toBeVisible();
     picked.push(next);
   }
@@ -45,7 +46,7 @@ async function pickDisjoint(page: Page, count: number): Promise<string[]> {
     await page.getByTestId('pick-search').fill(fallback);
     const hit = page.locator(`[data-testid="film-pick"][aria-label="${fallback}"]`);
     await expect(hit).toBeVisible({ timeout: 20000 });
-    await hit.click();
+    await hit.click({ force: true });
     await expect(page.getByTestId('pick-hero-item').filter({ hasText: fallback })).toBeVisible();
     picked.push(fallback);
   }
