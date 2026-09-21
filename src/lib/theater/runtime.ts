@@ -7,12 +7,10 @@ import type { TheaterWriter } from './legacyStore';
 import type { TheaterTasteEvent } from '../taste/types';
 import {
   THEATER_DOC_SCHEMA,
-  type Swatches,
   type Theater,
   type TheaterDoc,
   type TheaterEvent,
   type TheaterFilm,
-  type TheaterLineupItem,
   type TheaterSession,
   type TheaterSignal,
 } from './types';
@@ -61,12 +59,15 @@ export function nextDeadline(session: TheaterSession, now: number): TheaterDeadl
 export type TheaterInfer = (signals: readonly TheaterSignal[], signal: AbortSignal) => Promise<Theater | null>;
 
 export function theaterInference(tmdbApiKey: string, posterColors: PosterColors = theaterPosterColors()): TheaterInfer {
-  return (signals, signal) =>
-    inferTheater(signals, {
+  return async (signals, signal) => {
+    if (signal.aborted) return null;
+    const theater = await inferTheater(signals, {
       llm: theaterLlm,
       searchFilm: tmdbTheaterSearch({ apiKey: tmdbApiKey, fetch: (url) => fetch(url, { signal }) }),
       posterColors,
     });
+    return signal.aborted ? null : theater;
+  };
 }
 
 export type TheaterCancel = () => void;
@@ -178,7 +179,7 @@ export async function keepShowingTheater(session: TheaterSession, deps: KeepDeps
     Promise.resolve(
       deps.recordTaste({ type: 'theater', insight: theater.insight, movieIds: theater.sourceFilmIds }),
     ),
-    Promise.resolve(deps.logKept({ insight: theater.insight, movieCount: theater.lineup.length })),
+    Promise.resolve(deps.logKept({ insight: theater.insight, movieCount: theater.trail.length })),
   ]);
   return fingerprint;
 }
@@ -186,25 +187,27 @@ export async function keepShowingTheater(session: TheaterSession, deps: KeepDeps
 export type TheaterCardModel = {
   status: 'inferring' | 'showing' | 'kept';
   title: string | null;
-  facets: [string, string] | null;
   insight: string | null;
-  swatches: Swatches | null;
-  lineup: TheaterLineupItem[];
+  trail: readonly TheaterFilm[];
 };
 
 export function theaterCardModel(session: TheaterSession): TheaterCardModel | null {
   switch (session.status) {
     case 'inferring':
-      return { status: 'inferring', title: null, facets: null, insight: null, swatches: null, lineup: [] };
+      return { status: 'inferring', title: null, insight: null, trail: filmsOf(session.signals) };
     case 'showing':
+      return {
+        status: 'showing',
+        title: session.theater.title,
+        insight: session.theater.insight,
+        trail: session.theater.trail,
+      };
     case 'kept':
       return {
-        status: session.status,
+        status: 'kept',
         title: session.theater.title,
-        facets: session.theater.facets,
         insight: session.theater.insight,
-        swatches: session.theater.swatches,
-        lineup: session.theater.lineup,
+        trail: session.theater.trail,
       };
     default:
       return null;

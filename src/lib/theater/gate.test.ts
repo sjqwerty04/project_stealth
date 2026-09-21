@@ -23,6 +23,17 @@ const THIEF: TheaterFilm = {
   mediaType: 'movie',
 };
 
+const COLLATERAL: TheaterFilm = {
+  id: 1538,
+  title: 'Collateral',
+  year: '2004',
+  posterPath: '/collateral.jpg',
+  backdropPath: null,
+  genres: ['Crime', 'Thriller'],
+  director: 'Michael Mann',
+  mediaType: 'movie',
+};
+
 const query = (text: string, at: number, mode: QueryMode = 'standard'): TheaterSignal => ({ kind: 'query', text, mode, at });
 const view = (film: TheaterFilm, at: number): TheaterSignal => ({ kind: 'detail_view', film, at });
 
@@ -31,20 +42,24 @@ function collect(...signals: TheaterSignal[]): TheaterSignal[] {
 }
 
 describe('gateOpen', () => {
-  it('opens on two unique queries', () => {
-    expect(gateOpen(collect(query('heat', 0), query('thief', 1)))).toBe(true);
+  it('opens on three unique films', () => {
+    expect(gateOpen(collect(view(HEAT, 0), view(THIEF, 1), view(COLLATERAL, 2)))).toBe(true);
   });
 
-  it('opens on two unique films', () => {
-    expect(gateOpen(collect(view(HEAT, 0), view(THIEF, 1)))).toBe(true);
+  it('stays closed on two unique queries', () => {
+    expect(gateOpen(collect(query('heat', 0), query('thief', 1)))).toBe(false);
   });
 
-  it('opens on one query plus one film', () => {
-    expect(gateOpen(collect(query('heat', 0), view(THIEF, 1)))).toBe(true);
+  it('stays closed on two unique films', () => {
+    expect(gateOpen(collect(view(HEAT, 0), view(THIEF, 1)))).toBe(false);
   });
 
-  it('opens on a single AI-curated query', () => {
-    expect(gateOpen(collect(query('men who are good at their jobs and lose anyway', 0, 'ai-curated')))).toBe(true);
+  it('stays closed on a hunt query plus one film', () => {
+    expect(gateOpen(collect(query('heat', 0), view(THIEF, 1)))).toBe(false);
+  });
+
+  it('stays closed on a single AI-curated query', () => {
+    expect(gateOpen(collect(query('men who are good at their jobs and lose anyway', 0, 'ai-curated')))).toBe(false);
   });
 
   it('stays closed on nothing, one plain query, or one film', () => {
@@ -54,7 +69,7 @@ describe('gateOpen', () => {
   });
 
   it('does not count a dwell as evidence', () => {
-    expect(gateOpen(collect(view(HEAT, 0), { kind: 'dwell', filmId: 949, ms: 15000, engaged: true }))).toBe(false);
+    expect(gateOpen(collect(view(HEAT, 0), view(THIEF, 1), { kind: 'dwell', filmId: 949, ms: 15000, engaged: true }))).toBe(false);
   });
 });
 

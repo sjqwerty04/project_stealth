@@ -20,6 +20,24 @@ const HEAT = {
   genres: ['Crime', 'Drama'],
 } as const;
 
+const THIEF = {
+  id: 10858,
+  title: 'Thief',
+  year: '1981',
+  director: 'Michael Mann',
+  genres: ['Crime', 'Thriller'],
+} as const;
+
+const COLLATERAL = {
+  id: 1538,
+  title: 'Collateral',
+  year: '2004',
+  director: 'Michael Mann',
+  genres: ['Crime', 'Thriller'],
+} as const;
+
+const TRAIL = [HEAT, THIEF, COLLATERAL] as const;
+
 const PICKS = [
   {
     id: 5511,
@@ -32,12 +50,6 @@ const PICKS = [
     title: 'To Live and Die in L.A.',
     year: '1985',
     reason: 'A Secret Service agent so good at the chase he becomes the crime.',
-  },
-  {
-    id: 1538,
-    title: 'Collateral',
-    year: '2004',
-    reason: 'One long night where the professional and the amateur both lose the map.',
   },
   {
     id: 31672,
@@ -62,12 +74,6 @@ const PICKS = [
     title: 'Sicario',
     year: '2015',
     reason: 'Kate does everything right and learns the job was never hers.',
-  },
-  {
-    id: 64690,
-    title: 'Drive',
-    year: '2011',
-    reason: 'The driver is perfect behind the wheel and helpless everywhere else.',
   },
 ] as const;
 
@@ -105,7 +111,7 @@ function assertEmulatorTarget(baseURL: string | undefined) {
   }
 }
 
-function moviePayload(film: (typeof PICKS)[number] | typeof HEAT) {
+function moviePayload(film: (typeof PICKS)[number] | (typeof TRAIL)[number]) {
   return {
     id: film.id,
     title: film.title,
@@ -158,11 +164,10 @@ async function mockRuntime(page: Page, counts: RequestCounts, onHuntCommit: () =
     const prompt = body.prompt ?? '';
     counts.llmTotal += 1;
 
-    if (prompt.startsWith('<evidence>') && prompt.includes('program exactly 8 films')) {
+    if (prompt.startsWith('<evidence>') && prompt.includes('program exactly 6 films')) {
       counts.theaterInfer += 1;
       const heatFingerprint =
-        prompt.includes('Searches this person committed to:\n- "heat"\n') &&
-        prompt.includes('Films this person opened:\n- Heat (1995) | dir. Michael Mann | Crime, Drama\n');
+        prompt.includes('Heat (1995)') && prompt.includes('Thief (1981)') && prompt.includes('Collateral (2004)');
       if (heatFingerprint) counts.theaterInferForHeatFingerprint += 1;
       else counts.unexpectedTheaterInfer += 1;
       await wait(LLM_DELAY_MS);
@@ -215,11 +220,12 @@ async function mockRuntime(page: Page, counts: RequestCounts, onHuntCommit: () =
 
     if (exactMovie) {
       const id = Number(exactMovie[1]);
-      if (id === HEAT.id) {
-        counts.heatDetail += 1;
+      const trailFilm = TRAIL.find((film) => film.id === id);
+      if (trailFilm) {
+        if (id === HEAT.id) counts.heatDetail += 1;
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(moviePayload(HEAT)),
+          body: JSON.stringify(moviePayload(trailFilm)),
         });
         return;
       }
@@ -235,22 +241,24 @@ async function mockRuntime(page: Page, counts: RequestCounts, onHuntCommit: () =
       }
     }
 
-    if (url.pathname.startsWith(`/3/movie/${HEAT.id}/`)) {
-      counts.heatDetail += 1;
-      const section = url.pathname.slice(`/3/movie/${HEAT.id}/`.length);
-      const payload =
-        section === 'credits'
-          ? moviePayload(HEAT).credits
-          : section === 'watch/providers'
-            ? { results: {} }
-            : section === 'external_ids'
-              ? { imdb_id: null }
-              : { results: [], logos: [] };
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify(payload),
-      });
-      return;
+    for (const film of TRAIL) {
+      if (url.pathname.startsWith(`/3/movie/${film.id}/`)) {
+        if (film.id === HEAT.id) counts.heatDetail += 1;
+        const section = url.pathname.slice(`/3/movie/${film.id}/`.length);
+        const payload =
+          section === 'credits'
+            ? moviePayload(film).credits
+            : section === 'watch/providers'
+              ? { results: {} }
+              : section === 'external_ids'
+                ? { imdb_id: null }
+                : { results: [], logos: [] };
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(payload),
+        });
+        return;
+      }
     }
 
     counts.otherTmdb += 1;
@@ -302,6 +310,14 @@ test('Theater meets generation and restore budgets without duplicate inference',
   await heatResult.click();
   await expect(page).toHaveURL(/\/movie\/949\?type=movie/);
   await expect(page.getByRole('heading', { name: 'Heat', level: 1 })).toBeVisible();
+  await expect(page.getByTestId('theater-card')).toHaveCount(0);
+
+  await page.goto('/movie/10858?type=movie');
+  await expect(page.getByRole('heading', { name: 'Thief', level: 1 })).toBeVisible();
+  await expect(page.getByTestId('theater-card')).toHaveCount(0);
+
+  await page.goto('/movie/1538?type=movie');
+  await expect(page.getByRole('heading', { name: 'Collateral', level: 1 })).toBeVisible();
 
   const card = page.getByTestId('theater-card');
   await expect(card.getByTestId('theater-inferring')).toBeVisible();
@@ -318,15 +334,10 @@ test('Theater meets generation and restore budgets without duplicate inference',
     };
   });
 
-  await expect(card.getByTestId('facet-line')).toHaveText('COMPETENCE PORN × and NOBODY WINS');
-  const rows = card.getByTestId('theater-lineup').locator('li');
-  await expect(rows).toHaveCount(8);
-  const rowTexts = await rows.allTextContents();
-  for (const [index, pick] of PICKS.entries()) {
-    expect(rowTexts[index]).toContain(pick.title);
-    expect(rowTexts[index]).toContain(pick.year);
-    expect(rowTexts[index]).toContain(pick.reason);
-  }
+  await expect(card.getByTestId('theater-trail').locator('li')).toHaveCount(3);
+  await expect(card.getByTestId('facet-line')).toHaveCount(0);
+  await expect(card.getByTestId('theater-lineup')).toHaveCount(0);
+  await expect(card).toContainText(THEATER_INSIGHT);
 
   const countsBeforeReload = snapshot(counts);
   await page.addInitScript((title) => {
@@ -350,10 +361,9 @@ test('Theater meets generation and restore budgets without duplicate inference',
   const restoredAt = await page.evaluate(() =>
     Number(document.documentElement.dataset.restoredTheaterAt),
   );
-  await expect(restoredCard.getByTestId('facet-line')).toHaveText('COMPETENCE PORN × and NOBODY WINS');
-  const restoredRows = restoredCard.getByTestId('theater-lineup').locator('li');
-  await expect(restoredRows).toHaveCount(8);
-  const restoredRowTexts = await restoredRows.allTextContents();
+  await expect(restoredCard.getByTestId('theater-trail').locator('li')).toHaveCount(3);
+  await expect(restoredCard.getByTestId('facet-line')).toHaveCount(0);
+  const restoredRowTexts = await restoredCard.getByTestId('theater-trail').locator('li').allTextContents();
   await page.waitForTimeout(2800);
   const countsAfterReload = snapshot(counts);
 
@@ -384,7 +394,7 @@ test('Theater meets generation and restore budgets without duplicate inference',
       lineupSearchDelayMs: TMDB_DELAY_MS,
       lineupDetailDelayMs: TMDB_DELAY_MS,
       lineupPicks: PICKS.length,
-      routeShape: 'one LLM request, then eight parallel pick hydrations with search and detail in series',
+      routeShape: 'one LLM request, then six parallel pick hydrations with search and detail in series',
       controlledFloorMs: controlledNetworkFloorMs,
       serializedHydrationFloorMs,
     },
@@ -404,9 +414,9 @@ test('Theater meets generation and restore budgets without duplicate inference',
     },
     restoredUi: {
       title: await restoredCard.getByRole('heading', { name: THEATER_TITLE }).textContent(),
-      facets: (await restoredCard.getByTestId('facet-line').textContent())?.replace(/\s+/g, ' ').trim(),
+      facets: (await restoredCard.getByTestId('theater-trail').count()) > 0 ? 'trail' : 'missing',
       lineupRows: restoredRowTexts.length,
-      reasonedRows: restoredRowTexts.filter((text, index) => text.includes(PICKS[index].reason)).length,
+      reasonedRows: 0,
     },
   };
 
@@ -420,13 +430,13 @@ test('Theater meets generation and restore budgets without duplicate inference',
   expect(countsAfterReload.theaterInfer).toBe(1);
   expect(countsAfterReload.theaterInfer - countsBeforeReload.theaterInfer).toBe(0);
   expect(countsAfterReload.aiSearch).toBe(0);
-  expect(countsBeforeReload.lineupSearch).toBe(8);
-  expect(countsBeforeReload.lineupDetail).toBe(8);
+  expect(countsBeforeReload.lineupSearch).toBe(6);
+  expect(countsBeforeReload.lineupDetail).toBe(6);
   expect(result.restoredUi).toEqual({
     title: THEATER_TITLE,
-    facets: 'COMPETENCE PORN × and NOBODY WINS',
-    lineupRows: 8,
-    reasonedRows: 8,
+    facets: 'trail',
+    lineupRows: 3,
+    reasonedRows: 0,
   });
   expect(huntCommitToFirstResultMs).toBeLessThanOrEqual(1500);
   expect(inferringShellToReadyMs).toBeLessThanOrEqual(1500);

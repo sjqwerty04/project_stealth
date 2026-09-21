@@ -45,9 +45,7 @@ export function appendSignal(signals: readonly TheaterSignal[], signal: TheaterS
 }
 
 export function gateOpen(signals: readonly TheaterSignal[]): boolean {
-  const queries = queriesOf(signals);
-  const evidence = queries.length + filmsOf(signals).length;
-  return evidence >= 2 || queries.some((q) => q.mode === 'ai-curated');
+  return filmsOf(signals).length >= 3;
 }
 
 export function waitRemaining(lastActiveAt: number, now: number): number {

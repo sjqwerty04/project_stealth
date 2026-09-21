@@ -49,16 +49,34 @@ const THIEF: TheaterFilm = {
   director: 'Michael Mann',
   mediaType: 'movie',
 };
+const COLLATERAL: TheaterFilm = {
+  id: 1538,
+  title: 'Collateral',
+  year: '2004',
+  posterPath: '/collateral.jpg',
+  backdropPath: null,
+  genres: ['Crime', 'Thriller'],
+  director: 'Michael Mann',
+  mediaType: 'movie',
+};
+const DRIVE: TheaterFilm = {
+  id: 64690,
+  title: 'Drive',
+  year: '2011',
+  posterPath: '/drive.jpg',
+  backdropPath: null,
+  genres: ['Crime', 'Drama'],
+  director: 'Nicolas Winding Refn',
+  mediaType: 'movie',
+};
 
 const LINEUP_ROWS: [number, string, string, string][] = [
   [5511, 'Le Samouraï', '1967', 'A contract killer follows his routine flawlessly and it still closes on him.'],
   [9526, 'To Live and Die in L.A.', '1985', 'A Secret Service agent so good at the chase he becomes the crime.'],
-  [1538, 'Collateral', '2004', 'One long night where the professional and the amateur both lose the map.'],
   [31672, 'The Friends of Eddie Coyle', '1973', 'Every hood in Boston knows his trade and none of it saves Eddie.'],
   [24559, 'Sorcerer', '1977', 'Four experts drive nitroglycerin through a jungle that does not care.'],
   [379, "Miller's Crossing", '1990', 'Tom plays every angle in the room and still ends up alone.'],
   [273481, 'Sicario', '2015', 'Kate does everything right and learns the job was never hers.'],
-  [64690, 'Drive', '2011', 'The driver is perfect behind the wheel and helpless everywhere else.'],
 ];
 const LINEUP: TheaterLineupItem[] = LINEUP_ROWS.map(([id, title, year, reason]) => ({
   id,
@@ -79,18 +97,25 @@ const THEATER: Theater = {
   facets: ['COMPETENCE PORN', 'NOBODY WINS'],
   insight: INSIGHT,
   swatches: FALLBACK_SWATCHES,
-  sourceFilmIds: [10858],
+  sourceFilmIds: [949, 10858, 1538],
+  trail: [HEAT, THIEF, COLLATERAL],
   lineup: LINEUP,
 };
 
-const LATER_THEATER: Theater = { ...THEATER, title: 'Thieves who cannot stop working', sourceFilmIds: [10858, 949] };
+const LATER_THEATER: Theater = {
+  ...THEATER,
+  title: 'Thieves who cannot stop working',
+  sourceFilmIds: [949, 10858, 1538, 64690],
+  trail: [HEAT, THIEF, COLLATERAL, DRIVE],
+};
 
 const QUERY_HEAT: TheaterSignal = { kind: 'query', text: 'heat', mode: 'standard', at: 0 };
-const QUERY_THIEF: TheaterSignal = { kind: 'query', text: 'thief', mode: 'standard', at: 100 };
+const VIEW_HEAT: TheaterSignal = { kind: 'detail_view', film: HEAT, at: 0 };
 const VIEW_THIEF: TheaterSignal = { kind: 'detail_view', film: THIEF, at: 100 };
+const VIEW_COLLATERAL: TheaterSignal = { kind: 'detail_view', film: COLLATERAL, at: 200 };
 
-const TRAIL: TheaterSignal[] = [QUERY_HEAT, VIEW_THIEF];
-const TRAIL_FINGERPRINT = 'bb8c37784ee25cf5';
+const TRAIL: TheaterSignal[] = [VIEW_HEAT, VIEW_THIEF, VIEW_COLLATERAL];
+const TRAIL_FINGERPRINT = fingerprint(TRAIL);
 
 const collecting = (signals: TheaterSignal[], lastActiveAt: number, failedFingerprint: string | null = null): TheaterSession => ({
   status: 'collecting',
@@ -198,6 +223,14 @@ function harness(infer: TheaterInfer, start: TheaterSession = IDLE_SESSION) {
   };
 }
 
+async function openTrail(app: ReturnType<typeof harness>) {
+  app.view(HEAT);
+  await app.clock.advance(100);
+  app.view(THIEF);
+  await app.clock.advance(100);
+  app.view(COLLATERAL);
+}
+
 describe('nextDeadline', () => {
   it('waits 2500 ms after the last unique signal once the gate is open', () => {
     const session = collecting(TRAIL, 100);
@@ -211,9 +244,9 @@ describe('nextDeadline', () => {
     expect(nextDeadline(collecting([QUERY_HEAT], 0), 0)).toEqual({ event: 'expire', at: IDLE_CLOSE_MS });
   });
 
-  it('opens on one AI-curated query', () => {
+  it('holds an AI-curated query at the idle deadline', () => {
     const session = collecting([{ kind: 'query', text: 'men who are good at their jobs', mode: 'ai-curated', at: 500 }], 500);
-    expect(nextDeadline(session, 500)).toEqual({ event: 'infer', at: 3000 });
+    expect(nextDeadline(session, 500)).toEqual({ event: 'expire', at: IDLE_CLOSE_MS + 500 });
   });
 
   it('does not re-infer a fingerprint that already failed', () => {
@@ -260,26 +293,22 @@ describe('dwellSignal', () => {
 });
 
 describe('theaterCardModel', () => {
-  it('shows the inferring shell with no model copy', () => {
-    const inferring: TheaterSession = { status: 'inferring', signals: TRAIL, revision: 1, fingerprint: TRAIL_FINGERPRINT, lastActiveAt: 100 };
+  it('shows the inferring shell with trail posters and no model copy', () => {
+    const inferring: TheaterSession = { status: 'inferring', signals: TRAIL, revision: 1, fingerprint: TRAIL_FINGERPRINT, lastActiveAt: 200 };
     expect(theaterCardModel(inferring)).toEqual({
       status: 'inferring',
       title: null,
-      facets: null,
       insight: null,
-      swatches: null,
-      lineup: [],
+      trail: [HEAT, THIEF, COLLATERAL],
     });
   });
 
-  it('carries title, facets, insight, and the eight lineup reasons for showing and kept', () => {
-    for (const session of [showing(THEATER, TRAIL, 100), { status: 'kept', theater: THEATER, keptId: TRAIL_FINGERPRINT }] satisfies TheaterSession[]) {
+  it('carries title, insight, and the opened trail for showing and kept', () => {
+    for (const session of [showing(THEATER, TRAIL, 200), { status: 'kept', theater: THEATER, keptId: TRAIL_FINGERPRINT }] satisfies TheaterSession[]) {
       const model = theaterCardModel(session);
       expect(model?.title).toBe('Men who are good at their jobs and lose anyway');
-      expect(model?.facets).toEqual(['COMPETENCE PORN', 'NOBODY WINS']);
       expect(model?.insight).toBe(INSIGHT);
-      expect(model?.swatches).toEqual(FALLBACK_SWATCHES);
-      expect(model?.lineup.map((item) => item.reason)).toEqual(LINEUP_ROWS.map(([, , , reason]) => reason));
+      expect(model?.trail).toEqual([HEAT, THIEF, COLLATERAL]);
     }
   });
 
@@ -292,23 +321,21 @@ describe('theaterCardModel', () => {
 
 describe('sessionFilms', () => {
   it('lists the opened films of a live session and nothing for an ended one', () => {
-    expect(sessionFilms(collecting(TRAIL, 100))).toEqual([THIEF]);
+    expect(sessionFilms(collecting(TRAIL, 200))).toEqual([HEAT, THIEF, COLLATERAL]);
     expect(sessionFilms(IDLE_SESSION)).toEqual([]);
     expect(sessionFilms({ status: 'closed', reason: 'signed_out' })).toEqual([]);
   });
 });
 
 describe('engine', () => {
-  it('infers once, 2500 ms after the second signal', async () => {
+  it('infers once, 2500 ms after the third film', async () => {
     const seen: TheaterSignal[][] = [];
     const app = harness(async (signals) => {
       seen.push([...signals]);
       return THEATER;
     });
 
-    app.query('heat');
-    await app.clock.advance(100);
-    app.view(THIEF);
+    await openTrail(app);
     expect(app.session.status).toBe('collecting');
 
     await app.clock.advance(INFER_WAIT_MS - 1);
@@ -322,7 +349,7 @@ describe('engine', () => {
       theater: THEATER,
       signals: TRAIL,
       fingerprint: TRAIL_FINGERPRINT,
-      lastActiveAt: 100,
+      lastActiveAt: 200,
     });
   });
 
@@ -338,7 +365,7 @@ describe('engine', () => {
     expect(app.session.status).toBe('collecting');
   });
 
-  it('spends one inference per fingerprint and none on a repeated query', async () => {
+  it('never infers from a hunt query plus one film', async () => {
     let calls = 0;
     const app = harness(async () => {
       calls += 1;
@@ -346,12 +373,24 @@ describe('engine', () => {
     });
     app.query('heat');
     await app.clock.advance(100);
-    app.query('thief');
+    app.view(THIEF);
+    await app.clock.advance(INFER_WAIT_MS * 4);
+    expect(calls).toBe(0);
+    expect(app.session.status).toBe('collecting');
+  });
+
+  it('spends one inference per fingerprint and none on a repeated film', async () => {
+    let calls = 0;
+    const app = harness(async () => {
+      calls += 1;
+      return THEATER;
+    });
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
     expect(calls).toBe(1);
     expect(app.session.status).toBe('showing');
 
-    app.query('Thief');
+    app.view(HEAT);
     await app.clock.advance(INFER_WAIT_MS * 2);
     expect(calls).toBe(1);
   });
@@ -365,14 +404,12 @@ describe('engine', () => {
       return signals.length === 1 ? first.promise : second.promise;
     });
 
-    app.query('heat');
-    await app.clock.advance(100);
-    app.view(THIEF);
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
     expect(app.session.status).toBe('inferring');
     expect(signals[0].aborted).toBe(false);
 
-    app.view(HEAT);
+    app.view(DRIVE);
     expect(app.session.status).toBe('collecting');
     expect(signals[0].aborted).toBe(true);
 
@@ -385,11 +422,11 @@ describe('engine', () => {
     await flush();
 
     expect(app.session.status).toBe('showing');
-    expect(app.session).toMatchObject({ theater: LATER_THEATER, fingerprint: 'a0744096085ab69b' });
+    expect(app.session).toMatchObject({ theater: LATER_THEATER, fingerprint: fingerprint([...TRAIL, { kind: 'detail_view', film: DRIVE, at: 0 }]) });
   });
 
   it('rejects a stale revision that the reducer outranks', () => {
-    const inferring: TheaterSession = { status: 'inferring', signals: TRAIL, revision: 2, fingerprint: TRAIL_FINGERPRINT, lastActiveAt: 100 };
+    const inferring: TheaterSession = { status: 'inferring', signals: TRAIL, revision: 2, fingerprint: TRAIL_FINGERPRINT, lastActiveAt: 200 };
     expect(theaterRuntimeReducer(inferring, { type: 'infer_succeeded', revision: 1, theater: THEATER })).toEqual(inferring);
     expect(theaterRuntimeReducer(inferring, { type: 'infer_failed', revision: 1 })).toEqual(inferring);
     expect(theaterRuntimeReducer(inferring, { type: 'infer_succeeded', revision: 2, theater: THEATER }).status).toBe('showing');
@@ -402,17 +439,15 @@ describe('engine', () => {
       return calls === 1 ? null : LATER_THEATER;
     });
 
-    app.query('heat');
-    await app.clock.advance(100);
-    app.view(THIEF);
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
     expect(calls).toBe(1);
-    expect(app.session).toEqual(collecting(TRAIL, 100, TRAIL_FINGERPRINT));
+    expect(app.session).toEqual(collecting(TRAIL, 200, TRAIL_FINGERPRINT));
 
     await app.clock.advance(INFER_WAIT_MS * 3);
     expect(calls).toBe(1);
 
-    app.view(HEAT);
+    app.view(DRIVE);
     await app.clock.advance(INFER_WAIT_MS);
     expect(calls).toBe(2);
     expect(app.session.status).toBe('showing');
@@ -420,19 +455,15 @@ describe('engine', () => {
 
   it('treats a rejected inference as a failure without publishing a Theater', async () => {
     const app = harness(() => Promise.reject(new Error('HTTP 500')));
-    app.query('heat');
-    await app.clock.advance(100);
-    app.query('thief');
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
-    expect(app.session).toEqual(collecting([QUERY_HEAT, QUERY_THIEF], 100, '626f16ac561ba3e7'));
+    expect(app.session).toEqual(collecting(TRAIL, 200, TRAIL_FINGERPRINT));
   });
 
   it('closes a showing Theater after thirty idle minutes and clears its stored session', async () => {
     const storage = new MemoryStorage();
     const app = harness(async () => THEATER);
-    app.query('heat');
-    await app.clock.advance(100);
-    app.view(THIEF);
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
     saveTheaterSession(storage, 'alice', app.session);
     expect(loadTheaterSession(storage, 'alice').status).toBe('showing');
@@ -448,9 +479,7 @@ describe('engine', () => {
     const storage = new MemoryStorage();
     for (const ending of [{ type: 'dismiss' }, { type: 'sign_out' }] satisfies TheaterRuntimeEvent[]) {
       const app = harness(async () => THEATER);
-      app.query('heat');
-      await app.clock.advance(100);
-      app.query('thief');
+      await openTrail(app);
       await app.clock.advance(INFER_WAIT_MS);
       saveTheaterSession(storage, 'alice', app.session);
 
@@ -469,9 +498,7 @@ describe('engine', () => {
       signals.push(signal);
       return pending.promise;
     });
-    app.query('heat');
-    await app.clock.advance(100);
-    app.query('thief');
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
 
     app.engine.stop();
@@ -534,7 +561,7 @@ describe('keepShowingTheater', () => {
     insight: INSIGHT,
     swatches: FALLBACK_SWATCHES,
     sourceSignals: TRAIL,
-    sourceFilmIds: [10858],
+    sourceFilmIds: [949, 10858, 1538],
     lineup: LINEUP,
     keptAt: 1_700_000_000_000,
   };
@@ -560,8 +587,8 @@ describe('keepShowingTheater', () => {
 
     expect(keptId).toBe(TRAIL_FINGERPRINT);
     expect([...recorder.written.entries()]).toEqual([[TRAIL_FINGERPRINT, EXPECTED_DOC]]);
-    expect(recorder.taste).toEqual([{ type: 'theater', insight: INSIGHT, movieIds: [10858] }]);
-    expect(recorder.activity).toEqual([{ action: 'theater_kept', metadata: { insight: INSIGHT, movieCount: 8 } }]);
+    expect(recorder.taste).toEqual([{ type: 'theater', insight: INSIGHT, movieIds: [949, 10858, 1538] }]);
+    expect(recorder.activity).toEqual([{ action: 'theater_kept', metadata: { insight: INSIGHT, movieCount: 3 } }]);
   });
 
   it('keeps raw query text out of the activity row and inside the document', async () => {
@@ -621,9 +648,7 @@ describe('keepShowingTheater', () => {
   it('emits no save while inference runs', async () => {
     const recorder = keepRecorder();
     const app = harness(async () => THEATER);
-    app.query('heat');
-    await app.clock.advance(100);
-    app.view(THIEF);
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
 
     expect(app.session.status).toBe('showing');
@@ -648,12 +673,10 @@ describe('theaterInference', () => {
   const CREDITS: Record<number, { genres: string[]; director: string }> = {
     5511: { genres: ['Crime', 'Drama'], director: 'Jean-Pierre Melville' },
     9526: { genres: ['Action', 'Crime'], director: 'William Friedkin' },
-    1538: { genres: ['Crime', 'Thriller'], director: 'Michael Mann' },
     31672: { genres: ['Crime', 'Drama'], director: 'Peter Yates' },
     24559: { genres: ['Adventure', 'Thriller'], director: 'William Friedkin' },
     379: { genres: ['Crime', 'Drama'], director: 'Joel Coen' },
     273481: { genres: ['Action', 'Crime'], director: 'Denis Villeneuve' },
-    64690: { genres: ['Crime', 'Drama'], director: 'Nicolas Winding Refn' },
   };
 
   type Row = (typeof LINEUP_ROWS)[number];
@@ -730,9 +753,7 @@ describe('theaterInference', () => {
     let inflight: Promise<Theater | null> = Promise.resolve(null);
     const app = harness((signals, signal) => (inflight = theaterInference('test-key')(signals, signal)));
 
-    app.query('heat');
-    await app.clock.advance(100);
-    app.view(THIEF);
+    await openTrail(app);
     await app.clock.advance(INFER_WAIT_MS);
     await inflight;
     await flush();
@@ -744,28 +765,30 @@ describe('theaterInference', () => {
         facets: ['COMPETENCE PORN', 'NOBODY WINS'],
         insight: INSIGHT,
         swatches: FALLBACK_SWATCHES,
-        sourceFilmIds: [10858],
+        sourceFilmIds: [949, 10858, 1538],
+        trail: [HEAT, THIEF, COLLATERAL],
         lineup: HYDRATED,
       },
       signals: TRAIL,
       fingerprint: TRAIL_FINGERPRINT,
-      lastActiveAt: 100,
+      lastActiveAt: 200,
     });
     expect(tmdb.llmCalls()).toBe(1);
     expect(tmdb.urls[1]).toBe(
       'https://api.themoviedb.org/3/search/movie?api_key=test-key&language=en-US&query=Le+Samoura%C3%AF&year=1967',
     );
-    expect(tmdb.searches()).toBe(8);
-    expect(tmdb.details()).toBe(8);
+    expect(tmdb.searches()).toBe(6);
+    expect(tmdb.details()).toBe(6);
   });
 
   it('carries genres, director, poster, and backdrop into every lineup card', async () => {
     const tmdb = stubBoundaries();
     const theater = await theaterInference('test-key')(
-      [QUERY_THIEF, { kind: 'detail_view', film: HEAT, at: 200 }],
+      TRAIL,
       new AbortController().signal,
     );
 
+    expect(theater?.trail).toEqual([HEAT, THIEF, COLLATERAL]);
     expect(theater?.lineup[0]).toEqual({
       id: 5511,
       title: 'Le Samouraï',
@@ -780,14 +803,12 @@ describe('theaterInference', () => {
     expect(theater?.lineup.map((item) => item.director)).toEqual([
       'Jean-Pierre Melville',
       'William Friedkin',
-      'Michael Mann',
       'Peter Yates',
       'William Friedkin',
       'Joel Coen',
       'Denis Villeneuve',
-      'Nicolas Winding Refn',
     ]);
-    expect(tmdb.details()).toBe(8);
+    expect(tmdb.details()).toBe(6);
   });
 
   it('colours the swatches from the hydrated lineup posters', async () => {
@@ -796,7 +817,7 @@ describe('theaterInference', () => {
     const theater = await theaterInference('test-key', async (films) => {
       sampled.push(...films.map((film) => film.posterPath));
       return ['#0b3d91', '#7a1f1f', '#2878a0'];
-    })([QUERY_THIEF, VIEW_THIEF], new AbortController().signal);
+    })(TRAIL, new AbortController().signal);
 
     expect(theater?.swatches).toEqual(['#0b3d91', '#7a1f1f', '#2878a0', FALLBACK_SWATCHES[3]]);
     expect(sampled).toEqual(LINEUP_ROWS.map(([id]) => `/${id}.jpg`));
@@ -804,7 +825,7 @@ describe('theaterInference', () => {
 
   it('keeps the fallback palette where no browser can sample a poster', async () => {
     stubBoundaries();
-    const theater = await theaterInference('test-key')([QUERY_THIEF, VIEW_THIEF], new AbortController().signal);
+    const theater = await theaterInference('test-key')(TRAIL, new AbortController().signal);
     expect(theater?.swatches).toEqual(FALLBACK_SWATCHES);
   });
 
