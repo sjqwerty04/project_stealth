@@ -1,6 +1,7 @@
 import type { FilmNeighbor } from './types';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
+const LINEAGE_JOBS = new Set(['Director', 'Director of Photography', 'Writer']);
 
 type CreditFilm = {
   id: number;
@@ -11,6 +12,10 @@ type CreditFilm = {
   job?: string;
 };
 
+function isLineageCredit(film: CreditFilm): boolean {
+  return !film.job || LINEAGE_JOBS.has(film.job);
+}
+
 export function lineageFromCredits(
   movieId: number,
   people: Array<{ films: CreditFilm[] }>,
@@ -19,6 +24,7 @@ export function lineageFromCredits(
   for (const person of people) {
     for (const film of person.films) {
       if (!film.id || film.id === movieId || !film.poster_path) continue;
+      if (!isLineageCredit(film)) continue;
       const pop = film.popularity || 0;
       const existing = byId.get(film.id);
       if (!existing || pop > existing.pop) byId.set(film.id, { film, pop });
@@ -49,8 +55,9 @@ export async function loadLineageNeighbors(movieId: number, personIds: number[])
       );
       if (!res.ok) return { films: [] as CreditFilm[] };
       const data = await res.json();
+      const crew = (data.movie_credits?.crew || []) as CreditFilm[];
       return {
-        films: [...(data.movie_credits?.cast || []), ...(data.movie_credits?.crew || [])] as CreditFilm[],
+        films: crew.filter(isLineageCredit),
       };
     }),
   );

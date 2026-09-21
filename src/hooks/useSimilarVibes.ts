@@ -12,6 +12,7 @@ export type SimilarMovieInput = {
   year: string;
   genres: string[];
   lineagePersonIds: number[];
+  mediaType?: 'movie' | 'tv';
 };
 
 export function useSimilarVibes(movie: SimilarMovieInput) {
@@ -23,6 +24,7 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
   const [visibleCount, setVisibleCount] = useState(SIMILAR_GRID_INITIAL);
   const personKey = movie.lineagePersonIds.join(',');
   const genreKey = movie.genres.join(',');
+  const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie';
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +38,7 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
       });
 
     const scholarPromise = (async () => {
-      const cached = await readAdjacency(movie.id).catch(() => null);
+      const cached = await readAdjacency(movie.id, mediaType).catch(() => null);
       if (cancelled) return;
       if (cached?.neighbors.length) {
         setScholar(cached.neighbors);
@@ -53,7 +55,7 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
       if (rows.length) {
         setScholar(rows);
         setRefreshed(true);
-        await writeAdjacency(movie.id, rows).catch(() => {});
+        await writeAdjacency(movie.id, rows, mediaType).catch(() => {});
       }
     })();
 
@@ -64,7 +66,7 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
     return () => {
       cancelled = true;
     };
-  }, [movie.id, movie.title, movie.year, movie.genres, movie.lineagePersonIds, personKey, genreKey]);
+  }, [movie.id, movie.title, movie.year, movie.genres, movie.lineagePersonIds, personKey, genreKey, mediaType]);
 
   const ranked = useMemo(
     () =>

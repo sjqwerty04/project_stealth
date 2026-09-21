@@ -16,4 +16,17 @@ describe('lineageFromCredits', () => {
     expect(rows.map((r) => r.movieId)).toEqual([272]);
     expect(rows[0].source).toBe('lineage');
   });
+
+  it('drops acting credits so a writer-star does not fill the grid', () => {
+    const rows = lineageFromCredits(9, [
+      {
+        films: [
+          { id: 10, title: 'Star Vehicle', poster_path: '/s.jpg', popularity: 99, job: 'Actor' },
+          { id: 11, title: 'The Script', poster_path: '/w.jpg', popularity: 20, job: 'Writer' },
+          { id: 12, title: 'Produced This', poster_path: '/p.jpg', popularity: 80, job: 'Producer' },
+        ],
+      },
+    ]);
+    expect(rows.map((r) => r.movieId)).toEqual([11]);
+  });
 });
