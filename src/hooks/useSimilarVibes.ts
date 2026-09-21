@@ -4,7 +4,7 @@ import { loadLineageNeighbors } from '../lib/similar/loadLineage';
 import { mergeNeighborPools, rankNeighbors } from '../lib/similar/rankNeighbors';
 import { readAdjacency, writeAdjacency } from '../lib/similar/adjacencyStore';
 import { fetchScholarNeighbors } from '../lib/similar/prefetch';
-import { SIMILAR_GRID_INITIAL, SIMILAR_GRID_MORE, type FilmAdjacency, type FilmNeighbor } from '../lib/similar/types';
+import { SIMILAR_GRID_INITIAL, SIMILAR_GRID_MORE, type FilmNeighbor } from '../lib/similar/types';
 
 export type SimilarMovieInput = {
   id: number;
@@ -38,30 +38,19 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
       });
 
     const scholarPromise = (async () => {
-      const apiP = fetchScholarNeighbors({
-        movieId: movie.id,
-        title: movie.title,
-        year: movie.year,
-        genres: movie.genres,
-      });
-      let cached: FilmAdjacency | null = null;
-      try {
-        cached = await Promise.race([
-          readAdjacency(movie.id, mediaType),
-          new Promise<null>((_, reject) => {
-            setTimeout(() => reject(new Error('adjacency-cache-timeout')), 400);
-          }),
-        ]);
-      } catch {
-        cached = null;
-      }
+      const cached = await readAdjacency(movie.id, mediaType).catch(() => null);
       if (cancelled) return;
       if (cached?.neighbors.length) {
         setScholar(cached.neighbors);
         setRefreshed(true);
         return;
       }
-      const rows = await apiP;
+      const rows = await fetchScholarNeighbors({
+        movieId: movie.id,
+        title: movie.title,
+        year: movie.year,
+        genres: movie.genres,
+      });
       if (cancelled) return;
       if (rows.length) {
         setScholar(rows);
