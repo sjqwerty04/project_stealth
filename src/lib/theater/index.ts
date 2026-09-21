@@ -1,3 +1,4 @@
+export * from './copy';
 export * from './types';
 export * from './archive';
 export * from './gate';

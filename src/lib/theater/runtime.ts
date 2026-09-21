@@ -11,6 +11,7 @@ import {
   type TheaterDoc,
   type TheaterEvent,
   type TheaterFilm,
+  type TheaterLineupItem,
   type TheaterSession,
   type TheaterSignal,
 } from './types';
@@ -189,18 +190,20 @@ export type TheaterCardModel = {
   title: string | null;
   insight: string | null;
   trail: readonly TheaterFilm[];
+  picks: readonly TheaterLineupItem[];
 };
 
 export function theaterCardModel(session: TheaterSession): TheaterCardModel | null {
   switch (session.status) {
     case 'inferring':
-      return { status: 'inferring', title: null, insight: null, trail: filmsOf(session.signals) };
+      return { status: 'inferring', title: null, insight: null, trail: filmsOf(session.signals), picks: [] };
     case 'showing':
       return {
         status: 'showing',
         title: session.theater.title,
         insight: session.theater.insight,
         trail: session.theater.trail,
+        picks: session.theater.lineup,
       };
     case 'kept':
       return {
@@ -208,6 +211,7 @@ export function theaterCardModel(session: TheaterSession): TheaterCardModel | nu
         title: session.theater.title,
         insight: session.theater.insight,
         trail: session.theater.trail,
+        picks: session.theater.lineup,
       };
     default:
       return null;

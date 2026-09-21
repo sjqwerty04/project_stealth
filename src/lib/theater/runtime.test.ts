@@ -300,15 +300,17 @@ describe('theaterCardModel', () => {
       title: null,
       insight: null,
       trail: [HEAT, THIEF, COLLATERAL],
+      picks: [],
     });
   });
 
-  it('carries title, insight, and the opened trail for showing and kept', () => {
+  it('carries title, insight, the opened trail, and hidden picks for showing and kept', () => {
     for (const session of [showing(THEATER, TRAIL, 200), { status: 'kept', theater: THEATER, keptId: TRAIL_FINGERPRINT }] satisfies TheaterSession[]) {
       const model = theaterCardModel(session);
       expect(model?.title).toBe('Men who are good at their jobs and lose anyway');
       expect(model?.insight).toBe(INSIGHT);
       expect(model?.trail).toEqual([HEAT, THIEF, COLLATERAL]);
+      expect(model?.picks).toEqual(LINEUP);
     }
   });
 

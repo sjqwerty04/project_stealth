@@ -74,8 +74,9 @@ export default function DiscoverScreen() {
     <div className="min-h-screen bg-base text-fg">
       {theater && (
         <div className="fixed bottom-24 left-0 right-0 px-4 sm:px-6 z-30 pointer-events-none">
-          <div className="relative max-w-md mx-auto pointer-events-auto drop-shadow-2xl max-h-[60vh] overflow-y-auto">
+          <div className="relative max-w-md mx-auto pointer-events-auto drop-shadow-2xl">
             <TheaterCard
+              compact
               {...theater}
               onKeep={() => void keepTheater()}
               onDismiss={dismissTheater}

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
-import FacetLine from '../components/ui/FacetLine';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
-import SwatchStrip from '../components/ui/SwatchStrip';
+import { TrailPosterRow } from '../components/TheaterCard';
 import { useLibrary, watchedFilmIds } from '../lib/library';
 import {
   theaterArchiveState,
@@ -12,8 +11,6 @@ import {
   type TheaterArchiveFilm,
   type TheaterCardView,
 } from '../lib/theater';
-
-const CARD_HEIGHT = 190;
 
 const posterUrl = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w200${path}` : null);
 
@@ -25,21 +22,19 @@ function ArchiveCard({ view, onOpen }: { view: TheaterCardView; onOpen: () => vo
       aria-label={view.accessibleName}
       data-testid="theater-archive-card"
       className="w-full overflow-hidden border border-line bg-base-2 p-5 text-left"
-      style={{ height: CARD_HEIGHT, borderRadius: 0 }}
+      style={{ borderRadius: 0 }}
     >
       <p className="font-display text-lead text-fg line-clamp-2">{view.title}</p>
-      {view.facets && <FacetLine facets={view.facets} className="mt-2" />}
-      <SwatchStrip swatches={view.swatches} className="mt-3" />
-      <p className="mt-3 font-spec text-label tracking-widest text-fg-2" data-testid="theater-card-counts">
-        {view.countLine}
-      </p>
+      <div className="mt-3">
+        <TrailPosterRow trail={view.trail} />
+      </div>
     </button>
   );
 }
 
-function LineupRow({ film, onOpen }: { film: TheaterArchiveFilm; onOpen: () => void }) {
+function TrailRow({ film, onOpen }: { film: TheaterArchiveFilm; onOpen: () => void }) {
   return (
-    <button type="button" onClick={onOpen} className="flex w-full min-h-11 items-start gap-3 text-left">
+    <button type="button" onClick={onOpen} className="flex w-full min-h-11 items-center gap-3 text-left">
       <span
         className="block shrink-0 overflow-hidden border border-line bg-base-3"
         style={{ width: 40, height: 60, borderRadius: 0 }}
@@ -53,7 +48,6 @@ function LineupRow({ film, onOpen }: { film: TheaterArchiveFilm; onOpen: () => v
           {film.title}
           {film.year && <span className="font-spec text-label text-fg-2"> {film.year}</span>}
         </span>
-        {film.reason && <span className="block text-meta text-fg-2">{film.reason}</span>}
       </span>
     </button>
   );
@@ -61,6 +55,10 @@ function LineupRow({ film, onOpen }: { film: TheaterArchiveFilm; onOpen: () => v
 
 function TheaterSheet({ theater, onClose }: { theater: KeptTheater; onClose: () => void }) {
   const navigate = useNavigate();
+  const open = (film: TheaterArchiveFilm) => {
+    onClose();
+    navigate(`/movie/${film.id}?type=${film.mediaType}`);
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" data-testid="theater-sheet">
       <div className="absolute inset-0 bg-base/90" onClick={onClose} aria-hidden />
@@ -68,7 +66,7 @@ function TheaterSheet({ theater, onClose }: { theater: KeptTheater; onClose: () 
         <div className="flex items-start gap-3 border-b border-line p-5">
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-title text-fg">{theater.title}</h2>
-            {theater.facets && <FacetLine facets={theater.facets} className="mt-2" />}
+            <p className="mt-2 text-body text-fg-2">{theater.insight}</p>
           </div>
           <button
             type="button"
@@ -80,21 +78,44 @@ function TheaterSheet({ theater, onClose }: { theater: KeptTheater; onClose: () 
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <SwatchStrip swatches={theater.swatches} />
-          <p className="mt-4 text-body text-fg-2">{theater.insight}</p>
-          <ul className="mt-5 flex flex-col gap-3">
-            {theater.films.map((film) => (
-              <li key={`${film.mediaType}-${film.id}`}>
-                <LineupRow
-                  film={film}
-                  onOpen={() => {
-                    onClose();
-                    navigate(`/movie/${film.id}?type=${film.mediaType}`);
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
+          {theater.trail.length > 0 && (
+            <>
+              <p className="font-spec text-label uppercase tracking-widest text-fg-3">Opened</p>
+              <ul className="mt-3 flex flex-col gap-3" data-testid="theater-sheet-trail">
+                {theater.trail.map((film) => (
+                  <li key={`${film.mediaType}-${film.id}`}>
+                    <TrailRow film={film} onOpen={() => open(film)} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {theater.films.length > 0 && (
+            <>
+              <p className="mt-6 font-spec text-label uppercase tracking-widest text-fg-3">More in this vein</p>
+              <ul className="mt-3 flex gap-2 overflow-x-auto pb-1" data-testid="theater-sheet-picks">
+                {theater.films.map((film) => (
+                  <li key={`${film.mediaType}-${film.id}`} className="w-14 shrink-0">
+                    <button type="button" onClick={() => open(film)} className="block" title={film.title}>
+                      <span
+                        className="block overflow-hidden border border-line bg-base-3"
+                        style={{ width: 56, height: 84, borderRadius: 0 }}
+                      >
+                        {posterUrl(film.posterPath) ? (
+                          <img src={posterUrl(film.posterPath)!} alt={film.title} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full items-center justify-center px-0.5 text-center text-[8px] text-fg-3">
+                            {film.title}
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-1 block truncate text-[10px] text-fg-3">{film.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -113,7 +134,7 @@ export default function TheatersScreen() {
     <div className="min-h-screen bg-base text-fg" data-testid="theaters-screen">
       <div className="mx-auto max-w-md px-7 pt-8">
         <h1 data-spec className="text-label tracking-widest text-fg">THEATERS</h1>
-        <p className="mt-2 font-spec text-label tracking-widest text-fg-3">FACETS YOU KEPT WALKING BACK INTO</p>
+        <p className="mt-2 font-spec text-label tracking-widest text-fg-3">PATTERNS YOU KEPT WALKING BACK INTO</p>
 
         <div className="mt-6 flex flex-col gap-3">
           {archive.status === 'loading' ? (

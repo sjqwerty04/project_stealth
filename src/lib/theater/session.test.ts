@@ -196,7 +196,7 @@ describe('inference results', () => {
   it('keeps inferring when a dwell arrives, since the fingerprint is unchanged', () => {
     const withDwell = theaterReducer(inferring, dwell(949, 12000, true));
     expect(withDwell).toMatchObject({ status: 'inferring', revision: 1 });
-    expect(inferring.status === 'inferring' && withDwell.status === 'inferring' && withDwell.fingerprint).toBe(inferring.fingerprint);
+    expect(inferring.status === 'inferring' && withDwell.status === 'inferring' && withDwell.fingerprint === inferring.fingerprint).toBe(true);
     expect(withDwell.status === 'inferring' && withDwell.signals).toHaveLength(4);
   });
 
