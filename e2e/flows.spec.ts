@@ -262,6 +262,57 @@ test('F13 Movie detail chrome', async ({ page }, testInfo) => {
       }),
     });
   });
+  await page.route(/api\.themoviedb\.org\/3\/movie\/155\/credits/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: { crew: [{ job: 'Director', id: 525, name: 'Christopher Nolan' }], cast: [] },
+    }),
+  );
+  await page.route(/api\.themoviedb\.org\/3\/person\/525/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: {
+        id: 525,
+        movie_credits: {
+          crew: [
+            {
+              id: 49026,
+              title: 'The Dark Knight Rises',
+              poster_path: '/hr0L2aueqlP2BYUblTTjmtn0hw4.jpg',
+              popularity: 80,
+              release_date: '2012-07-20',
+            },
+          ],
+          cast: [],
+        },
+      },
+    }),
+  );
+  await page.route(/api\.themoviedb\.org\/3\/movie\/155(\?|$)/, (route) => {
+    const url = route.request().url();
+    if (url.includes('/credits') || url.includes('/videos') || url.includes('/images') || url.includes('/watch') || url.includes('/external')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', json: { results: [], logos: [], crew: [], cast: [] } });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: {
+        id: 155,
+        title: 'The Dark Knight',
+        release_date: '2008-07-18',
+        runtime: 152,
+        poster_path: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
+        backdrop_path: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
+        overview: 'Batman faces the Joker.',
+        genres: [{ name: 'Action' }, { name: 'Crime' }],
+        vote_average: 8.5,
+        vote_count: 10000,
+        tagline: '',
+      },
+    });
+  });
   await page.goto('/movie/155');
   await expect(page.getByTestId('action-watchlist')).toBeVisible();
   await expect(page.getByTestId('similar-grid')).toBeVisible({ timeout: 3000 });
