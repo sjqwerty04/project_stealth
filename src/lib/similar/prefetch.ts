@@ -24,11 +24,18 @@ export async function fetchScholarNeighbors(input: {
 }
 
 export function prefetchScholarAdjacency(
-  movies: Array<{ movieId: number; title: string; year: string | number; genres?: string[] }>,
+  movies: Array<{
+    movieId: number;
+    title: string;
+    year: string | number;
+    genres?: string[];
+    mediaType?: 'movie' | 'tv';
+  }>,
 ): void {
   for (const movie of movies.slice(0, 3)) {
     void (async () => {
-      const existing = await readAdjacency(movie.movieId).catch(() => null);
+      const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie';
+      const existing = await readAdjacency(movie.movieId, mediaType).catch(() => null);
       if (existing?.neighbors.length) return;
       const neighbors = await fetchScholarNeighbors({
         movieId: movie.movieId,
@@ -36,7 +43,7 @@ export function prefetchScholarAdjacency(
         year: String(movie.year ?? ''),
         genres: movie.genres,
       });
-      if (neighbors.length) await writeAdjacency(movie.movieId, neighbors).catch(() => {});
+      if (neighbors.length) await writeAdjacency(movie.movieId, neighbors, mediaType).catch(() => {});
     })();
   }
 }

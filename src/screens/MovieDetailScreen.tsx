@@ -569,13 +569,14 @@ export default function MovieDetailScreen() {
         )}
 
         <SimilarFilms
-          key={details.id}
+          key={`${details.mediaType}-${details.id}`}
           movie={{
             id: details.id,
             title: details.title,
             year: details.year,
             genres: details.genres,
             lineagePersonIds: details.lineagePersonIds,
+            mediaType: details.mediaType,
           }}
           onOpen={handleSimilarMovieClick}
         />

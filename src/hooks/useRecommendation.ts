@@ -301,7 +301,12 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         if (hydrated.length) {
           writeSelectsCache(user.uid, hydrated.map(toStored));
           prefetchScholarAdjacency(
-            hydrated.map((p) => ({ movieId: p.movieId, title: p.title, year: p.year })),
+            hydrated.map((p) => ({
+              movieId: p.movieId,
+              title: p.title,
+              year: p.year,
+              mediaType: p.mediaType,
+            })),
           );
           try {
             await recordTasteEvent(

@@ -10,9 +10,10 @@ function asAxis(value: unknown): NeighborAxis | null {
 export function parseNeighbor(raw: unknown): FilmNeighbor | null {
   if (!raw || typeof raw !== 'object') return null;
   const row = raw as Record<string, unknown>;
-  const movieId = Number(row.movieId ?? row.id);
+  const rawId = Number(row.movieId ?? row.id);
+  const movieId = Number.isFinite(rawId) && rawId > 0 ? rawId : 0;
   const title = typeof row.title === 'string' ? row.title.trim() : '';
-  if (!Number.isFinite(movieId) || movieId <= 0 || !title) return null;
+  if (!title) return null;
   const axes = Array.isArray(row.axes)
     ? row.axes.map(asAxis).filter((axis): axis is NeighborAxis => axis != null)
     : [];
@@ -37,12 +38,19 @@ export function parseNeighbors(raw: unknown): FilmNeighbor[] {
   const out: FilmNeighbor[] = [];
   for (const item of list) {
     const neighbor = parseNeighbor(item);
-    if (!neighbor || seen.has(neighbor.movieId)) continue;
-    seen.add(neighbor.movieId);
+    if (!neighbor) continue;
+    if (neighbor.movieId > 0) {
+      if (seen.has(neighbor.movieId)) continue;
+      seen.add(neighbor.movieId);
+    }
     out.push(neighbor);
     if (out.length >= ADJACENCY_MAX_NEIGHBORS) break;
   }
   return out;
+}
+
+export function adjacencyDocId(movieId: number, mediaType: 'movie' | 'tv' = 'movie') {
+  return mediaType === 'tv' ? `tv_${movieId}` : String(movieId);
 }
 
 export function adjacencyDoc(movieId: number, neighbors: FilmNeighbor[], updatedAt = Date.now()): FilmAdjacency {
