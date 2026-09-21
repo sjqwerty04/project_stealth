@@ -303,9 +303,9 @@ export default function SelectsCarousel({
   };
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
+    swallowClick.current = false;
     if ((e.target as HTMLElement).closest('[data-carousel-control]')) return;
     capturingSwipe.current = false;
-    swallowClick.current = false;
     startTarget.current = e.target as HTMLElement;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     carouselStartX.current = e.clientX;
@@ -326,12 +326,13 @@ export default function SelectsCarousel({
     carouselStartX.current = null;
     const origin = startTarget.current;
     startTarget.current = null;
-    const swiped = capturingSwipe.current || (applySwipe && Math.abs(dx) >= 40);
+    const passedThreshold = capturingSwipe.current;
+    const swiped = applySwipe && Math.abs(dx) >= 40;
     capturingSwipe.current = false;
-    if (swiped && applySwipe) {
+    if (swiped) {
       swallowClick.current = true;
       go(dx < 0 ? 1 : -1);
-    } else if (applySwipe && origin && !origin.closest('[data-carousel-control]')) {
+    } else if (applySwipe && !passedThreshold && origin && !origin.closest('[data-carousel-control]')) {
       const btn = origin.closest('button');
       if (btn instanceof HTMLButtonElement && !btn.disabled) {
         btn.click();
