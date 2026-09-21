@@ -31,7 +31,8 @@ export type Swatches = [string, string, string, string];
 
 export type TheaterLineupItem = TheaterFilm & { reason: string };
 
-export const LINEUP_SIZE = 8;
+export const PICKS_SIZE = 6;
+export const TRAIL_POSTER_CAP = 6;
 
 export type Theater = {
   title: string;
@@ -39,6 +40,7 @@ export type Theater = {
   insight: string;
   swatches: Swatches;
   sourceFilmIds: number[];
+  trail: TheaterFilm[];
   lineup: TheaterLineupItem[];
 };
 
@@ -172,7 +174,14 @@ export function parseTheater(raw: unknown): Theater | null {
   const swatches = parseSwatches(raw.swatches);
   if (!nonEmptyString(raw.title) || !facets || !nonEmptyString(raw.insight) || !swatches) return null;
   if (!Array.isArray(raw.sourceFilmIds) || !raw.sourceFilmIds.every(finiteNumber)) return null;
-  if (!Array.isArray(raw.lineup) || raw.lineup.length !== LINEUP_SIZE) return null;
+  if (!Array.isArray(raw.trail) || raw.trail.length < 3) return null;
+  const trail: TheaterFilm[] = [];
+  for (const item of raw.trail) {
+    const film = parseTheaterFilm(item);
+    if (!film) return null;
+    trail.push(film);
+  }
+  if (!Array.isArray(raw.lineup) || raw.lineup.length > PICKS_SIZE) return null;
   const lineup: TheaterLineupItem[] = [];
   for (const item of raw.lineup) {
     const parsed = parseLineupItem(item);
@@ -185,6 +194,7 @@ export function parseTheater(raw: unknown): Theater | null {
     insight: raw.insight,
     swatches,
     sourceFilmIds: raw.sourceFilmIds,
+    trail,
     lineup,
   };
 }

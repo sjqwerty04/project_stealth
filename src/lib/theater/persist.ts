@@ -2,7 +2,7 @@ import { appendSignal } from './gate';
 import { IDLE_SESSION } from './session';
 import { isRecord, parseTheater, parseTheaterSignal, type TheaterSession, type TheaterSignal } from './types';
 
-export const THEATER_SESSION_VERSION = 1;
+export const THEATER_SESSION_VERSION = 2;
 
 export function theaterSessionKey(uid: string): string {
   return `theater-session:v${THEATER_SESSION_VERSION}:${uid}`;

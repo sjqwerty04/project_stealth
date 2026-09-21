@@ -1,63 +1,57 @@
 import { X } from 'lucide-react';
-import FacetLine from './ui/FacetLine';
 import SelectsChaseLoader from './ui/SelectsChaseLoader';
-import SwatchStrip from './ui/SwatchStrip';
-import type { Swatches, TheaterLineupItem } from '../lib/theater';
+import { TRAIL_POSTER_CAP, type TheaterFilm } from '../lib/theater';
 
 type TheaterCardProps = {
   status: 'inferring' | 'showing' | 'kept';
   title: string | null;
-  facets: [string, string] | null;
   insight: string | null;
-  swatches: Swatches | null;
-  lineup: readonly TheaterLineupItem[];
+  trail: readonly TheaterFilm[];
   onKeep: () => void;
   onDismiss: () => void;
-  onFilmClick?: (film: TheaterLineupItem) => void;
+  onFilmClick?: (film: TheaterFilm) => void;
   isKeeping?: boolean;
   compact?: boolean;
 };
 
 const posterUrl = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w200${path}` : null);
 
-function Lineup({
-  lineup,
+function TrailPosters({
+  trail,
   onFilmClick,
-  compact,
 }: {
-  lineup: readonly TheaterLineupItem[];
-  onFilmClick?: (film: TheaterLineupItem) => void;
-  compact: boolean;
+  trail: readonly TheaterFilm[];
+  onFilmClick?: (film: TheaterFilm) => void;
 }) {
-  if (lineup.length === 0) return null;
-  const posterWidth = compact ? 32 : 40;
+  if (trail.length === 0) return null;
+  const shown = trail.slice(0, TRAIL_POSTER_CAP);
+  const extra = trail.length - shown.length;
   return (
-    <ul className="mt-4 flex flex-col gap-2" data-testid="theater-lineup">
-      {lineup.map((film) => (
+    <ul className="mt-3 flex items-end gap-1.5" data-testid="theater-trail">
+      {shown.map((film) => (
         <li key={`${film.mediaType}-${film.id}`}>
           <button
             type="button"
             onClick={() => onFilmClick?.(film)}
-            className="flex w-full min-h-11 items-start gap-3 text-left"
+            className="block overflow-hidden bg-base-3 border border-line"
+            style={{ width: 40, height: 60, borderRadius: 0 }}
+            title={film.title}
           >
-            <span
-              className="block shrink-0 overflow-hidden bg-base-3 border border-line"
-              style={{ width: posterWidth, height: posterWidth * 1.5, borderRadius: 0 }}
-            >
-              {posterUrl(film.posterPath) && (
-                <img src={posterUrl(film.posterPath)!} alt="" className="h-full w-full object-cover" />
-              )}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-display text-body text-fg">
+            {posterUrl(film.posterPath) ? (
+              <img src={posterUrl(film.posterPath)!} alt={film.title} className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full items-center justify-center px-0.5 text-center text-[8px] text-fg-3">
                 {film.title}
-                {film.year && <span className="font-spec text-label text-fg-2"> {film.year}</span>}
               </span>
-              <span className="block text-meta text-fg-2">{film.reason}</span>
-            </span>
+            )}
           </button>
         </li>
       ))}
+      {extra > 0 && (
+        <li className="font-spec text-label text-fg-2" data-testid="theater-trail-more">
+          +{extra}
+        </li>
+      )}
     </ul>
   );
 }
@@ -65,10 +59,8 @@ function Lineup({
 export default function TheaterCard({
   status,
   title,
-  facets,
   insight,
-  swatches,
-  lineup,
+  trail,
   onKeep,
   onDismiss,
   onFilmClick,
@@ -104,9 +96,8 @@ export default function TheaterCard({
         ) : (
           <>
             <h3 className={`mt-2 font-display text-fg ${compact ? 'text-lead' : 'text-title'}`}>{title}</h3>
-            {facets && <FacetLine facets={facets} className="mt-2" />}
+            <TrailPosters trail={trail} onFilmClick={onFilmClick} />
             {insight && <p className="mt-3 text-body text-fg-2">{insight}</p>}
-            {swatches && <SwatchStrip swatches={swatches} size={compact ? 32 : 44} className="mt-4" />}
 
             <button
               type="button"
@@ -120,8 +111,6 @@ export default function TheaterCard({
             >
               {isKeeping ? <SelectsChaseLoader size="xs" activeColor="#0A0A0B" idleColor="#7C7A76" /> : kept ? 'Kept' : 'Keep Theater'}
             </button>
-
-            <Lineup lineup={lineup} onFilmClick={onFilmClick} compact={compact} />
           </>
         )}
       </div>

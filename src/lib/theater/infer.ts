@@ -7,7 +7,7 @@ import {
   filmIdentity,
   isHexColor,
   isRecord,
-  LINEUP_SIZE,
+  PICKS_SIZE,
   nonEmptyString,
   parseFacets,
   type Swatches,
@@ -55,10 +55,20 @@ export function buildTheaterPrompt(signals: readonly TheaterSignal[]): string {
     ...(films.length ? films : ['- none']),
     '</evidence>',
     '<task>',
-    `Name the Theater this trail is building and program exactly ${LINEUP_SIZE} films for it.`,
-    'Return only the JSON object described in your instructions.',
+    `If these films share a pull, name the Theater and program exactly ${PICKS_SIZE} films the person has not opened. If they do not share a pull, return NO_PATTERN.`,
+    'Return only the JSON object described in your instructions, or NO_PATTERN.',
     '</task>',
   ].join('\n');
+}
+
+function isNoPattern(raw: unknown): boolean {
+  if (raw === 'NO_PATTERN') return true;
+  if (typeof raw === 'string' && raw.trim() === 'NO_PATTERN') return true;
+  if (!isRecord(raw)) return false;
+  if (raw.pattern === false || raw.pattern === null) return true;
+  const title = typeof raw.title === 'string' ? raw.title : '';
+  const insight = typeof raw.insight === 'string' ? raw.insight : '';
+  return title.includes('NO_PATTERN') || insight.includes('NO_PATTERN');
 }
 
 function parsePick(raw: unknown): TheaterPick | null {
@@ -69,10 +79,10 @@ function parsePick(raw: unknown): TheaterPick | null {
 }
 
 export function parseTheaterDraft(raw: unknown): TheaterDraft | null {
-  if (!isRecord(raw)) return null;
+  if (isNoPattern(raw) || !isRecord(raw)) return null;
   const facets = parseFacets(raw.facets);
   if (!nonEmptyString(raw.title) || !facets || !nonEmptyString(raw.insight)) return null;
-  if (!Array.isArray(raw.picks) || raw.picks.length !== LINEUP_SIZE) return null;
+  if (!Array.isArray(raw.picks) || raw.picks.length !== PICKS_SIZE) return null;
   const picks: TheaterPick[] = [];
   for (const item of raw.picks) {
     const pick = parsePick(item);
@@ -88,7 +98,7 @@ export function swatchesFrom(colors: readonly string[]): Swatches {
   return [a, b, c, d];
 }
 
-async function hydrateLineup(
+async function hydratePicks(
   picks: readonly TheaterPick[],
   sources: readonly TheaterFilm[],
   searchFilm: InferDeps['searchFilm'],
@@ -110,16 +120,16 @@ async function hydrateLineup(
 export async function inferTheater(signals: readonly TheaterSignal[], deps: InferDeps): Promise<Theater | null> {
   const draft = parseTheaterDraft(await deps.llm(buildTheaterPrompt(signals), loadSkill('theater-infer')));
   if (!draft) return null;
-  const sources = filmsOf(signals);
-  const lineup = await hydrateLineup(draft.picks, sources, deps.searchFilm);
-  if (lineup.length !== LINEUP_SIZE) return null;
+  const trail = filmsOf(signals);
+  const lineup = await hydratePicks(draft.picks, trail, deps.searchFilm);
   const colors = deps.posterColors ? await deps.posterColors(lineup) : [];
   return {
     title: draft.title,
     facets: draft.facets,
     insight: draft.insight,
     swatches: swatchesFrom(colors),
-    sourceFilmIds: sources.map((f) => f.id),
+    sourceFilmIds: trail.map((f) => f.id),
+    trail,
     lineup,
   };
 }

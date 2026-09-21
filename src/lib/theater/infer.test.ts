@@ -23,6 +23,16 @@ const THIEF: TheaterFilm = {
   director: 'Michael Mann',
   mediaType: 'movie',
 };
+const COLLATERAL: TheaterFilm = {
+  id: 1538,
+  title: 'Collateral',
+  year: '2004',
+  posterPath: '/collateral.jpg',
+  backdropPath: null,
+  genres: ['Crime', 'Thriller'],
+  director: 'Michael Mann',
+  mediaType: 'movie',
+};
 
 const searchResult = (id: number, title: string, year: string, posterPath: string | null): TheaterFilm => ({
   id,
@@ -39,6 +49,7 @@ const TRAIL: TheaterSignal[] = [
   { kind: 'query', text: 'heat', mode: 'standard', at: 0 },
   { kind: 'detail_view', film: HEAT, at: 1000 },
   { kind: 'detail_view', film: THIEF, at: 2000 },
+  { kind: 'detail_view', film: COLLATERAL, at: 3000 },
   { kind: 'dwell', filmId: 10858, ms: 20000, engaged: true },
 ];
 
@@ -49,25 +60,23 @@ const DRAFT: TheaterDraft = {
   picks: [
     { title: 'Le Samouraï', year: '1967', reason: 'A contract killer follows his routine flawlessly and it still closes on him.' },
     { title: 'To Live and Die in L.A.', year: '1985', reason: 'A Secret Service agent so good at the chase he becomes the crime.' },
-    { title: 'Collateral', year: '2004', reason: 'One long night where the professional and the amateur both lose the map.' },
     { title: 'The Friends of Eddie Coyle', year: '1973', reason: 'Every hood in Boston knows his trade and none of it saves Eddie.' },
     { title: 'Sorcerer', year: '1977', reason: 'Four experts drive nitroglycerin through a jungle that does not care.' },
     { title: "Miller's Crossing", year: '1990', reason: 'Tom plays every angle in the room and still ends up alone.' },
     { title: 'Sicario', year: '2015', reason: 'Kate does everything right and learns the job was never hers.' },
-    { title: 'Drive', year: '2011', reason: 'The driver is perfect behind the wheel and helpless everywhere else.' },
   ],
 };
 
 const CATALOG: Record<string, TheaterFilm> = {
   'Le Samouraï': searchResult(5511, 'Le Samouraï', '1967', '/samourai.jpg'),
   'To Live and Die in L.A.': searchResult(9526, 'To Live and Die in L.A.', '1985', '/tlad.jpg'),
-  Collateral: searchResult(1538, 'Collateral', '2004', '/collateral.jpg'),
   'The Friends of Eddie Coyle': searchResult(31672, 'The Friends of Eddie Coyle', '1973', null),
   Sorcerer: searchResult(24559, 'Sorcerer', '1977', '/sorcerer.jpg'),
   "Miller's Crossing": searchResult(379, "Miller's Crossing", '1990', '/millers.jpg'),
   Sicario: searchResult(273481, 'Sicario', '2015', '/sicario.jpg'),
   Drive: searchResult(64690, 'Drive', '2011', '/drive.jpg'),
   Heat: HEAT,
+  Collateral: COLLATERAL,
 };
 
 const searchCatalog = async (pick: TheaterPick): Promise<TheaterFilm | null> => CATALOG[pick.title] ?? null;
@@ -94,12 +103,23 @@ describe('parseTheaterDraft', () => {
     expect(parsed?.picks).toEqual(DRAFT.picks);
   });
 
-  it('accepts exactly eight picks and rejects seven, nine, or none', () => {
-    expect(parseTheaterDraft(DRAFT)?.picks).toHaveLength(8);
-    expect(parseTheaterDraft({ ...DRAFT, picks: DRAFT.picks.slice(0, 7) })).toBeNull();
-    const ninth = { title: 'Blue Collar', year: '1978', reason: 'Three men rob their own union and the union wins.' };
-    expect(parseTheaterDraft({ ...DRAFT, picks: [...DRAFT.picks, ninth] })).toBeNull();
+  it('accepts exactly six picks and rejects five, seven, eight, or none', () => {
+    expect(parseTheaterDraft(DRAFT)?.picks).toHaveLength(6);
+    expect(parseTheaterDraft({ ...DRAFT, picks: DRAFT.picks.slice(0, 5) })).toBeNull();
+    const seventh = { title: 'Drive', year: '2011', reason: 'The driver is perfect behind the wheel and helpless everywhere else.' };
+    expect(parseTheaterDraft({ ...DRAFT, picks: [...DRAFT.picks, seventh] })).toBeNull();
+    const eighth = { title: 'Blue Collar', year: '1978', reason: 'Three men rob their own union and the union wins.' };
+    expect(parseTheaterDraft({ ...DRAFT, picks: [...DRAFT.picks, seventh, eighth] })).toBeNull();
     expect(parseTheaterDraft({ ...DRAFT, picks: [] })).toBeNull();
+  });
+
+  it('treats a NO_PATTERN payload as a miss', () => {
+    expect(parseTheaterDraft('NO_PATTERN')).toBeNull();
+    expect(parseTheaterDraft('  NO_PATTERN  ')).toBeNull();
+    expect(parseTheaterDraft({ pattern: false, ...DRAFT })).toBeNull();
+    expect(parseTheaterDraft({ pattern: null, ...DRAFT })).toBeNull();
+    expect(parseTheaterDraft({ ...DRAFT, title: 'NO_PATTERN' })).toBeNull();
+    expect(parseTheaterDraft({ ...DRAFT, insight: 'NO_PATTERN' })).toBeNull();
   });
 
   it('rejects malformed or incomplete output', () => {
@@ -126,9 +146,10 @@ describe('buildTheaterPrompt', () => {
     const prompt = buildTheaterPrompt(TRAIL);
     expect(prompt).toContain('Searches this person committed to:\n- "heat"\n');
     expect(prompt).toContain(
-      'Films this person opened:\n- Heat (1995) | dir. Michael Mann | Crime, Drama\n- Thief (1981) | dir. Michael Mann | Crime, Thriller | stayed with it\n',
+      'Films this person opened:\n- Heat (1995) | dir. Michael Mann | Crime, Drama\n- Thief (1981) | dir. Michael Mann | Crime, Thriller | stayed with it\n- Collateral (2004) | dir. Michael Mann | Crime, Thriller\n',
     );
-    expect(prompt).toContain('program exactly 8 films');
+    expect(prompt).toContain('program exactly 6 films');
+    expect(prompt).toContain('return NO_PATTERN');
   });
 
   it('omits director and genres when a film carries neither', () => {
@@ -152,7 +173,7 @@ describe('swatchesFrom', () => {
 });
 
 describe('inferTheater', () => {
-  it('hydrates eight lineup items and preserves every reason', async () => {
+  it('hydrates six recommended picks, copies the opened trail, and preserves every reason', async () => {
     const received: { prompt?: string; system?: string } = {};
     const theater = await inferTheater(
       TRAIL,
@@ -169,50 +190,64 @@ describe('inferTheater', () => {
       facets: ['COMPETENCE PORN', 'NOBODY WINS'],
       insight: 'You keep opening films where the plan is perfect and the ending is not.',
       swatches: ['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20'],
-      sourceFilmIds: [949, 10858],
+      sourceFilmIds: [949, 10858, 1538],
+      trail: [HEAT, THIEF, COLLATERAL],
       lineup: EXPECTED_LINEUP,
     });
+    expect(theater?.lineup).toHaveLength(6);
+    expect(theater?.lineup.map((item) => item.title)).not.toEqual(expect.arrayContaining(['Heat', 'Thief', 'Collateral']));
     expect(theater?.lineup.map((item) => item.reason)).toEqual(DRAFT.picks.map((pick) => pick.reason));
     expect(received.prompt).toBe(buildTheaterPrompt(TRAIL));
     expect(received.system).toBe(loadSkill('theater-infer'));
-    expect(received.system).toContain('exactly eight films');
+    expect(received.system).toContain('exactly six films');
   });
 
-  it('yields null when one hydrated title does not match its pick', async () => {
+  it('returns null on NO_PATTERN without hydrating anything', async () => {
+    const searchFilm = vi.fn(searchCatalog);
+    expect(await inferTheater(TRAIL, deps({ llm: async () => 'NO_PATTERN', searchFilm }))).toBeNull();
+    expect(searchFilm).not.toHaveBeenCalled();
+  });
+
+  it('keeps the remaining picks when one hydrated title does not match', async () => {
     const godfather = searchResult(238, 'The Godfather', '1972', null);
     const theater = await inferTheater(
       TRAIL,
-      deps({ searchFilm: async (pick) => (pick.title === 'Drive' ? godfather : searchCatalog(pick)) }),
+      deps({ searchFilm: async (pick) => (pick.title === 'Sicario' ? godfather : searchCatalog(pick)) }),
     );
-    expect(theater).toBeNull();
+    expect(theater?.lineup.map((item) => item.title)).toEqual(DRAFT.picks.slice(0, 5).map((pick) => pick.title));
   });
 
-  it('yields null when two picks hydrate to the same film', async () => {
+  it('skips a duplicate hydration instead of inventing a second row', async () => {
     const secondDrive = { title: 'Drive (2011)', year: '2011', reason: 'A second reason for the same film.' };
     const draft = { ...DRAFT, picks: DRAFT.picks.map((pick) => (pick.title === 'Sicario' ? secondDrive : pick)) };
     const theater = await inferTheater(
       TRAIL,
       deps({ llm: async () => draft, searchFilm: async (pick) => searchCatalog(pick.title === 'Drive (2011)' ? { ...pick, title: 'Drive' } : pick) }),
     );
-    expect(theater).toBeNull();
+    expect(theater?.lineup.map((item) => item.title)).toEqual([...DRAFT.picks.slice(0, 5).map((pick) => pick.title), 'Drive']);
+    expect(theater?.lineup.filter((item) => item.title === 'Drive')).toHaveLength(1);
   });
 
-  it('yields null when a pick hydrates to a film the person already opened', async () => {
+  it('drops a pick that hydrates to a film the person already opened', async () => {
     const draft = { ...DRAFT, picks: [{ title: 'Heat', year: '1995', reason: 'They already opened this one.' }, ...DRAFT.picks.slice(1)] };
-    expect(await inferTheater(TRAIL, deps({ llm: async () => draft }))).toBeNull();
+    const theater = await inferTheater(TRAIL, deps({ llm: async () => draft }));
+    expect(theater?.lineup.map((item) => item.title)).toEqual(DRAFT.picks.slice(1).map((pick) => pick.title));
+    expect(theater?.lineup.map((item) => item.title)).not.toContain('Heat');
   });
 
-  it('yields null when one search throws or comes back empty', async () => {
+  it('skips a pick whose search throws or comes back empty', async () => {
     const throwing = deps({
       searchFilm: async (pick) => {
         if (pick.title === 'Sorcerer') throw new Error('TMDB 500');
         return searchCatalog(pick);
       },
     });
-    expect(await inferTheater(TRAIL, throwing)).toBeNull();
+    expect((await inferTheater(TRAIL, throwing))?.lineup.map((item) => item.title)).toEqual(
+      DRAFT.picks.filter((pick) => pick.title !== 'Sorcerer').map((pick) => pick.title),
+    );
     const empty = deps({ searchFilm: async (pick) => (pick.title === 'Sicario' ? null : searchCatalog(pick)) });
-    expect(await inferTheater(TRAIL, empty)).toBeNull();
-    expect(await inferTheater(TRAIL, deps({ searchFilm: async () => null }))).toBeNull();
+    expect((await inferTheater(TRAIL, empty))?.lineup).toHaveLength(5);
+    expect(await inferTheater(TRAIL, deps({ searchFilm: async () => null }))).toMatchObject({ lineup: [] });
   });
 
   it('yields null on malformed output without hydrating anything', async () => {
@@ -233,7 +268,7 @@ describe('inferTheater', () => {
     };
     const theater = await inferTheater(TRAIL, deps({ posterColors }));
     expect(theater?.swatches).toEqual(['#0B3D91', '#7A1F1F', '#3A6E85', '#1D1D20']);
-    expect(sampled.map((film) => film.id)).toEqual([5511, 9526, 1538, 31672, 24559, 379, 273481, 64690]);
+    expect(sampled.map((film) => film.id)).toEqual([5511, 9526, 31672, 24559, 379, 273481]);
   });
 });
 
@@ -245,6 +280,7 @@ describe('theaterLlm', () => {
     vi.stubGlobal('fetch', fetchMock);
     const theater = await inferTheater(TRAIL, { llm: theaterLlm, searchFilm: searchCatalog });
     expect(theater?.lineup).toEqual(EXPECTED_LINEUP);
+    expect(theater?.trail).toEqual([HEAT, THIEF, COLLATERAL]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/llm');
@@ -263,6 +299,8 @@ describe('theaterLlm', () => {
     const otherTrail: TheaterSignal[] = [
       { kind: 'query', text: 'thief', mode: 'standard', at: 0 },
       { kind: 'detail_view', film: HEAT, at: 1000 },
+      { kind: 'detail_view', film: THIEF, at: 2000 },
+      { kind: 'detail_view', film: COLLATERAL, at: 3000 },
     ];
     expect(await inferTheater(otherTrail, { llm: theaterLlm, searchFilm: searchCatalog })).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);

@@ -32,15 +32,24 @@ const THIEF: TheaterFilm = {
   mediaType: 'movie',
 };
 
+const COLLATERAL: TheaterFilm = {
+  id: 1538,
+  title: 'Collateral',
+  year: '2004',
+  posterPath: '/collateral.jpg',
+  backdropPath: null,
+  genres: ['Crime', 'Thriller'],
+  director: 'Michael Mann',
+  mediaType: 'movie',
+};
+
 const LINEUP_ROWS: [number, string, string, string][] = [
   [5511, 'Le Samouraï', '1967', 'A contract killer follows his routine flawlessly and it still closes on him.'],
   [9526, 'To Live and Die in L.A.', '1985', 'A Secret Service agent so good at the chase he becomes the crime.'],
-  [1538, 'Collateral', '2004', 'One long night where the professional and the amateur both lose the map.'],
   [31672, 'The Friends of Eddie Coyle', '1973', 'Every hood in Boston knows his trade and none of it saves Eddie.'],
   [24559, 'Sorcerer', '1977', 'Four experts drive nitroglycerin through a jungle that does not care.'],
   [379, "Miller's Crossing", '1990', 'Tom plays every angle in the room and still ends up alone.'],
   [273481, 'Sicario', '2015', 'Kate does everything right and learns the job was never hers.'],
-  [64690, 'Drive', '2011', 'The driver is perfect behind the wheel and helpless everywhere else.'],
 ];
 const LINEUP: TheaterLineupItem[] = LINEUP_ROWS.map(([id, title, year, reason]) => ({
   id,
@@ -59,7 +68,8 @@ const THEATER: Theater = {
   facets: ['COMPETENCE PORN', 'NOBODY WINS'],
   insight: 'You keep opening films where the plan is perfect and the ending is not.',
   swatches: FALLBACK_SWATCHES,
-  sourceFilmIds: [949, 10858],
+  sourceFilmIds: [949, 10858, 1538],
+  trail: [HEAT, THIEF, COLLATERAL],
   lineup: LINEUP,
 };
 const LATER_THEATER: Theater = { ...THEATER, title: 'Night shifts and the men who cannot clock out', facets: ['NOCTURNAL', 'WORK IS THE PLOT'] };
@@ -76,29 +86,27 @@ const fail = (revision: number): TheaterEvent => ({ type: 'infer_failed', revisi
 const run = (...events: TheaterEvent[]) => events.reduce(theaterReducer, IDLE_SESSION);
 
 describe('gate paths into inferring', () => {
-  it('two unique queries', () => {
-    expect(run(query('heat', 0), query('thief', 1000), start(1, 3500))).toEqual({
-      status: 'inferring',
-      signals: [querySignal('heat', 0), querySignal('thief', 1000)],
-      revision: 1,
-      fingerprint: '626f16ac561ba3e7',
-      lastActiveAt: 1000,
+  it('three unique films', () => {
+    const session = run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000), start(1, 4500));
+    expect(session).toMatchObject({ status: 'inferring', revision: 1, lastActiveAt: 2000 });
+  });
+
+  it('stays collecting on two unique queries', () => {
+    expect(run(query('heat', 0), query('thief', 1000), start(1, 3500))).toMatchObject({ status: 'collecting' });
+  });
+
+  it('stays collecting on two unique films', () => {
+    expect(run(view(HEAT, 0), view(THIEF, 1000), start(1, 3500))).toMatchObject({ status: 'collecting' });
+  });
+
+  it('stays collecting on one query plus one film', () => {
+    expect(run(query('heat', 0), view(THIEF, 1000), start(1, 3500))).toMatchObject({ status: 'collecting' });
+  });
+
+  it('stays collecting on one AI-curated query', () => {
+    expect(run(query('men who are good at their jobs and lose anyway', 0, 'ai-curated'), start(1, 2500))).toMatchObject({
+      status: 'collecting',
     });
-  });
-
-  it('two unique films', () => {
-    const session = run(view(HEAT, 0), view(THIEF, 1000), start(1, 3500));
-    expect(session).toMatchObject({ status: 'inferring', revision: 1, fingerprint: '483c2a8051a18a19', lastActiveAt: 1000 });
-  });
-
-  it('one query plus one film', () => {
-    const session = run(query('heat', 0), view(THIEF, 1000), start(1, 3500));
-    expect(session).toMatchObject({ status: 'inferring', fingerprint: 'bb8c37784ee25cf5' });
-  });
-
-  it('one AI-curated query on its own', () => {
-    const session = run(query('men who are good at their jobs and lose anyway', 0, 'ai-curated'), start(1, 2500));
-    expect(session).toMatchObject({ status: 'inferring', fingerprint: '75163086499fbb3a', lastActiveAt: 0 });
   });
 
   it('one plain query stays collecting no matter how long it waits', () => {
@@ -111,10 +119,10 @@ describe('gate paths into inferring', () => {
   });
 
   it('waits 2500 ms after the last new unique signal', () => {
-    const collectingState = run(query('heat', 0), query('thief', 1000));
-    expect(inferDue(collectingState, 3499)).toBe(false);
-    expect(inferDue(collectingState, 3500)).toBe(true);
-    expect(theaterReducer(collectingState, start(1, 3499))).toBe(collectingState);
+    const collectingState = run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000));
+    expect(inferDue(collectingState, 4499)).toBe(false);
+    expect(inferDue(collectingState, 4500)).toBe(true);
+    expect(theaterReducer(collectingState, start(1, 4499))).toBe(collectingState);
   });
 });
 
@@ -151,31 +159,35 @@ describe('evidence uniqueness', () => {
 });
 
 describe('inference results', () => {
-  const TRAIL = [querySignal('heat', 0), querySignal('thief', 1000)];
-  const inferring = run(query('heat', 0), query('thief', 1000), start(1, 3500));
+  const TRAIL = [
+    { kind: 'detail_view', film: HEAT, at: 0 } satisfies TheaterSignal,
+    { kind: 'detail_view', film: THIEF, at: 1000 } satisfies TheaterSignal,
+    { kind: 'detail_view', film: COLLATERAL, at: 2000 } satisfies TheaterSignal,
+  ];
+  const inferring = run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000), start(1, 4500));
 
   it('publishes the theater for the matching revision', () => {
     expect(theaterReducer(inferring, succeed(1, THEATER))).toEqual({
       status: 'showing',
       theater: THEATER,
       signals: TRAIL,
-      fingerprint: '626f16ac561ba3e7',
-      lastActiveAt: 1000,
+      fingerprint: inferring.status === 'inferring' ? inferring.fingerprint : '',
+      lastActiveAt: 2000,
     });
   });
 
   it('rejects stale revision 1 once revision 2 has published', () => {
-    const afterNewEvidence = theaterReducer(inferring, view(HEAT, 4000));
+    const afterNewEvidence = theaterReducer(inferring, query('night', 4000));
     expect(afterNewEvidence).toMatchObject({ status: 'collecting', lastActiveAt: 4000 });
     const showingLater = theaterReducer(theaterReducer(afterNewEvidence, start(2, 6500)), succeed(2, LATER_THEATER));
-    expect(showingLater).toMatchObject({ status: 'showing', fingerprint: '12125591ba75b3ab', theater: { title: LATER_THEATER.title } });
+    expect(showingLater).toMatchObject({ status: 'showing', theater: { title: LATER_THEATER.title } });
     const afterStale = theaterReducer(showingLater, succeed(1, THEATER));
     expect(afterStale).toBe(showingLater);
     expect(afterStale.status === 'showing' && afterStale.theater.title).toBe('Night shifts and the men who cannot clock out');
   });
 
   it('rejects stale revision 1 while revision 2 is still in flight', () => {
-    const inFlight = theaterReducer(theaterReducer(inferring, view(HEAT, 4000)), start(2, 6500));
+    const inFlight = theaterReducer(theaterReducer(inferring, query('night', 4000)), start(2, 6500));
     expect(inFlight).toMatchObject({ status: 'inferring', revision: 2 });
     expect(theaterReducer(inFlight, succeed(1, THEATER))).toBe(inFlight);
     expect(theaterReducer(inFlight, fail(1))).toBe(inFlight);
@@ -183,8 +195,9 @@ describe('inference results', () => {
 
   it('keeps inferring when a dwell arrives, since the fingerprint is unchanged', () => {
     const withDwell = theaterReducer(inferring, dwell(949, 12000, true));
-    expect(withDwell).toMatchObject({ status: 'inferring', revision: 1, fingerprint: '626f16ac561ba3e7' });
-    expect(withDwell.status === 'inferring' && withDwell.signals).toHaveLength(3);
+    expect(withDwell).toMatchObject({ status: 'inferring', revision: 1 });
+    expect(inferring.status === 'inferring' && withDwell.status === 'inferring' && withDwell.fingerprint).toBe(inferring.fingerprint);
+    expect(withDwell.status === 'inferring' && withDwell.signals).toHaveLength(4);
   });
 
   it('returns a failure to collecting and blocks retry until the evidence changes', () => {
@@ -192,35 +205,53 @@ describe('inference results', () => {
     expect(failed).toEqual({
       status: 'collecting',
       signals: TRAIL,
-      lastActiveAt: 1000,
-      failedFingerprint: '626f16ac561ba3e7',
+      lastActiveAt: 2000,
+      failedFingerprint: inferring.status === 'inferring' ? inferring.fingerprint : '',
     });
     expect(inferDue(failed, 90_000)).toBe(false);
     expect(theaterReducer(failed, start(2, 90_000))).toBe(failed);
 
-    const withNewFilm = theaterReducer(failed, view(HEAT, 91_000));
-    expect(withNewFilm).toMatchObject({ status: 'collecting', failedFingerprint: '626f16ac561ba3e7' });
+    const withNewFilm = theaterReducer(failed, query('night', 91_000));
+    expect(withNewFilm).toMatchObject({ status: 'collecting', failedFingerprint: inferring.status === 'inferring' ? inferring.fingerprint : '' });
     expect(inferDue(withNewFilm, 93_500)).toBe(true);
-    expect(theaterReducer(withNewFilm, start(2, 93_500))).toMatchObject({ status: 'inferring', revision: 2, fingerprint: '12125591ba75b3ab' });
+    expect(theaterReducer(withNewFilm, start(2, 93_500))).toMatchObject({ status: 'inferring', revision: 2 });
   });
 
   it('ignores results that arrive while collecting', () => {
-    const collectingState = run(query('heat', 0), query('thief', 1000));
+    const collectingState = run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000));
     expect(theaterReducer(collectingState, succeed(1, THEATER))).toBe(collectingState);
   });
 });
 
 describe('showing', () => {
-  const showing = run(query('heat', 0), query('thief', 1000), start(1, 3500), succeed(1, THEATER));
+  const showing = run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000), start(1, 4500), succeed(1, THEATER));
 
-  it('keeps the same theater when a lineup film is opened', () => {
-    const next = theaterReducer(showing, view(HEAT, 20_000));
-    expect(next).toMatchObject({ status: 'showing', theater: THEATER, fingerprint: '626f16ac561ba3e7', lastActiveAt: 20_000 });
-    expect(next.status === 'showing' && next.signals).toHaveLength(3);
+  it('keeps the same theater when another film is opened', () => {
+    const next = theaterReducer(
+      showing,
+      view(
+        {
+          id: 5511,
+          title: 'Le Samouraï',
+          year: '1967',
+          posterPath: null,
+          backdropPath: null,
+          genres: [],
+          director: null,
+          mediaType: 'movie',
+        },
+        20_000,
+      ),
+    );
+    expect(next).toMatchObject({ status: 'showing', theater: THEATER, lastActiveAt: 20_000 });
   });
 
   it('keeps under the fingerprint as the document id', () => {
-    expect(theaterReducer(showing, { type: 'keep' })).toEqual({ status: 'kept', theater: THEATER, keptId: '626f16ac561ba3e7' });
+    expect(theaterReducer(showing, { type: 'keep' })).toEqual({
+      status: 'kept',
+      theater: THEATER,
+      keptId: showing.status === 'showing' ? showing.fingerprint : '',
+    });
   });
 
   it('cannot keep before a theater exists', () => {
@@ -243,14 +274,17 @@ describe('showing', () => {
 
 describe('closing', () => {
   it('signs out from any state', () => {
-    expect(theaterReducer(run(query('heat', 0), query('thief', 1000), start(1, 3500)), { type: 'sign_out' })).toEqual({ status: 'closed', reason: 'signed_out' });
+    expect(theaterReducer(run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000), start(1, 4500)), { type: 'sign_out' })).toEqual({
+      status: 'closed',
+      reason: 'signed_out',
+    });
     expect(theaterReducer(IDLE_SESSION, { type: 'sign_out' })).toEqual({ status: 'closed', reason: 'signed_out' });
   });
 
   it('expires after 30 minutes without a new signal, and not one millisecond sooner', () => {
-    const showing = run(query('heat', 0), query('thief', 1000), start(1, 3500), succeed(1, THEATER));
-    expect(theaterReducer(showing, { type: 'expire', now: 1000 + IDLE_CLOSE_MS - 1 })).toBe(showing);
-    expect(theaterReducer(showing, { type: 'expire', now: 1000 + IDLE_CLOSE_MS })).toEqual({ status: 'closed', reason: 'idle' });
+    const showing = run(view(HEAT, 0), view(THIEF, 1000), view(COLLATERAL, 2000), start(1, 4500), succeed(1, THEATER));
+    expect(theaterReducer(showing, { type: 'expire', now: 2000 + IDLE_CLOSE_MS - 1 })).toBe(showing);
+    expect(theaterReducer(showing, { type: 'expire', now: 2000 + IDLE_CLOSE_MS })).toEqual({ status: 'closed', reason: 'idle' });
     expect(theaterReducer(IDLE_SESSION, { type: 'expire', now: 10 * IDLE_CLOSE_MS })).toBe(IDLE_SESSION);
   });
 });

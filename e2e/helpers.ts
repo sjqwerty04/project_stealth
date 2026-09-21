@@ -99,15 +99,18 @@ export const THEATER_FIXTURE = {
   facets: ['COMPETENCE PORN', 'NOBODY WINS'] as [string, string],
   insight: 'You keep landing on people whose craft is the exact thing that ruins them.',
   swatches: ['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20'],
+  trail: [
+    { id: 949, title: 'Heat', year: '1995', posterPath: '/heat.jpg', backdropPath: null, genres: ['Crime'], director: 'Michael Mann', mediaType: 'movie' as const },
+    { id: 10858, title: 'Thief', year: '1981', posterPath: '/thief.jpg', backdropPath: null, genres: ['Crime'], director: 'Michael Mann', mediaType: 'movie' as const },
+    { id: 1538, title: 'Collateral', year: '2004', posterPath: '/collateral.jpg', backdropPath: null, genres: ['Crime'], director: 'Michael Mann', mediaType: 'movie' as const },
+  ],
   lineup: [
     [5511, 'Le Samouraï', '1967', 'A contract killer follows his routine flawlessly and it still closes on him.'],
     [9526, 'To Live and Die in L.A.', '1985', 'A Secret Service agent so good at the chase he becomes the crime.'],
-    [1538, 'Collateral', '2004', 'One long night where the professional and the amateur both lose the map.'],
     [31672, 'The Friends of Eddie Coyle', '1973', 'Every hood in Boston knows his trade and none of it saves Eddie.'],
     [24559, 'Sorcerer', '1977', 'Four experts drive nitroglycerin through a jungle that does not care.'],
     [379, "Miller's Crossing", '1990', 'Tom plays every angle in the room and still ends up alone.'],
     [273481, 'Sicario', '2015', 'Kate does everything right and learns the job was never hers.'],
-    [10858, 'Thief', '1981', 'Frank builds the whole life on paper and burns every page of it.'],
   ] as [number, string, string, string][],
 };
 
@@ -117,15 +120,14 @@ export const FILM_PAGE_THEATER = {
   facets: ['COMPETENCE PORN', 'NOBODY WINS'] as [string, string],
   insight: 'You keep walking back into the same rained-on block after midnight.',
   swatches: ['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20'],
+  trail: THEATER_FIXTURE.trail,
   lineup: [
     [5511, 'Le Samouraï', '1967', 'THE PROFESSIONAL AS MONK. BOTH MEN ARE ALONE BY CHOICE.'],
     [9526, 'To Live and Die in L.A.', '1985', 'SYNTH PULSE, SODIUM LIGHT, AND A CITY THAT DOES THE TALKING.'],
-    [1538, 'Collateral', '2004', 'MANN AGAIN. SAME CITY LOGIC, TWENTY-THREE YEARS LATER.'],
     [31672, 'The Friends of Eddie Coyle', '1973', 'EVERY HOOD IN BOSTON KNOWS HIS TRADE AND NONE OF IT SAVES EDDIE.'],
     [24559, 'Sorcerer', '1977', 'FOUR EXPERTS DRIVE NITROGLYCERIN THROUGH A JUNGLE THAT DOES NOT CARE.'],
     [379, "Miller's Crossing", '1990', 'TOM PLAYS EVERY ANGLE AND STILL ENDS UP ALONE.'],
     [273481, 'Sicario', '2015', 'KATE DOES EVERYTHING RIGHT AND LEARNS THE JOB WAS NEVER HERS.'],
-    [10858, 'Thief', '1981', 'FRANK BUILDS THE WHOLE LIFE ON PAPER AND BURNS EVERY PAGE OF IT.'],
   ] as [number, string, string, string][],
 };
 
@@ -367,7 +369,8 @@ export async function seedShowingTheater(page: Page, fixture: typeof THEATER_FIX
     facets: fixture.facets,
     insight: fixture.insight,
     swatches: fixture.swatches,
-    sourceFilmIds: [10858],
+    sourceFilmIds: fixture.trail.map((film) => film.id),
+    trail: fixture.trail,
     lineup: fixture.lineup.map(([id, title, year, reason]) => ({
       id,
       title,
@@ -384,7 +387,7 @@ export async function seedShowingTheater(page: Page, fixture: typeof THEATER_FIX
   await page.evaluate(
     ({ theater, fingerprint, uid }) => {
       sessionStorage.setItem(
-        `theater-session:v1:${uid}`,
+        `theater-session:v2:${uid}`,
         JSON.stringify({ status: 'showing', theater, signals: [], fingerprint, lastActiveAt: Date.now() }),
       );
     },
