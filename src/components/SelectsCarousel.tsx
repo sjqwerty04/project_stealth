@@ -166,7 +166,6 @@ export function SelectCard({
                 key={row.title}
                 type="button"
                 data-testid="related-poster"
-                data-carousel-control
                 aria-label={row.title}
                 onClick={openRelated}
                 className="block overflow-hidden bg-base-3"
@@ -228,6 +227,7 @@ export default function SelectsCarousel({
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
   const capturingSwipe = useRef(false);
+  const startTarget = useRef<HTMLElement | null>(null);
   const slideIdsRef = useRef('');
   const trackRef = useRef<HTMLDivElement | null>(null);
   const resumeTimer = useRef<number | null>(null);
@@ -305,6 +305,9 @@ export default function SelectsCarousel({
   const onCarouselPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('[data-carousel-control]')) return;
     capturingSwipe.current = false;
+    swallowClick.current = false;
+    startTarget.current = e.target as HTMLElement;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     carouselStartX.current = e.clientX;
     setPaused(true);
   };
@@ -313,7 +316,6 @@ export default function SelectsCarousel({
     if (Math.abs(e.clientX - carouselStartX.current) < 40) return;
     capturingSwipe.current = true;
     swallowClick.current = true;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const finishCarouselPointer = (e: React.PointerEvent, applySwipe: boolean) => {
     if (carouselStartX.current == null) {
@@ -322,11 +324,19 @@ export default function SelectsCarousel({
     }
     const dx = e.clientX - carouselStartX.current;
     carouselStartX.current = null;
+    const origin = startTarget.current;
+    startTarget.current = null;
     const swiped = capturingSwipe.current || (applySwipe && Math.abs(dx) >= 40);
     capturingSwipe.current = false;
     if (swiped && applySwipe) {
       swallowClick.current = true;
       go(dx < 0 ? 1 : -1);
+    } else if (applySwipe && origin && !origin.closest('[data-carousel-control]')) {
+      const btn = origin.closest('button');
+      if (btn instanceof HTMLButtonElement && !btn.disabled) {
+        btn.click();
+        swallowClick.current = true;
+      }
     }
     if (resumeTimer.current) window.clearTimeout(resumeTimer.current);
     resumeTimer.current = window.setTimeout(() => setPaused(false), 6000);
