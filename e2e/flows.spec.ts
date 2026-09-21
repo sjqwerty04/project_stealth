@@ -243,8 +243,31 @@ test('F12 Share', async ({ page }, testInfo) => {
 test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
+  await page.route('**/api/similar-adjacency', async (route) => {
+    await new Promise((r) => setTimeout(r, 500));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        neighbors: [
+          {
+            movieId: 27205,
+            title: 'Inception',
+            year: '2010',
+            posterPath: '/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg',
+            reason: 'Nested crime architecture',
+            axes: ['story'],
+          },
+        ],
+      }),
+    });
+  });
   await page.goto('/movie/155');
   await expect(page.getByTestId('action-watchlist')).toBeVisible();
+  await expect(page.getByTestId('similar-grid')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByTestId('similar-source-lineage').first()).toBeVisible({ timeout: 3000 });
+  await expect(page.getByTestId('similar-refreshed')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('similar-source-for-you').first()).toBeVisible();
   await page.getByTestId('action-watchlist').click();
   await page.getByTestId('action-like').click().catch(() => {});
   await gate(page, 'F13', testInfo.project.name);

@@ -19,6 +19,7 @@ import {
 } from '../lib/taste';
 import { getTaste } from '../lib/taste/getTaste';
 import { hydratedTitleMatchesPick, whyMatchNamesRecommended } from '../lib/taste/selectPickCoherence';
+import { prefetchScholarAdjacency } from '../lib/similar/prefetch';
 import {
   executeSelectReplacement,
   replacePickAtSlot,
@@ -299,6 +300,9 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         setStatus(hydrated.length ? 'ready' : 'empty');
         if (hydrated.length) {
           writeSelectsCache(user.uid, hydrated.map(toStored));
+          prefetchScholarAdjacency(
+            hydrated.map((p) => ({ movieId: p.movieId, title: p.title, year: p.year })),
+          );
           try {
             await recordTasteEvent(
               user.uid,

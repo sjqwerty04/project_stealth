@@ -35,6 +35,8 @@ export type MovieDetails = {
   voteAverage: number;
   voteCount: number;
   director: string | null;
+  directorId: number | null;
+  lineagePersonIds: number[];
   cast: { id: number; name: string; character: string; profilePath: string | null }[];
   trailer: { key: string; site: string; name: string } | null;
   // Best clip for the hero — prefers an official Clip/Featurette (a real scene) over the trailer.
@@ -111,13 +113,27 @@ export function useMovieDetails() {
         externalIdsRes.ok ? externalIdsRes.json() : { imdb_id: null },
       ]);
 
-      // Find director (for movies) or creator (for TV)
       let director: string | null = null;
+      let directorId: number | null = null;
+      const lineagePersonIds: number[] = [];
+      const seenCrew = new Set<number>();
+      const pushCrew = (person: { id?: number; name?: string } | undefined) => {
+        if (!person?.id || seenCrew.has(person.id)) return;
+        seenCrew.add(person.id);
+        lineagePersonIds.push(person.id);
+      };
       if (mediaType === 'movie') {
-        const directorCredit = creditsData.crew?.find((c: any) => c.job === 'Director');
+        const crew = creditsData.crew || [];
+        const directorCredit = crew.find((c: { job?: string }) => c.job === 'Director');
         director = directorCredit?.name || null;
+        directorId = typeof directorCredit?.id === 'number' ? directorCredit.id : null;
+        for (const job of ['Director', 'Director of Photography', 'Writer']) {
+          pushCrew(crew.find((c: { job?: string }) => c.job === job));
+        }
       } else {
         director = detailsData.created_by?.[0]?.name || null;
+        directorId = typeof detailsData.created_by?.[0]?.id === 'number' ? detailsData.created_by[0].id : null;
+        pushCrew(detailsData.created_by?.[0]);
       }
 
       // Get top cast
@@ -257,6 +273,8 @@ export function useMovieDetails() {
         voteAverage: detailsData.vote_average || 0,
         voteCount: detailsData.vote_count || 0,
         director,
+        directorId,
+        lineagePersonIds,
         cast,
         trailer: trailer ? { key: trailer.key, site: trailer.site, name: trailer.name } : null,
         heroVideo,
@@ -300,6 +318,8 @@ export function useMovieDetails() {
         voteAverage: 0,
         voteCount: 0,
         director: null,
+        directorId: null,
+        lineagePersonIds: [],
         cast: [],
         trailer: null,
         heroVideo: null,
