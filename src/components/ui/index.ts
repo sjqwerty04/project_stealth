@@ -5,7 +5,6 @@ export { default as Chip } from './Chip';
 export { default as PosterPlate } from './PosterPlate';
 export { default as TicketStub } from './TicketStub';
 export { default as BarUnit } from './BarUnit';
-export { default as AxisMeter } from './AxisMeter';
 export { default as Skeleton } from './Skeleton';
 export { default as SelectsChaseLoader } from './SelectsChaseLoader';
 export { default as SwatchStrip } from './SwatchStrip';

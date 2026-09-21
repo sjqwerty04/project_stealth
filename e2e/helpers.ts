@@ -129,34 +129,6 @@ export const FILM_PAGE_THEATER = {
   ] as [number, string, string, string][],
 };
 
-export const FILM_AXES_FIXTURE = [
-  { name: 'LOOK', value: 'sodium-and-cyan night', score: 4 },
-  { name: 'CAMERA', value: 'locked-off', score: 2 },
-  { name: 'TEMPO', value: 'procedural', score: 5 },
-  { name: 'WEATHER', value: 'competence porn', score: 4 },
-  { name: 'SOUND', value: 'synth pulse', score: 2 },
-  { name: 'WORLD', value: 'rain-slick city night', score: 3 },
-  { name: 'SHAPE', value: 'two-hander', score: 1 },
-  { name: 'FORMAT', value: '1.85 spherical', score: 3 },
-];
-
-export type AxesCalls = { count: number };
-
-export async function mockFilmAxes(page: Page): Promise<AxesCalls> {
-  const calls: AxesCalls = { count: 0 };
-  await page.route('**/api/llm', async (route) => {
-    const body = route.request().postData() || '{}';
-    const isAxes = (JSON.parse(body) as { prompt?: string }).prompt?.startsWith('<film>') === true;
-    if (isAxes) calls.count += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ text: isAxes ? JSON.stringify({ axes: FILM_AXES_FIXTURE }) : '' }),
-    });
-  });
-  return calls;
-}
-
 export type TmdbFilm = { id: number; title: string; year: string; director: string; genres: string[] };
 
 export async function mockTmdb(page: Page, films: TmdbFilm[]) {
@@ -186,19 +158,17 @@ export async function mockTmdb(page: Page, films: TmdbFilm[]) {
   });
 }
 
-export const FIRST_VISIT_FILM_ID: Record<string, number> = { mobile: 9_000_101, desktop: 9_000_102 };
-
 const FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
 const FIREBASE_PROJECT_ID = 'mvplockedin';
 const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/;
 
 function assertEmulatorTarget(baseURL: string | undefined) {
   if (!LOOPBACK.test(FIRESTORE_EMULATOR_HOST)) {
-    throw new Error(`Refusing to delete film_axes: FIRESTORE_EMULATOR_HOST ${FIRESTORE_EMULATOR_HOST} is not loopback.`);
+    throw new Error(`Refusing emulator REST: FIRESTORE_EMULATOR_HOST ${FIRESTORE_EMULATOR_HOST} is not loopback.`);
   }
   const host = baseURL ? new URL(baseURL).host : '';
   if (process.env.VITE_FIREBASE_EMULATOR !== '1' && !LOOPBACK.test(host)) {
-    throw new Error(`Refusing to delete film_axes: set VITE_FIREBASE_EMULATOR=1 or run against localhost, not ${host || 'an unset baseURL'}.`);
+    throw new Error(`Refusing emulator REST: set VITE_FIREBASE_EMULATOR=1 or run against localhost, not ${host || 'an unset baseURL'}.`);
   }
 }
 
@@ -212,27 +182,10 @@ function assertTheaterEmulatorTarget(baseURL: string | undefined) {
   }
 }
 
-export async function clearFilmAxesFixtures(baseURL: string | undefined, ownerUid: string, filmKeys: string[]) {
-  assertEmulatorTarget(baseURL);
-  for (const filmKey of filmKeys) {
-    const url = `${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`;
-    const response = await fetch(url, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } });
-    if (!response.ok) {
-      throw new Error(`Emulator refused to clear ${filmKey}: ${response.status} ${await response.text()}`);
-    }
-  }
-}
-
-export const RULES_FIXTURE_FILM_ID: Record<string, number> = { mobile: 9_000_201, desktop: 9_000_202 };
-
 const AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 
 function firestoreDocumentsUrl() {
   return `http://${FIRESTORE_EMULATOR_HOST}/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-}
-
-function filmAxesRestUrl(ownerUid: string) {
-  return `${firestoreDocumentsUrl()}/users/${encodeURIComponent(ownerUid)}/film_axes`;
 }
 
 export type EmulatorAccount = { uid: string; idToken: string };
@@ -259,110 +212,8 @@ export async function emulatorSignUp(baseURL: string | undefined) {
   return identityToolkit(baseURL, 'signUp', { email: uniqueEmail(), password: `pw-${Date.now()}` });
 }
 
-export type FilmAxesRestDoc = {
-  schema?: number;
-  mediaType?: string;
-  filmId?: number;
-  title?: string;
-  year?: string;
-  axes?: FilmAxesRestAxis[];
-  createdAt?: number;
-  extra?: string;
-};
-
-export type FilmAxesRestAxis = { name: string; value: string; score: number; extra?: string };
-
-export function filmAxesRestFields(doc: FilmAxesRestDoc) {
-  const fields: Record<string, unknown> = {};
-  if (doc.schema !== undefined) fields.schema = { integerValue: String(doc.schema) };
-  if (doc.mediaType !== undefined) fields.mediaType = { stringValue: doc.mediaType };
-  if (doc.filmId !== undefined) fields.filmId = { integerValue: String(doc.filmId) };
-  if (doc.title !== undefined) fields.title = { stringValue: doc.title };
-  if (doc.year !== undefined) fields.year = { stringValue: doc.year };
-  if (doc.createdAt !== undefined) fields.createdAt = { integerValue: String(doc.createdAt) };
-  if (doc.extra !== undefined) fields.extra = { stringValue: doc.extra };
-  if (doc.axes !== undefined) {
-    fields.axes = {
-      arrayValue: {
-        values: doc.axes.map((axis) => ({
-          mapValue: {
-            fields: {
-              name: { stringValue: axis.name },
-              value: { stringValue: axis.value },
-              score: Number.isInteger(axis.score)
-                ? { integerValue: String(axis.score) }
-                : { doubleValue: axis.score },
-              ...(axis.extra === undefined ? {} : { extra: { stringValue: axis.extra } }),
-            },
-          },
-        })),
-      },
-    };
-  }
-  return fields;
-}
-
 function actorHeaders(actor: EmulatorAccount | null): Record<string, string> {
   return actor ? { Authorization: `Bearer ${actor.idToken}` } : {};
-}
-
-export async function createFilmAxesDoc(
-  actor: EmulatorAccount | null,
-  ownerUid: string,
-  filmKey: string,
-  doc: FilmAxesRestDoc,
-) {
-  const response = await fetch(`${filmAxesRestUrl(ownerUid)}?documentId=${encodeURIComponent(filmKey)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
-    body: JSON.stringify({ fields: filmAxesRestFields(doc) }),
-  });
-  return response.status;
-}
-
-export async function createSharedFilmAxesDoc(actor: EmulatorAccount, filmKey: string, doc: FilmAxesRestDoc) {
-  const response = await fetch(`${firestoreDocumentsUrl()}/film_axes?documentId=${encodeURIComponent(filmKey)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
-    body: JSON.stringify({ fields: filmAxesRestFields(doc) }),
-  });
-  return response.status;
-}
-
-export async function readSharedFilmAxesDoc(actor: EmulatorAccount, filmKey: string) {
-  const response = await fetch(`${firestoreDocumentsUrl()}/film_axes/${encodeURIComponent(filmKey)}`, {
-    headers: actorHeaders(actor),
-  });
-  return response.status;
-}
-
-export async function readFilmAxesDoc(actor: EmulatorAccount | null, ownerUid: string, filmKey: string) {
-  const response = await fetch(`${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`, {
-    headers: actorHeaders(actor),
-  });
-  return response.status;
-}
-
-export async function rewriteFilmAxesDoc(
-  actor: EmulatorAccount,
-  ownerUid: string,
-  filmKey: string,
-  doc: FilmAxesRestDoc,
-) {
-  const response = await fetch(`${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...actorHeaders(actor) },
-    body: JSON.stringify({ fields: filmAxesRestFields(doc) }),
-  });
-  return response.status;
-}
-
-export async function deleteFilmAxesDocAs(actor: EmulatorAccount, ownerUid: string, filmKey: string) {
-  const response = await fetch(`${filmAxesRestUrl(ownerUid)}/${encodeURIComponent(filmKey)}`, {
-    method: 'DELETE',
-    headers: actorHeaders(actor),
-  });
-  return response.status;
 }
 
 const POSTER_FIXTURES: Record<string, string> = {
