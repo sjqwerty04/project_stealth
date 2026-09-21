@@ -11,6 +11,7 @@ import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
 import { useLibrary } from '../lib/library';
+import FeedbackFAB from './FeedbackFAB';
 import { VerdictBadge } from './VerdictPicker';
 import { eventVerdict } from '../hooks/useCalendarLogs';
 
@@ -409,21 +410,23 @@ export default function HomeStrip({
 
   return (
     <div
-      className="bg-base text-fg flex flex-col overflow-hidden"
+      className="bg-base text-fg flex flex-1 min-h-0 flex-col overflow-hidden"
       data-testid="home-strip"
       data-build={import.meta.env.VITE_SELECTS_SHA || 'unknown'}
-      style={{ height: 'calc(100dvh - var(--tab-h) - env(safe-area-inset-bottom))' }}
     >
       <header className="px-7 pt-6 pb-4 flex items-start justify-between shrink-0">
         <Mark variant="lockup" size={36} />
-        <button
-          type="button"
-          data-testid="year-zoom"
-          onClick={onYearZoom}
-          className="min-h-11 min-w-11 px-3 font-spec text-[10px] uppercase tracking-widest text-fg-2 border border-line"
-        >
-          Year
-        </button>
+        <div className="flex items-start gap-2">
+          <FeedbackFAB variant="inline" />
+          <button
+            type="button"
+            data-testid="year-zoom"
+            onClick={onYearZoom}
+            className="min-h-11 min-w-11 px-3 font-spec text-[10px] uppercase tracking-widest text-fg-2 border border-line"
+          >
+            Year
+          </button>
+        </div>
       </header>
 
       {insightsLabel && (
@@ -475,13 +478,9 @@ export default function HomeStrip({
             }}
           />
         )}
-        <div className="min-h-11" data-testid="selects-dismiss" />
-      </div>
-
-      <div className="shrink-0 bg-base pt-3" data-testid="strip-dock">
         {stageOpen && dayFilm ? (
           <div
-            className="relative px-7 mb-2 overflow-hidden"
+            className="relative mt-4 overflow-hidden"
             style={{ height: '28vh', maxHeight: 220, minHeight: 140 }}
           >
             <DayStage
@@ -494,6 +493,10 @@ export default function HomeStrip({
             />
           </div>
         ) : null}
+        <div className="min-h-11" data-testid="selects-dismiss" />
+      </div>
+
+      <div className="shrink-0 bg-base pt-3" data-testid="strip-dock">
         {dayFilm ? (
           <button
             type="button"
@@ -510,7 +513,7 @@ export default function HomeStrip({
             type="button"
             data-testid="ticket-slot-empty"
             onClick={() => onAddMovie(selected)}
-            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3"
+            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
           >
             {format(selected, 'EEEE d')}
             {'  ·  '}
