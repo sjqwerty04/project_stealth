@@ -143,10 +143,14 @@ service cloud.firestore {
     }
 
     // Shared cinephile graph. Signed-in clients read and fill misses.
+    // TV rows are namespaced as tv_{tmdbId}; int() cannot parse that prefix.
     match /film_adjacency/{movieId} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null
-        && request.resource.data.movieId == int(movieId)
+        && (
+          (movieId.matches('^[0-9]+$') && request.resource.data.movieId == int(movieId))
+          || (movieId.matches('^tv_[0-9]+$') && request.resource.data.movieId == int(movieId.split('_')[1]))
+        )
         && request.resource.data.neighbors is list
         && request.resource.data.neighbors.size() <= 24;
       allow delete: if false;
