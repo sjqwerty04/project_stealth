@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSimilarAdjacencyRequest } from '../similar-adjacency';
+import { parseSimilarAdjacencyRequest } from './parseRequest';
 
 describe('parseSimilarAdjacencyRequest', () => {
   it('requires a movie id and title', () => {

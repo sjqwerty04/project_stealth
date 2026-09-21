@@ -8,7 +8,7 @@ export async function fetchScholarNeighbors(input: {
   year: string;
   genres?: string[];
 }): Promise<FilmNeighbor[]> {
-  const res = await fetch('/api/similar-adjacency', {
+  const res = await fetch('/api/movie-lookup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

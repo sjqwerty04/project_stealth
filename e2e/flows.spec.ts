@@ -243,7 +243,8 @@ test('F12 Share', async ({ page }, testInfo) => {
 test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   const logs = await attachPageLog(page);
   await ensureAuthed(page);
-  await page.route('**/api/similar-adjacency', async (route) => {
+  await page.route('**/api/movie-lookup', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
     await new Promise((r) => setTimeout(r, 500));
     await route.fulfill({
       status: 200,
