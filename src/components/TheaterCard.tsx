@@ -11,9 +11,16 @@ type TheaterCardProps = {
   picks?: readonly TheaterLineupItem[];
   onKeep: () => void;
   onDismiss: () => void;
-  onFilmClick?: (film: TheaterFilm) => void;
+  onFilmClick?: (film: TrailPosterFilm) => void;
   isKeeping?: boolean;
   compact?: boolean;
+};
+
+type TrailPosterFilm = {
+  id: number;
+  title: string;
+  posterPath: string | null;
+  mediaType: 'movie' | 'tv';
 };
 
 const posterUrl = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w200${path}` : null);
@@ -23,9 +30,9 @@ function PosterTile({
   size,
   onClick,
 }: {
-  film: TheaterFilm;
+  film: TrailPosterFilm;
   size: 'sm' | 'md';
-  onClick?: (film: TheaterFilm) => void;
+  onClick?: (film: TrailPosterFilm) => void;
 }) {
   const width = size === 'sm' ? 40 : 56;
   const height = size === 'sm' ? 60 : 84;
@@ -53,9 +60,9 @@ export function TrailPosterRow({
   onFilmClick,
   testId = 'theater-trail',
 }: {
-  trail: readonly TheaterFilm[];
+  trail: readonly TrailPosterFilm[];
   cap?: number;
-  onFilmClick?: (film: TheaterFilm) => void;
+  onFilmClick?: (film: TrailPosterFilm) => void;
   testId?: string;
 }) {
   if (trail.length === 0) return null;
@@ -94,7 +101,7 @@ function SessionSheet({
   isKeeping: boolean;
   onKeep: () => void;
   onClose: () => void;
-  onFilmClick?: (film: TheaterFilm) => void;
+  onFilmClick?: (film: TrailPosterFilm) => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" data-testid="theater-session-sheet">
