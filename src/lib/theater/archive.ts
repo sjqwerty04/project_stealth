@@ -1,5 +1,6 @@
 import {
   FALLBACK_SWATCHES,
+  TRAIL_POSTER_CAP,
   finiteNumber,
   isRecord,
   nonEmptyString,
@@ -26,14 +27,15 @@ export type KeptTheater = {
   insight: string;
   swatches: Swatches;
   films: TheaterArchiveFilm[];
+  trail: TheaterArchiveFilm[];
   keptAt: number;
 };
 
 export type TheaterCardView = {
   id: string;
   title: string;
-  facets: [string, string] | null;
-  swatches: Swatches;
+  trail: TheaterArchiveFilm[];
+  extraCount: number;
   filmCount: number;
   unseenCount: number;
   countLine: string;
@@ -61,6 +63,22 @@ function parseFilmList(raw: unknown): TheaterArchiveFilm[] {
   return raw.map(parseArchiveFilm).filter((film): film is TheaterArchiveFilm => film !== null);
 }
 
+function trailFromSignals(raw: unknown): TheaterArchiveFilm[] {
+  if (!Array.isArray(raw)) return [];
+  const trail: TheaterArchiveFilm[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!isRecord(item) || item.kind !== 'detail_view') continue;
+    const film = parseArchiveFilm(item.film);
+    if (!film) continue;
+    const key = `${film.mediaType}:${film.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    trail.push(film);
+  }
+  return trail;
+}
+
 /**
  * Firestore boundary. A canonical document keeps its facets, swatches, and per-film reasons.
  * A legacy document names itself with `pattern`, carries no facets, and leaves every reason blank.
@@ -70,6 +88,7 @@ export function parseTheaterDoc(id: string, raw: unknown): KeptTheater | null {
   const title = nonEmptyString(raw.title) ? raw.title.trim() : nonEmptyString(raw.pattern) ? raw.pattern.trim() : null;
   if (!title) return null;
   const films = Array.isArray(raw.lineup) ? parseFilmList(raw.lineup) : parseFilmList(raw.movies);
+  const trail = trailFromSignals(raw.sourceSignals);
   return {
     id,
     title,
@@ -77,6 +96,7 @@ export function parseTheaterDoc(id: string, raw: unknown): KeptTheater | null {
     insight: nonEmptyString(raw.insight) ? raw.insight.trim() : title,
     swatches: parseSwatches(raw.swatches) ?? FALLBACK_SWATCHES,
     films,
+    trail: trail.length > 0 ? trail : films,
     keptAt: timestampMillis(raw.keptAt) ?? timestampMillis(raw.createdAt) ?? 0,
   };
 }
@@ -115,7 +135,8 @@ export function theaterArchiveState(sources: TheaterArchiveSources): TheaterArch
 }
 
 export function theaterCardView(theater: KeptTheater, watchedFilmIds: ReadonlySet<number>): TheaterCardView {
-  const filmIds = new Set(theater.films.map((film) => film.id));
+  const posters = theater.trail.length > 0 ? theater.trail : theater.films;
+  const filmIds = new Set(posters.map((film) => film.id));
   const filmCount = filmIds.size;
   let unseenCount = 0;
   for (const filmId of filmIds) if (!watchedFilmIds.has(filmId)) unseenCount += 1;
@@ -123,13 +144,11 @@ export function theaterCardView(theater: KeptTheater, watchedFilmIds: ReadonlySe
   return {
     id: theater.id,
     title: theater.title,
-    facets: theater.facets,
-    swatches: theater.swatches,
+    trail: posters,
+    extraCount: Math.max(0, posters.length - TRAIL_POSTER_CAP),
     filmCount,
     unseenCount,
     countLine: `${filmCount} ${plural(filmCount, 'FILM', 'FILMS')} · ${unseenCount} UNSEEN`,
-    accessibleName: theater.facets
-      ? `${theater.title}. ${theater.facets[0]} and ${theater.facets[1]}. ${spoken}`
-      : `${theater.title}. ${spoken}`,
+    accessibleName: `${theater.title}. ${spoken}`,
   };
 }

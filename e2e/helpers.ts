@@ -385,13 +385,18 @@ export async function seedShowingTheater(page: Page, fixture: typeof THEATER_FIX
   };
   const uid = await currentUid(page);
   await page.evaluate(
-    ({ theater, fingerprint, uid }) => {
+    ({ theater, fingerprint, uid, signals }) => {
       sessionStorage.setItem(
         `theater-session:v2:${uid}`,
-        JSON.stringify({ status: 'showing', theater, signals: [], fingerprint, lastActiveAt: Date.now() }),
+        JSON.stringify({ status: 'showing', theater, signals, fingerprint, lastActiveAt: Date.now() }),
       );
     },
-    { theater, fingerprint: fixture.fingerprint, uid },
+    {
+      theater,
+      fingerprint: fixture.fingerprint,
+      uid,
+      signals: fixture.trail.map((film, at) => ({ kind: 'detail_view', film, at })),
+    },
   );
   await page.reload();
 }
@@ -399,7 +404,7 @@ export async function seedShowingTheater(page: Page, fixture: typeof THEATER_FIX
 export async function keepSeededTheater(page: Page, fixture: typeof THEATER_FIXTURE) {
   await seedShowingTheater(page, fixture);
   await page.getByTestId('theater-keep').click();
-  await page.getByTestId('theater-keep').filter({ hasText: 'Kept' }).waitFor({ timeout: 20000 });
+  await page.getByTestId('theater-keep').filter({ hasText: 'Saved' }).waitFor({ timeout: 20000 });
 }
 
 export async function revealAboveTabBar(page: Page, testId: string) {

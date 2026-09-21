@@ -61,6 +61,7 @@ function theater(overrides: Partial<KeptTheater> = {}): KeptTheater {
     insight: 'You keep landing on people whose craft is the exact thing that ruins them.',
     swatches: ['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20'],
     films: [],
+    trail: [],
     keptAt: 1758240000000,
     ...overrides,
   };
@@ -107,6 +108,21 @@ describe('parseTheaterDoc', () => {
       mediaType: 'movie',
       reason: 'Frank builds the whole life on paper and burns every page of it.',
     });
+    expect(parsed?.trail).toEqual(parsed?.films);
+  });
+
+  it('reads trail posters from opened films on sourceSignals', () => {
+    const parsed = parseTheaterDoc('trail-hash', {
+      ...CANONICAL_DOC,
+      sourceSignals: [
+        { kind: 'detail_view', film: { id: 949, title: 'Heat', year: '1995', posterPath: '/heat.jpg', mediaType: 'movie' }, at: 0 },
+        { kind: 'detail_view', film: { id: 10858, title: 'Thief', year: '1981', posterPath: '/thief.jpg', mediaType: 'movie' }, at: 1 },
+        { kind: 'detail_view', film: { id: 1538, title: 'Collateral', year: '2004', posterPath: '/collateral.jpg', mediaType: 'movie' }, at: 2 },
+      ],
+    });
+    expect(parsed?.trail.map((film) => film.title)).toEqual(['Heat', 'Thief', 'Collateral']);
+    expect(theaterCardView(parsed!, new Set()).filmCount).toBe(3);
+    expect(theaterCardView(parsed!, new Set()).trail).toHaveLength(3);
   });
 
   it('reads a copied-forward legacy document with its pattern as the title and no facets', () => {
@@ -162,24 +178,24 @@ describe('parseTheaterDoc', () => {
 });
 
 describe('theaterCardView', () => {
-  it('counts the lineup, subtracts what the ledger has watched, and names the card for speech', () => {
+  it('counts trail posters, subtracts what the ledger has watched, and names the card for speech', () => {
     const parsed = parseTheaterDoc('trail-hash', CANONICAL_DOC);
     const view = theaterCardView(parsed!, new Set([5511, 1538, 10858]));
     expect(view.filmCount).toBe(8);
     expect(view.unseenCount).toBe(5);
     expect(view.countLine).toBe('8 FILMS · 5 UNSEEN');
     expect(view.accessibleName).toBe(
-      'Men who are good at their jobs and lose anyway. COMPETENCE PORN and NOBODY WINS. 8 films, 5 unseen.',
+      'Men who are good at their jobs and lose anyway. 8 films, 5 unseen.',
     );
-    expect(view.swatches).toEqual(['#1D5B8A', '#8A3A1D', '#3A6E85', '#1D1D20']);
+    expect(view.extraCount).toBe(2);
+    expect(view.trail).toHaveLength(8);
   });
 
-  it('leaves facets out of the spoken name when the document has none', () => {
+  it('leaves the spoken name as the title and counts when the document has no facets', () => {
     const view = theaterCardView(
       theater({ title: 'Rain on glass, nobody talking', facets: null, films: films(949) }),
       new Set([949]),
     );
-    expect(view.facets).toBeNull();
     expect(view.accessibleName).toBe('Rain on glass, nobody talking. 1 film, 0 unseen.');
   });
 
@@ -199,7 +215,7 @@ describe('theaterCardView', () => {
 
   it('spells one film in the singular inside the spoken name', () => {
     expect(theaterCardView(theater({ films: films(949) }), new Set()).accessibleName).toBe(
-      'Men who are good at their jobs and lose anyway. COMPETENCE PORN and NOBODY WINS. 1 film, 1 unseen.',
+      'Men who are good at their jobs and lose anyway. 1 film, 1 unseen.',
     );
   });
 });

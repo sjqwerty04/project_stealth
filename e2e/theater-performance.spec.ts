@@ -136,7 +136,7 @@ function snapshot(counts: RequestCounts) {
 }
 
 async function installTimingObserver(page: Page) {
-  await page.evaluate((title) => {
+  await page.evaluate(() => {
     const root = document.documentElement;
     const mark = (name: string, present: boolean) => {
       if (present && !root.dataset[name]) root.dataset[name] = String(performance.now());
@@ -144,18 +144,14 @@ async function installTimingObserver(page: Page) {
     const observe = () => {
       const buttonText = Array.from(document.querySelectorAll('button'), (button) => button.textContent ?? '');
       const headingText = Array.from(document.querySelectorAll('h1'), (heading) => heading.textContent ?? '');
-      const theaterText = Array.from(
-        document.querySelectorAll('[data-testid="theater-card"] h3'),
-        (heading) => heading.textContent ?? '',
-      );
       mark('huntResultAt', buttonText.some((text) => text.includes('Heat') && text.includes('1995')));
       mark('detailHeadingAt', headingText.some((text) => text.trim() === 'Heat'));
       mark('inferringShellAt', document.querySelector('[data-testid="theater-inferring"]') !== null);
-      mark('theaterReadyAt', theaterText.some((text) => text.trim() === title));
+      mark('theaterReadyAt', document.querySelector('[data-testid="theater-keep"]') !== null);
     };
     new MutationObserver(observe).observe(document.body, { childList: true, subtree: true });
     observe();
-  }, THEATER_TITLE);
+  });
 }
 
 async function mockRuntime(page: Page, counts: RequestCounts, onHuntCommit: () => Promise<void>) {
@@ -321,7 +317,7 @@ test('Theater meets generation and restore budgets without duplicate inference',
 
   const card = page.getByTestId('theater-card');
   await expect(card.getByTestId('theater-inferring')).toBeVisible();
-  await expect(card.getByRole('heading', { name: THEATER_TITLE })).toBeVisible();
+  await expect(card.getByTestId('theater-keep')).toBeVisible();
   const initialTiming = await page.evaluate(() => {
     const { huntCommittedAt, huntResultAt, detailHeadingAt, inferringShellAt, theaterReadyAt } =
       document.documentElement.dataset;
@@ -340,13 +336,10 @@ test('Theater meets generation and restore budgets without duplicate inference',
   await expect(card).toContainText(THEATER_INSIGHT);
 
   const countsBeforeReload = snapshot(counts);
-  await page.addInitScript((title) => {
+  await page.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
       const mark = () => {
-        const ready = Array.from(
-          document.querySelectorAll('[data-testid="theater-card"] h3'),
-          (heading) => heading.textContent ?? '',
-        ).some((text) => text.trim() === title);
+        const ready = document.querySelector('[data-testid="theater-keep"]') !== null;
         if (ready && !document.documentElement.dataset.restoredTheaterAt) {
           document.documentElement.dataset.restoredTheaterAt = String(performance.now());
         }
@@ -354,10 +347,10 @@ test('Theater meets generation and restore budgets without duplicate inference',
       new MutationObserver(mark).observe(document.body, { childList: true, subtree: true });
       mark();
     });
-  }, THEATER_TITLE);
+  });
   await page.reload({ waitUntil: 'domcontentloaded' });
   const restoredCard = page.getByTestId('theater-card');
-  await expect(restoredCard.getByRole('heading', { name: THEATER_TITLE })).toBeVisible();
+  await expect(restoredCard.getByTestId('theater-keep')).toBeVisible();
   const restoredAt = await page.evaluate(() =>
     Number(document.documentElement.dataset.restoredTheaterAt),
   );
@@ -413,7 +406,7 @@ test('Theater meets generation and restore budgets without duplicate inference',
       theaterInferDeltaOnReload: countsAfterReload.theaterInfer - countsBeforeReload.theaterInfer,
     },
     restoredUi: {
-      title: await restoredCard.getByRole('heading', { name: THEATER_TITLE }).textContent(),
+      title: await restoredCard.getByTestId('theater-keep').textContent(),
       facets: (await restoredCard.getByTestId('theater-trail').count()) > 0 ? 'trail' : 'missing',
       lineupRows: restoredRowTexts.length,
       reasonedRows: 0,
@@ -433,7 +426,7 @@ test('Theater meets generation and restore budgets without duplicate inference',
   expect(countsBeforeReload.lineupSearch).toBe(6);
   expect(countsBeforeReload.lineupDetail).toBe(6);
   expect(result.restoredUi).toEqual({
-    title: THEATER_TITLE,
+    title: 'Save Theater',
     facets: 'trail',
     lineupRows: 3,
     reasonedRows: 0,

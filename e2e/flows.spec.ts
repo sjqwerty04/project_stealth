@@ -350,12 +350,15 @@ test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   await seedShowingTheater(page);
   const card = page.getByTestId('theater-card');
   await expect(card).toBeVisible();
-  await expect(card.getByRole('heading', { name: THEATER_FIXTURE.title })).toBeVisible();
+  await expect(card).toContainText('Trend found');
+  await expect(card).toContainText('Your Theater');
   await expect(card.getByTestId('theater-trail').locator('li')).toHaveCount(3);
   await expect(card.getByTestId('facet-line')).toHaveCount(0);
   await expect(card.getByTestId('swatch-strip')).toHaveCount(0);
   await expect(card.getByTestId('theater-lineup')).toHaveCount(0);
   await expect(card).toContainText(THEATER_FIXTURE.insight);
+  await expect(card.getByTestId('theater-keep')).toHaveText('Save Theater');
+  await expect(card.getByTestId('theater-see-more')).toBeVisible();
   await expect(card.getByRole('button', { name: /close theater/i })).toBeVisible();
   await gate(page, 'F13', testInfo.project.name);
   await dumpConsole(page, 'F13', testInfo.project.name, logs);
@@ -493,18 +496,29 @@ test('F16 Theater archive', async ({ page }, testInfo) => {
   await page.goto('/discover');
   await seedShowingTheater(page);
   const live = page.getByTestId('theater-card');
-  await expect(live.getByRole('heading', { name: THEATER_FIXTURE.title })).toBeVisible();
+  await expect(live).toContainText('Trend found');
+  await expect(live).toContainText('Your Theater');
   await expect(live.getByTestId('theater-trail').locator('li')).toHaveCount(3);
+  expect((await live.boundingBox())?.height ?? 999).toBeLessThan(280);
+  await live.getByTestId('theater-info').click();
+  await expect(live.getByTestId('theater-info-copy')).toContainText('Your Theater watches the films you open');
+  await live.getByTestId('theater-see-more').click();
+  const sessionSheet = page.getByTestId('theater-session-sheet');
+  await expect(sessionSheet).toBeVisible();
+  await expect(sessionSheet.getByTestId('theater-sheet-trail').locator('li')).toHaveCount(3);
+  await expect(sessionSheet.getByTestId('theater-sheet-picks').locator('li')).toHaveCount(6);
+  await sessionSheet.getByRole('button', { name: /close theater/i }).click();
+  await expect(sessionSheet).toHaveCount(0);
   await expect(live.getByTestId('facet-line')).toHaveCount(0);
   await expect(live.getByTestId('swatch-strip')).toHaveCount(0);
   await page.getByTestId('theater-keep').click();
-  await expect(page.getByTestId('theater-keep')).toHaveText('Kept', { timeout: 20000 });
+  await expect(page.getByTestId('theater-keep')).toHaveText('Saved', { timeout: 20000 });
 
   await page.getByTestId('tab-library').click();
   await page.getByTestId('library-row-theaters').click();
   await expect(page).toHaveURL(/\/theaters/);
   await expect(page.getByRole('heading', { name: 'THEATERS', level: 1 })).toBeVisible();
-  await expect(page.getByText('FACETS YOU KEPT WALKING BACK INTO')).toBeVisible();
+  await expect(page.getByText('PATTERNS YOU KEPT WALKING BACK INTO')).toBeVisible();
   const footer = page.getByTestId('theater-archive-footer');
   await expect(footer).toHaveText('A THEATER IS WHAT A TRAIL BECOMES WHEN YOU KEEP IT');
   const linesThroughKeep = await footer.evaluate((el) => {
@@ -519,17 +533,15 @@ test('F16 Theater archive', async ({ page }, testInfo) => {
   const cards = page.getByTestId('theater-archive-card');
   await expect(cards.first()).toBeVisible({ timeout: 20000 });
   const kept = cards.filter({ has: page.getByText(THEATER_FIXTURE.title) }).first();
-  await expect(kept).toHaveAttribute('aria-label', new RegExp(`^${THEATER_FIXTURE.title}\\. COMPETENCE PORN and NOBODY WINS\\. 6 films, \\d+ unseen\\.$`));
-  await expect(kept.getByTestId('theater-card-counts')).toHaveText(/^6 FILMS · \d+ UNSEEN$/);
-  await expect(kept.getByTestId('swatch-strip').locator('span')).toHaveCount(4);
-  const box = await kept.boundingBox();
-  expect(Math.round(box?.height ?? 0)).toBe(190);
+  await expect(kept).toHaveAttribute('aria-label', new RegExp(`^${THEATER_FIXTURE.title}\\. 3 films, \\d+ unseen\\.$`));
+  await expect(kept.getByTestId('theater-trail').locator('li')).toHaveCount(3);
+  await expect(kept.getByTestId('swatch-strip')).toHaveCount(0);
 
   await kept.click();
   const sheet = page.getByTestId('theater-sheet');
   await expect(sheet).toBeVisible();
-  await expect(sheet.locator('li')).toHaveCount(6);
-  await expect(sheet).toContainText(THEATER_FIXTURE.lineup[0][3]);
+  await expect(sheet.getByTestId('theater-sheet-trail').locator('li')).toHaveCount(3);
+  await expect(sheet.getByTestId('theater-sheet-picks').locator('li')).toHaveCount(6);
   await sheet.getByRole('button', { name: /close theater/i }).click();
   await expect(sheet).toHaveCount(0);
 
