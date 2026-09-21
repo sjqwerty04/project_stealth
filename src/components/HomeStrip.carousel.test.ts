@@ -80,6 +80,19 @@ describe('relatedFromWhy', () => {
     ).toEqual([{ title: 'Thief', poster: 'thief.jpg' }]);
   });
 
+  it('carries diary movie ids so related posters can open detail', () => {
+    expect(
+      relatedFromWhy(
+        'You logged Heat after Thief.',
+        [
+          { title: 'Heat', poster: 'heat.jpg', movieId: 670 },
+          { title: 'Thief', poster: 'thief.jpg', movieId: 11373, mediaType: 'movie' },
+        ],
+        'Heat',
+      ),
+    ).toEqual([{ title: 'Thief', poster: 'thief.jpg', movieId: 11373, mediaType: 'movie' }]);
+  });
+
   it('does not let a short title steal a longer match', () => {
     expect(
       relatedFromWhy("All the President's Men is the template.", diary, 'Zodiac'),
@@ -197,6 +210,7 @@ describe('select card watched control', () => {
     );
 
     expect(html).toContain('Watched?');
+    expect(html).toContain('select-open-movie');
     expect(html).toContain('Liked');
     expect(html).toContain("It&#x27;s okay");
     expect(html).toContain('Nope');

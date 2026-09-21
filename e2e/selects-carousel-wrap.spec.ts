@@ -52,6 +52,25 @@ test.describe('selects carousel wrap', () => {
     await expect(card.getByTestId('related-posters').locator('img')).toHaveCount(2);
   });
 
+  test('tap the visible select opens that movie', async ({ page }) => {
+    await page.goto('/dev/selects-carousel');
+    const hero = page.getByTestId('select-open-movie').nth(1);
+    await expect(hero).toHaveAttribute('aria-label', 'Logan');
+    const box = await hero.boundingBox();
+    if (!box) throw new Error('hero missing');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.getByTestId('opened-select')).toHaveAttribute('data-id', '263115');
+  });
+
+  test('tap a related poster opens that diary film', async ({ page }) => {
+    await page.goto('/dev/selects-carousel');
+    const card = page.getByTestId('ticket-slot').nth(1);
+    await card.getByTestId('related-poster').first().click();
+    await expect(page.getByTestId('opened-select')).toHaveAttribute('data-id', '36648');
+  });
+
   test('Watched replaces one stable slot with a slot-local loader', async ({ page }) => {
     await page.goto('/dev/selects-carousel');
     const track = page.getByTestId('selects-carousel-track');

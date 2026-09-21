@@ -21,7 +21,12 @@ export const SELECTS_AUTOPLAY_MS = 6200;
 export const SELECTS_TRANSITION_MS = 900;
 export const SELECTS_TRANSITION_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
 
-export type RelatedPoster = { title: string; poster: string };
+export type RelatedPoster = {
+  title: string;
+  poster: string;
+  movieId?: number;
+  mediaType?: 'movie' | 'tv';
+};
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -45,7 +50,7 @@ function firstMention(why: string, needle: string): { start: number; end: number
 /** Diary films named in whyMatch, in mention order. Exclude the current film, cap at two. */
 export function relatedFromWhy(
   whyMatch: string | undefined,
-  diary: { title: string; poster?: string }[],
+  diary: { title: string; poster?: string; movieId?: number; mediaType?: 'movie' | 'tv' }[],
   excludeTitle?: string,
   limit = 2,
 ): RelatedPoster[] {
@@ -63,7 +68,12 @@ export function relatedFromWhy(
       continue;
     }
     seen.add(key);
-    candidates.push({ title, poster: row.poster });
+    candidates.push({
+      title,
+      poster: row.poster,
+      ...(typeof row.movieId === 'number' ? { movieId: row.movieId } : {}),
+      ...(row.mediaType ? { mediaType: row.mediaType } : {}),
+    });
   }
 
   const matches: {

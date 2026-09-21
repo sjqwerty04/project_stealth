@@ -19,15 +19,15 @@ const LOGAN_WHY =
   'X-Men and X2 both got a 5 from you, and Logan is the scarred, adult finish of that world. It has the bruised father and child tension you already rewarded in Cape Fear and Sleepers. The western grit should land if you also wanted something like There Will Be Blood.';
 
 const DIARY = [
-  { title: 'Cape Fear', poster: poster('#5a3a12', 'Cape Fear') },
-  { title: 'Sleepers', poster: poster('#3a1d1d', 'Sleepers') },
-  { title: 'There Will Be Blood', poster: poster('#6a4a12', 'TWBB') },
-  { title: 'X-Men: The Last Stand', poster: poster('#1d3a8a', 'X-Men') },
-  { title: 'X2: X-Men United', poster: poster('#1d5b8a', 'X2') },
-  { title: 'Infernal Affairs', poster: poster('#1d2a3a', 'Infernal') },
-  { title: 'The Godfather', poster: poster('#2a1d12', 'Godfather') },
-  { title: 'Thief', poster: poster('#2b2b2f', 'Thief') },
-  { title: 'Collateral', poster: poster('#1d5b8a', 'Collateral') },
+  { title: 'Cape Fear', poster: poster('#5a3a12', 'Cape Fear'), movieId: 1598 },
+  { title: 'Sleepers', poster: poster('#3a1d1d', 'Sleepers'), movieId: 819 },
+  { title: 'There Will Be Blood', poster: poster('#6a4a12', 'TWBB'), movieId: 7345 },
+  { title: 'X-Men: The Last Stand', poster: poster('#1d3a8a', 'X-Men'), movieId: 36648 },
+  { title: 'X2: X-Men United', poster: poster('#1d5b8a', 'X2'), movieId: 36658 },
+  { title: 'Infernal Affairs', poster: poster('#1d2a3a', 'Infernal'), movieId: 1430 },
+  { title: 'The Godfather', poster: poster('#2a1d12', 'Godfather'), movieId: 238 },
+  { title: 'Thief', poster: poster('#2b2b2f', 'Thief'), movieId: 11373 },
+  { title: 'Collateral', poster: poster('#1d5b8a', 'Collateral'), movieId: 1538 },
 ];
 
 const DEPARTED_WHY =
@@ -69,6 +69,7 @@ const PREVIEW_SLIDES: SelectFilm[] = [
 export default function SelectsCarouselPreviewScreen() {
   const [slides, setSlides] = useState(PREVIEW_SLIDES);
   const [replacement, setReplacement] = useState<SelectReplacement>(null);
+  const [opened, setOpened] = useState<{ id: number; mediaType?: string } | null>(null);
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
@@ -79,10 +80,20 @@ export default function SelectsCarouselPreviewScreen() {
   return (
     <div className="min-h-dvh bg-base text-fg px-7 pt-10">
       <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
+      {opened ? (
+        <p
+          className="font-spec text-[10px] uppercase tracking-widest text-select mb-3"
+          data-testid="opened-select"
+          data-id={opened.id}
+          data-type={opened.mediaType || 'movie'}
+        >
+          Opened {opened.id}
+        </p>
+      ) : null}
       <SelectsCarousel
         slides={slides}
         art={{}}
-        onOpenMovie={() => {}}
+        onOpenMovie={(id, mediaType) => setOpened({ id, mediaType })}
         replacements={replacement ? { [replacement.slotId]: replacement } : {}}
         onVerdict={(slotId) => {
           setReplacement({ slotId, phase: 'saving', feedbackSaved: false });
