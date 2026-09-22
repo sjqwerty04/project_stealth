@@ -87,7 +87,7 @@ export function pickIsExcluded(
   return false;
 }
 
-export function dropExcludedPicks<T extends { movieId: number; title: string }>(
+export function dropExcludedPicks<T extends { movieId: number; title?: string }>(
   picks: readonly T[],
   excluded: readonly SelectExclusion[],
 ): T[] {
