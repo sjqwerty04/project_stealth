@@ -13,8 +13,7 @@ export default function SimilarFilms({
   movie: SimilarMovieInput;
   onOpen: (movieId: number) => void;
 }) {
-  const { similarMovies, isLoading, loadMore, hasMore, refreshed, scholarLoading, scholarElapsed } =
-    useSimilarVibes(movie);
+  const { similarMovies, isLoading, refreshed, scholarLoading, scholarElapsed } = useSimilarVibes(movie);
 
   return (
     <div>
@@ -83,17 +82,6 @@ export default function SimilarFilms({
         </div>
       ) : (
         <p className="text-gray-600 text-center py-8 text-sm">Finding similar vibes…</p>
-      )}
-      {hasMore && (
-        <button
-          type="button"
-          data-testid="similar-load-more"
-          onClick={loadMore}
-          disabled={isLoading}
-          className="w-full mt-3 py-3 rounded-2xl bg-[#18181b] text-gray-400 hover:text-white hover:bg-[#27272a] border border-white/5 text-sm transition-colors disabled:opacity-50"
-        >
-          {isLoading ? 'Loading…' : 'Load more'}
-        </button>
       )}
     </div>
   );
