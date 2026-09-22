@@ -1,4 +1,5 @@
-import { hydratedTitleMatchesPick, mentionNeedles } from '../lib/taste/selectPickCoherence';
+import { hydratedTitleMatchesPick, mentionNeedles, normalizeFilmTitle } from '../lib/taste/selectPickCoherence';
+import { firstSentence } from '../lib/taste/selectsCache';
 
 export function loopingSlides<T>(slides: T[]): T[] {
   if (slides.length < 2) return slides;
@@ -59,6 +60,13 @@ export function relatedPosterPool(...sources: PosterPoolFilm[][]): PosterPoolFil
   return pool;
 }
 
+export function relatedPosterRows(
+  library: { title: string; poster?: string }[],
+  events: { title: string; poster?: string }[],
+) {
+  return [...library, ...events];
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -78,14 +86,14 @@ function firstMention(why: string, needle: string): { start: number; end: number
   return { start, end: start + needle.length };
 }
 
-/** Diary films named in whyMatch, in mention order. Exclude the current film, cap at two. */
+/** Diary films named in the first sentence of whyMatch, in mention order. Exclude the current film, cap at two. */
 export function relatedFromWhy(
   whyMatch: string | undefined,
   diary: PosterPoolFilm[],
   excludeTitle?: string,
   limit = 2,
 ): RelatedPoster[] {
-  const why = whyMatch?.trim();
+  const why = firstSentence(whyMatch ?? '');
   if (!why) return [];
   const exclude = excludeTitle?.trim() ?? '';
   const seen = new Set<string>();
@@ -93,7 +101,7 @@ export function relatedFromWhy(
   for (const row of diary) {
     const title = row.title?.trim();
     if (!title || !row.poster || isGenericShortTitle(title)) continue;
-    const key = title.toLowerCase();
+    const key = normalizeFilmTitle(title) || title.toLowerCase();
     if (seen.has(key)) continue;
     if (exclude && (key === exclude.toLowerCase() || hydratedTitleMatchesPick(exclude, title))) {
       continue;

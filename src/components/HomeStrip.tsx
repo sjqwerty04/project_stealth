@@ -377,8 +377,8 @@ export default function HomeStrip({
   ).length;
 
   const posterPool = useMemo(
-    () => relatedPosterPool(events, libraryFilms, profilePicks),
-    [events, libraryFilms, profilePicks],
+    () => relatedPosterPool(libraryFilms, profilePicks, events),
+    [libraryFilms, profilePicks, events],
   );
 
   const slides = useMemo(() => {
