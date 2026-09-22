@@ -5,8 +5,8 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
-import { relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
-import { dayStageKey, isSelectsDismissTarget, parseAppDateParam } from './homeStripLogic';
+import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
+import { dayStageKey, isSelectsDismissTarget, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
@@ -33,73 +33,80 @@ function tmdbImage(path: string | null | undefined, size: 'w500' | 'w780' = 'w78
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
+async function loadFilmArt(film: SelectFilm): Promise<FilmArt> {
+  const fallbackStill = tmdbImage(film.backdrop) || film.poster;
+  const fallbackLogo = film.logo ?? null;
+  try {
+    const api = await fetch(
+      `/api/movie-images?id=${film.id}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`,
+    );
+    if (api.ok) {
+      const data = await api.json();
+      if (data?.logo || data?.still) {
+        return {
+          logo: data.logo || fallbackLogo,
+          still: data.still || fallbackStill,
+        };
+      }
+    }
+  } catch {
+    /* local vite has no /api */
+  }
+  if (!TMDB_API_KEY || !film.id) return { logo: fallbackLogo, still: fallbackStill };
+  try {
+    const mediaType = film.mediaType === 'tv' ? 'tv' : 'movie';
+    const url = new URL(`${TMDB_BASE}/${mediaType}/${film.id}/images`);
+    url.searchParams.set('api_key', TMDB_API_KEY);
+    url.searchParams.set('include_image_language', 'en,null');
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('images');
+    const data = await res.json();
+    const logos: { file_path?: string; iso_639_1?: string | null }[] = data?.logos ?? [];
+    const pngs = logos.filter((logo) => logo.file_path?.endsWith('.png'));
+    const pool = pngs.length ? pngs : logos;
+    const preferred =
+      pool.find((logo) => logo.iso_639_1 === 'en') ||
+      pool.find((logo) => !logo.iso_639_1) ||
+      pool[0];
+    const stillPath = data?.stills?.[0]?.file_path || data?.backdrops?.[0]?.file_path || null;
+    return {
+      logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'w500') : fallbackLogo,
+      still: stillPath ? tmdbImage(stillPath, 'w780') : fallbackStill,
+    };
+  } catch {
+    return { logo: fallbackLogo, still: fallbackStill };
+  }
+}
+
 function useCarouselArt(films: SelectFilm[]) {
   const [art, setArt] = useState<Record<number, FilmArt>>({});
-  const ids = films.map((f) => f.id).join(',');
+  const artRef = useRef(art);
+  artRef.current = art;
+  const pendingRef = useRef(new Set<number>());
+  const filmsRef = useRef(films);
+  filmsRef.current = films;
+  const ids = films.map((film) => film.id).join(',');
+  const idsRef = useRef(ids);
+  idsRef.current = ids;
 
   useEffect(() => {
-    let cancelled = false;
-    const next: Record<number, FilmArt> = {};
-
-    const load = async () => {
-      await Promise.all(
-        films.map(async (film) => {
-          const fallbackStill = tmdbImage(film.backdrop) || film.poster;
-          const fallbackLogo = film.logo ?? null;
-          try {
-            const api = await fetch(
-              `/api/movie-images?id=${film.id}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`,
-            );
-            if (api.ok) {
-              const data = await api.json();
-              if (data?.logo || data?.still) {
-                next[film.id] = {
-                  logo: data.logo || fallbackLogo,
-                  still: data.still || fallbackStill,
-                };
-                return;
-              }
-            }
-          } catch {
-            /* local vite has no /api */
-          }
-          if (!TMDB_API_KEY || !film.id) {
-            next[film.id] = { logo: fallbackLogo, still: fallbackStill };
-            return;
-          }
-          try {
-            const mediaType = film.mediaType === 'tv' ? 'tv' : 'movie';
-            const url = new URL(`${TMDB_BASE}/${mediaType}/${film.id}/images`);
-            url.searchParams.set('api_key', TMDB_API_KEY);
-            url.searchParams.set('include_image_language', 'en,null');
-            const res = await fetch(url.toString());
-            if (!res.ok) throw new Error('images');
-            const data = await res.json();
-            const logos: { file_path?: string; iso_639_1?: string | null }[] = data?.logos ?? [];
-            const pngs = logos.filter((logo) => logo.file_path?.endsWith('.png'));
-            const pool = pngs.length ? pngs : logos;
-            const preferred =
-              pool.find((logo) => logo.iso_639_1 === 'en') ||
-              pool.find((logo) => !logo.iso_639_1) ||
-              pool[0];
-            const stillPath =
-              data?.stills?.[0]?.file_path || data?.backdrops?.[0]?.file_path || null;
-            next[film.id] = {
-              logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'w500') : fallbackLogo,
-              still: stillPath ? tmdbImage(stillPath, 'w780') : fallbackStill,
-            };
-          } catch {
-            next[film.id] = { logo: fallbackLogo, still: fallbackStill };
-          }
-        }),
-      );
-      if (!cancelled) setArt(next);
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+    const wanted = filmsRef.current;
+    const missing = carouselArtIdsStillNeeded(
+      [...Object.keys(artRef.current).map(Number), ...pendingRef.current],
+      wanted.map((film) => film.id),
+    );
+    const byId = new Map(wanted.map((film) => [film.id, film]));
+    for (const id of missing) {
+      const film = byId.get(id);
+      if (!film) continue;
+      pendingRef.current.add(id);
+      void loadFilmArt(film).then((row) => {
+        pendingRef.current.delete(id);
+        const stillWanted = idsRef.current.split(',').filter(Boolean).map(Number);
+        if (!stillWanted.includes(id)) return;
+        setArt((prev) => (prev[id] ? prev : { ...prev, [id]: row }));
+      });
+    }
   }, [ids]);
 
   return art;
@@ -377,8 +384,8 @@ export default function HomeStrip({
   ).length;
 
   const posterPool = useMemo(
-    () => relatedPosterPool(events, libraryFilms, profilePicks),
-    [events, libraryFilms, profilePicks],
+    () => relatedPosterPool(libraryFilms, profilePicks, events),
+    [libraryFilms, profilePicks, events],
   );
 
   const slides = useMemo(() => {
@@ -456,7 +463,7 @@ export default function HomeStrip({
         }}
       >
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
-        {status === 'loading' && (
+        {showSelectsSkeleton(status, slides.length) && (
           <div data-testid="selects-skeleton">
             <Skeleton className="w-full h-[220px]" />
           </div>

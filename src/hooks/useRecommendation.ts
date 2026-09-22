@@ -23,13 +23,19 @@ import { prefetchScholarAdjacency } from '../lib/similar/prefetch';
 import {
   executeSelectReplacement,
   replacePickAtSlot,
+  replacingBlocksGenerate,
   type SelectExclusion,
   type SelectSlotId,
 } from './selectReplacement';
 import {
   buildSelectExclusions,
   buildYourSelectsBody,
+  canGenerateSelects,
+  coerceSelectTrio,
+  dropExcludedPicks,
   hydrateUniqueSelectPicks,
+  openSelectSlots,
+  selectsStatusWhileBusy,
 } from './selectExclusions';
 
 export type { SelectSlotId };
@@ -184,7 +190,7 @@ async function hydrateSelectPick(pick: ApiSelectPick): Promise<RecommendationRes
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
-  const { films: libraryFilms } = useLibrary();
+  const { films: libraryFilms, loading: libraryLoading } = useLibrary();
   const events = opts?.events;
   const eventsRef = useRef(events);
   eventsRef.current = events;
@@ -223,9 +229,9 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     picksRef.current = picks;
   }, [picks]);
 
-  const exclusionList = useCallback(() => {
+  const exclusionList = useCallback((includeLastPicks = true) => {
     return buildSelectExclusions({
-      lastPicks: picksRef.current,
+      lastPicks: includeLastPicks ? picksRef.current : undefined,
       ledgerWatched: libraryRef.current.filter((film) => film.watched),
       sessionRated: sessionExcludedRef.current,
     });
@@ -249,12 +255,27 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
 
     const stored = snapshot.generated.lastPicks.map(fromStored);
+    const replacing = replacingBlocksGenerate(replacementsRef.current);
+    if (!canGenerateSelects({ libraryReady: !libraryLoading, replacing })) {
+      const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+      const source = hit?.length ? hit : stored.length ? stored : picksRef.current;
+      const visible = coerceSelectTrio(picksRef.current, source.slice(0, 3));
+      if (visible.length) {
+        setPicks(visible);
+        setStatus('ready');
+      }
+      return visible;
+    }
+
     if (!force) {
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       if (hit?.length) {
-        setPicks(hit);
-        setStatus('ready');
-        return hit;
+        const visible = dropExcludedPicks(hit, exclusionList(false));
+        if (visible.length === hit.length) {
+          setPicks(visible);
+          setStatus('ready');
+          return visible;
+        }
       }
     }
 
@@ -266,15 +287,17 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     const existing = inflight.get(user.uid);
     if (existing) {
+      if (replacingBlocksGenerate(replacementsRef.current)) return picksRef.current;
       const shared = await existing;
-      setPicks(shared);
-      setStatus(shared.length ? 'ready' : 'empty');
-      return shared;
+      const visible = coerceSelectTrio(picksRef.current, dropExcludedPicks(shared, exclusionList(false)));
+      setPicks(visible);
+      setStatus(visible.length ? 'ready' : 'empty');
+      return visible;
     }
 
     const run = (async () => {
       const havePicks = stored.length > 0 || (readSelectsCache(user.uid)?.picks.length ?? 0) > 0;
-      setStatus(havePicks ? 'ready' : 'loading');
+      setStatus(selectsStatusWhileBusy(picksRef.current.length, havePicks));
       setError(null);
       try {
         const excluded = exclusionList();
@@ -288,20 +311,24 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
         };
         const raw = await requestPicks(excluded, 3);
-        const hydrated = await hydrateUniqueSelectPicks({
-          raw,
-          hydrate: hydrateSelectPick,
-          count: 3,
+        const hydrated = dropExcludedPicks(
+          await hydrateUniqueSelectPicks({
+            raw,
+            hydrate: hydrateSelectPick,
+            count: 3,
+            excluded,
+            requestMore: requestPicks,
+          }),
           excluded,
-          requestMore: requestPicks,
-        });
+        );
 
-        setPicks(hydrated);
-        setStatus(hydrated.length ? 'ready' : 'empty');
-        if (hydrated.length) {
-          writeSelectsCache(user.uid, hydrated.map(toStored));
+        const shown = coerceSelectTrio(picksRef.current, hydrated);
+        setPicks(shown);
+        setStatus(shown.length ? 'ready' : 'empty');
+        if (hydrated.length >= 3) {
+          writeSelectsCache(user.uid, shown.map(toStored));
           prefetchScholarAdjacency(
-            hydrated.map((p) => ({
+            shown.map((p) => ({
               movieId: p.movieId,
               title: p.title,
               year: p.year,
@@ -313,7 +340,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
               user.uid,
               {
                 type: 'last_picks',
-                picks: hydrated.map((p) => ({
+                picks: shown.map((p) => ({
                   movieId: p.movieId,
                   title: p.title,
                   year: p.year,
@@ -331,7 +358,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             console.warn('Your Selects cache write failed:', err);
           }
         }
-        return hydrated;
+        return shown;
       } catch (err) {
         console.error('Your Selects failed:', err);
         setError('Could not load Your Selects');
@@ -344,26 +371,97 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     inflight.set(user.uid, run);
     return run;
-  }, [user, snapshot, context, exclusionList]);
+  }, [user, snapshot, context, exclusionList, libraryLoading]);
+
+  const fillOpenSlots = useCallback(
+    async (slotIds: SelectSlotId[]) => {
+      if (!user) return;
+      for (const slotId of slotIds) {
+        const busy = replacementsRef.current[slotId];
+        if (busy && (busy.phase === 'saving' || busy.phase === 'replacing' || busy.phase === 'failed')) continue;
+        if (!picksRef.current[slotId]) continue;
+        patchReplacement(slotId, { slotId, phase: 'replacing', feedbackSaved: true });
+        try {
+          const nextFromStart = await executeSelectReplacement({
+            slotId,
+            picks: picksRef.current,
+            extraExcluded: exclusionList(false),
+            feedbackSaved: true,
+            saveFeedback: async () => {},
+            onFeedbackSaved: () => {},
+            readContext: async () => {
+              const updated = await getTaste(user.uid);
+              return mergeRecommendContext(
+                contextFromCalendarLogs(eventsRef.current ?? []),
+                updated.context,
+              );
+            },
+            requestPicks: async (updatedContext, excluded: SelectExclusion[], count: 1 | 3) => {
+              const res = await fetch('/api/your-selects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, count)),
+              });
+              if (!res.ok) throw new Error('Could not find another select');
+              const data = (await res.json()) as { picks?: unknown };
+              return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
+            },
+            hydratePick: hydrateSelectPick,
+            persistPicks: async (updatedPicks) => {
+              const incoming = updatedPicks[slotId];
+              if (!incoming) return;
+              const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
+              picksRef.current = merged;
+              writeSelectsCache(user.uid, merged.map(toStored));
+              await recordTasteEvent(
+                user.uid,
+                { type: 'last_picks', picks: merged.map(toStored) },
+                { email: user.email },
+              );
+            },
+          });
+          const incoming = nextFromStart[slotId];
+          const merged = incoming ? replacePickAtSlot(picksRef.current, slotId, incoming) : picksRef.current;
+          picksRef.current = merged;
+          setPicks(merged);
+          setStatus('ready');
+          patchReplacement(slotId, null);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Could not find another select';
+          patchReplacement(slotId, { slotId, phase: 'failed', feedbackSaved: true, message });
+        }
+      }
+    },
+    [user, exclusionList, patchReplacement],
+  );
 
   useEffect(() => {
     if (!user) {
       setStatus('idle');
       return;
     }
+    if (replacingBlocksGenerate(replacementsRef.current)) return;
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
-    if (hit?.length) {
-      setPicks(hit);
-      setStatus('ready');
-      return;
-    }
     const stale = readSelectsCache(user.uid);
-    if (stale?.picks.length) {
-      setPicks(stale.picks.map(fromStored));
+    const source = hit?.length ? hit : stale?.picks.length ? stale.picks.map(fromStored) : [];
+    if (source.length >= 3) {
+      setPicks(source.slice(0, 3));
       setStatus('ready');
+      if (hit?.length) {
+        const openSlots = openSelectSlots(source, exclusionList(false));
+        if (openSlots.length === 0) return;
+        if (tasteLoading || libraryLoading) return;
+        const slotIds = openSlots.filter((id): id is SelectSlotId => id === 0 || id === 1 || id === 2);
+        void fillOpenSlots(slotIds);
+        return;
+      }
     }
-    if (tasteLoading) {
-      if (!stale?.picks.length) setStatus('loading');
+    if (tasteLoading || libraryLoading) {
+      if (source.length === 0 && picksRef.current.length === 0) setStatus('loading');
+      else if (source.length) {
+        setPicks(source);
+        setStatus('ready');
+      }
       return;
     }
     if (!hasMeaningfulContext(context)) {
@@ -372,17 +470,16 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     void generateRecommendation(false);
-  }, [user, tasteLoading, snapshot, context, generateRecommendation]);
+  }, [user, tasteLoading, libraryLoading, snapshot, context, generateRecommendation, exclusionList, fillOpenSlots]);
 
   useEffect(() => {
     if (!user) return;
     const cached = readSelectsCache(user.uid);
     if (!cached?.at || !cached.picks.length) return;
     const remaining = LAST_PICKS_FRESH_MS - (Date.now() - cached.at);
-    if (remaining <= 0) return;
     const t = window.setTimeout(() => {
       void generateRecommendation(true);
-    }, remaining);
+    }, Math.max(0, remaining));
     return () => window.clearTimeout(t);
   }, [user, picks, generateRecommendation]);
 
@@ -476,11 +573,11 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
               updated.context,
             );
           },
-          requestPicks: async (updatedContext, excluded: SelectExclusion[]) => {
+          requestPicks: async (updatedContext, excluded: SelectExclusion[], count: 1 | 3) => {
             const res = await fetch('/api/your-selects', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, 1)),
+            body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, count)),
             });
             if (!res.ok) throw new Error('Could not find another select');
             const data = (await res.json()) as { picks?: unknown };

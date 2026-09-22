@@ -53,8 +53,12 @@ function persistSet(uid: string, raw: string) {
 export function firstSentence(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return '';
-  const match = trimmed.match(/^.+?[.!?]+/);
-  return (match ? match[0] : trimmed).trim();
+  const protectedText = trimmed.replace(
+    /\b(?:Dr|Mr|Mrs|Ms|St|Jr|Sr|Vol|Pt|Prof|[A-Za-z])\./gi,
+    (token) => `${token.slice(0, -1)}\0`,
+  );
+  const match = protectedText.match(/^.+?[.!?]+/);
+  return (match ? match[0] : protectedText).replace(/\0/g, '.').trim();
 }
 
 export function selectsCacheFresh(entry: CachedSelects | null, now = Date.now()): entry is CachedSelects {

@@ -19,6 +19,10 @@ export function dayStageKey(date: Date, movieId: number): string {
   return `${format(date, 'yyyy-MM-dd')}:${movieId}`;
 }
 
+export function showSelectsSkeleton(status: string, slideCount: number): boolean {
+  return status === 'loading' && slideCount === 0;
+}
+
 export function isSelectsDismissTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-testid="strip-dock"]')) return false;

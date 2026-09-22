@@ -103,4 +103,13 @@ describe('firstSentence', () => {
   it('keeps only the first sentence', () => {
     expect(firstSentence('You rated Heat a 5. Mann again at night.')).toBe('You rated Heat a 5.');
   });
+
+  it('does not cut at honorifics or initials', () => {
+    expect(firstSentence('If Dr. No already clicked, Heat is next. Ignore Se7en.')).toBe(
+      'If Dr. No already clicked, Heat is next.',
+    );
+    expect(firstSentence('If L.A. Confidential already clicked, Heat is next. Ignore Se7en.')).toBe(
+      'If L.A. Confidential already clicked, Heat is next.',
+    );
+  });
 });
