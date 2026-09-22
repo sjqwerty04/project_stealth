@@ -76,4 +76,14 @@ describe('your-selects request', () => {
 
     expect(filterExcludedPicks(picks, [], 3).map((row) => row.title)).toEqual(['Heat', 'Thief', 'Logan']);
   });
+
+  it('drops Collateral (2004) when excluded is Collateral 1538', () => {
+    expect(
+      filterExcludedPicks(
+        [{ title: 'Collateral (2004)', year: '2004', whyMatch: 'Collateral is Mann at night.', confidence: 0.9 }],
+        [{ title: 'Collateral', id: '1538' }],
+        1,
+      ),
+    ).toEqual([]);
+  });
 });

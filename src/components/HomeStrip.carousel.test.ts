@@ -204,6 +204,103 @@ describe('relatedFromWhy', () => {
     ]);
   });
 
+  const WIND_RIVER_WHY =
+    'If Sicario and Hell or High Water already clicked, Wind River is the next Taylor Sheridan crime procedural. Wind River sends a tracker and an FBI agent into a frozen reservation murder case that never lets the tension thaw. It is grim, methodical, and built for viewers who like moral gray zones more than easy wins.';
+  const DONNIE_WHY =
+    'The Departed and The Town make Donnie Brasco a strong undercover companion piece. Donnie Brasco follows an FBI agent who lives so deep with the mob that friendship and duty start to tear him apart. The street-level loyalty tests fit the crime dramas you already finish at 6.';
+
+  it('resolves Sicario and Hell or High Water from library rows with posters', () => {
+    expect(
+      relatedFromWhy(
+        WIND_RIVER_WHY,
+        [
+          { title: 'Sicario', poster: 'sicario.jpg' },
+          { title: 'Hell or High Water', poster: 'hohw.jpg' },
+        ],
+        'Wind River',
+      ),
+    ).toEqual([
+      { title: 'Sicario', poster: 'sicario.jpg' },
+      { title: 'Hell or High Water', poster: 'hohw.jpg' },
+    ]);
+  });
+
+  it('shows no chips when named films have empty posters, not a stand-in', () => {
+    expect(
+      relatedFromWhy(
+        WIND_RIVER_WHY,
+        [
+          { title: 'Sicario', poster: '' },
+          { title: 'Hell or High Water' },
+          { title: 'The King', poster: 'king.jpg' },
+        ],
+        'Wind River',
+      ),
+    ).toEqual([]);
+  });
+
+  it('shows Departed and Town, never The King', () => {
+    expect(
+      relatedFromWhy(
+        DONNIE_WHY,
+        [
+          { title: 'The Departed', poster: 'departed.jpg' },
+          { title: 'The Town', poster: 'town.jpg' },
+          { title: 'The King', poster: 'king.jpg' },
+        ],
+        'Donnie Brasco',
+      ),
+    ).toEqual([
+      { title: 'The Departed', poster: 'departed.jpg' },
+      { title: 'The Town', poster: 'town.jpg' },
+    ]);
+  });
+
+  it('does not use The King when Departed and Town have no posters', () => {
+    expect(
+      relatedFromWhy(
+        DONNIE_WHY,
+        [
+          { title: 'The Departed' },
+          { title: 'The Town', poster: '' },
+          { title: 'The King', poster: 'king.jpg' },
+          { title: 'The King: Eternal Monarch', poster: 'monarch.jpg' },
+        ],
+        'Donnie Brasco',
+      ),
+    ).toEqual([]);
+  });
+
+  it('resolves copy that drops The to the official diary title', () => {
+    expect(
+      relatedFromWhy(
+        'Departed and Town make Donnie Brasco a strong undercover companion piece.',
+        [
+          { title: 'The Departed', poster: 'departed.jpg' },
+          { title: 'The Town', poster: 'town.jpg' },
+          { title: 'The King', poster: 'king.jpg' },
+        ],
+        'Donnie Brasco',
+      ),
+    ).toEqual([
+      { title: 'The Departed', poster: 'departed.jpg' },
+      { title: 'The Town', poster: 'town.jpg' },
+    ]);
+  });
+
+  it('ignores history names after the first sentence', () => {
+    expect(
+      relatedFromWhy(
+        'Wind River is grim, methodical, and built for viewers who like moral gray zones. Sicario and Hell or High Water already clicked.',
+        [
+          { title: 'Sicario', poster: 'sicario.jpg' },
+          { title: 'Hell or High Water', poster: 'hohw.jpg' },
+        ],
+        'Wind River',
+      ),
+    ).toEqual([]);
+  });
+
   it('prefers an exact diary title over a sequel that shares the same prefix', () => {
     expect(
       relatedFromWhy(
