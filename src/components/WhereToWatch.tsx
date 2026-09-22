@@ -104,12 +104,12 @@ export default function WhereToWatch({ providers }: WhereToWatchProps) {
       <div hidden={!open} data-testid="where-to-watch-sheet">
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/60"
+          className="fixed inset-0 z-[60] bg-black/60"
           aria-label="Close where to watch"
           data-testid="where-to-watch-scrim"
           onClick={() => setOpen(false)}
         />
-        <div className="fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl border border-white/10 bg-[#18181b] px-4 pb-8 pt-3">
+        <div className="fixed inset-x-0 bottom-0 z-[70] max-h-[80vh] overflow-y-auto rounded-t-2xl border border-white/10 bg-[#18181b] px-4 pb-8 pt-3">
           <button
             type="button"
             className="mx-auto mb-3 block h-1 w-10 rounded-full bg-line"
