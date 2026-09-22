@@ -44,6 +44,7 @@ describe('select replacement', () => {
         { id: '3', title: 'Thief' },
         { id: '263115', title: 'Logan' },
       ],
+      1,
     );
     expect(next).toEqual([
       { movieId: 1, title: 'Heat' },

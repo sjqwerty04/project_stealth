@@ -1,3 +1,5 @@
+import { hydratedTitleMatchesPick } from '../lib/taste/selectPickCoherence';
+
 export type SelectExclusion = {
   id: string;
   title: string;
@@ -68,6 +70,34 @@ export function buildYourSelectsBody<TContext>(
   return { context, count, excluded };
 }
 
+export function pickIsExcluded(
+  pick: { movieId?: number; id?: string; title?: string },
+  excluded: readonly SelectExclusion[],
+): boolean {
+  const pickId =
+    pick.id != null && String(pick.id).trim()
+      ? String(pick.id).trim()
+      : pick.movieId != null
+        ? String(pick.movieId)
+        : '';
+  for (const row of excluded) {
+    if (row.id && pickId && row.id === pickId) return true;
+    if (row.title && pick.title && hydratedTitleMatchesPick(row.title, pick.title)) return true;
+  }
+  return false;
+}
+
+export function dropExcludedPicks<T extends { movieId: number; title: string }>(
+  picks: readonly T[],
+  excluded: readonly SelectExclusion[],
+): T[] {
+  return picks.filter((pick) => !pickIsExcluded(pick, excluded));
+}
+
+export function canGenerateSelects(opts: { libraryReady: boolean; replacing: boolean }): boolean {
+  return opts.libraryReady && !opts.replacing;
+}
+
 async function hydrateList<TRaw, TPick extends { movieId: number; title?: string }>(
   raw: TRaw[],
   hydrate: (row: TRaw) => Promise<TPick | null>,
@@ -87,7 +117,7 @@ export async function hydrateUniqueSelectPicks<TRaw, TPick extends { movieId: nu
   excluded: SelectExclusion[];
   requestMore: (excluded: SelectExclusion[], count: 1 | 3) => Promise<TRaw[]>;
 }): Promise<TPick[]> {
-  const first = await hydrateList(opts.raw, opts.hydrate);
+  const first = dropExcludedPicks(await hydrateList(opts.raw, opts.hydrate), opts.excluded);
   if (first.length >= opts.count) return first.slice(0, opts.count);
   const moreExcluded = mergeSelectExclusions([
     ...opts.excluded,
@@ -95,6 +125,9 @@ export async function hydrateUniqueSelectPicks<TRaw, TPick extends { movieId: nu
   ]);
   const remaining = opts.count - first.length;
   const nextCount: 1 | 3 = remaining === 1 ? 1 : 3;
-  const more = await hydrateList(await opts.requestMore(moreExcluded, nextCount), opts.hydrate);
+  const more = dropExcludedPicks(
+    await hydrateList(await opts.requestMore(moreExcluded, nextCount), opts.hydrate),
+    moreExcluded,
+  );
   return uniqueByMovieId([...first, ...more]).slice(0, opts.count);
 }

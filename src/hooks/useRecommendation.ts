@@ -23,12 +23,15 @@ import { prefetchScholarAdjacency } from '../lib/similar/prefetch';
 import {
   executeSelectReplacement,
   replacePickAtSlot,
+  replacingBlocksGenerate,
   type SelectExclusion,
   type SelectSlotId,
 } from './selectReplacement';
 import {
   buildSelectExclusions,
   buildYourSelectsBody,
+  canGenerateSelects,
+  dropExcludedPicks,
   hydrateUniqueSelectPicks,
 } from './selectExclusions';
 
@@ -184,7 +187,7 @@ async function hydrateSelectPick(pick: ApiSelectPick): Promise<RecommendationRes
 export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const { user } = useAuth();
   const { snapshot, loading: tasteLoading } = useTaste();
-  const { films: libraryFilms } = useLibrary();
+  const { films: libraryFilms, loading: libraryLoading } = useLibrary();
   const events = opts?.events;
   const eventsRef = useRef(events);
   eventsRef.current = events;
@@ -249,12 +252,27 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
 
     const stored = snapshot.generated.lastPicks.map(fromStored);
+    const replacing = replacingBlocksGenerate(replacementsRef.current);
+    if (!canGenerateSelects({ libraryReady: !libraryLoading, replacing })) {
+      const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+      const source = hit?.length ? hit : stored.length ? stored : picksRef.current;
+      const visible = dropExcludedPicks(source, exclusionList());
+      if (visible.length) {
+        setPicks(visible);
+        setStatus('ready');
+      }
+      return visible;
+    }
+
     if (!force) {
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       if (hit?.length) {
-        setPicks(hit);
-        setStatus('ready');
-        return hit;
+        const visible = dropExcludedPicks(hit, exclusionList());
+        if (visible.length === hit.length) {
+          setPicks(visible);
+          setStatus('ready');
+          return visible;
+        }
       }
     }
 
@@ -266,10 +284,12 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     const existing = inflight.get(user.uid);
     if (existing) {
+      if (replacingBlocksGenerate(replacementsRef.current)) return picksRef.current;
       const shared = await existing;
-      setPicks(shared);
-      setStatus(shared.length ? 'ready' : 'empty');
-      return shared;
+      const visible = dropExcludedPicks(shared, exclusionList());
+      setPicks(visible);
+      setStatus(visible.length ? 'ready' : 'empty');
+      return visible;
     }
 
     const run = (async () => {
@@ -288,13 +308,16 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
         };
         const raw = await requestPicks(excluded, 3);
-        const hydrated = await hydrateUniqueSelectPicks({
-          raw,
-          hydrate: hydrateSelectPick,
-          count: 3,
+        const hydrated = dropExcludedPicks(
+          await hydrateUniqueSelectPicks({
+            raw,
+            hydrate: hydrateSelectPick,
+            count: 3,
+            excluded,
+            requestMore: requestPicks,
+          }),
           excluded,
-          requestMore: requestPicks,
-        });
+        );
 
         setPicks(hydrated);
         setStatus(hydrated.length ? 'ready' : 'empty');
@@ -344,7 +367,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     inflight.set(user.uid, run);
     return run;
-  }, [user, snapshot, context, exclusionList]);
+  }, [user, snapshot, context, exclusionList, libraryLoading]);
 
   useEffect(() => {
     if (!user) {
@@ -353,17 +376,26 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
     if (hit?.length) {
-      setPicks(hit);
-      setStatus('ready');
-      return;
+      const visible = dropExcludedPicks(hit, exclusionList());
+      if (visible.length === hit.length || libraryLoading) {
+        setPicks(visible.length ? visible : hit);
+        setStatus('ready');
+        if (visible.length === hit.length) return;
+      } else {
+        setPicks(visible);
+        setStatus(visible.length ? 'ready' : 'loading');
+      }
     }
     const stale = readSelectsCache(user.uid);
     if (stale?.picks.length) {
-      setPicks(stale.picks.map(fromStored));
-      setStatus('ready');
+      const visible = dropExcludedPicks(stale.picks.map(fromStored), exclusionList());
+      if (visible.length) {
+        setPicks(visible);
+        setStatus('ready');
+      }
     }
-    if (tasteLoading) {
-      if (!stale?.picks.length) setStatus('loading');
+    if (tasteLoading || libraryLoading || replacingBlocksGenerate(replacementsRef.current)) {
+      if (!stale?.picks.length && !hit?.length) setStatus('loading');
       return;
     }
     if (!hasMeaningfulContext(context)) {
@@ -372,7 +404,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     void generateRecommendation(false);
-  }, [user, tasteLoading, snapshot, context, generateRecommendation]);
+  }, [user, tasteLoading, libraryLoading, snapshot, context, generateRecommendation, exclusionList]);
 
   useEffect(() => {
     if (!user) return;
@@ -476,11 +508,11 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
               updated.context,
             );
           },
-          requestPicks: async (updatedContext, excluded: SelectExclusion[]) => {
+          requestPicks: async (updatedContext, excluded: SelectExclusion[], count: 1 | 3) => {
             const res = await fetch('/api/your-selects', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, 1)),
+            body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, count)),
             });
             if (!res.ok) throw new Error('Could not find another select');
             const data = (await res.json()) as { picks?: unknown };
