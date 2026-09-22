@@ -3,11 +3,11 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
-import { useSimilarVibes } from '../hooks/useSimilarVibes';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useCalendarLogs } from '../hooks/useCalendarLogs';
 import { useExploration } from '../contexts/ExplorationContext';
 import MovieActions from '../components/MovieActions';
+import SimilarFilms from '../components/SimilarFilms';
 import PatternAssistant from '../components/PatternAssistant';
 import RatingBadges from '../components/RatingBadges';
 import TechBadges from '../components/TechBadges';
@@ -36,7 +36,6 @@ export default function MovieDetailScreen() {
   
   const { user } = useAuth();
   const { details, isLoading, error, fetchDetails } = useMovieDetails();
-  const { similarMovies, isLoading: isLoadingSimilar, loadMore, hasMore } = useSimilarVibes();
   const { isInWatchlist, removeFromWatchlist, getWatchlistItem } = useWatchlist();
   const { addEvent } = useCalendarLogs();
   const {
@@ -273,8 +272,8 @@ export default function MovieDetailScreen() {
     }
   }, [details, user, getWatchlistItem, removeFromWatchlist]);
 
-  const handleSimilarMovieClick = (movie: any) => {
-    navigate(`/movie/${movie.id}?type=movie`);
+  const handleSimilarMovieClick = (movieId: number) => {
+    navigate(`/movie/${movieId}?type=movie`);
   };
 
   if (isLoading) {
@@ -569,52 +568,18 @@ export default function MovieDetailScreen() {
           </div>
         )}
 
-        {/* Similar Films — 2-column poster grid */}
-        <div>
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Similar Films</h3>
-          {isLoadingSimilar && similarMovies.length === 0 ? (
-            <div className="flex justify-center py-10">
-              <SelectsChaseLoader size="md" />
-            </div>
-          ) : similarMovies.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2.5">
-              {similarMovies.map((movie) => (
-                <button
-                  key={movie.id}
-                  onClick={() => handleSimilarMovieClick(movie)}
-                  className="text-left group"
-                >
-                  <div className="aspect-[2/3] rounded-xl overflow-hidden bg-[#18181b] group-hover:ring-2 ring-purple-500/60 transition-all">
-                    {movie.posterPath ? (
-                      <img
-                        src={buildImageUrl(movie.posterPath, 'w200')!}
-                        alt={movie.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center p-2">
-                        <span className="text-[10px] text-gray-500 text-center leading-tight">{movie.title}</span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-300 mt-1 line-clamp-1 leading-tight">{movie.title}</p>
-                  {movie.year && <p className="text-[10px] text-gray-600">{movie.year}</p>}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-600 text-center py-8 text-sm">Finding similar vibes…</p>
-          )}
-          {hasMore && (
-            <button
-              onClick={loadMore}
-              disabled={isLoadingSimilar}
-              className="w-full mt-3 py-3 rounded-2xl bg-[#18181b] text-gray-400 hover:text-white hover:bg-[#27272a] border border-white/5 text-sm transition-colors disabled:opacity-50"
-            >
-              {isLoadingSimilar ? 'Loading…' : 'Load more'}
-            </button>
-          )}
-        </div>
+        <SimilarFilms
+          key={`${details.mediaType}-${details.id}`}
+          movie={{
+            id: details.id,
+            title: details.title,
+            year: details.year,
+            genres: details.genres,
+            lineagePersonIds: details.lineagePersonIds,
+            mediaType: details.mediaType,
+          }}
+          onOpen={handleSimilarMovieClick}
+        />
 
         {/* Spacer so floating chips don't cover last content */}
         <div className="h-24" />
