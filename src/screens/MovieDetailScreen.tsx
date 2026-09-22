@@ -10,6 +10,7 @@ import { useExploration } from '../contexts/ExplorationContext';
 import MovieActions from '../components/MovieActions';
 import PatternAssistant from '../components/PatternAssistant';
 import RatingBadges from '../components/RatingBadges';
+import WhereToWatch from '../components/WhereToWatch';
 import TechBadges from '../components/TechBadges';
 import StarterPrompts from '../components/StarterPrompts';
 import MovieChatSheet from '../components/MovieChatSheet';
@@ -435,6 +436,8 @@ export default function MovieDetailScreen() {
           />
         )}
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
+
+        <WhereToWatch providers={details.watchProviders} />
 
         {/* Action Buttons */}
         <MovieActions

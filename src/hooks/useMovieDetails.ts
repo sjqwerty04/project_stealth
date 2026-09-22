@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { fallbackById } from '../lib/fallbackCatalog';
+import { parseWatchProviders, type WatchProviders } from '../lib/watchProviders';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const OMDB_API_KEY = import.meta.env.VITE_OMDB_API_KEY || '';
@@ -39,11 +40,7 @@ export type MovieDetails = {
   trailer: { key: string; site: string; name: string } | null;
   // Best clip for the hero — prefers an official Clip/Featurette (a real scene) over the trailer.
   heroVideo: { key: string; site: string; name: string; type: string } | null;
-  watchProviders: {
-    flatrate: { name: string; logoPath: string }[];
-    rent: { name: string; logoPath: string }[];
-    buy: { name: string; logoPath: string }[];
-  } | null;
+  watchProviders: WatchProviders | null;
   ratings: MovieRatings | null;
   techSpecs: TechSpecs | null;
   mediaType: 'movie' | 'tv';
@@ -154,22 +151,7 @@ export function useMovieDetails() {
         ? { key: heroVideoRaw.key, site: heroVideoRaw.site, name: heroVideoRaw.name, type: heroVideoRaw.type }
         : null;
 
-      // Get US watch providers
-      const usProviders = providersData.results?.US;
-      const watchProviders = usProviders ? {
-        flatrate: (usProviders.flatrate || []).slice(0, 4).map((p: any) => ({
-          name: p.provider_name,
-          logoPath: p.logo_path,
-        })),
-        rent: (usProviders.rent || []).slice(0, 4).map((p: any) => ({
-          name: p.provider_name,
-          logoPath: p.logo_path,
-        })),
-        buy: (usProviders.buy || []).slice(0, 4).map((p: any) => ({
-          name: p.provider_name,
-          logoPath: p.logo_path,
-        })),
-      } : null;
+      const watchProviders = parseWatchProviders(providersData.results?.US);
 
       // Find English logo (prefer PNG for transparency)
       const logos = imagesData.logos || [];
