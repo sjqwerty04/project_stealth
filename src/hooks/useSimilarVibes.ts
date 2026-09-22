@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTaste } from '../lib/taste';
 import { loadLineageNeighbors } from '../lib/similar/loadLineage';
-import { appendScholarNeighbors } from '../lib/similar/rankNeighbors';
+import { mixScholarNeighbors } from '../lib/similar/rankNeighbors';
 import { readAdjacency, writeAdjacency } from '../lib/similar/adjacencyStore';
 import { fetchScholarNeighbors } from '../lib/similar/prefetch';
 import { SIMILAR_GRID_INITIAL, SIMILAR_GRID_MORE, type FilmNeighbor } from '../lib/similar/types';
@@ -85,7 +85,7 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
 
   const ranked = useMemo(
     () =>
-      appendScholarNeighbors({
+      mixScholarNeighbors({
         currentMovieId: movie.id,
         lineage,
         scholar,
@@ -94,20 +94,12 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
     [movie.id, lineage, scholar, snapshot],
   );
 
-  const appendedFloor = useMemo(() => {
-    const extra = ranked.filter((row) => row.source === 'scholar').length;
-    if (!extra) return SIMILAR_GRID_INITIAL;
-    const lineageShown = ranked.length - extra;
-    return lineageShown + Math.min(extra, SIMILAR_GRID_MORE);
-  }, [ranked]);
-
-  const shownCount = Math.max(visibleCount, appendedFloor);
-  const similarMovies = ranked.slice(0, shownCount);
-  const hasMore = ranked.length > shownCount;
+  const similarMovies = ranked.slice(0, visibleCount);
+  const hasMore = ranked.length > visibleCount;
 
   const loadMore = useCallback(() => {
-    setVisibleCount((n) => Math.max(n, appendedFloor) + SIMILAR_GRID_MORE);
-  }, [appendedFloor]);
+    setVisibleCount((n) => n + SIMILAR_GRID_MORE);
+  }, []);
 
   return {
     similarMovies,
