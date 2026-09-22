@@ -13,11 +13,21 @@ export default function SimilarFilms({
   movie: SimilarMovieInput;
   onOpen: (movieId: number) => void;
 }) {
-  const { similarMovies, isLoading, loadMore, hasMore, refreshed } = useSimilarVibes(movie);
+  const { similarMovies, isLoading, loadMore, hasMore, refreshed, scholarLoading, scholarElapsed } =
+    useSimilarVibes(movie);
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Similar Films</h3>
+      {scholarLoading && (
+        <div
+          data-testid="similar-scholar-loading"
+          className="flex items-center gap-2 mb-3 text-xs text-purple-300"
+        >
+          <SelectsChaseLoader size="xs" />
+          <span>Finding cinephile matches · {scholarElapsed}s</span>
+        </div>
+      )}
       {refreshed && (
         <p data-testid="similar-refreshed" className="text-xs text-purple-300 mb-3">
           Updated with cinephile matches

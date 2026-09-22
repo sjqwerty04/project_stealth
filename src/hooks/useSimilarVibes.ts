@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTaste } from '../lib/taste';
 import { loadLineageNeighbors } from '../lib/similar/loadLineage';
-import { mergeNeighborPools, rankNeighbors } from '../lib/similar/rankNeighbors';
+import { appendScholarNeighbors } from '../lib/similar/rankNeighbors';
 import { readAdjacency, writeAdjacency } from '../lib/similar/adjacencyStore';
 import { fetchScholarNeighbors } from '../lib/similar/prefetch';
 import { SIMILAR_GRID_INITIAL, SIMILAR_GRID_MORE, type FilmNeighbor } from '../lib/similar/types';
@@ -20,6 +20,8 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
   const [lineage, setLineage] = useState<FilmNeighbor[]>([]);
   const [scholar, setScholar] = useState<FilmNeighbor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [scholarLoading, setScholarLoading] = useState(true);
+  const [scholarElapsed, setScholarElapsed] = useState(0);
   const [refreshed, setRefreshed] = useState(false);
   const [visibleCount, setVisibleCount] = useState(SIMILAR_GRID_INITIAL);
   const personKey = movie.lineagePersonIds.join(',');
@@ -37,25 +39,37 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
         if (!cancelled) setLineage([]);
       });
 
+    setScholarLoading(true);
+    setScholarElapsed(0);
+    const scholarStarted = Date.now();
+    const scholarTick = window.setInterval(() => {
+      if (!cancelled) setScholarElapsed(Math.floor((Date.now() - scholarStarted) / 1000));
+    }, 1000);
+
     const scholarPromise = (async () => {
-      const cached = await readAdjacency(movie.id, mediaType).catch(() => null);
-      if (cancelled) return;
-      if (cached?.neighbors.length) {
-        setScholar(cached.neighbors);
-        setRefreshed(true);
-        return;
-      }
-      const rows = await fetchScholarNeighbors({
-        movieId: movie.id,
-        title: movie.title,
-        year: movie.year,
-        genres: movie.genres,
-      });
-      if (cancelled) return;
-      if (rows.length) {
-        setScholar(rows);
-        setRefreshed(true);
-        await writeAdjacency(movie.id, rows, mediaType).catch(() => {});
+      try {
+        const cached = await readAdjacency(movie.id, mediaType).catch(() => null);
+        if (cancelled) return;
+        if (cached?.neighbors.length) {
+          setScholar(cached.neighbors);
+          setRefreshed(true);
+          return;
+        }
+        const rows = await fetchScholarNeighbors({
+          movieId: movie.id,
+          title: movie.title,
+          year: movie.year,
+          genres: movie.genres,
+        });
+        if (cancelled) return;
+        if (rows.length) {
+          setScholar(rows);
+          setRefreshed(true);
+          await writeAdjacency(movie.id, rows, mediaType).catch(() => {});
+        }
+      } finally {
+        window.clearInterval(scholarTick);
+        if (!cancelled) setScholarLoading(false);
       }
     })();
 
@@ -65,25 +79,35 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
 
     return () => {
       cancelled = true;
+      window.clearInterval(scholarTick);
     };
   }, [movie.id, movie.title, movie.year, movie.genres, movie.lineagePersonIds, personKey, genreKey, mediaType]);
 
   const ranked = useMemo(
     () =>
-      rankNeighbors({
+      appendScholarNeighbors({
         currentMovieId: movie.id,
-        neighbors: mergeNeighborPools(lineage, scholar),
+        lineage,
+        scholar,
         snapshot,
       }),
     [movie.id, lineage, scholar, snapshot],
   );
 
-  const similarMovies = ranked.slice(0, visibleCount);
-  const hasMore = ranked.length > visibleCount;
+  const appendedFloor = useMemo(() => {
+    const extra = ranked.filter((row) => row.source === 'scholar').length;
+    if (!extra) return SIMILAR_GRID_INITIAL;
+    const lineageShown = ranked.length - extra;
+    return lineageShown + Math.min(extra, SIMILAR_GRID_MORE);
+  }, [ranked]);
+
+  const shownCount = Math.max(visibleCount, appendedFloor);
+  const similarMovies = ranked.slice(0, shownCount);
+  const hasMore = ranked.length > shownCount;
 
   const loadMore = useCallback(() => {
-    setVisibleCount((n) => n + SIMILAR_GRID_MORE);
-  }, []);
+    setVisibleCount((n) => Math.max(n, appendedFloor) + SIMILAR_GRID_MORE);
+  }, [appendedFloor]);
 
   return {
     similarMovies,
@@ -91,5 +115,7 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
     hasMore,
     loadMore,
     refreshed: refreshed && scholar.length > 0,
+    scholarLoading,
+    scholarElapsed,
   };
 }

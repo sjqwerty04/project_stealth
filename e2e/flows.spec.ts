@@ -319,6 +319,7 @@ test('F13 Movie detail chrome', async ({ page }, testInfo) => {
   await expect(page.getByTestId('similar-grid')).toBeVisible({ timeout: 3000 });
   await expect(page.getByTestId('similar-source-lineage').first()).toBeVisible({ timeout: 3000 });
   await expect(page.getByTestId('similar-refreshed')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('similar-source-lineage').first()).toBeVisible();
   await expect(page.getByTestId('similar-source-for-you').first()).toBeVisible();
   await page.getByTestId('action-watchlist').click();
   await page.getByTestId('action-like').click().catch(() => {});
