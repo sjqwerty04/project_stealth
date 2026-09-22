@@ -31,8 +31,10 @@ import {
   buildSelectExclusions,
   buildYourSelectsBody,
   canGenerateSelects,
+  coerceSelectTrio,
   dropExcludedPicks,
   hydrateUniqueSelectPicks,
+  openSelectSlots,
   selectsStatusWhileBusy,
 } from './selectExclusions';
 
@@ -257,7 +259,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     if (!canGenerateSelects({ libraryReady: !libraryLoading, replacing })) {
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       const source = hit?.length ? hit : stored.length ? stored : picksRef.current;
-      const visible = dropExcludedPicks(source, exclusionList(false));
+      const visible = coerceSelectTrio(picksRef.current, source.slice(0, 3));
       if (visible.length) {
         setPicks(visible);
         setStatus('ready');
@@ -287,7 +289,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     if (existing) {
       if (replacingBlocksGenerate(replacementsRef.current)) return picksRef.current;
       const shared = await existing;
-      const visible = dropExcludedPicks(shared, exclusionList(false));
+      const visible = coerceSelectTrio(picksRef.current, dropExcludedPicks(shared, exclusionList(false)));
       setPicks(visible);
       setStatus(visible.length ? 'ready' : 'empty');
       return visible;
@@ -320,12 +322,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           excluded,
         );
 
-        setPicks(hydrated);
-        setStatus(hydrated.length ? 'ready' : 'empty');
-        if (hydrated.length) {
-          writeSelectsCache(user.uid, hydrated.map(toStored));
+        const shown = coerceSelectTrio(picksRef.current, hydrated);
+        setPicks(shown);
+        setStatus(shown.length ? 'ready' : 'empty');
+        if (shown.length >= 3) {
+          writeSelectsCache(user.uid, shown.map(toStored));
           prefetchScholarAdjacency(
-            hydrated.map((p) => ({
+            shown.map((p) => ({
               movieId: p.movieId,
               title: p.title,
               year: p.year,
@@ -337,7 +340,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
               user.uid,
               {
                 type: 'last_picks',
-                picks: hydrated.map((p) => ({
+                picks: shown.map((p) => ({
                   movieId: p.movieId,
                   title: p.title,
                   year: p.year,
@@ -355,7 +358,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             console.warn('Your Selects cache write failed:', err);
           }
         }
-        return hydrated;
+        return shown;
       } catch (err) {
         console.error('Your Selects failed:', err);
         setError('Could not load Your Selects');
@@ -370,6 +373,68 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     return run;
   }, [user, snapshot, context, exclusionList, libraryLoading]);
 
+  const fillOpenSlots = useCallback(
+    async (slotIds: SelectSlotId[]) => {
+      if (!user) return;
+      for (const slotId of slotIds) {
+        const busy = replacementsRef.current[slotId];
+        if (busy && (busy.phase === 'saving' || busy.phase === 'replacing' || busy.phase === 'failed')) continue;
+        if (!picksRef.current[slotId]) continue;
+        patchReplacement(slotId, { slotId, phase: 'replacing', feedbackSaved: true });
+        try {
+          const nextFromStart = await executeSelectReplacement({
+            slotId,
+            picks: picksRef.current,
+            extraExcluded: exclusionList(false),
+            feedbackSaved: true,
+            saveFeedback: async () => {},
+            onFeedbackSaved: () => {},
+            readContext: async () => {
+              const updated = await getTaste(user.uid);
+              return mergeRecommendContext(
+                contextFromCalendarLogs(eventsRef.current ?? []),
+                updated.context,
+              );
+            },
+            requestPicks: async (updatedContext, excluded: SelectExclusion[], count: 1 | 3) => {
+              const res = await fetch('/api/your-selects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, count)),
+              });
+              if (!res.ok) throw new Error('Could not find another select');
+              const data = (await res.json()) as { picks?: unknown };
+              return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
+            },
+            hydratePick: hydrateSelectPick,
+            persistPicks: async (updatedPicks) => {
+              const incoming = updatedPicks[slotId];
+              if (!incoming) return;
+              const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
+              picksRef.current = merged;
+              writeSelectsCache(user.uid, merged.map(toStored));
+              await recordTasteEvent(
+                user.uid,
+                { type: 'last_picks', picks: merged.map(toStored) },
+                { email: user.email },
+              );
+            },
+          });
+          const incoming = nextFromStart[slotId];
+          const merged = incoming ? replacePickAtSlot(picksRef.current, slotId, incoming) : picksRef.current;
+          picksRef.current = merged;
+          setPicks(merged);
+          setStatus('ready');
+          patchReplacement(slotId, null);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Could not find another select';
+          patchReplacement(slotId, { slotId, phase: 'failed', feedbackSaved: true, message });
+        }
+      }
+    },
+    [user, exclusionList, patchReplacement],
+  );
+
   useEffect(() => {
     if (!user) {
       setStatus('idle');
@@ -377,27 +442,24 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
     if (replacingBlocksGenerate(replacementsRef.current)) return;
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
-    if (hit?.length) {
-      const visible = dropExcludedPicks(hit, exclusionList(false));
-      if (visible.length === hit.length || libraryLoading) {
-        setPicks(visible.length ? visible : hit);
-        setStatus('ready');
-        if (visible.length === hit.length) return;
-      } else {
-        setPicks(visible);
-        setStatus(selectsStatusWhileBusy(visible.length, false));
-      }
-    }
     const stale = readSelectsCache(user.uid);
-    if (stale?.picks.length) {
-      const visible = dropExcludedPicks(stale.picks.map(fromStored), exclusionList(false));
-      if (visible.length) {
-        setPicks(visible);
+    const source = hit?.length ? hit : stale?.picks.length ? stale.picks.map(fromStored) : [];
+    if (source.length >= 3) {
+      const openSlots = openSelectSlots(source, exclusionList(false));
+      setPicks(source.slice(0, 3));
+      setStatus('ready');
+      if (openSlots.length === 0) return;
+      if (tasteLoading || libraryLoading) return;
+      const slotIds = openSlots.filter((id): id is SelectSlotId => id === 0 || id === 1 || id === 2);
+      void fillOpenSlots(slotIds);
+      return;
+    }
+    if (tasteLoading || libraryLoading) {
+      if (source.length === 0 && picksRef.current.length === 0) setStatus('loading');
+      else if (source.length) {
+        setPicks(source);
         setStatus('ready');
       }
-    }
-    if (tasteLoading || libraryLoading || replacingBlocksGenerate(replacementsRef.current)) {
-      if (picksRef.current.length === 0 && !stale?.picks.length && !hit?.length) setStatus('loading');
       return;
     }
     if (!hasMeaningfulContext(context)) {
@@ -406,7 +468,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     void generateRecommendation(false);
-  }, [user, tasteLoading, libraryLoading, snapshot, context, generateRecommendation, exclusionList]);
+  }, [user, tasteLoading, libraryLoading, snapshot, context, generateRecommendation, exclusionList, fillOpenSlots]);
 
   useEffect(() => {
     if (!user) return;

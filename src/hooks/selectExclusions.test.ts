@@ -3,7 +3,9 @@ import {
   buildSelectExclusions,
   buildYourSelectsBody,
   canGenerateSelects,
+  coerceSelectTrio,
   dropExcludedPicks,
+  openSelectSlots,
   selectsStatusWhileBusy,
   hydrateUniqueSelectPicks,
   uniqueByMovieId,
@@ -100,6 +102,36 @@ describe('select exclusions', () => {
     });
     expect(dropExcludedPicks(cached, forCache).map((row) => row.movieId)).toEqual([1538, 11524, 8195]);
     expect(dropExcludedPicks(cached, buildSelectExclusions({ lastPicks: cached }))).toEqual([]);
+  });
+
+  it('keeps three slots when one cached select is excluded', () => {
+    const cached = [
+      { movieId: 1538, title: 'Collateral' },
+      { movieId: 11524, title: 'Thief' },
+      { movieId: 8195, title: 'Ronin' },
+    ];
+    expect(openSelectSlots(cached, [{ id: '1538', title: 'Collateral' }])).toEqual([0]);
+    expect(coerceSelectTrio(cached, dropExcludedPicks(cached, [{ id: '1538', title: 'Collateral' }]))).toEqual(
+      cached,
+    );
+    expect(
+      coerceSelectTrio(
+        cached,
+        dropExcludedPicks(cached, [{ id: '1538', title: 'Collateral' }]),
+      ),
+    ).toHaveLength(3);
+  });
+
+  it('accepts a full incoming trio and a short list when nothing is on screen', () => {
+    const incoming = [
+      { movieId: 1, title: 'Heat' },
+      { movieId: 2, title: 'Thief' },
+      { movieId: 3, title: 'Ronin' },
+    ];
+    expect(coerceSelectTrio([], incoming)).toEqual(incoming);
+    expect(coerceSelectTrio([{ movieId: 9, title: 'Old' }], [{ movieId: 4, title: 'Only' }])).toEqual([
+      { movieId: 4, title: 'Only' },
+    ]);
   });
 
   it('keeps the strip ready while cards are already on screen', () => {

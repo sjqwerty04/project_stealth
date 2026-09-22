@@ -106,6 +106,19 @@ export function selectsStatusWhileBusy(
   return 'loading';
 }
 
+export function openSelectSlots<T extends { movieId: number; title?: string }>(
+  picks: readonly T[],
+  excluded: readonly SelectExclusion[],
+): number[] {
+  return picks.slice(0, 3).flatMap((pick, index) => (pickIsExcluded(pick, excluded) ? [index] : []));
+}
+
+export function coerceSelectTrio<T>(current: readonly T[], incoming: readonly T[]): T[] {
+  if (incoming.length >= 3) return incoming.slice(0, 3);
+  if (current.length >= 3 && incoming.length > 0) return current.slice(0, 3);
+  return [...incoming];
+}
+
 async function hydrateList<TRaw, TPick extends { movieId: number; title?: string }>(
   raw: TRaw[],
   hydrate: (row: TRaw) => Promise<TPick | null>,
