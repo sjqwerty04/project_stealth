@@ -40,5 +40,4 @@ export {
   resetSelectsCacheForTesting,
   selectsCacheFresh,
   writeSelectsCache,
-  clearSelectsCache,
 } from './selectsCache';

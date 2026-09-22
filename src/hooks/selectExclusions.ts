@@ -60,6 +60,22 @@ export function buildSelectExclusions(args: {
   ]);
 }
 
+/**
+ * Picks already watched or rated must never render, even from a cache written
+ * before the verdict landed.
+ */
+export function rejectSeenPicks<T extends { movieId: number; title: string }>(
+  picks: readonly T[],
+  seen: readonly SelectExclusion[],
+): T[] {
+  if (!seen.length) return [...picks];
+  const ids = new Set(seen.map((row) => row.id));
+  const titles = new Set(seen.map((row) => normalizedTitle(row.title)));
+  return picks.filter(
+    (pick) => !ids.has(String(pick.movieId)) && !titles.has(normalizedTitle(pick.title)),
+  );
+}
+
 export function buildYourSelectsBody<TContext>(
   context: TContext,
   excluded: SelectExclusion[],

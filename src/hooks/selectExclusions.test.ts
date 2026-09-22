@@ -3,6 +3,7 @@ import {
   buildSelectExclusions,
   buildYourSelectsBody,
   hydrateUniqueSelectPicks,
+  rejectSeenPicks,
   uniqueByMovieId,
 } from './selectExclusions';
 
@@ -19,6 +20,25 @@ describe('select exclusions', () => {
     const body = buildYourSelectsBody({ history: [{ item: 'Logan', rating: 5, id: '263115' }] }, excluded, 3);
     expect(body.excluded.some((row) => row.id === '263115' && row.title === 'Logan')).toBe(true);
     expect(body.count).toBe(3);
+  });
+
+  it('drops a rated film from a cache written before the verdict landed', () => {
+    const cached = [
+      { movieId: 263115, title: 'Logan' },
+      { movieId: 949, title: 'Heat' },
+      { movieId: 1949, title: 'Zodiac' },
+    ];
+    const seen = buildSelectExclusions({ sessionRated: [{ movieId: 263115, title: 'Logan' }] });
+
+    expect(rejectSeenPicks(cached, seen).map((p) => p.title)).toEqual(['Heat', 'Zodiac']);
+    expect(rejectSeenPicks(cached, []).map((p) => p.title)).toEqual(['Logan', 'Heat', 'Zodiac']);
+  });
+
+  it('drops a ledger-watched film by title when the cached id does not match', () => {
+    const cached = [{ movieId: 111, title: 'Collateral' }];
+    const seen = buildSelectExclusions({ ledgerWatched: [{ movieId: 1538, title: 'collateral' }] });
+
+    expect(rejectSeenPicks(cached, seen)).toEqual([]);
   });
 
   it('drops duplicate hydrated movie ids before the trio is shown', () => {

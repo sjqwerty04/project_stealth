@@ -29,6 +29,7 @@ import {
   buildSelectExclusions,
   buildYourSelectsBody,
   hydrateUniqueSelectPicks,
+  rejectSeenPicks,
 } from './selectExclusions';
 
 export type { SelectSlotId };
@@ -107,10 +108,15 @@ function toStored(p: RecommendationResult): TastePick {
   };
 }
 
-function resolveHit(uid: string, snapshotPicks: TastePick[], snapshotAt: number | null): RecommendationResult[] | null {
+function resolveHit(
+  uid: string,
+  snapshotPicks: TastePick[],
+  snapshotAt: number | null,
+  seen: SelectExclusion[],
+): RecommendationResult[] | null {
   const hit = hitSelectsCache(uid, snapshotPicks, snapshotAt);
   if (!hit) return null;
-  return hit.picks.map(fromStored);
+  return rejectSeenPicks(hit.picks, seen).map(fromStored);
 }
 
 async function hydrateFromApi(title: string, year?: string, id?: string): Promise<RecommendationResult | null> {
@@ -190,6 +196,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const libraryRef = useRef(libraryFilms);
   libraryRef.current = libraryFilms;
   const sessionExcludedRef = useRef<SelectExclusion[]>([]);
+  /** Non-zero while a slot swap is mid-flight, so a snapshot update cannot regenerate the trio underneath it. */
+  const replacingRef = useRef(0);
   const [picks, setPicks] = useState<RecommendationResult[]>(() => {
     if (user?.uid) {
       const hit = readSelectsCache(user.uid);
@@ -230,6 +238,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     });
   }, []);
 
+  const seenList = useCallback(() => {
+    return buildSelectExclusions({
+      ledgerWatched: libraryRef.current.filter((film) => film.watched),
+      sessionRated: sessionExcludedRef.current,
+    });
+  }, []);
+
   const rememberSessionExclusion = useCallback((rec: { movieId: number; title: string }) => {
     sessionExcludedRef.current = buildSelectExclusions({
       sessionRated: [...sessionExcludedRef.current, rec],
@@ -249,7 +264,12 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     const stored = snapshot.generated.lastPicks.map(fromStored);
     if (!force) {
-      const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+      const hit = resolveHit(
+        user.uid,
+        snapshot.generated.lastPicks,
+        snapshot.generated.lastPicksAt,
+        seenList(),
+      );
       if (hit?.length) {
         setPicks(hit);
         setStatus('ready');
@@ -335,26 +355,29 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     inflight.set(user.uid, run);
     return run;
-  }, [user, snapshot, context, exclusionList]);
+  }, [user, snapshot, context, exclusionList, seenList]);
 
   useEffect(() => {
     if (!user) {
       setStatus('idle');
       return;
     }
-    const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
+    if (replacingRef.current > 0) return;
+    const seen = seenList();
+    const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt, seen);
     if (hit?.length) {
       setPicks(hit);
       setStatus('ready');
       return;
     }
     const stale = readSelectsCache(user.uid);
-    if (stale?.picks.length) {
-      setPicks(stale.picks.map(fromStored));
+    const unseenStale = stale ? rejectSeenPicks(stale.picks, seen) : [];
+    if (unseenStale.length) {
+      setPicks(unseenStale.map(fromStored));
       setStatus('ready');
     }
     if (tasteLoading) {
-      if (!stale?.picks.length) setStatus('loading');
+      if (!unseenStale.length) setStatus('loading');
       return;
     }
     if (!hasMeaningfulContext(context)) {
@@ -363,7 +386,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     void generateRecommendation(false);
-  }, [user, tasteLoading, snapshot, context, generateRecommendation]);
+  }, [user, tasteLoading, snapshot, context, generateRecommendation, seenList]);
 
   useEffect(() => {
     if (!user) return;
@@ -372,6 +395,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     const remaining = LAST_PICKS_FRESH_MS - (Date.now() - cached.at);
     if (remaining <= 0) return;
     const t = window.setTimeout(() => {
+      if (replacingRef.current > 0) return;
       void generateRecommendation(true);
     }, remaining);
     return () => window.clearTimeout(t);
@@ -441,6 +465,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           : { slotId, phase: 'saving', feedbackSaved: false },
       );
       setError(null);
+      replacingRef.current += 1;
 
       try {
         const nextFromStart = await executeSelectReplacement<
@@ -510,6 +535,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           patchReplacement(slotId, null);
           setError('Could not save feedback');
         }
+      } finally {
+        replacingRef.current -= 1;
       }
     },
     [user, rateRecommendation, patchReplacement, exclusionList],
