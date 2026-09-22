@@ -21,7 +21,43 @@ export const SELECTS_AUTOPLAY_MS = 6200;
 export const SELECTS_TRANSITION_MS = 900;
 export const SELECTS_TRANSITION_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
 
-export type RelatedPoster = { title: string; poster: string };
+export type RelatedPoster = {
+  title: string;
+  poster: string;
+  movieId?: number;
+  mediaType?: 'movie' | 'tv';
+};
+
+export type PosterPoolFilm = {
+  title: string;
+  poster?: string;
+  movieId?: number;
+  mediaType?: 'movie' | 'tv';
+};
+
+/**
+ * Films whose posters can illustrate why copy, in priority order. A film rated
+ * straight from Selects never gets a logged night, and an onboarding pick lands
+ * in neither, so all three sources have to be offered.
+ */
+export function relatedPosterPool(...sources: PosterPoolFilm[][]): PosterPoolFilm[] {
+  const pool: PosterPoolFilm[] = [];
+  const seen = new Set<string>();
+  for (const row of sources.flat()) {
+    const title = row.title?.trim();
+    if (!title || !row.poster) continue;
+    const key = title.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pool.push({
+      title,
+      poster: row.poster,
+      ...(typeof row.movieId === 'number' ? { movieId: row.movieId } : {}),
+      ...(row.mediaType ? { mediaType: row.mediaType } : {}),
+    });
+  }
+  return pool;
+}
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -45,7 +81,7 @@ function firstMention(why: string, needle: string): { start: number; end: number
 /** Diary films named in whyMatch, in mention order. Exclude the current film, cap at two. */
 export function relatedFromWhy(
   whyMatch: string | undefined,
-  diary: { title: string; poster?: string }[],
+  diary: PosterPoolFilm[],
   excludeTitle?: string,
   limit = 2,
 ): RelatedPoster[] {
@@ -63,7 +99,12 @@ export function relatedFromWhy(
       continue;
     }
     seen.add(key);
-    candidates.push({ title, poster: row.poster });
+    candidates.push({
+      title,
+      poster: row.poster,
+      ...(typeof row.movieId === 'number' ? { movieId: row.movieId } : {}),
+      ...(row.mediaType ? { mediaType: row.mediaType } : {}),
+    });
   }
 
   const matches: {
