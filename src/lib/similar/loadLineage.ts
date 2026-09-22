@@ -1,4 +1,4 @@
-import type { FilmNeighbor } from './types';
+import { LINEAGE_POOL_MAX, type FilmNeighbor } from './types';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const LINEAGE_JOBS = new Set(['Director', 'Director of Photography', 'Writer']);
@@ -32,7 +32,7 @@ export function lineageFromCredits(
   }
   return Array.from(byId.values())
     .sort((a, b) => b.pop - a.pop)
-    .slice(0, 8)
+    .slice(0, LINEAGE_POOL_MAX)
     .map(({ film }) => ({
       movieId: film.id,
       title: film.title || 'Untitled',

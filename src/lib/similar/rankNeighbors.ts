@@ -93,8 +93,8 @@ export function rankNeighbors(args: {
   return args.limit != null ? ranked.slice(0, args.limit) : ranked;
 }
 
-/** Lineage order stays put. Scholar titles that are not already on screen follow it. */
-export function appendScholarNeighbors(args: {
+/** Weave new scholar titles through lineage so the first rows include both. */
+export function mixScholarNeighbors(args: {
   currentMovieId: number;
   lineage: FilmNeighbor[];
   scholar: FilmNeighbor[];
@@ -112,7 +112,13 @@ export function appendScholarNeighbors(args: {
     neighbors: scholarOnly,
     snapshot: args.snapshot,
   });
-  return [...lineageRanked, ...scholarRanked];
+  const mixed: RankedNeighbor[] = [];
+  const steps = Math.max(lineageRanked.length, scholarRanked.length);
+  for (let i = 0; i < steps; i++) {
+    if (i < lineageRanked.length) mixed.push(lineageRanked[i]);
+    if (i < scholarRanked.length) mixed.push(scholarRanked[i]);
+  }
+  return mixed;
 }
 
 export function mergeNeighborPools(lineage: FilmNeighbor[], scholar: FilmNeighbor[]): FilmNeighbor[] {

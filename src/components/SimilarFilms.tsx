@@ -86,6 +86,8 @@ export default function SimilarFilms({
       )}
       {hasMore && (
         <button
+          type="button"
+          data-testid="similar-load-more"
           onClick={loadMore}
           disabled={isLoading}
           className="w-full mt-3 py-3 rounded-2xl bg-[#18181b] text-gray-400 hover:text-white hover:bg-[#27272a] border border-white/5 text-sm transition-colors disabled:opacity-50"

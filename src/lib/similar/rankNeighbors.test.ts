@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptySnapshot } from '../taste/buildRecommendContext';
 import type { TasteSnapshot } from '../taste/types';
-import { appendScholarNeighbors, mergeNeighborPools, rankNeighbors } from './rankNeighbors';
+import { mergeNeighborPools, mixScholarNeighbors, rankNeighbors } from './rankNeighbors';
 import type { FilmNeighbor } from './types';
 
 function neighbor(partial: Partial<FilmNeighbor> & Pick<FilmNeighbor, 'movieId' | 'title'>): FilmNeighbor {
@@ -110,14 +110,15 @@ describe('rankNeighbors', () => {
   });
 });
 
-describe('appendScholarNeighbors', () => {
-  it('keeps lineage order and appends new scholar titles', () => {
+describe('mixScholarNeighbors', () => {
+  it('weaves new scholar titles between lineage and skips duplicates', () => {
     const snap = emptySnapshot();
-    const rows = appendScholarNeighbors({
+    const rows = mixScholarNeighbors({
       currentMovieId: 155,
       lineage: [
         neighbor({ movieId: 1, title: 'Batman Begins', source: 'lineage', axes: [] }),
         neighbor({ movieId: 2, title: 'Inception', source: 'lineage', axes: [] }),
+        neighbor({ movieId: 3, title: 'Interstellar', source: 'lineage', axes: [] }),
       ],
       scholar: [
         neighbor({ movieId: 2, title: 'Inception', source: 'scholar', axes: ['story'], reason: 'Dream heist' }),
@@ -125,9 +126,10 @@ describe('appendScholarNeighbors', () => {
       ],
       snapshot: snap,
     });
-    expect(rows.map((row) => row.title)).toEqual(['Batman Begins', 'Inception', 'Heat']);
-    expect(rows[1].source).toBe('lineage');
-    expect(rows[2].source).toBe('scholar');
+    expect(rows.map((row) => row.title)).toEqual(['Batman Begins', 'Heat', 'Inception', 'Interstellar']);
+    expect(rows[1].source).toBe('scholar');
+    expect(rows.filter((row) => row.title === 'Inception')).toHaveLength(1);
+    expect(rows.find((row) => row.title === 'Inception')?.source).toBe('lineage');
   });
 });
 
