@@ -10,6 +10,7 @@ import MovieActions from '../components/MovieActions';
 import SimilarFilms from '../components/SimilarFilms';
 import PatternAssistant from '../components/PatternAssistant';
 import RatingBadges from '../components/RatingBadges';
+import WhereToWatch from '../components/WhereToWatch';
 import TechBadges from '../components/TechBadges';
 import StarterPrompts from '../components/StarterPrompts';
 import MovieChatSheet from '../components/MovieChatSheet';
@@ -484,6 +485,8 @@ export default function MovieDetailScreen() {
             <span>Ask AI about {details.title}</span>
           </button>
         )}
+
+        <WhereToWatch providers={details.watchProviders} />
 
         {/* Known-for hook — below action buttons, above synopsis */}
         {knownFor && (
