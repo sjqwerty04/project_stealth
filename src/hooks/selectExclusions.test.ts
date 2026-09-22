@@ -87,6 +87,20 @@ describe('select exclusions', () => {
     ]);
   });
 
+  it('keeps the cached trio when lastPicks are omitted from cache exclusions', () => {
+    const cached = [
+      { movieId: 1538, title: 'Collateral' },
+      { movieId: 11524, title: 'Thief' },
+      { movieId: 8195, title: 'Ronin' },
+    ];
+    const forCache = buildSelectExclusions({
+      ledgerWatched: [{ movieId: 949, title: 'Heat' }],
+      sessionRated: [],
+    });
+    expect(dropExcludedPicks(cached, forCache).map((row) => row.movieId)).toEqual([1538, 11524, 8195]);
+    expect(dropExcludedPicks(cached, buildSelectExclusions({ lastPicks: cached }))).toEqual([]);
+  });
+
   it('does not generate while the library is empty or a slot is replacing', () => {
     expect(canGenerateSelects({ libraryReady: false, replacing: false })).toBe(false);
     expect(canGenerateSelects({ libraryReady: true, replacing: true })).toBe(false);

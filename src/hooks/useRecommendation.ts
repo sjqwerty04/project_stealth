@@ -226,9 +226,9 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     picksRef.current = picks;
   }, [picks]);
 
-  const exclusionList = useCallback(() => {
+  const exclusionList = useCallback((includeLastPicks = true) => {
     return buildSelectExclusions({
-      lastPicks: picksRef.current,
+      lastPicks: includeLastPicks ? picksRef.current : undefined,
       ledgerWatched: libraryRef.current.filter((film) => film.watched),
       sessionRated: sessionExcludedRef.current,
     });
@@ -256,7 +256,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     if (!canGenerateSelects({ libraryReady: !libraryLoading, replacing })) {
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       const source = hit?.length ? hit : stored.length ? stored : picksRef.current;
-      const visible = dropExcludedPicks(source, exclusionList());
+      const visible = dropExcludedPicks(source, exclusionList(false));
       if (visible.length) {
         setPicks(visible);
         setStatus('ready');
@@ -267,7 +267,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     if (!force) {
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       if (hit?.length) {
-        const visible = dropExcludedPicks(hit, exclusionList());
+        const visible = dropExcludedPicks(hit, exclusionList(false));
         if (visible.length === hit.length) {
           setPicks(visible);
           setStatus('ready');
@@ -286,7 +286,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     if (existing) {
       if (replacingBlocksGenerate(replacementsRef.current)) return picksRef.current;
       const shared = await existing;
-      const visible = dropExcludedPicks(shared, exclusionList());
+      const visible = dropExcludedPicks(shared, exclusionList(false));
       setPicks(visible);
       setStatus(visible.length ? 'ready' : 'empty');
       return visible;
@@ -376,7 +376,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
     if (hit?.length) {
-      const visible = dropExcludedPicks(hit, exclusionList());
+      const visible = dropExcludedPicks(hit, exclusionList(false));
       if (visible.length === hit.length || libraryLoading) {
         setPicks(visible.length ? visible : hit);
         setStatus('ready');
@@ -388,7 +388,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
     const stale = readSelectsCache(user.uid);
     if (stale?.picks.length) {
-      const visible = dropExcludedPicks(stale.picks.map(fromStored), exclusionList());
+      const visible = dropExcludedPicks(stale.picks.map(fromStored), exclusionList(false));
       if (visible.length) {
         setPicks(visible);
         setStatus('ready');

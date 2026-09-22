@@ -301,6 +301,23 @@ describe('relatedFromWhy', () => {
     ).toEqual([]);
   });
 
+  it('finds diary titles after honorifics and initials in the first sentence', () => {
+    expect(
+      relatedFromWhy(
+        'If Dr. No and L.A. Confidential already clicked, Heat is next. Ignore Se7en here.',
+        [
+          { title: 'Dr. No', poster: 'drno.jpg' },
+          { title: 'L.A. Confidential', poster: 'la.jpg' },
+          { title: 'Se7en', poster: 'se7en.jpg' },
+        ],
+        'Heat',
+      ),
+    ).toEqual([
+      { title: 'Dr. No', poster: 'drno.jpg' },
+      { title: 'L.A. Confidential', poster: 'la.jpg' },
+    ]);
+  });
+
   it('prefers an exact diary title over a sequel that shares the same prefix', () => {
     expect(
       relatedFromWhy(
