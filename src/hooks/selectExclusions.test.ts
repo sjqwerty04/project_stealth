@@ -132,6 +132,7 @@ describe('select exclusions', () => {
     expect(coerceSelectTrio([{ movieId: 9, title: 'Old' }], [{ movieId: 4, title: 'Only' }])).toEqual([
       { movieId: 4, title: 'Only' },
     ]);
+    expect(coerceSelectTrio(incoming, [])).toEqual(incoming);
   });
 
   it('keeps the strip ready while cards are already on screen', () => {

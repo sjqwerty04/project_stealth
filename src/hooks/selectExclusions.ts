@@ -115,7 +115,7 @@ export function openSelectSlots<T extends { movieId: number; title?: string }>(
 
 export function coerceSelectTrio<T>(current: readonly T[], incoming: readonly T[]): T[] {
   if (incoming.length >= 3) return incoming.slice(0, 3);
-  if (current.length >= 3 && incoming.length > 0) return current.slice(0, 3);
+  if (current.length >= 3) return current.slice(0, 3);
   return [...incoming];
 }
 

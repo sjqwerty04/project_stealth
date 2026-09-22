@@ -325,7 +325,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         const shown = coerceSelectTrio(picksRef.current, hydrated);
         setPicks(shown);
         setStatus(shown.length ? 'ready' : 'empty');
-        if (shown.length >= 3) {
+        if (hydrated.length >= 3) {
           writeSelectsCache(user.uid, shown.map(toStored));
           prefetchScholarAdjacency(
             shown.map((p) => ({
@@ -445,14 +445,16 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     const stale = readSelectsCache(user.uid);
     const source = hit?.length ? hit : stale?.picks.length ? stale.picks.map(fromStored) : [];
     if (source.length >= 3) {
-      const openSlots = openSelectSlots(source, exclusionList(false));
       setPicks(source.slice(0, 3));
       setStatus('ready');
-      if (openSlots.length === 0) return;
-      if (tasteLoading || libraryLoading) return;
-      const slotIds = openSlots.filter((id): id is SelectSlotId => id === 0 || id === 1 || id === 2);
-      void fillOpenSlots(slotIds);
-      return;
+      if (hit?.length) {
+        const openSlots = openSelectSlots(source, exclusionList(false));
+        if (openSlots.length === 0) return;
+        if (tasteLoading || libraryLoading) return;
+        const slotIds = openSlots.filter((id): id is SelectSlotId => id === 0 || id === 1 || id === 2);
+        void fillOpenSlots(slotIds);
+        return;
+      }
     }
     if (tasteLoading || libraryLoading) {
       if (source.length === 0 && picksRef.current.length === 0) setStatus('loading');
@@ -475,10 +477,9 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     const cached = readSelectsCache(user.uid);
     if (!cached?.at || !cached.picks.length) return;
     const remaining = LAST_PICKS_FRESH_MS - (Date.now() - cached.at);
-    if (remaining <= 0) return;
     const t = window.setTimeout(() => {
       void generateRecommendation(true);
-    }, remaining);
+    }, Math.max(0, remaining));
     return () => window.clearTimeout(t);
   }, [user, picks, generateRecommendation]);
 
