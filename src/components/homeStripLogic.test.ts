@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, format, startOfDay } from 'date-fns';
-import { dayStageKey, parseAppDateParam } from './homeStripLogic';
+import { dayStageKey, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 
 describe('home strip date param', () => {
   const now = startOfDay(new Date('2026-09-19T12:00:00'));
@@ -16,6 +16,19 @@ describe('home strip date param', () => {
     expect(parseAppDateParam('nope', now)).toBeNull();
     expect(parseAppDateParam('2026-13-40', now)).toBeNull();
     expect(parseAppDateParam('2010-01-01', now)).toBeNull();
+  });
+});
+
+describe('selects loading chrome', () => {
+  it('hides the page skeleton once any select is on screen', () => {
+    expect(showSelectsSkeleton('loading', 3)).toBe(false);
+    expect(showSelectsSkeleton('loading', 1)).toBe(false);
+  });
+
+  it('shows the page skeleton only for an empty loading strip', () => {
+    expect(showSelectsSkeleton('loading', 0)).toBe(true);
+    expect(showSelectsSkeleton('ready', 0)).toBe(false);
+    expect(showSelectsSkeleton('ready', 3)).toBe(false);
   });
 });
 

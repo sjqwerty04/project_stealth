@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callXai } from './_lib/xai.js';
 import { readSkill } from './_lib/readSkill.js';
 import { parseSelectPicks, type SelectPick } from '../src/lib/taste/parseSelectPicks.js';
+import { hydratedTitleMatchesPick } from '../src/lib/taste/selectPickCoherence.js';
 
 type HistoryItem = { item: string; rating: number; id?: string };
 
@@ -86,12 +87,15 @@ export function filterExcludedPicks(
   excluded: SelectExclusion[],
   count: SelectCount,
 ): SelectPick[] {
-  const titles = new Set(
-    excluded.flatMap((row) => (row.title ? [normalizedTitle(row.title)] : [])),
-  );
-  const ids = new Set(excluded.flatMap((row) => (row.id ? [row.id] : [])));
   return uniqueSelectPicks(
-    picks.filter((pick) => !titles.has(normalizedTitle(pick.title)) && (!pick.id || !ids.has(pick.id))),
+    picks.filter((pick) => {
+      const pickId = pick.id ? String(pick.id) : '';
+      return !excluded.some((row) => {
+        if (row.id && pickId && row.id === pickId) return true;
+        if (row.title && hydratedTitleMatchesPick(row.title, pick.title)) return true;
+        return false;
+      });
+    }),
   ).slice(0, count);
 }
 

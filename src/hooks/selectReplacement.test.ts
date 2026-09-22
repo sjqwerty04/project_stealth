@@ -44,6 +44,7 @@ describe('select replacement', () => {
         { id: '3', title: 'Thief' },
         { id: '263115', title: 'Logan' },
       ],
+      1,
     );
     expect(next).toEqual([
       { movieId: 1, title: 'Heat' },
@@ -117,5 +118,28 @@ describe('select replacement', () => {
         persistPicks: async () => {},
       }),
     ).rejects.toThrow('No new select available');
+  });
+
+  it('asks for three picks when the one-pick batch is only a watched film', async () => {
+    const requestPicks = vi.fn(async (_ctx: { profile: string }, _excluded: unknown, count: 1 | 3 = 1) => {
+      if (count === 1) return [{ title: 'Collateral', id: '1538' }];
+      return [{ title: 'Manhunter', id: '4' }];
+    });
+    const next = await executeSelectReplacement<Pick, RawPick, { profile: string }>({
+      slotId: 1,
+      picks,
+      extraExcluded: [{ id: '1538', title: 'Collateral' }],
+      feedbackSaved: true,
+      saveFeedback: async () => {},
+      onFeedbackSaved: () => {},
+      readContext: async () => ({ profile: 'crime' }),
+      requestPicks,
+      hydratePick: async (raw) =>
+        raw.title === 'Collateral' ? { movieId: 1538, title: 'Collateral' } : { movieId: 4, title: 'Manhunter' },
+      persistPicks: async () => {},
+    });
+    expect(requestPicks).toHaveBeenNthCalledWith(1, { profile: 'crime' }, expect.any(Array), 1);
+    expect(requestPicks).toHaveBeenNthCalledWith(2, { profile: 'crime' }, expect.any(Array), 3);
+    expect(next[1]).toEqual({ movieId: 4, title: 'Manhunter' });
   });
 });

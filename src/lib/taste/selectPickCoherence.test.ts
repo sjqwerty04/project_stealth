@@ -36,4 +36,13 @@ describe('select pick coherence', () => {
     expect(mentionNeedles('X-Men: The Last Stand')).toEqual(['X-Men: The Last Stand', 'X-Men']);
     expect(mentionNeedles('Heat')).toEqual(['Heat']);
   });
+
+  it('keeps an article-stripped needle so Departed matches The Departed', () => {
+    expect(mentionNeedles('The Departed')).toEqual(['The Departed', 'Departed']);
+    expect(mentionNeedles('The Town')).toEqual(['The Town', 'Town']);
+  });
+
+  it('treats Collateral (2004) as Collateral', () => {
+    expect(hydratedTitleMatchesPick('Collateral', 'Collateral (2004)')).toBe(true);
+  });
 });
