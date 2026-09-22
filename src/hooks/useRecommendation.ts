@@ -271,7 +271,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       if (hit?.length) {
         const visible = dropExcludedPicks(hit, exclusionList(false));
-        if (visible.length === hit.length) {
+        if (visible.length >= 3 && visible.length === hit.length) {
           setPicks(visible);
           setStatus('ready');
           return visible;
@@ -477,9 +477,10 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     const cached = readSelectsCache(user.uid);
     if (!cached?.at || !cached.picks.length) return;
     const remaining = LAST_PICKS_FRESH_MS - (Date.now() - cached.at);
+    if (remaining <= 0) return;
     const t = window.setTimeout(() => {
       void generateRecommendation(true);
-    }, Math.max(0, remaining));
+    }, remaining);
     return () => window.clearTimeout(t);
   }, [user, picks, generateRecommendation]);
 
