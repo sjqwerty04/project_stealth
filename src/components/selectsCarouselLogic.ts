@@ -10,12 +10,17 @@ export function slideIdentityKey<T extends { slotId: number }>(slides: T[]): str
   return slides.map((slide) => slide.slotId).join(',');
 }
 
-/** Image requests still required. Loaded and in-flight ids stay put. */
 export function carouselArtIdsStillNeeded(
   loadedOrPending: readonly number[],
   wanted: readonly number[],
 ): number[] {
-  return [...wanted];
+  const have = new Set(loadedOrPending);
+  const out: number[] = [];
+  for (const id of wanted) {
+    if (have.has(id) || out.includes(id)) continue;
+    out.push(id);
+  }
+  return out;
 }
 
 /** After a wrap animation lands on a clone, jump to the matching real slide. */

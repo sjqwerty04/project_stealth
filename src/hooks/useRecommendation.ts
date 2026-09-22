@@ -33,6 +33,7 @@ import {
   canGenerateSelects,
   dropExcludedPicks,
   hydrateUniqueSelectPicks,
+  selectsStatusWhileBusy,
 } from './selectExclusions';
 
 export type { SelectSlotId };
@@ -294,7 +295,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
 
     const run = (async () => {
       const havePicks = stored.length > 0 || (readSelectsCache(user.uid)?.picks.length ?? 0) > 0;
-      setStatus(havePicks ? 'ready' : 'loading');
+      setStatus(selectsStatusWhileBusy(picksRef.current.length, havePicks));
       setError(null);
       try {
         const excluded = exclusionList();
@@ -374,6 +375,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setStatus('idle');
       return;
     }
+    if (replacingBlocksGenerate(replacementsRef.current)) return;
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
     if (hit?.length) {
       const visible = dropExcludedPicks(hit, exclusionList(false));
@@ -383,7 +385,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         if (visible.length === hit.length) return;
       } else {
         setPicks(visible);
-        setStatus(visible.length ? 'ready' : 'loading');
+        setStatus(selectsStatusWhileBusy(visible.length, false));
       }
     }
     const stale = readSelectsCache(user.uid);
@@ -395,7 +397,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       }
     }
     if (tasteLoading || libraryLoading || replacingBlocksGenerate(replacementsRef.current)) {
-      if (!stale?.picks.length && !hit?.length) setStatus('loading');
+      if (picksRef.current.length === 0 && !stale?.picks.length && !hit?.length) setStatus('loading');
       return;
     }
     if (!hasMeaningfulContext(context)) {

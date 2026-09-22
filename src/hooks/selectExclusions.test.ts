@@ -4,6 +4,7 @@ import {
   buildYourSelectsBody,
   canGenerateSelects,
   dropExcludedPicks,
+  selectsStatusWhileBusy,
   hydrateUniqueSelectPicks,
   uniqueByMovieId,
 } from './selectExclusions';
@@ -99,6 +100,12 @@ describe('select exclusions', () => {
     });
     expect(dropExcludedPicks(cached, forCache).map((row) => row.movieId)).toEqual([1538, 11524, 8195]);
     expect(dropExcludedPicks(cached, buildSelectExclusions({ lastPicks: cached }))).toEqual([]);
+  });
+
+  it('keeps the strip ready while cards are already on screen', () => {
+    expect(selectsStatusWhileBusy(3, false)).toBe('ready');
+    expect(selectsStatusWhileBusy(0, true)).toBe('ready');
+    expect(selectsStatusWhileBusy(0, false)).toBe('loading');
   });
 
   it('does not generate while the library is empty or a slot is replacing', () => {

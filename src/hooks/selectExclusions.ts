@@ -98,6 +98,14 @@ export function canGenerateSelects(opts: { libraryReady: boolean; replacing: boo
   return opts.libraryReady && !opts.replacing;
 }
 
+export function selectsStatusWhileBusy(
+  displayedCount: number,
+  storedReady: boolean,
+): 'ready' | 'loading' {
+  if (displayedCount > 0 || storedReady) return 'ready';
+  return 'loading';
+}
+
 async function hydrateList<TRaw, TPick extends { movieId: number; title?: string }>(
   raw: TRaw[],
   hydrate: (row: TRaw) => Promise<TPick | null>,

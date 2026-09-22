@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, format, startOfDay } from 'date-fns';
-import { dayStageKey, parseAppDateParam, selectsStatusWhileBusy, showSelectsSkeleton } from './homeStripLogic';
+import { dayStageKey, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 
 describe('home strip date param', () => {
   const now = startOfDay(new Date('2026-09-19T12:00:00'));
@@ -29,12 +29,6 @@ describe('selects loading chrome', () => {
     expect(showSelectsSkeleton('loading', 0)).toBe(true);
     expect(showSelectsSkeleton('ready', 0)).toBe(false);
     expect(showSelectsSkeleton('ready', 3)).toBe(false);
-  });
-
-  it('keeps status ready while a refresh runs over cards already showing', () => {
-    expect(selectsStatusWhileBusy(3, false)).toBe('ready');
-    expect(selectsStatusWhileBusy(0, true)).toBe('ready');
-    expect(selectsStatusWhileBusy(0, false)).toBe('loading');
   });
 });
 
