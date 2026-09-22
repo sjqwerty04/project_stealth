@@ -33,8 +33,16 @@ export default function WhereToWatchPreviewScreen() {
     <div className="min-h-screen bg-base px-4 py-6 text-fg">
       <div className="mx-auto max-w-md">
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Pulp Fiction · 1994</p>
-        <h1 className="mt-2 text-2xl font-bold">Where to watch</h1>
-        <div className="mt-6">
+        <h1 className="mt-2 text-2xl font-bold">Pulp Fiction</h1>
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button type="button" className="min-h-11 bg-fg py-3 text-sm font-semibold text-base">Add to Calendar</button>
+          <button type="button" className="min-h-11 border border-line bg-base-3 py-3 text-sm font-semibold text-fg">Save</button>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <button type="button" className="min-h-11 bg-fg py-3 text-sm font-semibold text-base">Enter Orbit</button>
+          <button type="button" className="min-h-11 border border-line bg-base-3 py-3 text-sm font-semibold text-fg">Ask AI</button>
+        </div>
+        <div className="mt-4">
           <WhereToWatch providers={PULP} />
         </div>
       </div>

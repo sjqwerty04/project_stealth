@@ -100,6 +100,7 @@
   .actions .ghost, .split .ghost { background: var(--base-3); color: var(--fg); border: 1px solid var(--line); }
   .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .trigger {
+    margin-top: 12px;
     width: 100%;
     display: flex;
     align-items: center;
@@ -210,7 +211,6 @@ function chrome() {
   return `
     <div class="hero"><h2>Pulp Fiction</h2></div>
     <p class="meta">1994 · 2h 34m · Quentin Tarantino · R</p>
-    <div class="ratings"><div><span>IMDb</span><b>8.8</b></div><div><span>RT</span><b>96%</b></div></div>
   `;
 }
 
@@ -289,11 +289,11 @@ phoneC.innerHTML = `
   <div class="scroll">
     ${chrome()}
     <div class="pad">
+      ${actions()}
       <button class="trigger" type="button" id="open-sheet">
         <span class="stack">${OFFERS.stream.slice(0, 4).map(mark).join('')}</span>
         <span class="copy"><b>Where to watch</b><span class="spec">${COUNT} services</span></span>
       </button>
-      ${actions()}
     </div>
   </div>
   <div class="sheet" id="sheet">

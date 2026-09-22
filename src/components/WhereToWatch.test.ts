@@ -77,26 +77,25 @@ describe('white marks', () => {
 });
 
 describe('WhereToWatch', () => {
-  it('shows stream, rent, and buy names and links the JustWatch credit', () => {
+  it('shows a closed bar with the count and keeps the full list in the sheet', () => {
     const html = renderToString(React.createElement(WhereToWatch, { providers: PULP }));
 
+    expect(html).toContain('data-testid="where-to-watch-bar"');
     expect(html).toContain('Where to watch');
+    expect(html).toContain('9 services');
+    expect(html).toContain('hidden');
     expect(html).toContain('Stream');
     expect(html).toContain('Rent');
     expect(html).toContain('Buy');
     expect(html).toContain('Amazon Prime Video');
-    expect(html).toContain('fuboTV');
-    expect(html).toContain('Paramount Plus Premium');
-    expect(html).not.toContain('Paramount Plus Essential');
-    expect(html).toContain('Amazon Video');
-    expect(html).toContain('Apple TV Store');
+    expect(html).toContain('Paramount Plus Essential');
     expect(html).toContain('Spectrum On Demand');
-    expect(html).toContain('See all');
     expect(html).toContain(`href="${LINK}"`);
     expect(html).toContain('JustWatch');
     expect(html).toContain('data-testid="where-to-watch-credit"');
     expect(html).toContain('/providers/primevideo.svg');
     expect(html).toContain('https://image.tmdb.org/t/p/w92/xiUQmGI2bi8Rn6C5u2bArB4YHMp.jpg');
+    expect(html).not.toContain('See all');
   });
 
   it('renders nothing when there are no offers', () => {

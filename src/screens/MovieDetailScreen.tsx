@@ -437,8 +437,6 @@ export default function MovieDetailScreen() {
         )}
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
 
-        <WhereToWatch providers={details.watchProviders} />
-
         {/* Action Buttons */}
         <MovieActions
           movie={{
@@ -488,6 +486,8 @@ export default function MovieDetailScreen() {
             <span>Ask AI about {details.title}</span>
           </button>
         )}
+
+        <WhereToWatch providers={details.watchProviders} />
 
         {/* Known-for hook — below action buttons, above synopsis */}
         {knownFor && (
