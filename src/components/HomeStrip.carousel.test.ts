@@ -8,6 +8,7 @@ import {
   relatedPosterPool,
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_MS,
+  carouselArtIdsStillNeeded,
   slideIdentityKey,
   snapLoopIndex,
 } from './selectsCarouselLogic';
@@ -70,6 +71,12 @@ describe('selects carousel loop', () => {
   it('holds 6.2s and eases 900ms', () => {
     expect(SELECTS_AUTOPLAY_MS).toBe(6200);
     expect(SELECTS_TRANSITION_MS).toBe(900);
+  });
+
+  it('fetches art only for slides that do not have it yet', () => {
+    expect(carouselArtIdsStillNeeded([155, 949], [155, 949, 599])).toEqual([599]);
+    expect(carouselArtIdsStillNeeded([], [155, 949])).toEqual([155, 949]);
+    expect(carouselArtIdsStillNeeded([155, 155], [155])).toEqual([]);
   });
 
   it('keeps carousel identity when a movie changes in one slot', () => {

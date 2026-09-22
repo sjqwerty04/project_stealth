@@ -19,6 +19,19 @@ export function dayStageKey(date: Date, movieId: number): string {
   return `${format(date, 'yyyy-MM-dd')}:${movieId}`;
 }
 
+/** Page-level chase loader. A slot that is already on screen keeps its own card. */
+export function showSelectsSkeleton(status: string, slideCount: number): boolean {
+  return status === 'loading';
+}
+
+/** Background refresh must not flip the strip to loading while a card is visible. */
+export function selectsStatusWhileBusy(
+  displayedCount: number,
+  storedReady: boolean,
+): 'ready' | 'loading' {
+  return storedReady ? 'ready' : 'loading';
+}
+
 export function isSelectsDismissTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-testid="strip-dock"]')) return false;
