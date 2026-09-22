@@ -46,7 +46,7 @@ export function SelectCard({
   art?: FilmArt;
   pickerOpen: boolean;
   replacement: SelectReplacement;
-  onOpenMovie: () => void;
+  onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   onOpenPicker: () => void;
   onClosePicker: () => void;
   onVerdict: (verdict: Verdict) => void;
@@ -68,8 +68,9 @@ export function SelectCard({
     >
       <button
         type="button"
+        data-testid="select-open-movie"
         aria-label={film.title}
-        onClick={onOpenMovie}
+        onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
         disabled={loading}
         className="relative block w-full overflow-hidden bg-base-3 text-left min-h-11"
         style={{ height: 220 }}
@@ -151,15 +152,33 @@ export function SelectCard({
       ) : null}
       {related.length > 0 ? (
         <div className="flex gap-2 pt-3" data-testid="related-posters">
-          {related.map((row) => (
-            <span
-              key={row.title}
-              className="block overflow-hidden bg-base-3"
-              style={{ width: 56, height: 84, borderRadius: 2 }}
-            >
+          {related.map((row) => {
+            const openRelated =
+              typeof row.movieId === 'number'
+                ? () => onOpenMovie(row.movieId as number, row.mediaType)
+                : undefined;
+            const body = (
               <img src={row.poster} alt={row.title} className="h-full w-full object-cover" />
-            </span>
-          ))}
+            );
+            const box = { width: 56, height: 84, borderRadius: 2 };
+            return openRelated ? (
+              <button
+                key={row.title}
+                type="button"
+                data-testid="related-poster"
+                aria-label={row.title}
+                onClick={openRelated}
+                className="block overflow-hidden bg-base-3"
+                style={box}
+              >
+                {body}
+              </button>
+            ) : (
+              <span key={row.title} className="block overflow-hidden bg-base-3" style={box}>
+                {body}
+              </span>
+            );
+          })}
         </div>
       ) : null}
       {why ? (
@@ -207,6 +226,8 @@ export default function SelectsCarousel({
   const [pickerSlotId, setPickerSlotId] = useState<SelectSlotId | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
+  const capturingSwipe = useRef(false);
+  const startTarget = useRef<HTMLElement | null>(null);
   const slideIdsRef = useRef('');
   const trackRef = useRef<HTMLDivElement | null>(null);
   const resumeTimer = useRef<number | null>(null);
@@ -282,10 +303,19 @@ export default function SelectsCarousel({
   };
 
   const onCarouselPointerDown = (e: React.PointerEvent) => {
+    swallowClick.current = false;
     if ((e.target as HTMLElement).closest('[data-carousel-control]')) return;
+    capturingSwipe.current = false;
+    startTarget.current = e.target as HTMLElement;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     carouselStartX.current = e.clientX;
     setPaused(true);
+  };
+  const onCarouselPointerMove = (e: React.PointerEvent) => {
+    if (carouselStartX.current == null || capturingSwipe.current) return;
+    if (Math.abs(e.clientX - carouselStartX.current) < 40) return;
+    capturingSwipe.current = true;
+    swallowClick.current = true;
   };
   const finishCarouselPointer = (e: React.PointerEvent, applySwipe: boolean) => {
     if (carouselStartX.current == null) {
@@ -294,9 +324,20 @@ export default function SelectsCarousel({
     }
     const dx = e.clientX - carouselStartX.current;
     carouselStartX.current = null;
-    if (applySwipe && Math.abs(dx) >= 40) {
+    const origin = startTarget.current;
+    startTarget.current = null;
+    const passedThreshold = capturingSwipe.current;
+    const swiped = applySwipe && Math.abs(dx) >= 40;
+    capturingSwipe.current = false;
+    if (swiped) {
       swallowClick.current = true;
       go(dx < 0 ? 1 : -1);
+    } else if (applySwipe && !passedThreshold && origin && !origin.closest('[data-carousel-control]')) {
+      const btn = origin.closest('button');
+      if (btn instanceof HTMLButtonElement && !btn.disabled) {
+        btn.click();
+        swallowClick.current = true;
+      }
     }
     if (resumeTimer.current) window.clearTimeout(resumeTimer.current);
     resumeTimer.current = window.setTimeout(() => setPaused(false), 6000);
@@ -310,6 +351,7 @@ export default function SelectsCarousel({
       data-testid="selects-carousel"
       style={{ touchAction: 'pan-y' }}
       onPointerDown={onCarouselPointerDown}
+      onPointerMove={onCarouselPointerMove}
       onPointerUp={(e) => finishCarouselPointer(e, true)}
       onPointerCancel={(e) => finishCarouselPointer(e, false)}
       onClickCapture={(e) => {
@@ -343,7 +385,7 @@ export default function SelectsCarousel({
               art={art[film.id]}
               pickerOpen={pickerSlotId === film.slotId}
               replacement={replacements[film.slotId] ?? null}
-              onOpenMovie={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
+              onOpenMovie={onOpenMovie}
               onOpenPicker={() => setPickerSlotId(film.slotId)}
               onClosePicker={() => setPickerSlotId(null)}
               onVerdict={(verdict) => {

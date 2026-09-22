@@ -5,11 +5,47 @@ import { SelectCard } from './SelectsCarousel';
 import {
   loopingSlides,
   relatedFromWhy,
+  relatedPosterPool,
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_MS,
   slideIdentityKey,
   snapLoopIndex,
 } from './selectsCarouselLogic';
+
+describe('related poster pool', () => {
+  it('finds a film rated from Selects, which has a ledger poster but no logged night', () => {
+    const nights = [{ title: 'The Dark Knight', poster: 'tdk.jpg' }];
+    const ledger = [
+      { title: 'The Dark Knight', poster: 'tdk.jpg' },
+      { title: 'The Prestige', poster: 'prestige.jpg' },
+    ];
+
+    const pool = relatedPosterPool(nights, ledger);
+    expect(pool).toEqual([
+      { title: 'The Dark Knight', poster: 'tdk.jpg' },
+      { title: 'The Prestige', poster: 'prestige.jpg' },
+    ]);
+
+    expect(
+      relatedFromWhy(
+        'The Prestige and The Dark Knight already proved you want story architecture, and Inception is built the same way.',
+        pool,
+        'Inception',
+      ),
+    ).toEqual([
+      { title: 'The Prestige', poster: 'prestige.jpg' },
+      { title: 'The Dark Knight', poster: 'tdk.jpg' },
+    ]);
+  });
+
+  it('drops ledger films with no poster and prefers the logged night', () => {
+    const pool = relatedPosterPool(
+      [{ title: 'Heat', poster: 'night.jpg' }],
+      [{ title: 'heat', poster: 'ledger.jpg' }, { title: 'Thief', poster: '' }],
+    );
+    expect(pool).toEqual([{ title: 'Heat', poster: 'night.jpg' }]);
+  });
+});
 
 describe('selects carousel loop', () => {
   const slides = [{ id: 1 }, { id: 2 }, { id: 3 }];
@@ -78,6 +114,19 @@ describe('relatedFromWhy', () => {
     expect(
       relatedFromWhy('You logged Heat after Thief.', [...diary, { title: 'Thief', poster: 'thief.jpg' }], 'Heat'),
     ).toEqual([{ title: 'Thief', poster: 'thief.jpg' }]);
+  });
+
+  it('carries diary movie ids so related posters can open detail', () => {
+    expect(
+      relatedFromWhy(
+        'You logged Heat after Thief.',
+        [
+          { title: 'Heat', poster: 'heat.jpg', movieId: 670 },
+          { title: 'Thief', poster: 'thief.jpg', movieId: 11373, mediaType: 'movie' },
+        ],
+        'Heat',
+      ),
+    ).toEqual([{ title: 'Thief', poster: 'thief.jpg', movieId: 11373, mediaType: 'movie' }]);
   });
 
   it('does not let a short title steal a longer match', () => {
@@ -197,6 +246,7 @@ describe('select card watched control', () => {
     );
 
     expect(html).toContain('Watched?');
+    expect(html).toContain('select-open-movie');
     expect(html).toContain('Liked');
     expect(html).toContain("It&#x27;s okay");
     expect(html).toContain('Nope');

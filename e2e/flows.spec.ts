@@ -124,7 +124,7 @@ test('F5 Logged day', async ({ page }, testInfo) => {
   await ensureAuthed(page);
   await page.goto('/app');
   await expect(page.getByTestId('selects-carousel')).toBeVisible();
-  await page.getByTestId('ticket-slot').first().click();
+  await page.getByTestId('select-open-movie').filter({ visible: true }).first().click();
   await expect(page).toHaveURL(/\/movie\//, { timeout: 15000 });
   await gate(page, 'F5', testInfo.project.name);
   await dumpConsole(page, 'F5', testInfo.project.name, logs);

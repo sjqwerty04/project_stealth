@@ -63,6 +63,18 @@ export function selectsCacheFresh(entry: CachedSelects | null, now = Date.now())
   return now - entry.at < LAST_PICKS_FRESH_MS;
 }
 
+/** One film occupies one slot. A cache written by an older build can hold the same film more than once. */
+export function uniqueByMovieId(picks: TastePick[]): TastePick[] {
+  const seen = new Set<number>();
+  const out: TastePick[] = [];
+  for (const pick of picks) {
+    if (seen.has(pick.movieId)) continue;
+    seen.add(pick.movieId);
+    out.push(pick);
+  }
+  return out;
+}
+
 export function readSelectsCache(uid: string): CachedSelects | null {
   const fromMem = memory.get(uid);
   if (fromMem?.picks.length) return fromMem;
@@ -71,15 +83,16 @@ export function readSelectsCache(uid: string): CachedSelects | null {
   try {
     const parsed = JSON.parse(raw) as CachedSelects;
     if (!Array.isArray(parsed?.picks) || !parsed.picks.length) return null;
-    memory.set(uid, parsed);
-    return parsed;
+    const healed: CachedSelects = { ...parsed, picks: uniqueByMovieId(parsed.picks) };
+    memory.set(uid, healed);
+    return healed;
   } catch {
     return null;
   }
 }
 
 export function writeSelectsCache(uid: string, picks: TastePick[], at = Date.now()): CachedSelects {
-  const entry: CachedSelects = { picks, at };
+  const entry: CachedSelects = { picks: uniqueByMovieId(picks), at };
   memory.set(uid, entry);
   persistSet(uid, JSON.stringify(entry));
   return entry;

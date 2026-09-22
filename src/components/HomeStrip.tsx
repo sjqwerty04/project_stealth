@@ -5,12 +5,13 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
-import { relatedFromWhy } from './selectsCarouselLogic';
+import { relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
 import { dayStageKey, isSelectsDismissTarget, parseAppDateParam } from './homeStripLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
 import { useLibrary } from '../lib/library';
+import { useProfileFilms } from '../hooks/useProfileFilms';
 import FeedbackFAB from './FeedbackFAB';
 import { VerdictBadge } from './VerdictPicker';
 import { eventVerdict } from '../hooks/useCalendarLogs';
@@ -332,7 +333,8 @@ export default function HomeStrip({
     replaceSelect,
     retrySelectReplacement,
   } = useRecommendation({ events });
-  const { byId: library } = useLibrary();
+  const { byId: library, films: libraryFilms } = useLibrary();
+  const profilePicks = useProfileFilms();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
@@ -374,6 +376,11 @@ export default function HomeStrip({
     eventDayKey(e.date).startsWith(String(selected.getFullYear())),
   ).length;
 
+  const posterPool = useMemo(
+    () => relatedPosterPool(events, libraryFilms, profilePicks),
+    [events, libraryFilms, profilePicks],
+  );
+
   const slides = useMemo(() => {
     return picks.slice(0, 3).map((p, slotId) => ({
       slotId: slotId as SelectSlotId,
@@ -385,9 +392,9 @@ export default function HomeStrip({
       year: p.year,
       runtime: p.runtime,
       whyMatch: p.reason,
-      related: relatedFromWhy(p.reason, events, p.title),
+      related: relatedFromWhy(p.reason, posterPool, p.title),
     }));
-  }, [picks, events]);
+  }, [picks, posterPool]);
 
   const art = useCarouselArt(slides);
   const dateParam = searchParams.get('date');
