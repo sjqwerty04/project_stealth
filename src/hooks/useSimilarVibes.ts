@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTaste } from '../lib/taste';
 import { loadLineageNeighbors } from '../lib/similar/loadLineage';
 import { mixScholarNeighbors } from '../lib/similar/rankNeighbors';
 import { readAdjacency, writeAdjacency } from '../lib/similar/adjacencyStore';
 import { fetchScholarNeighbors } from '../lib/similar/prefetch';
-import { SIMILAR_GRID_INITIAL, SIMILAR_GRID_MORE, type FilmNeighbor } from '../lib/similar/types';
+import { type FilmNeighbor } from '../lib/similar/types';
 
 export type SimilarMovieInput = {
   id: number;
@@ -23,7 +23,6 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
   const [scholarLoading, setScholarLoading] = useState(true);
   const [scholarElapsed, setScholarElapsed] = useState(0);
   const [refreshed, setRefreshed] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(SIMILAR_GRID_INITIAL);
   const personKey = movie.lineagePersonIds.join(',');
   const genreKey = movie.genres.join(',');
   const mediaType = movie.mediaType === 'tv' ? 'tv' : 'movie';
@@ -94,18 +93,9 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
     [movie.id, lineage, scholar, snapshot],
   );
 
-  const similarMovies = ranked.slice(0, visibleCount);
-  const hasMore = ranked.length > visibleCount;
-
-  const loadMore = useCallback(() => {
-    setVisibleCount((n) => n + SIMILAR_GRID_MORE);
-  }, []);
-
   return {
-    similarMovies,
-    isLoading: isLoading && similarMovies.length === 0,
-    hasMore,
-    loadMore,
+    similarMovies: ranked,
+    isLoading: isLoading && ranked.length === 0,
     refreshed: refreshed && scholar.length > 0,
     scholarLoading,
     scholarElapsed,

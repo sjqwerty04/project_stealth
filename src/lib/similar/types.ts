@@ -24,5 +24,3 @@ export type RankedNeighbor = FilmNeighbor & {
 
 export const ADJACENCY_MAX_NEIGHBORS = 24;
 export const LINEAGE_POOL_MAX = 24;
-export const SIMILAR_GRID_INITIAL = 8;
-export const SIMILAR_GRID_MORE = 6;
