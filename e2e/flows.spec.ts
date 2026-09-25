@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -14,6 +14,7 @@ import {
   finishOnboardingReward,
   ensureAuthed,
   gate,
+  mockProfileApi,
 } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
@@ -348,21 +349,28 @@ const LOOKUP_FIXTURE: Record<string, { id: number; title: string; year: string }
   'good will hunting': { id: 489, title: 'Good Will Hunting', year: '1997' },
   'the dark knight': { id: 155, title: 'The Dark Knight', year: '2008' },
   'pulp fiction': { id: 680, title: 'Pulp Fiction', year: '1994' },
+  arrival: { id: 329865, title: 'Arrival', year: '2016' },
+  moonlight: { id: 376867, title: 'Moonlight', year: '2016' },
+  'blade runner': { id: 78, title: 'Blade Runner', year: '1982' },
 };
 
-async function fixtureZip(): Promise<Buffer> {
-  const { default: JSZip } = await import('jszip');
-  const root = path.join(process.cwd(), 'src', 'lib', 'import', 'letterboxd', '__fixtures__');
-  const zip = new JSZip();
-  const walk = (dir: string) => {
-    for (const name of fs.readdirSync(dir)) {
-      const full = path.join(dir, name);
-      if (fs.statSync(full).isDirectory()) walk(full);
-      else zip.file(path.relative(root, full).replace(/\\/g, '/'), fs.readFileSync(full));
-    }
-  };
-  walk(root);
-  return zip.generateAsync({ type: 'nodebuffer' });
+const JANE_ZIP_PATH = path.join(process.cwd(), 'e2e', 'fixtures', 'letterboxd-jane-2026-01-21-11-20-utc.zip');
+const JANE_TITLES = new Set([
+  'heat',
+  'tron',
+  'drive',
+  'her',
+  'conclave',
+  'unmatchable film',
+  'whiplash',
+  'sinners',
+  'sicario',
+]);
+const JANE_WATCHED = ['Heat', 'Tron', 'Drive', 'Her', 'Conclave'] as const;
+const SEARCH_FALLBACKS = ['Inception', 'Parasite', 'Fight Club'] as const;
+
+function janeZip(): Buffer {
+  return fs.readFileSync(JANE_ZIP_PATH);
 }
 
 test('F15 Letterboxd export import', async ({ page }, testInfo) => {
@@ -382,8 +390,8 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   await page.goto('/watched');
   await page.getByTestId('watched-import').click();
   await page.getByTestId('import-tab-drop').click();
-  const zip = await fixtureZip();
-  await page.getByTestId('import-dropzone-input').setInputFiles({ name: 'letterboxd-jane-2026-01-21-11-21-utc.zip', mimeType: 'application/zip', buffer: zip });
+  const zip = janeZip();
+  await page.getByTestId('import-dropzone-input').setInputFiles({ name: 'letterboxd-jane-2026-01-21-11-20-utc.zip', mimeType: 'application/zip', buffer: zip });
   const done = page.getByTestId('import-dropzone-done');
   await expect(done).toBeVisible({ timeout: 60000 });
   await expect(done).toContainText('7 films');
@@ -458,8 +466,8 @@ test('F16 Onboarding import hub, three sources', async ({ page }, testInfo) => {
   await expect(page.getByTestId('onboarding-cta')).toBeDisabled();
 
   await page.getByTestId('import-tile-letterboxd').click();
-  const zip = await fixtureZip();
-  await page.getByTestId('import-letterboxd-drop-input').setInputFiles({ name: 'letterboxd-jane.zip', mimeType: 'application/zip', buffer: zip });
+  const zip = janeZip();
+  await page.getByTestId('import-letterboxd-drop-input').setInputFiles({ name: 'letterboxd-jane-2026-01-21-11-20-utc.zip', mimeType: 'application/zip', buffer: zip });
   await expect(page.getByTestId('import-letterboxd-drop-done')).toBeVisible({ timeout: 60000 });
   await expect(page.getByTestId('import-films-read')).toContainText('7');
   await shot('after-letterboxd');
@@ -512,4 +520,150 @@ test('F17 Onboarding reward without an import', async ({ page }, testInfo) => {
   await page.waitForURL(/\/app/, { timeout: 20000 });
   await expect(page.getByTestId('home-strip')).toBeVisible();
   await dumpConsole(page, 'F17', testInfo.project.name, logs);
+});
+
+async function pickDisjoint(page: Page, count: number): Promise<string[]> {
+  const picked: string[] = [];
+  await page.getByTestId('film-pick').first().waitFor({ timeout: 20000 });
+  await page.getByTestId('pick-wall-label').waitFor();
+  for (let i = 0; i < 16 && picked.length < count; i++) {
+    const titles = await page.getByTestId('film-pick').evaluateAll((els) =>
+      els.map((el) => (el.getAttribute('aria-label') || '').trim()),
+    );
+    const next = titles.find((title) => title && !JANE_TITLES.has(title.toLowerCase()) && !picked.includes(title));
+    if (!next) break;
+    await page.locator(`[data-testid="film-pick"][aria-label="${next}"]`).click({ force: true });
+    await expect(page.getByTestId('pick-hero-item').filter({ hasText: next })).toBeVisible();
+    picked.push(next);
+  }
+  for (const fallback of SEARCH_FALLBACKS) {
+    if (picked.length >= count) break;
+    if (picked.includes(fallback)) continue;
+    await page.getByTestId('pick-search').fill(fallback);
+    const hit = page.locator(`[data-testid="film-pick"][aria-label="${fallback}"]`);
+    await expect(hit).toBeVisible({ timeout: 15000 });
+    await hit.click({ force: true });
+    await expect(page.getByTestId('pick-hero-item').filter({ hasText: fallback })).toBeVisible();
+    picked.push(fallback);
+  }
+  expect(picked, `wall only yielded ${picked.join(', ') || 'nothing'}`).toHaveLength(count);
+  return picked;
+}
+
+function captureYourSelects(page: Page): unknown[] {
+  const bodies: unknown[] = [];
+  void page.route('**/api/your-selects', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    const raw = route.request().postData();
+    bodies.push(raw ? JSON.parse(raw) : {});
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        picks: [
+          { title: 'Arrival', year: '2016', whyMatch: '', confidence: 0.9, id: '329865' },
+          { title: 'Moonlight', year: '2016', whyMatch: '', confidence: 0.88, id: '376867' },
+          { title: 'Blade Runner', year: '1982', whyMatch: '', confidence: 0.86, id: '78' },
+        ],
+      }),
+    });
+  });
+  return bodies;
+}
+
+test('F18 First-user Letterboxd zip', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'desktop', 'First-user strip and Selects are a phone layout');
+  test.setTimeout(180_000);
+  const logs = await attachPageLog(page);
+  await mockMovieLookup(page);
+  await mockProfileApi(page);
+  const selectBodies = captureYourSelects(page);
+  const shot = (name: string) =>
+    page.screenshot({ path: path.join('artifacts', 'verify', `F18-${testInfo.project.name}`, `${name}.png`) });
+
+  await signUpFresh(page);
+  await page.getByRole('button', { name: /begin/i }).click();
+  await page.getByTestId('onboarding-1').waitFor();
+  const positive = await pickDisjoint(page, 2);
+  await page.getByRole('button', { name: /next · 2 picked/i }).click();
+
+  await page.getByTestId('onboarding-3').waitFor();
+  const [negative] = await pickDisjoint(page, 1);
+  await page.getByRole('button', { name: /next · 1 struck/i }).click();
+
+  await page.getByTestId('onboarding-4').waitFor();
+  await page.getByRole('button', { name: /flawless screenplay/i }).click();
+  await page.getByRole('button', { name: /^continue$/i }).click();
+
+  await page.getByTestId('onboarding-5').waitFor({ timeout: 20000 });
+  await page.getByTestId('import-tile-letterboxd').click();
+  await page.getByTestId('import-letterboxd-drop-input').setInputFiles({
+    name: 'letterboxd-jane-2026-01-21-11-20-utc.zip',
+    mimeType: 'application/zip',
+    buffer: janeZip(),
+  });
+  await expect(page.getByTestId('import-letterboxd-drop-done')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('import-films-read')).toContainText('7');
+  await shot('after-zip');
+
+  await page.getByTestId('onboarding-cta').click();
+  await finishOnboardingReward(page);
+  await expect(page.getByTestId('home-strip')).toBeVisible();
+  await expect(page.getByTestId('selects-carousel')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByTestId('ticket-slot').first()).toBeVisible();
+  await shot('home-selects');
+
+  await expect
+    .poll(() => {
+      const blob = JSON.stringify(selectBodies);
+      const picksIn = positive.every((title) => blob.toLowerCase().includes(title.toLowerCase()));
+      const janeIn = blob.includes('Heat') && (blob.includes('Tron') || blob.includes('dislikes: Tron'));
+      return picksIn && janeIn && blob.toLowerCase().includes(negative.toLowerCase());
+    }, { timeout: 30000 })
+    .toBe(true);
+
+  const track = page.getByTestId('strip-track');
+  await expect(track).toBeVisible();
+  const logged = page.locator(
+    '[data-testid^="strip-day-"][aria-label^="Mon"], [data-testid^="strip-day-"][aria-label^="Tue"], [data-testid^="strip-day-"][aria-label^="Wed"], [data-testid^="strip-day-"][aria-label^="Thu"], [data-testid^="strip-day-"][aria-label^="Fri"], [data-testid^="strip-day-"][aria-label^="Sat"], [data-testid^="strip-day-"][aria-label^="Sun"]',
+  );
+  await expect(logged.first()).toBeVisible({ timeout: 20000 });
+  expect(await logged.count()).toBeGreaterThanOrEqual(5);
+
+  const fills = await page.evaluate(() => {
+    const barOf = (el: Element) => {
+      const bar = el.querySelector('span.block');
+      return bar ? getComputedStyle(bar).backgroundColor : '';
+    };
+    const days = [...document.querySelectorAll('[data-testid^="strip-day-"]')];
+    const loggedDays = days.filter((el) => !el.getAttribute('aria-label')?.startsWith('Log a film'));
+    const emptyDays = days.filter((el) => el.getAttribute('aria-label')?.startsWith('Log a film'));
+    return { logged: barOf(loggedDays[0] ?? days[0]), empty: barOf(emptyDays[0] ?? days[0]) };
+  });
+  expect(fills.logged).toBeTruthy();
+  expect(fills.empty).toBeTruthy();
+  expect(fills.logged).not.toBe(fills.empty);
+
+  await logged.last().scrollIntoViewIfNeeded();
+  await logged.last().click();
+  await logged.last().click();
+  await expect(page.getByTestId('diary-day-sheet')).toBeVisible();
+  await expect(page.getByTestId('diary-day-film').first()).toBeVisible();
+  await expect(page.getByTestId('diary-day-sheet')).toContainText(/Heat|Her|Tron|Conclave/);
+  await shot('diary-day');
+
+  await page.goto('/watched');
+  await expect(page.getByTestId('watched-count')).toContainText('5 films · 5 nights', { timeout: 30000 });
+  for (const title of JANE_WATCHED) {
+    await expect(page.getByRole('button', { name: title, exact: true }).first()).toBeVisible();
+  }
+  await expect(page.getByTestId('watch-count-pill').first()).toContainText('x2');
+  await page.getByTestId('watched-filter-nope').click();
+  await expect(page.getByTestId('watched-poster')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Tron', exact: true })).toBeVisible();
+  await shot('watched');
+  await dumpConsole(page, 'F18', testInfo.project.name, logs);
 });
