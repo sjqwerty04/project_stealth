@@ -73,9 +73,9 @@ function LetterboxdUsername({ dispatch }: { dispatch: Props['dispatch'] }) {
     const clean = username.replace(/^.*letterboxd\.com\//i, '').replace(/\/.*$/, '').trim();
     if (!clean || isImporting) return;
     dispatch({ type: 'importStarted', source: 'letterboxd' });
-    const count = await importFromLetterboxd(clean);
-    if (count > 0) {
-      dispatch({ type: 'importDone', source: 'letterboxd', films: count, nights: 0 });
+    const summary = await importFromLetterboxd(clean);
+    if (summary.films > 0) {
+      dispatch({ type: 'importDone', source: 'letterboxd', films: summary.films, nights: summary.nights });
     } else {
       failedRef.current = true;
       setAttempt((n) => n + 1);

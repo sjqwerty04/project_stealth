@@ -20,6 +20,7 @@ export {
   getFilm,
   mergeFilm,
   parseFilm,
+  watchDaysOf,
   recordWatch,
   removeWatchNight,
   setOnWatchlist,

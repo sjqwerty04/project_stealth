@@ -36,9 +36,9 @@ export default function ImportSheet({
   const runUsername = async () => {
     const clean = username.replace(/^.*letterboxd\.com\//i, '').replace(/\/.*$/, '').trim();
     if (!clean) return;
-    const count = await importFromLetterboxd(clean);
-    setRssDone(count);
-    if (count > 0) onImported?.(count);
+    const summary = await importFromLetterboxd(clean);
+    setRssDone(summary.films);
+    if (summary.films > 0) onImported?.(summary.films);
   };
 
   return (
