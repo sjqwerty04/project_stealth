@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -18,6 +18,9 @@ import {
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import FeedbackFAB from '../components/FeedbackFAB';
 import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
+import { eventsWithWatchDates } from '../lib/filmNights';
+import { eventDayKey } from '../lib/stripDays';
+import { useLibrary } from '../lib/library';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import type { Verdict } from '../lib/library';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -478,7 +481,9 @@ const MOCK_DB: Movie[] = [
 
 export default function MovieCalendarApp() {
   const navigate = useNavigate();
-  const { events, loading: eventsLoading, addEvent, updateEvent, deleteEvent, getEventsForDate, getPendingReviewEvents } = useCalendarLogs();
+  const { events, loading: eventsLoading, addEvent, updateEvent, deleteEvent, getPendingReviewEvents } = useCalendarLogs();
+  const { films: libraryFilms } = useLibrary();
+  const nights = useMemo(() => eventsWithWatchDates(events, libraryFilms), [events, libraryFilms]);
   const { profile, profileImage, updateProfileImage } = useUserProfile();
   const { claimHandle, isAvailable } = useHandle();
   const [handleInput, setHandleInput] = useState('');
@@ -1098,7 +1103,7 @@ export default function MovieCalendarApp() {
   if (homeChrome === 'strip' && !isModalOpen && !isAvatarModalOpen) {
     return (
       <HomeStrip
-        events={events}
+        events={nights}
         insightsLabel={insights.personaLine}
         onYearZoom={() => setHomeChrome('year')}
         onOpenMovie={(id, type, whyMatch) =>
@@ -1253,7 +1258,8 @@ export default function MovieCalendarApp() {
           {days.map((date, index) => {
             if (!date) return <div key={`empty-${index}`} className="aspect-square" />;
 
-            const dayEvents = getEventsForDate(date);
+            const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dayEvents = nights.filter((event) => eventDayKey(event.date) === dayKey);
             const primaryEvent = dayEvents[0];
             const hasEvent = Boolean(primaryEvent);
             const isToday = new Date().toDateString() === date.toDateString();

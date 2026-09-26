@@ -73,9 +73,9 @@ export default function ProfileScreen() {
   const handleLetterboxdImport = async () => {
     const trimmed = lbUsername.trim();
     if (!trimmed) return;
-    const count = await importFromLetterboxd(trimmed);
-    if (count > 0) {
-      setLbSuccess(count);
+    const summary = await importFromLetterboxd(trimmed);
+    if (summary.films > 0) {
+      setLbSuccess(summary.films);
       setTimeout(() => {
         setLbOpen(false);
         setLbUsername('');

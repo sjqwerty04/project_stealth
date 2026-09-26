@@ -155,6 +155,7 @@ describe('filmsFromBundle and digest', () => {
       watchCount: 2,
       firstWatchedAt: '2024-04-30',
       lastWatchedAt: '2025-01-02',
+      watchDates: ['2024-04-30', '2025-01-02'],
       onWatchlist: false,
       sources: ['letterboxd'],
       external: { letterboxdUri: 'https://boxd.it/29Pq' },

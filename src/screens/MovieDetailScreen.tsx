@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import YouTubeCover from '../components/YouTubeCover';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -305,26 +306,7 @@ export default function MovieDetailScreen() {
       <div className="relative h-[60vh] min-h-[340px] overflow-hidden">
         {details.heroVideo ? (
           <div className="hero-video-wrap absolute inset-0" style={{ background: '#000' }}>
-            <iframe
-              ref={iframeRef}
-              src={`https://www.youtube.com/embed/${details.heroVideo.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${details.heroVideo.key}&playsinline=1&rel=0&modestbranding=1&showinfo=0&enablejsapi=1`}
-              allow="autoplay; encrypted-media; fullscreen"
-              title="Clip"
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                /* Cover the 60vh portrait container: width = 60vh × 16/9.
-                   Using explicit vh units avoids the aspect-ratio + height:100% browser quirk.
-                   minWidth:100% handles landscape / wide viewports. */
-                height: '60vh',
-                width: 'calc(60vh * 16 / 9)',
-                minWidth: '100%',
-                transform: 'translate(-50%, -50%)',
-                border: 'none',
-                pointerEvents: 'none',
-              }}
-            />
+            <YouTubeCover ref={iframeRef} videoId={details.heroVideo.key} title="Clip" />
             {/* Tap overlay — intercepts all taps so YouTube UI never fires.
                 On tap: go fullscreen + unmute so audio plays. */}
             <div

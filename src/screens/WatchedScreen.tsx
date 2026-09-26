@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Film, Plus, X, Calendar, MoreHorizontal, Bookmark, Trash2, CalendarX } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
+import { eventsWithWatchDates, isFilmNight } from '../lib/filmNights';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useAuth } from '../hooks/useAuth';
 import LibraryHub from '../components/LibraryHub';
@@ -90,11 +91,12 @@ export default function WatchedScreen() {
   const verdictFor = (movieId: number, event?: CalendarEvent | null): Verdict | null =>
     byId.get(movieId)?.verdict ?? (event ? eventVerdict(event) : null);
 
+  const nights = useMemo(() => eventsWithWatchDates(events, films), [events, films]);
   const watchedEvents = useMemo(() => {
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
-    return events.filter((e) => e.status !== 'planned' && new Date(e.date).getTime() <= endOfToday.getTime());
-  }, [events]);
+    return nights.filter((e) => e.status !== 'planned' && new Date(e.date).getTime() <= endOfToday.getTime());
+  }, [nights]);
   const filteredEvents = useMemo(
     () => watchedEvents.filter((e) => matchesFilter(filter, verdictFor(e.movieId, e))),
     [watchedEvents, filter, byId],
@@ -168,7 +170,7 @@ export default function WatchedScreen() {
     if (!target?.event) return;
     setBusy(true);
     try {
-      await deleteEvent(target.event.id);
+      if (!isFilmNight(target.event.id)) await deleteEvent(target.event.id);
       setTarget(null);
     } finally {
       setBusy(false);
@@ -181,7 +183,7 @@ export default function WatchedScreen() {
     try {
       const film = target.film ?? byId.get(target.movieId) ?? null;
       const event = target.event;
-      for (const e of events.filter((e) => e.movieId === target.movieId && e.status !== 'planned')) {
+      for (const e of events.filter((e) => e.movieId === target.movieId && e.status !== 'planned' && !isFilmNight(e.id))) {
         await deleteEvent(e.id);
       }
       await clearWatched(user.uid, target.movieId);

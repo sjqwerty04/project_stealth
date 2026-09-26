@@ -35,6 +35,7 @@ export function emptyFilm(movieId: number, title: string): LibraryFilm {
     watchCount: 0,
     firstWatchedAt: null,
     lastWatchedAt: null,
+    watchDates: [],
     onWatchlist: false,
     tags: [],
     reviewExcerpt: null,
@@ -55,6 +56,21 @@ function num(value: unknown): number | null {
 
 function strList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+function isoDay(value: string | undefined): string | null {
+  if (!value) return null;
+  const day = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+/** Watch days stored on the film, or the first/last pair when an older import never saved the list. */
+export function watchDaysOf(film: { watchDates?: string[]; firstWatchedAt?: string | null; lastWatchedAt?: string | null }): string[] {
+  const listed = (film.watchDates ?? []).map((d) => isoDay(d)).filter((d): d is string => d != null);
+  const fallback = [isoDay(film.firstWatchedAt ?? undefined), isoDay(film.lastWatchedAt ?? undefined)].filter(
+    (d): d is string => d != null,
+  );
+  return Array.from(new Set(listed.length ? listed : fallback)).sort();
 }
 
 /** Parse a stored ledger doc. Missing or malformed fields fall back to the empty film. */
@@ -78,6 +94,11 @@ export function parseFilm(raw: DocumentData | undefined, fallbackId?: number): L
     watchCount: num(raw.watchCount) ?? 0,
     firstWatchedAt: str(raw.firstWatchedAt) ?? null,
     lastWatchedAt: str(raw.lastWatchedAt) ?? null,
+    watchDates: watchDaysOf({
+      watchDates: strList(raw.watchDates),
+      firstWatchedAt: str(raw.firstWatchedAt) ?? null,
+      lastWatchedAt: str(raw.lastWatchedAt) ?? null,
+    }),
     onWatchlist: raw.onWatchlist === true,
     tags: strList(raw.tags),
     reviewExcerpt: str(raw.reviewExcerpt) ?? null,
@@ -122,6 +143,11 @@ export function mergeFilm(existing: LibraryFilm, patch: LibraryFilmPatch, now = 
   if (patch.watchCount !== undefined) next.watchCount = Math.max(existing.watchCount, patch.watchCount);
   if (patch.firstWatchedAt !== undefined) next.firstWatchedAt = minDate(existing.firstWatchedAt, patch.firstWatchedAt);
   if (patch.lastWatchedAt !== undefined) next.lastWatchedAt = maxDate(existing.lastWatchedAt, patch.lastWatchedAt);
+  if (patch.watchDates) {
+    next.watchDates = uniq([...(existing.watchDates ?? []), ...patch.watchDates.map((d) => d.slice(0, 10))]).sort();
+    next.firstWatchedAt = minDate(next.firstWatchedAt, next.watchDates[0] ?? null);
+    next.lastWatchedAt = maxDate(next.lastWatchedAt, next.watchDates[next.watchDates.length - 1] ?? null);
+  }
   if (patch.onWatchlist !== undefined) next.onWatchlist = patch.onWatchlist;
   if (patch.tags) next.tags = uniq([...existing.tags, ...patch.tags]);
   if (patch.reviewExcerpt !== undefined) next.reviewExcerpt = patch.reviewExcerpt ?? existing.reviewExcerpt;
