@@ -57,7 +57,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const year = typeof req.query.year === 'string' ? req.query.year.trim() : '';
     if (!imdbId && !title) return res.status(400).json({ error: 'missing film' });
     const scores = await loadSelectScores({ imdbId, tmdbId, title, year });
-    res.setHeader('Cache-Control', cacheControlFor(scores));
+    const cache = cacheControlFor(scores);
+    res.setHeader('Cache-Control', cache);
+    res.setHeader('Vercel-CDN-Cache-Control', cache);
     return res.status(200).json(scores);
   }
 
