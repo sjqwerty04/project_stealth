@@ -5,6 +5,7 @@ import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useDNAStore, nodeId } from '../stores/dnaStore';
 import type { DNANode, DNAMovie, DNAPerson } from '../stores/dnaStore';
 import { getMovieDNA, getPersonFilms } from '../lib/dnaEngine';
+import FilmLogo from '../components/FilmLogo';
 
 const img = (path: string | null, size: 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'w342') =>
   path ? `https://image.tmdb.org/t/p/${size}${path}` : null;
@@ -214,11 +215,11 @@ function MovieCenter({ movie, onOpen }: { movie: DNAMovie; onOpen: () => void })
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
       <div className="relative p-4 w-full flex items-end justify-between gap-3">
         <div className="min-w-0">
-          {img(movie.logoPath, 'w500') ? (
-            <img src={img(movie.logoPath, 'w500')!} alt={movie.title} className="max-h-12 w-auto max-w-[70%] object-contain drop-shadow-lg" />
-          ) : (
-            <h2 className="text-2xl font-bold drop-shadow-lg leading-tight">{movie.title}</h2>
-          )}
+          <FilmLogo
+            src={img(movie.logoPath, 'w500')}
+            className="max-h-12 w-auto max-w-[70%] object-contain drop-shadow-lg"
+          />
+          <span className="sr-only">{movie.title}</span>
           {movie.year && <p className="text-sm text-gray-300 mt-1">{movie.year}</p>}
         </div>
         <button

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
-import YouTubeCover from '../components/YouTubeCover';
+import YouTubeCover, { COVER_FADE_MS } from '../components/YouTubeCover';
+import FilmLogo from '../components/FilmLogo';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -65,6 +66,7 @@ export default function MovieDetailScreen() {
   const { film: libraryFilm } = useLibraryFilm(id ? Number(id) : details?.id);
   const [showSuccessState, setShowSuccessState] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [clipOn, setClipOn] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Reddit-grounded starter questions + known-for + letterboxd.
@@ -81,6 +83,10 @@ export default function MovieDetailScreen() {
   const [seedQuestion, setSeedQuestion] = useState<string | null>(null);
   const [showChips, setShowChips] = useState(true);
   const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    setClipOn(false);
+  }, [id, details?.heroVideo?.key]);
 
   // Floating chips hide on scroll-down, reveal on scroll-up.
   useEffect(() => {
@@ -306,7 +312,14 @@ export default function MovieDetailScreen() {
       <div className="relative h-[60vh] min-h-[340px] overflow-hidden">
         {details.heroVideo ? (
           <div className="hero-video-wrap absolute inset-0" style={{ background: '#000' }}>
-            <YouTubeCover ref={iframeRef} videoId={details.heroVideo.key} title="Clip" />
+            <YouTubeCover
+              ref={iframeRef}
+              videoId={details.heroVideo.key}
+              title="Clip"
+              poster={backdropUrl}
+              holdMs={details.logoPath ? 1100 : 400}
+              onReveal={setClipOn}
+            />
             {/* Tap overlay — intercepts all taps so YouTube UI never fires.
                 On tap: go fullscreen + unmute so audio plays. */}
             <div
@@ -364,19 +377,18 @@ export default function MovieDetailScreen() {
           </button>
         )}
 
-        {/* Movie logo — centered horizontally, pinned to lower third */}
-        <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2 px-8 z-10">
-          {details.logoPath ? (
-            <img
-              src={`https://image.tmdb.org/t/p/w500${details.logoPath}`}
-              alt={details.title}
-              className="max-h-20 w-auto max-w-[70%] object-contain drop-shadow-2xl"
-            />
-          ) : (
-            <h1 className="text-3xl font-bold text-center drop-shadow-2xl leading-tight">
-              {details.title}
-            </h1>
-          )}
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none"
+          style={{
+            opacity: details.heroVideo && clipOn ? 0 : 1,
+            transition: `opacity ${COVER_FADE_MS}ms ease`,
+          }}
+        >
+          <FilmLogo
+            src={details.logoPath ? `https://image.tmdb.org/t/p/w500${details.logoPath}` : null}
+            className="w-[82%] max-h-32 object-contain drop-shadow-2xl"
+          />
+          <h1 className="sr-only">{details.title}</h1>
         </div>
       </div>
 
