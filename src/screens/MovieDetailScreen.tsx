@@ -306,7 +306,7 @@ export default function MovieDetailScreen() {
       <div className="relative h-[60vh] min-h-[340px] overflow-hidden">
         {details.heroVideo ? (
           <div className="hero-video-wrap absolute inset-0" style={{ background: '#000' }}>
-            <YouTubeCover ref={iframeRef} videoId={details.heroVideo.key} title="Clip" />
+            <YouTubeCover ref={iframeRef} videoId={details.heroVideo.key} title="Clip" poster={backdropUrl} />
             {/* Tap overlay — intercepts all taps so YouTube UI never fires.
                 On tap: go fullscreen + unmute so audio plays. */}
             <div

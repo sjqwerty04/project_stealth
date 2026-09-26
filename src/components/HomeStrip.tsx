@@ -264,7 +264,7 @@ function DayStage({
       style={{ containerType: 'size' }}
     >
       {clip?.key ? (
-        <YouTubeCover key={clip.key} videoId={clip.key} testId="day-stage-iframe" />
+        <YouTubeCover key={clip.key} videoId={clip.key} poster={still} testId="day-stage-iframe" />
       ) : (
         still && (
           <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />

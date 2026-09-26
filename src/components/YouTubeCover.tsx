@@ -4,78 +4,153 @@ type Props = {
   videoId: string;
   title?: string;
   testId?: string;
+  poster?: string | null;
 };
 
+type YTPlayer = {
+  mute: () => void;
+  playVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  getPlayerState: () => number;
+  getIframe: () => HTMLIFrameElement;
+  destroy: () => void;
+};
+
+declare global {
+  interface Window {
+    YT?: { Player: new (el: HTMLElement | string, opts: Record<string, unknown>) => YTPlayer };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+let apiReady: Promise<void> | null = null;
+
+function loadYouTubeApi(): Promise<void> {
+  if (window.YT?.Player) return Promise.resolve();
+  if (!apiReady) {
+    apiReady = new Promise((resolve) => {
+      const previous = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        previous?.();
+        resolve();
+      };
+      if (!document.querySelector('script[data-youtube-iframe-api]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.dataset.youtubeIframeApi = '1';
+        document.head.appendChild(script);
+      }
+    });
+  }
+  return apiReady;
+}
+
+/** Zoom past the title bar, the corner mark, and "Watch on YouTube". They sit inside the iframe. */
+const CROP = 'translate(-50%, -50%) scale(2.4)';
+
+function cropIframe(iframe: HTMLIFrameElement) {
+  iframe.style.position = 'absolute';
+  iframe.style.left = '50%';
+  iframe.style.top = '50%';
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.transform = CROP;
+  iframe.style.border = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.style.opacity = '0';
+}
+
 /**
- * YouTube draws its title, logo, and end card inside the iframe. The parent page
- * cannot style that document, and the old modestbranding flags no longer remove it.
- * Scale the player past the frame so that chrome sits outside the clip, and seek
- * back to the start before the end card.
+ * YouTube's poster is the frame people see: title, play button, logo, "Watch on YouTube".
+ * Keep the film still over the iframe until the player reports it is actually playing,
+ * then reveal the cropped video and restart before the end card.
  */
-const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover({ videoId, title = '', testId }, ref) {
-  const localRef = useRef<HTMLIFrameElement>(null);
+const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover(
+  { videoId, title = '', testId, poster },
+  ref,
+) {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const posterRef = useRef<HTMLImageElement>(null);
   const setRef = (node: HTMLIFrameElement | null) => {
-    localRef.current = node;
     if (typeof ref === 'function') ref(node);
     else if (ref) ref.current = node;
   };
 
   useEffect(() => {
-    const iframe = localRef.current;
-    if (!iframe) return;
-    const send = (func: string, args: unknown[] = []) => {
-      iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
-    };
-    const listen = () => {
-      iframe.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: videoId }), '*');
-      send('addEventListener', ['onStateChange']);
-    };
-    const onMessage = (event: MessageEvent) => {
-      if (event.source !== iframe.contentWindow) return;
-      let data: { event?: string; info?: { currentTime?: number; duration?: number; playerState?: number } } | null = null;
-      if (typeof event.data === 'string') {
-        try {
-          data = JSON.parse(event.data);
-        } catch {
-          return;
-        }
-      } else if (event.data && typeof event.data === 'object') {
-        data = event.data;
-      }
-      const info = data?.info;
-      const duration = info?.duration ?? 0;
-      const current = info?.currentTime ?? 0;
-      if (duration > 2 && current > 1 && duration - current < 1.4) send('seekTo', [0, true]);
-      if (info?.playerState === 0) send('seekTo', [0, true]);
-    };
-    iframe.addEventListener('load', listen);
-    window.addEventListener('message', onMessage);
-    return () => {
-      iframe.removeEventListener('load', listen);
-      window.removeEventListener('message', onMessage);
-    };
-  }, [videoId]);
+    const mount = mountRef.current;
+    if (!mount) return;
+    let player: YTPlayer | null = null;
+    let timer = 0;
+    let cancelled = false;
 
-  const src =
-    `https://www.youtube-nocookie.com/embed/${videoId}` +
-    `?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}` +
-    `&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0&cc_load_policy=0&enablejsapi=1`;
+    loadYouTubeApi().then(() => {
+      if (cancelled || !mountRef.current || !window.YT?.Player) return;
+      player = new window.YT.Player(mountRef.current, {
+        videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          loop: 1,
+          playlist: videoId,
+          playsinline: 1,
+          rel: 0,
+          modestbranding: 1,
+          iv_load_policy: 3,
+          disablekb: 1,
+          fs: 0,
+          cc_load_policy: 0,
+          enablejsapi: 1,
+        },
+        events: {
+          onReady: (event: { target: YTPlayer }) => {
+            const iframe = event.target.getIframe();
+            iframe.title = title;
+            cropIframe(iframe);
+            setRef(iframe);
+            event.target.mute();
+            event.target.playVideo();
+            timer = window.setInterval(() => {
+              const state = event.target.getPlayerState();
+              const duration = event.target.getDuration();
+              const current = event.target.getCurrentTime();
+              const playing = state === 1 && current > 0.2;
+              iframe.style.opacity = playing ? '1' : '0';
+              if (posterRef.current) posterRef.current.style.opacity = playing ? '0' : '1';
+              if (!playing) {
+                event.target.mute();
+                event.target.playVideo();
+              }
+              if (duration > 2 && current > 1 && duration - current < 2) event.target.seekTo(0, true);
+            }, 400);
+          },
+        },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      setRef(null);
+      player?.destroy();
+    };
+  }, [videoId, title]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" data-testid={testId}>
-      <iframe
-        ref={setRef}
-        title={title}
-        src={src}
-        allow="autoplay; encrypted-media"
-        data-clip-key={videoId}
-        className="absolute left-1/2 top-1/2 border-0 pointer-events-none"
-        style={{
-          width: '100%',
-          height: '100%',
-          transform: 'translate(-50%, -50%) scale(1.9)',
-        }}
-      />
+    <div className="absolute inset-0 overflow-hidden pointer-events-none bg-black" data-testid={testId}>
+      <div ref={mountRef} className="absolute inset-0" />
+      {poster ? (
+        <img
+          ref={posterRef}
+          src={poster}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : null}
     </div>
   );
 });
