@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
+import YouTubeCover from './YouTubeCover';
 import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
@@ -263,20 +264,7 @@ function DayStage({
       style={{ containerType: 'size' }}
     >
       {clip?.key ? (
-        <iframe
-          key={clip.key}
-          data-testid="day-stage-iframe"
-          data-clip-key={clip.key}
-          title=""
-          src={`https://www.youtube-nocookie.com/embed/${clip.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${clip.key}&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0`}
-          allow="autoplay; encrypted-media"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-          style={{
-            border: 'none',
-            width: 'max(100cqw, calc(100cqh * 16 / 9))',
-            height: 'max(100cqh, calc(100cqw * 9 / 16))',
-          }}
-        />
+        <YouTubeCover key={clip.key} videoId={clip.key} testId="day-stage-iframe" />
       ) : (
         still && (
           <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
