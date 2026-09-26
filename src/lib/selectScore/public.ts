@@ -1,4 +1,4 @@
-import { emptyPublicScores, SOURCE_KEYS, type PublicScore, type PublicScores, type SourceKey } from './types';
+import { emptyPublicScores, SOURCE_KEYS, type PublicScore, type PublicScores, type SourceKey } from './types.js';
 
 export type QueueStats = {
   liked: number;
