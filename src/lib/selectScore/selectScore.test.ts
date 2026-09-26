@@ -8,6 +8,7 @@ import {
   letterboxdFromHtml,
   mapMdbList,
   mapOmdb,
+  mapWikidataScores,
   mergePublicScores,
   queueFromNextData,
   queuePercent,
@@ -194,6 +195,20 @@ describe('public score parsers', () => {
       aggregateRating: { ratingValue: '4.32', ratingCount: '1304042' },
     })}</script>`;
     expect(letterboxdFromHtml(html)).toEqual({ value: 4.32, count: 1304042 });
+  });
+
+  it('reads the latest IMDb, Tomatometer, and Metascore from Wikidata', () => {
+    const mapped = mapWikidataScores([
+      { score: '83%', when: '2024-08-02T00:00:00Z', reviewed: 'Rotten Tomatoes', method: 'Tomatometer score' },
+      { score: '84%', when: '2026-02-19T00:00:00Z', reviewed: 'Rotten Tomatoes', method: 'Tomatometer score' },
+      { score: '7.8/10', when: '2021-10-10T00:00:00Z', reviewed: 'Rotten Tomatoes', method: 'Rotten Tomatoes average of rated reviews' },
+      { score: '8.3/10', when: '2026-02-19T00:00:00Z', reviewed: 'IMDb', method: 'weighted average' },
+      { score: '76/100', when: '2025-07-14T00:00:00Z', reviewed: 'Metacritic', method: 'Metascore' },
+    ]);
+    expect(mapped.imdb).toEqual({ value: 8.3, count: null });
+    expect(mapped.tomatoes).toEqual({ value: 84, count: null });
+    expect(mapped.metacritic).toEqual({ value: 76, count: null });
+    expect(mapped.audience).toBeUndefined();
   });
 
   it('fills IMDb, Tomatometer, and Metacritic holes from the page OMDb payload', () => {

@@ -4,6 +4,7 @@ import {
   letterboxdFromHtml,
   mapMdbList,
   mapOmdb,
+  mapWikidataSparql,
   mergePublicScores,
   queueFromNextData,
   queuePercent,
@@ -49,6 +50,33 @@ async function loadMdbList(imdbId: string): Promise<Partial<PublicScores>> {
   if (!key || !imdbId) return {};
   const json = await fetchJson(`https://api.mdblist.com/imdb/${encodeURIComponent(imdbId)}?apikey=${encodeURIComponent(key)}`);
   return mapMdbList(json);
+}
+
+async function loadWikidata(imdbId: string): Promise<Partial<PublicScores>> {
+  const id = imdbId.trim().match(/^tt\d{5,10}$/i)?.[0];
+  if (!id) return {};
+  const query = `SELECT ?score ?when ?reviewedLabel ?methodLabel WHERE {
+    ?item wdt:P345 "${id}".
+    ?item p:P444 ?stmt.
+    ?stmt ps:P444 ?score.
+    OPTIONAL { ?stmt pq:P585 ?when. }
+    OPTIONAL { ?stmt pq:P447 ?reviewed. }
+    OPTIONAL { ?stmt pq:P459 ?method. }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+  }`;
+  try {
+    const response = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`, {
+      signal: AbortSignal.timeout(8000),
+      headers: {
+        Accept: 'application/sparql-results+json',
+        'User-Agent': 'Selects/1.0 (https://selects-film.vercel.app)',
+      },
+    });
+    if (!response.ok) return {};
+    return mapWikidataSparql(await response.json());
+  } catch {
+    return {};
+  }
 }
 
 async function loadOmdb(imdbId: string): Promise<Partial<PublicScores>> {
@@ -119,12 +147,19 @@ async function loadQueue(title: string, year: string): Promise<PublicScore | nul
 }
 
 export async function loadSelectScores(input: SelectScoreRequest): Promise<PublicScores> {
-  const [mdb, omdb, letterboxd, queue] = await Promise.all([
+  const [mdb, omdb, wikidata, letterboxd, queue] = await Promise.all([
     loadMdbList(input.imdbId).catch(() => ({})),
     loadOmdb(input.imdbId).catch(() => ({})),
+    loadWikidata(input.imdbId).catch(() => ({})),
     loadLetterboxd(input.tmdbId, input.title, input.year).catch(() => null),
     loadQueue(input.title, input.year).catch(() => null),
   ]);
 
-  return mergePublicScores([mdb, omdb, letterboxd ? { letterboxd } : {}, queue ? { queue } : {}]);
+  return mergePublicScores([
+    mdb,
+    omdb,
+    wikidata,
+    letterboxd ? { letterboxd } : {},
+    queue ? { queue } : {},
+  ]);
 }
