@@ -5,7 +5,13 @@ type Props = {
   title?: string;
   testId?: string;
   poster?: string | null;
+  /** How long the still (and the logo above it) stays up before the crossfade. */
+  holdMs?: number;
+  onReveal?: (playing: boolean) => void;
 };
+
+export const COVER_FADE_MS = 900;
+const DEFAULT_HOLD_MS = 1100;
 
 type YTPlayer = {
   mute: () => void;
@@ -60,6 +66,7 @@ function cropIframe(iframe: HTMLIFrameElement) {
   iframe.style.border = '0';
   iframe.style.pointerEvents = 'none';
   iframe.style.opacity = '0';
+  iframe.style.transition = `opacity ${COVER_FADE_MS}ms ease`;
 }
 
 /**
@@ -68,11 +75,13 @@ function cropIframe(iframe: HTMLIFrameElement) {
  * then reveal the cropped video and restart before the end card.
  */
 const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover(
-  { videoId, title = '', testId, poster },
+  { videoId, title = '', testId, poster, holdMs = DEFAULT_HOLD_MS, onReveal },
   ref,
 ) {
   const mountRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLImageElement>(null);
+  const onRevealRef = useRef(onReveal);
+  onRevealRef.current = onReveal;
   const setRef = (node: HTMLIFrameElement | null) => {
     if (typeof ref === 'function') ref(node);
     else if (ref) ref.current = node;
@@ -84,6 +93,13 @@ const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover(
     let player: YTPlayer | null = null;
     let timer = 0;
     let cancelled = false;
+    let revealed = false;
+    const started = performance.now();
+    onRevealRef.current?.(false);
+    if (posterRef.current) {
+      posterRef.current.style.transition = `opacity ${COVER_FADE_MS}ms ease`;
+      posterRef.current.style.opacity = '1';
+    }
 
     loadYouTubeApi().then(() => {
       if (cancelled || !mountRef.current || !window.YT?.Player) return;
@@ -115,12 +131,18 @@ const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover(
             event.target.mute();
             event.target.playVideo();
             timer = window.setInterval(() => {
+              if (cancelled) return;
               const state = event.target.getPlayerState();
               const duration = event.target.getDuration();
               const current = event.target.getCurrentTime();
               const playing = state === 1 && current > 0.2;
-              iframe.style.opacity = playing ? '1' : '0';
-              if (posterRef.current) posterRef.current.style.opacity = playing ? '0' : '1';
+              const held = performance.now() - started >= holdMs;
+              if (!revealed && playing && held) {
+                revealed = true;
+                iframe.style.opacity = '1';
+                if (posterRef.current) posterRef.current.style.opacity = '0';
+                onRevealRef.current?.(true);
+              }
               if (!playing) {
                 event.target.mute();
                 event.target.playVideo();
@@ -138,7 +160,7 @@ const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover(
       setRef(null);
       player?.destroy();
     };
-  }, [videoId, title]);
+  }, [videoId, title, holdMs]);
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none bg-black" data-testid={testId}>
@@ -149,6 +171,7 @@ const YouTubeCover = forwardRef<HTMLIFrameElement, Props>(function YouTubeCover(
           src={poster}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ transition: `opacity ${COVER_FADE_MS}ms ease` }}
         />
       ) : null}
     </div>

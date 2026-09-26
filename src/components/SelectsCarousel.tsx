@@ -12,6 +12,7 @@ import type { SelectReplacement, SelectSlotId } from '../hooks/useRecommendation
 import type { Verdict } from '../lib/library';
 import VerdictPicker from './VerdictPicker';
 import SelectsChaseLoader from './ui/SelectsChaseLoader';
+import FilmLogo from './FilmLogo';
 
 export type { RelatedPoster };
 
@@ -78,23 +79,16 @@ export function SelectCard({
         {still ? (
           <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : null}
-        <span className="absolute inset-0 flex items-center justify-center px-6">
-          {logo ? (
-            <img
-              src={logo}
-              alt=""
-              className="relative object-contain"
-              style={{
-                maxHeight: 56,
-                maxWidth: '70%',
-                filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
-              }}
-            />
-          ) : (
-            <span className="font-display font-extrabold text-fg text-lg tracking-tight text-center leading-none">
-              {film.title}
-            </span>
-          )}
+        <span className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none">
+          <FilmLogo
+            src={logo}
+            className="relative object-contain"
+            style={{
+              width: '72%',
+              maxHeight: 72,
+              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
+            }}
+          />
         </span>
       </button>
       {loading ? (
