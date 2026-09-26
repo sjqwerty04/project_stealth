@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
-import YouTubeCover from './YouTubeCover';
+import YouTubeCover, { COVER_FADE_MS } from './YouTubeCover';
+import FilmLogo from './FilmLogo';
 import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
@@ -255,6 +256,7 @@ function DayStage({
   const shownVerdict = verdict ?? eventVerdict(film);
   const still = clip?.still || film.backdrop || film.poster;
   const logo = clip?.logo;
+  const [clipOn, setClipOn] = useState(false);
 
   return (
     <div
@@ -264,26 +266,32 @@ function DayStage({
       style={{ containerType: 'size' }}
     >
       {clip?.key ? (
-        <YouTubeCover key={clip.key} videoId={clip.key} poster={still} testId="day-stage-iframe" />
+        <YouTubeCover
+          key={clip.key}
+          videoId={clip.key}
+          poster={still}
+          holdMs={logo ? 1100 : 400}
+          onReveal={setClipOn}
+          testId="day-stage-iframe"
+        />
       ) : (
         still && (
           <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
         )
       )}
-      <span className="absolute inset-0 bg-black/30 pointer-events-none" />
-      <span className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
-        {logo ? (
-          <img
-            src={logo}
-            alt=""
-            className="max-h-[28%] max-w-[70%] object-contain"
-            style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.85))' }}
-          />
-        ) : (
-          <span className="font-display font-extrabold text-fg text-2xl tracking-tight text-center leading-none">
-            {film.title}
-          </span>
-        )}
+      <span
+        className="absolute inset-0 bg-black/35 pointer-events-none"
+        style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
+      />
+      <span
+        className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none"
+        style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
+      >
+        <FilmLogo
+          src={logo}
+          className="w-[82%] max-h-[46%] object-contain"
+          style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.85))' }}
+        />
       </span>
       <span className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-none">
         {watchCount > 1 && (
