@@ -11,7 +11,7 @@ import { useExploration } from '../contexts/ExplorationContext';
 import MovieActions from '../components/MovieActions';
 import SimilarFilms from '../components/SimilarFilms';
 import PatternAssistant from '../components/PatternAssistant';
-import RatingBadges from '../components/RatingBadges';
+import SelectScore from '../components/SelectScore';
 import WhereToWatch from '../components/WhereToWatch';
 import TechBadges from '../components/TechBadges';
 import StarterPrompts from '../components/StarterPrompts';
@@ -19,7 +19,6 @@ import MovieChatSheet from '../components/MovieChatSheet';
 import { useMovieInsights } from '../hooks/useMovieInsights';
 import { useMovieKnownFor } from '../hooks/useMovieKnownFor';
 import { recordTasteEvent, useTaste } from '../lib/taste';
-import { useLetterboxdRating } from '../hooks/useLetterboxdRating';
 import { useAuth } from '../hooks/useAuth';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import { setVerdict as setLedgerVerdict, useLibraryFilm, type Verdict } from '../lib/library';
@@ -78,7 +77,6 @@ export default function MovieDetailScreen() {
       : '';
   const { insights } = useMovieInsights(details?.title, details?.year, details?.genres);
   const { knownFor } = useMovieKnownFor(details?.title, details?.year, snapshot.generated.compactForChat);
-  const { rating: lbRating, filmUrl: lbUrl } = useLetterboxdRating(details?.id, details?.title, details?.year);
   const [chatOpen, setChatOpen] = useState(false);
   const [seedQuestion, setSeedQuestion] = useState<string | null>(null);
   const [showChips, setShowChips] = useState(true);
@@ -402,6 +400,17 @@ export default function MovieDetailScreen() {
             <> &bull; <span className="text-white/70">{details.techSpecs.certification}</span></>
           )}
         </p>
+        {mediaType === 'movie' && (
+          <SelectScore
+            movieId={details.id}
+            title={details.title}
+            year={details.year}
+            imdbId={details.imdbId}
+            stars={libraryFilm?.stars}
+            snapshot={snapshot}
+            clientRatings={details.ratings}
+          />
+        )}
         {(() => {
           const whyMatch =
             snapshot.generated.lastPicks.find((p) => p.movieId === details.id)?.whyMatch || stateWhy;
@@ -420,14 +429,6 @@ export default function MovieDetailScreen() {
       {/* ── CONTENT ── */}
       <div className="px-4 space-y-4 pb-8">
 
-        {/* Ratings (centered) */}
-        {details.ratings && (
-          <RatingBadges
-            ratings={details.ratings}
-            letterboxdRating={lbRating}
-            letterboxdUrl={lbUrl}
-          />
-        )}
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
 
         {/* Action Buttons */}
