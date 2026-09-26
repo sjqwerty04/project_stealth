@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ExplorationProvider } from './contexts/ExplorationContext';
@@ -27,9 +28,17 @@ import ProfileScreen from './screens/ProfileScreen';
 import AppShell from './components/AppShell';
 import SelectsCarouselPreviewScreen from './screens/SelectsCarouselPreviewScreen';
 import WhereToWatchPreviewScreen from './screens/WhereToWatchPreviewScreen';
+import SelectScorePreviewScreen from './screens/SelectScorePreviewScreen';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { refetchOnWindowFocus: false, retry: 1 },
+  },
+});
 
 export default function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
         <ExplorationProvider>
@@ -44,6 +53,7 @@ export default function App() {
               <>
                 <Route path="/dev/selects-carousel" element={<SelectsCarouselPreviewScreen />} />
                 <Route path="/dev/where-to-watch" element={<WhereToWatchPreviewScreen />} />
+                <Route path="/dev/select-score" element={<SelectScorePreviewScreen />} />
               </>
             )}
             <Route path="/onboarding" element={<OnboardingScreen />} />
@@ -174,5 +184,6 @@ export default function App() {
         </ExplorationProvider>
       </AuthProvider>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }
