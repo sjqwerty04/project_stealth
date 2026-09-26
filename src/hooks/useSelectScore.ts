@@ -21,7 +21,8 @@ async function fetchPublicScores(input: SelectScoreQuery): Promise<PublicScores>
   params.set('tmdbId', String(input.movieId));
   params.set('title', input.title);
   if (input.year) params.set('year', input.year);
-  const response = await fetch(`/api/select-score?${params.toString()}`);
+  params.set('select', '1');
+  const response = await fetch(`/api/letterboxd-rating?${params.toString()}`);
   if (!response.ok) throw new Error('select-score');
   return parsePublicScores(await response.json());
 }

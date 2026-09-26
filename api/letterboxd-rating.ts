@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { cacheControlFor } from '../src/lib/selectScore/public.js';
+import { loadSelectScores } from '../src/lib/selectScore/load.js';
 
 const LB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -45,6 +47,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  // The Hobby plan allows 12 functions, and this project is already at that cap.
+  // The select score rides here so the preview can deploy without a new function file.
+  if (req.query.select === '1') {
+    const imdbId = typeof req.query.imdbId === 'string' ? req.query.imdbId.trim() : '';
+    const tmdbId = typeof req.query.tmdbId === 'string' ? req.query.tmdbId.trim() : '';
+    const title = typeof req.query.title === 'string' ? req.query.title.trim() : '';
+    const year = typeof req.query.year === 'string' ? req.query.year.trim() : '';
+    if (!imdbId && !title) return res.status(400).json({ error: 'missing film' });
+    const scores = await loadSelectScores({ imdbId, tmdbId, title, year });
+    res.setHeader('Cache-Control', cacheControlFor(scores));
+    return res.status(200).json(scores);
+  }
 
   // Public CORS proxies stopped answering, so the diary feed rides on this function too.
   const rssUser = typeof req.query.rss === 'string' ? req.query.rss.trim() : '';
