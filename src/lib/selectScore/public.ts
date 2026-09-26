@@ -145,6 +145,81 @@ export function mapMdbList(json: unknown): Partial<PublicScores> {
   return readRatings(json);
 }
 
+export type WikidataScoreRow = {
+  score: string;
+  when?: string | null;
+  reviewed?: string | null;
+  method?: string | null;
+};
+
+function markedScore(score: string): { value: number; kind: 'percent' | 'ratio'; denom?: number } | null {
+  const text = score.trim();
+  const percent = text.match(/^([\d.]+)\s*%$/);
+  if (percent) {
+    const value = Number(percent[1]);
+    return Number.isFinite(value) ? { value, kind: 'percent' } : null;
+  }
+  const ratio = text.match(/^([\d.]+)\s*\/\s*([\d.]+)$/);
+  if (ratio) {
+    const value = Number(ratio[1]);
+    const denom = Number(ratio[2]);
+    return Number.isFinite(value) && Number.isFinite(denom) ? { value, kind: 'ratio', denom } : null;
+  }
+  return null;
+}
+
+/**
+ * Latest published review score per source. IMDb, the Tomatometer, and Metascore
+ * are the ones the score needs when OMDb and MDbList have no key.
+ * A Rotten Tomatoes average out of 10 is not the Tomatometer.
+ */
+export function mapWikidataScores(rows: WikidataScoreRow[]): Partial<PublicScores> {
+  const latest = new Map<string, { row: WikidataScoreRow; time: number }>();
+  for (const row of rows) {
+    const key = `${(row.reviewed ?? '').toLowerCase()}|${(row.method ?? '').toLowerCase()}`;
+    const parsedTime = row.when ? Date.parse(row.when) : 0;
+    const time = Number.isFinite(parsedTime) ? parsedTime : 0;
+    const previous = latest.get(key);
+    if (!previous || time >= previous.time) latest.set(key, { row, time });
+  }
+
+  const out: Partial<PublicScores> = {};
+  for (const { row } of latest.values()) {
+    const reviewed = (row.reviewed ?? '').toLowerCase();
+    const method = (row.method ?? '').toLowerCase();
+    const parsed = markedScore(row.score);
+    if (!parsed) continue;
+    if (reviewed === 'imdb' && method.includes('weighted') && parsed.kind === 'ratio' && parsed.denom === 10) {
+      out.imdb = { value: parsed.value, count: null };
+    } else if ((reviewed === 'metacritic' || method === 'metascore') && (parsed.kind === 'percent' || parsed.denom === 100)) {
+      out.metacritic = { value: parsed.value, count: null };
+    } else if (reviewed.includes('rotten') && method.includes('tomatometer') && parsed.kind === 'percent') {
+      out.tomatoes = { value: parsed.value, count: null };
+    } else if ((method.includes('audience') || method.includes('popcorn')) && parsed.kind === 'percent') {
+      out.audience = { value: parsed.value, count: null };
+    }
+  }
+  return out;
+}
+
+export function mapWikidataSparql(json: unknown): Partial<PublicScores> {
+  if (!json || typeof json !== 'object') return {};
+  const bindings = (json as { results?: { bindings?: unknown[] } }).results?.bindings;
+  if (!Array.isArray(bindings)) return {};
+  const rows: WikidataScoreRow[] = [];
+  for (const binding of bindings) {
+    if (!binding || typeof binding !== 'object') continue;
+    const cell = (key: string) => {
+      const value = (binding as Record<string, { value?: unknown } | undefined>)[key];
+      return value && typeof value.value === 'string' ? value.value : null;
+    };
+    const score = cell('score');
+    if (!score) continue;
+    rows.push({ score, when: cell('when'), reviewed: cell('reviewedLabel'), method: cell('methodLabel') });
+  }
+  return mapWikidataScores(rows);
+}
+
 export function mapOmdb(json: unknown): Partial<PublicScores> {
   if (!json || typeof json !== 'object') return {};
   const row = json as Record<string, unknown>;
