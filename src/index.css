@@ -112,13 +112,7 @@ h1, h2, h3 {
 }
 .hero-video-wrap:fullscreen iframe,
 .hero-video-wrap:-webkit-full-screen iframe {
-  height: max(56.25vw, 100vh) !important;
-  width: max(100vw, calc(100vh * 16 / 9)) !important;
-  min-width: unset !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  pointer-events: auto !important;
+  pointer-events: none !important;
 }
 .hero-video-wrap:fullscreen > div[class*="z-10"],
 .hero-video-wrap:-webkit-full-screen > div[class*="z-10"] {

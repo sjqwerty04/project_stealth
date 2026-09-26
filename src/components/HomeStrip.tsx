@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
+import YouTubeCover from './YouTubeCover';
+import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
 import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
@@ -262,20 +264,7 @@ function DayStage({
       style={{ containerType: 'size' }}
     >
       {clip?.key ? (
-        <iframe
-          key={clip.key}
-          data-testid="day-stage-iframe"
-          data-clip-key={clip.key}
-          title=""
-          src={`https://www.youtube-nocookie.com/embed/${clip.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${clip.key}&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0`}
-          allow="autoplay; encrypted-media"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-          style={{
-            border: 'none',
-            width: 'max(100cqw, calc(100cqh * 16 / 9))',
-            height: 'max(100cqh, calc(100cqw * 9 / 16))',
-          }}
-        />
+        <YouTubeCover key={clip.key} videoId={clip.key} testId="day-stage-iframe" />
       ) : (
         still && (
           <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -343,16 +332,17 @@ export default function HomeStrip({
   const { byId: library, films: libraryFilms } = useLibrary();
   const profilePicks = useProfileFilms();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
+  const nights = useMemo(() => eventsWithWatchDates(events, libraryFilms), [events, libraryFilms]);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
   const earliest = useMemo(() => {
     let min: string | null = null;
-    for (const e of events) {
+    for (const e of nights) {
       const k = eventDayKey(e.date);
       if (k && (!min || k < min)) min = k;
     }
     return min;
-  }, [events]);
+  }, [nights]);
   const days = useMemo(() => {
     const today = startOfDay(new Date());
     const floor = subYears(today, 5);
@@ -367,7 +357,7 @@ export default function HomeStrip({
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    for (const e of events) {
+    for (const e of nights) {
       const k = eventDayKey(e.date);
       if (!k) continue;
       const list = map.get(k) ?? [];
@@ -375,17 +365,17 @@ export default function HomeStrip({
       map.set(k, list);
     }
     return map;
-  }, [events]);
+  }, [nights]);
 
   const dayLogs = byDay.get(dayKey(selected)) ?? [];
   const dayFilm = dayLogs[0] ?? null;
-  const yearCount = events.filter((e) =>
+  const yearCount = nights.filter((e) =>
     eventDayKey(e.date).startsWith(String(selected.getFullYear())),
   ).length;
 
   const posterPool = useMemo(
-    () => relatedPosterPool(libraryFilms, profilePicks, events),
-    [libraryFilms, profilePicks, events],
+    () => relatedPosterPool(libraryFilms, profilePicks, nights),
+    [libraryFilms, profilePicks, nights],
   );
 
   const slides = useMemo(() => {

@@ -59,7 +59,8 @@ export function useLetterboxdImport() {
   const [importedCount, setImportedCount] = useState(0);
 
   const importFromLetterboxd = useCallback(
-    async (username: string): Promise<number> => {
+    async (username: string): Promise<{ films: number; nights: number }> => {
+      const empty = { films: 0, nights: 0 };
       setError(null);
       setImportedCount(0);
       let xmlText = '';
@@ -68,7 +69,7 @@ export function useLetterboxdImport() {
           const res = await fetch(url);
           if (res.status === 404) {
             setError(`User "${username}" not found on Letterboxd`);
-            return 0;
+            return empty;
           }
           if (res.ok) {
             xmlText = await res.text();
@@ -81,19 +82,19 @@ export function useLetterboxdImport() {
       }
       if (!xmlText) {
         setError('Could not fetch that Letterboxd feed. Drop the export zip instead.');
-        return 0;
+        return empty;
       }
       const bundle = bundleFromRss(xmlText);
       if (!bundle.films.length) {
         setError('No films found in the diary. Is the profile public?');
-        return 0;
+        return empty;
       }
       bundle.meta.username = username.trim();
       const result = await library.importBundle(bundle);
-      const count = result ? result.films : 0;
-      setImportedCount(count);
+      const summary = { films: result?.films ?? 0, nights: result?.nights ?? 0 };
+      setImportedCount(summary.films);
       if (!result) setError(library.error ?? 'Import failed. Please try again.');
-      return count;
+      return summary;
     },
     [library],
   );

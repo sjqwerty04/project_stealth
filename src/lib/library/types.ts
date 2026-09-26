@@ -35,6 +35,8 @@ export type LibraryFilm = {
   watchCount: number;
   firstWatchedAt: string | null;
   lastWatchedAt: string | null;
+  /** Every imported watch day, `yyyy-MM-dd`. The strip and year view read this when a calendar row was not written. */
+  watchDates?: string[];
   onWatchlist: boolean;
   tags: string[];
   reviewExcerpt: string | null;

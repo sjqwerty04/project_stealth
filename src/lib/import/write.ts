@@ -63,6 +63,7 @@ export function filmsFromBundle(
         watchCount: Math.max(nights.length, film.watchCount ?? 0),
         firstWatchedAt: nights[0] ?? null,
         lastWatchedAt: nights[nights.length - 1] ?? null,
+        ...(nights.length ? { watchDates: Array.from(new Set(nights)).sort() } : {}),
         tags: film.tags ?? [],
         reviewExcerpt: film.review ?? null,
         listNames: film.listNames ?? [],
