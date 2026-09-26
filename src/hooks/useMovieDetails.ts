@@ -46,6 +46,7 @@ export type MovieDetails = {
   ratings: MovieRatings | null;
   techSpecs: TechSpecs | null;
   mediaType: 'movie' | 'tv';
+  imdbId: string | null;
 };
 
 const formatRuntime = (minutes?: number | null): string => {
@@ -264,6 +265,7 @@ export function useMovieDetails() {
         ratings,
         techSpecs,
         mediaType,
+        imdbId: imdbId || null,
       };
 
       setDetails(movieDetails);
@@ -309,6 +311,7 @@ export function useMovieDetails() {
         ratings: null,
         techSpecs: null,
         mediaType: 'movie',
+        imdbId: null,
       };
       setDetails(fallback);
       setError(null);
