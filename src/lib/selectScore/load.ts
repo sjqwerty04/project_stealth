@@ -1,6 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
-  cacheControlFor,
   extractNextData,
   findQueueStats,
   letterboxdFromHtml,
@@ -10,15 +8,18 @@ import {
   queueFromNextData,
   queuePercent,
   queueSlug,
-} from '../src/lib/selectScore/public.js';
-import type { PublicScore, PublicScores } from '../src/lib/selectScore/types.js';
+} from './public';
+import type { PublicScore, PublicScores } from './types';
 
 const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-function queryValue(value: string | string[] | undefined): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
+export type SelectScoreRequest = {
+  imdbId: string;
+  tmdbId: string;
+  title: string;
+  year: string;
+};
 
 async function fetchText(url: string): Promise<{ ok: boolean; status: number; text: string; finalUrl: string }> {
   const response = await fetch(url, {
@@ -117,29 +118,13 @@ async function loadQueue(title: string, year: string): Promise<PublicScore | nul
   return embedded.score || collided.score;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-
-  const imdbId = queryValue(req.query.imdbId);
-  const tmdbId = queryValue(req.query.tmdbId);
-  const title = queryValue(req.query.title);
-  const year = queryValue(req.query.year);
-  if (!imdbId && !title) return res.status(400).json({ error: 'missing film' });
-
+export async function loadSelectScores(input: SelectScoreRequest): Promise<PublicScores> {
   const [mdb, omdb, letterboxd, queue] = await Promise.all([
-    loadMdbList(imdbId).catch(() => ({})),
-    loadOmdb(imdbId).catch(() => ({})),
-    loadLetterboxd(tmdbId, title, year).catch(() => null),
-    loadQueue(title, year).catch(() => null),
+    loadMdbList(input.imdbId).catch(() => ({})),
+    loadOmdb(input.imdbId).catch(() => ({})),
+    loadLetterboxd(input.tmdbId, input.title, input.year).catch(() => null),
+    loadQueue(input.title, input.year).catch(() => null),
   ]);
 
-  const scores = mergePublicScores([
-    mdb,
-    omdb,
-    letterboxd ? { letterboxd } : {},
-    queue ? { queue } : {},
-  ]);
-
-  res.setHeader('Cache-Control', cacheControlFor(scores));
-  return res.status(200).json(scores);
+  return mergePublicScores([mdb, omdb, letterboxd ? { letterboxd } : {}, queue ? { queue } : {}]);
 }
