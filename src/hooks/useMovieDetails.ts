@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { apiUrl } from '../lib/apiOrigin';
 import { fallbackById } from '../lib/fallbackCatalog';
 import { parseWatchProviders, type WatchProviders } from '../lib/watchProviders';
 
@@ -59,7 +60,7 @@ const formatRuntime = (minutes?: number | null): string => {
 // Fetch IMAX/Dolby info from IMDb technical specs via our API
 async function fetchIMDbTechSpecs(imdbId: string): Promise<{ isImax: boolean; isDolbyAtmos: boolean; isDolbyVision: boolean }> {
   try {
-    const response = await fetch(`/api/imdb-techspecs?imdbId=${imdbId}`);
+    const response = await fetch(apiUrl(`/api/imdb-techspecs?imdbId=${imdbId}`));
     if (!response.ok) {
       console.warn('Failed to fetch IMDb tech specs:', response.status);
       return { isImax: false, isDolbyAtmos: false, isDolbyVision: false };

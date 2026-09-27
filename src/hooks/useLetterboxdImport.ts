@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { apiUrl } from '../lib/apiOrigin';
 import { emptyBundle, type ImportBundle } from '../lib/library';
 import { useLibraryImport } from './useLibraryImport';
 
@@ -7,7 +8,7 @@ const CORS_PROXIES = ['https://corsproxy.io/?', 'https://api.codetabs.com/v1/pro
 /** Our own function first, since Letterboxd serves the feed to a server with browser headers. Public proxies are the fallback. */
 function feedUrls(username: string): string[] {
   const rssUrl = `https://letterboxd.com/${username}/rss/`;
-  return [`/api/letterboxd-rating?rss=${encodeURIComponent(username)}`, ...CORS_PROXIES.map((p) => `${p}${encodeURIComponent(rssUrl)}`)];
+  return [apiUrl(`/api/letterboxd-rating?rss=${encodeURIComponent(username)}`), ...CORS_PROXIES.map((p) => `${p}${encodeURIComponent(rssUrl)}`)];
 }
 
 /** The public RSS feed is the last ~50 diary entries. The export zip is the full library. */

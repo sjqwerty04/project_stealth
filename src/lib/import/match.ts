@@ -1,3 +1,4 @@
+import { apiUrl } from '../apiOrigin';
 import type { MediaType } from '../library/types';
 import { filmKey } from './letterboxd/parse';
 
@@ -32,7 +33,7 @@ async function lookupViaApi(title: string, year?: string): Promise<MatchedFilm |
   const params = new URLSearchParams({ title });
   if (year) params.set('year', year);
   try {
-    const res = await fetch(`/api/movie-lookup?${params.toString()}`);
+    const res = await fetch(apiUrl(`/api/movie-lookup?${params.toString()}`));
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.id) return null;

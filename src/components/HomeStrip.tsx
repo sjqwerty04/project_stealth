@@ -5,6 +5,7 @@ import type { CalendarEvent } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import YouTubeCover, { COVER_FADE_MS } from './YouTubeCover';
 import FilmLogo from './FilmLogo';
+import { apiUrl } from '../lib/apiOrigin';
 import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
@@ -41,7 +42,7 @@ async function loadFilmArt(film: SelectFilm): Promise<FilmArt> {
   const fallbackLogo = film.logo ?? null;
   try {
     const api = await fetch(
-      `/api/movie-images?id=${film.id}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`,
+      apiUrl(`/api/movie-images?id=${film.id}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`),
     );
     if (api.ok) {
       const data = await api.json();
@@ -157,7 +158,7 @@ function useDayClip(film: CalendarEvent | null) {
     const load = async () => {
       try {
         const api = await fetch(
-          `/api/movie-clip?id=${film.movieId}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`,
+          apiUrl(`/api/movie-clip?id=${film.movieId}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`),
         );
         if (api.ok) {
           const data = await api.json();
@@ -176,7 +177,7 @@ function useDayClip(film: CalendarEvent | null) {
       if (!TMDB_API_KEY || !film.movieId) {
         try {
           const images = await fetch(
-            `/api/movie-images?id=${film.movieId}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`,
+            apiUrl(`/api/movie-images?id=${film.movieId}&type=${film.mediaType === 'tv' ? 'tv' : 'movie'}`),
           );
           if (images.ok) {
             const data = await images.json();
