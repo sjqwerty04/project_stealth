@@ -1,0 +1,17 @@
+{
+  "name": "Selects",
+  "install": "npm ci && npx playwright install chromium",
+  "terminals": [
+    {
+      "name": "vite-dev",
+      "command": "npm run dev -- --host 127.0.0.1 --port 5173",
+      "description": "Vite dev server for the Selects web app on http://127.0.0.1:5173"
+    }
+  ],
+  "ports": [
+    {
+      "name": "vite dev server",
+      "port": 5173
+    }
+  ]
+}
