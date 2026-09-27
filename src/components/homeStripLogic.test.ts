@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, format, startOfDay } from 'date-fns';
-import { dayStageKey, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
+import { dayBillStep, dayStageKey, nightOrder, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 
 describe('home strip date param', () => {
   const now = startOfDay(new Date('2026-09-19T12:00:00'));
@@ -29,6 +29,23 @@ describe('selects loading chrome', () => {
     expect(showSelectsSkeleton('loading', 0)).toBe(true);
     expect(showSelectsSkeleton('ready', 0)).toBe(false);
     expect(showSelectsSkeleton('ready', 3)).toBe(false);
+  });
+});
+
+describe('night order', () => {
+  it('puts the film just added in front of the other film that night', () => {
+    const ordered = nightOrder([
+      { id: 'older', createdAt: { seconds: 10 } },
+      { id: 'newer', createdAt: { seconds: 20 } },
+    ]);
+    expect(ordered.map((film) => film.id)).toEqual(['newer', 'older']);
+  });
+
+  it('keeps a single film as the only slide', () => {
+    expect(dayBillStep(0, 1, 1)).toBe(0);
+    expect(dayBillStep(0, -1, 2)).toBe(0);
+    expect(dayBillStep(0, 1, 2)).toBe(1);
+    expect(dayBillStep(1, 1, 2)).toBe(1);
   });
 });
 

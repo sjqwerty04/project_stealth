@@ -9,7 +9,7 @@ import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, localDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
 import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
-import { dayStageKey, isSelectsDismissTarget, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
+import { dayBillStep, dayStageKey, isSelectsDismissTarget, nightOrder, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
@@ -241,32 +241,33 @@ function useDayClip(film: CalendarEvent | null) {
 function DayStage({
   film,
   onOpen,
-  onAddAnother,
   watchCount = 0,
   verdict,
   stageKey,
+  playing = true,
 }: {
   film: CalendarEvent;
   onOpen: () => void;
-  onAddAnother: () => void;
   watchCount?: number;
   verdict?: ReturnType<typeof eventVerdict>;
   stageKey: string;
+  playing?: boolean;
 }) {
   const clip = useDayClip(film);
   const shownVerdict = verdict ?? eventVerdict(film);
   const still = clip?.still || film.backdrop || film.poster;
   const logo = clip?.logo;
   const [clipOn, setClipOn] = useState(false);
+  const showClip = playing && Boolean(clip?.key);
 
   return (
     <div
-      data-testid="day-stage"
-      data-stage-key={stageKey}
+      data-testid={playing ? 'day-stage' : undefined}
+      data-stage-key={playing ? stageKey : undefined}
       className="absolute inset-0 overflow-hidden bg-black min-h-11"
       style={{ containerType: 'size' }}
     >
-      {clip?.key ? (
+      {showClip && clip?.key ? (
         <YouTubeCover
           key={clip.key}
           videoId={clip.key}
@@ -282,7 +283,7 @@ function DayStage({
       )}
       <span
         className="absolute inset-0 bg-black/35 pointer-events-none"
-        style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
+        style={{ opacity: showClip && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
       />
       <span className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
         <FilmLogo
@@ -291,14 +292,6 @@ function DayStage({
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.85))' }}
         />
       </span>
-      <button
-        type="button"
-        data-testid="add-another"
-        onClick={onAddAnother}
-        className="absolute top-2 left-2 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg"
-      >
-        Add another
-      </button>
       <span className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-none">
         {watchCount > 1 && (
           <span className="px-1.5 py-0.5 bg-black/70 font-spec text-[10px] uppercase tracking-widest text-fg" data-testid="day-stage-count">
@@ -313,6 +306,116 @@ function DayStage({
         onClick={onOpen}
         className="absolute inset-0 z-20 min-h-11"
       />
+    </div>
+  );
+}
+
+function DayBill({
+  films,
+  selected,
+  library,
+  onOpenMovie,
+  onAddAnother,
+}: {
+  films: CalendarEvent[];
+  selected: Date;
+  library: ReturnType<typeof useLibrary>['byId'];
+  onOpenMovie: (id: number, mediaType?: string) => void;
+  onAddAnother: () => void;
+}) {
+  const ordered = useMemo(() => nightOrder(films), [films]);
+  const [index, setIndex] = useState(0);
+  const identity = ordered.map((film) => film.id).join('|');
+  const seenIdentity = useRef(identity);
+  const startX = useRef<number | null>(null);
+  const origin = useRef<EventTarget | null>(null);
+  const swallowClick = useRef(false);
+
+  if (seenIdentity.current !== identity) {
+    seenIdentity.current = identity;
+    if (index !== 0) setIndex(0);
+  }
+  const active = Math.min(index, Math.max(0, ordered.length - 1));
+
+  const finishSwipe = (e: React.PointerEvent, apply: boolean) => {
+    if (ordered.length < 2 || startX.current == null) return;
+    const dx = e.clientX - startX.current;
+    const target = origin.current;
+    startX.current = null;
+    origin.current = null;
+    if (apply && Math.abs(dx) >= 40) {
+      swallowClick.current = true;
+      setIndex((current) => dayBillStep(current, dx < 0 ? 1 : -1, ordered.length));
+      return;
+    }
+    if (apply && target instanceof Element) {
+      const button = target.closest('button');
+      if (button instanceof HTMLButtonElement && !button.disabled) {
+        button.click();
+        swallowClick.current = true;
+      }
+    }
+  };
+
+  return (
+    <div
+      className="absolute inset-0 overflow-hidden"
+      data-testid="day-bill"
+      data-day-count={ordered.length}
+      data-day-index={active}
+      style={{ touchAction: ordered.length > 1 ? 'pan-y' : undefined }}
+      onPointerDown={(e) => {
+        if (ordered.length < 2) return;
+        startX.current = e.clientX;
+        origin.current = e.target;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerUp={(e) => finishSwipe(e, true)}
+      onPointerCancel={(e) => finishSwipe(e, false)}
+      onClickCapture={(e) => {
+        if (!swallowClick.current) return;
+        e.preventDefault();
+        e.stopPropagation();
+        swallowClick.current = false;
+      }}
+    >
+      <div
+        className="flex h-full"
+        style={{
+          transform: `translateX(-${active * 100}%)`,
+          transition: ordered.length > 1 ? 'transform 320ms ease' : 'none',
+        }}
+      >
+        {ordered.map((film, i) => (
+          <div key={film.id} className="relative h-full min-w-full shrink-0" inert={i === active ? undefined : true}>
+            <DayStage
+              film={film}
+              playing={i === active}
+              stageKey={dayStageKey(selected, film.movieId)}
+              watchCount={library.get(film.movieId)?.watchCount ?? 0}
+              verdict={library.get(film.movieId)?.verdict ?? eventVerdict(film)}
+              onOpen={() => onOpenMovie(film.movieId, film.mediaType)}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        data-testid="add-another"
+        data-carousel-control=""
+        onClick={onAddAnother}
+        className="absolute top-2 left-2 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg"
+      >
+        Add another
+      </button>
+      {ordered.length > 1 && (
+        <span
+          data-testid="day-bill-index"
+          className="absolute bottom-2 right-2 z-30 px-1.5 py-0.5 bg-black/75 font-spec text-[10px] uppercase tracking-widest text-fg pointer-events-none"
+        >
+          {active + 1} / {ordered.length}
+        </span>
+      )}
     </div>
   );
 }
@@ -533,13 +636,11 @@ export default function HomeStrip({
             className="relative mt-4 overflow-hidden"
             style={{ height: '28vh', maxHeight: 220, minHeight: 140 }}
           >
-            <DayStage
-              key={dayStageKey(selected, dayFilm.movieId)}
-              stageKey={dayStageKey(selected, dayFilm.movieId)}
-              film={dayFilm}
-              watchCount={library.get(dayFilm.movieId)?.watchCount ?? 0}
-              verdict={library.get(dayFilm.movieId)?.verdict ?? eventVerdict(dayFilm)}
-              onOpen={() => (dayLogs.length > 1 ? setDaySheet(selected) : onOpenMovie(dayFilm.movieId, dayFilm.mediaType))}
+            <DayBill
+              films={dayLogs}
+              selected={selected}
+              library={library}
+              onOpenMovie={onOpenMovie}
               onAddAnother={() => onAddMovie(selected)}
             />
           </div>
