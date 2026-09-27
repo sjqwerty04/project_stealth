@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
 import { eventVerdict, type CalendarEvent, type CalendarEventInput } from '../hooks/useCalendarLogs';
@@ -349,6 +349,7 @@ export default function HomeStrip({
   const { byId: library, films: libraryFilms } = useLibrary();
   const profilePicks = useProfileFilms();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
+  const alignedSpan = useRef('');
   const nights = useMemo(() => eventsWithWatchDates(events, libraryFilms), [events, libraryFilms]);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
@@ -420,14 +421,23 @@ export default function HomeStrip({
     setStageOpen(true);
   }, [dateParam]);
 
-  useEffect(() => {
+  const stripSpan = days.length ? dayKey(days[0]) : '';
+  const selectedKey = dayKey(selected);
+  useLayoutEffect(() => {
     const track = stripTrackRef.current;
     if (!track) return;
     const active = track.querySelector<HTMLElement>('[aria-pressed="true"]');
     if (!active) return;
-    const nextLeft = active.offsetLeft - track.clientWidth + active.offsetWidth;
+    const viewLeft = track.scrollLeft;
+    const viewRight = viewLeft + track.clientWidth;
+    const dayLeft = active.offsetLeft;
+    const dayRight = dayLeft + active.offsetWidth;
+    const visible = dayLeft >= viewLeft - 1 && dayRight <= viewRight + 1;
+    if (visible && alignedSpan.current === stripSpan) return;
+    alignedSpan.current = stripSpan;
+    const nextLeft = dayLeft - track.clientWidth + active.offsetWidth;
     track.scrollTo({ left: Math.max(0, nextLeft), behavior: 'instant' });
-  }, []);
+  }, [stripSpan, selectedKey]);
 
   return (
     <div
