@@ -1,5 +1,12 @@
 import { format } from 'date-fns';
 
+/** Calendar day in the viewer's zone. `toISOString()` is the previous day west of UTC. */
+export function localDayKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export function eventDayKey(date: unknown): string {
   if (date && typeof date === 'object') {
     const withToDate = date as { toDate?: () => Date };

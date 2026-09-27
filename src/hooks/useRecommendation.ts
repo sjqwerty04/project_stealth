@@ -10,6 +10,7 @@ import {
   mergeRecommendContext,
   readSelectsCache,
   recordTasteEvent,
+  selectsRefreshDelay,
   useTaste,
   writeSelectsCache,
   LAST_PICKS_FRESH_MS,
@@ -216,6 +217,8 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const [replacements, setReplacements] = useState<Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>>({});
   const picksRef = useRef(picks);
   const replacementsRef = useRef(replacements);
+  const refreshArmedAt = useRef<number | null>(null);
+  const refreshTimer = useRef<number | null>(null);
 
   const patchReplacement = useCallback((slotId: SelectSlotId, next: SelectReplacement) => {
     const current = { ...replacementsRef.current };
@@ -280,9 +283,11 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
 
     if (!hasMeaningfulContext(context)) {
-      setPicks([]);
-      setStatus('empty');
-      return [];
+      if (picksRef.current.length === 0) {
+        setPicks([]);
+        setStatus('empty');
+      }
+      return picksRef.current.length ? picksRef.current : [];
     }
 
     const existing = inflight.get(user.uid);
@@ -465,22 +470,36 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       return;
     }
     if (!hasMeaningfulContext(context)) {
-      setPicks([]);
-      setStatus('empty');
+      if (picksRef.current.length === 0) {
+        setPicks([]);
+        setStatus('empty');
+      }
       return;
     }
     void generateRecommendation(false);
   }, [user, tasteLoading, libraryLoading, snapshot, context, generateRecommendation, exclusionList, fillOpenSlots]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+      refreshArmedAt.current = null;
+      return;
+    }
     const cached = readSelectsCache(user.uid);
-    if (!cached?.at || !cached.picks.length) return;
-    const remaining = LAST_PICKS_FRESH_MS - (Date.now() - cached.at);
-    const t = window.setTimeout(() => {
+    const delay = selectsRefreshDelay(
+      refreshArmedAt.current,
+      cached?.picks.length ? cached.at : undefined,
+      Date.now(),
+      LAST_PICKS_FRESH_MS,
+    );
+    if (delay == null || !cached) return;
+    refreshArmedAt.current = cached.at;
+    if (refreshTimer.current) window.clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(() => {
+      refreshTimer.current = null;
       void generateRecommendation(true);
-    }, Math.max(0, remaining));
-    return () => window.clearTimeout(t);
+    }, delay);
   }, [user, picks, generateRecommendation]);
 
   const rateRecommendation = useCallback(
@@ -533,7 +552,12 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const refreshRecommendation = useCallback(() => generateRecommendation(true), [generateRecommendation]);
 
   const runSlotReplacement = useCallback(
-    async (slotId: SelectSlotId, verdict?: Verdict, feedbackSaved = false) => {
+    async (
+      slotId: SelectSlotId,
+      verdict?: Verdict,
+      feedbackSaved = false,
+      beforeRate?: (rec: RecommendationResult) => Promise<void>,
+    ) => {
       const busy = replacementsRef.current[slotId];
       if (!user || (busy && (busy.phase === 'saving' || busy.phase === 'replacing'))) return;
       const rec = picksRef.current[slotId];
@@ -560,6 +584,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           feedbackSaved,
           saveFeedback: async () => {
             if (!verdict) throw new Error('Verdict is required');
+            if (beforeRate) await beforeRate(rec);
             await rateRecommendation(rec, verdict);
           },
           onFeedbackSaved: () => {
@@ -626,6 +651,15 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     [runSlotReplacement],
   );
 
+  const logSelectToday = useCallback(
+    (
+      slotId: SelectSlotId,
+      verdict: Verdict,
+      writeNight: (rec: RecommendationResult) => Promise<void>,
+    ) => runSlotReplacement(slotId, verdict, false, writeNight),
+    [runSlotReplacement],
+  );
+
   const retrySelectReplacement = useCallback(
     (slotId: SelectSlotId) => {
       const failed = replacementsRef.current[slotId];
@@ -650,6 +684,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     replacement,
     replacements,
     replaceSelect,
+    logSelectToday,
     retrySelectReplacement,
   };
 }

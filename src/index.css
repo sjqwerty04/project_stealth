@@ -103,6 +103,11 @@ h1, h2, h3 {
   padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
 }
 
+.above-tabs {
+  z-index: 60;
+  padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+}
+
 .hero-video-wrap:fullscreen,
 .hero-video-wrap:-webkit-full-screen {
   background: #000;

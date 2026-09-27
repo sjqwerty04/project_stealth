@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
-import type { CalendarEvent } from '../hooks/useCalendarLogs';
+import { eventVerdict, type CalendarEvent, type CalendarEventInput } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import YouTubeCover, { COVER_FADE_MS } from './YouTubeCover';
 import FilmLogo from './FilmLogo';
 import { eventsWithWatchDates } from '../lib/filmNights';
-import { eventDayKey, stripFill } from '../lib/stripDays';
+import { eventDayKey, localDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
 import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
-import { dayStageKey, isSelectsDismissTarget, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
+import { dayBillStep, dayStageKey, isSelectsDismissTarget, nightOrder, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
@@ -17,7 +17,6 @@ import { useLibrary } from '../lib/library';
 import { useProfileFilms } from '../hooks/useProfileFilms';
 import FeedbackFAB from './FeedbackFAB';
 import { VerdictBadge } from './VerdictPicker';
-import { eventVerdict } from '../hooks/useCalendarLogs';
 
 export type { SelectFilm };
 
@@ -30,7 +29,7 @@ function dayKey(d: Date) {
   return format(d, 'yyyy-MM-dd');
 }
 
-function tmdbImage(path: string | null | undefined, size: 'w500' | 'w780' = 'w780') {
+function tmdbImage(path: string | null | undefined, size: 'w500' | 'w780' | 'original' = 'w780') {
   if (!path) return null;
   if (path.startsWith('http')) return path;
   return `https://image.tmdb.org/t/p/${size}${path}`;
@@ -73,7 +72,7 @@ async function loadFilmArt(film: SelectFilm): Promise<FilmArt> {
       pool[0];
     const stillPath = data?.stills?.[0]?.file_path || data?.backdrops?.[0]?.file_path || null;
     return {
-      logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'w500') : fallbackLogo,
+      logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'original') : fallbackLogo,
       still: stillPath ? tmdbImage(stillPath, 'w780') : fallbackStill,
     };
   } catch {
@@ -219,7 +218,7 @@ function useDayClip(film: CalendarEvent | null) {
           pool[0];
         const next: DayClip = {
           key: trailer?.key ?? null,
-          logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'w500') : null,
+          logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'original') : null,
           still: tmdbImage(imagesData?.backdrops?.[0]?.file_path) || fallback.still,
         };
         clipCache.set(cacheKey, next);
@@ -245,27 +244,30 @@ function DayStage({
   watchCount = 0,
   verdict,
   stageKey,
+  playing = true,
 }: {
   film: CalendarEvent;
   onOpen: () => void;
   watchCount?: number;
   verdict?: ReturnType<typeof eventVerdict>;
   stageKey: string;
+  playing?: boolean;
 }) {
   const clip = useDayClip(film);
   const shownVerdict = verdict ?? eventVerdict(film);
   const still = clip?.still || film.backdrop || film.poster;
   const logo = clip?.logo;
   const [clipOn, setClipOn] = useState(false);
+  const showClip = playing && Boolean(clip?.key);
 
   return (
     <div
-      data-testid="day-stage"
-      data-stage-key={stageKey}
+      data-testid={playing ? 'day-stage' : undefined}
+      data-stage-key={playing ? stageKey : undefined}
       className="absolute inset-0 overflow-hidden bg-black min-h-11"
       style={{ containerType: 'size' }}
     >
-      {clip?.key ? (
+      {showClip && clip?.key ? (
         <YouTubeCover
           key={clip.key}
           videoId={clip.key}
@@ -281,15 +283,12 @@ function DayStage({
       )}
       <span
         className="absolute inset-0 bg-black/35 pointer-events-none"
-        style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
+        style={{ opacity: showClip && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
       />
-      <span
-        className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none"
-        style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
-      >
+      <span className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
         <FilmLogo
           src={logo}
-          className="w-[82%] max-h-[46%] object-contain"
+          className="w-[36%] max-h-16 object-contain"
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.85))' }}
         />
       </span>
@@ -311,6 +310,116 @@ function DayStage({
   );
 }
 
+function DayBill({
+  films,
+  selected,
+  library,
+  onOpenMovie,
+  onAddAnother,
+}: {
+  films: CalendarEvent[];
+  selected: Date;
+  library: ReturnType<typeof useLibrary>['byId'];
+  onOpenMovie: (id: number, mediaType?: string) => void;
+  onAddAnother: () => void;
+}) {
+  const ordered = useMemo(() => nightOrder(films), [films]);
+  const [index, setIndex] = useState(0);
+  const identity = ordered.map((film) => film.id).join('|');
+  const seenIdentity = useRef(identity);
+  const startX = useRef<number | null>(null);
+  const origin = useRef<EventTarget | null>(null);
+  const swallowClick = useRef(false);
+
+  if (seenIdentity.current !== identity) {
+    seenIdentity.current = identity;
+    if (index !== 0) setIndex(0);
+  }
+  const active = Math.min(index, Math.max(0, ordered.length - 1));
+
+  const finishSwipe = (e: React.PointerEvent, apply: boolean) => {
+    if (ordered.length < 2 || startX.current == null) return;
+    const dx = e.clientX - startX.current;
+    const target = origin.current;
+    startX.current = null;
+    origin.current = null;
+    if (apply && Math.abs(dx) >= 40) {
+      swallowClick.current = true;
+      setIndex((current) => dayBillStep(current, dx < 0 ? 1 : -1, ordered.length));
+      return;
+    }
+    if (apply && target instanceof Element) {
+      const button = target.closest('button');
+      if (button instanceof HTMLButtonElement && !button.disabled) {
+        button.click();
+        swallowClick.current = true;
+      }
+    }
+  };
+
+  return (
+    <div
+      className="absolute inset-0 overflow-hidden"
+      data-testid="day-bill"
+      data-day-count={ordered.length}
+      data-day-index={active}
+      style={{ touchAction: ordered.length > 1 ? 'pan-y' : undefined }}
+      onPointerDown={(e) => {
+        if (ordered.length < 2) return;
+        startX.current = e.clientX;
+        origin.current = e.target;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerUp={(e) => finishSwipe(e, true)}
+      onPointerCancel={(e) => finishSwipe(e, false)}
+      onClickCapture={(e) => {
+        if (!swallowClick.current) return;
+        e.preventDefault();
+        e.stopPropagation();
+        swallowClick.current = false;
+      }}
+    >
+      <div
+        className="flex h-full"
+        style={{
+          transform: `translateX(-${active * 100}%)`,
+          transition: ordered.length > 1 ? 'transform 320ms ease' : 'none',
+        }}
+      >
+        {ordered.map((film, i) => (
+          <div key={film.id} className="relative h-full min-w-full shrink-0" inert={i === active ? undefined : true}>
+            <DayStage
+              film={film}
+              playing={i === active}
+              stageKey={dayStageKey(selected, film.movieId)}
+              watchCount={library.get(film.movieId)?.watchCount ?? 0}
+              verdict={library.get(film.movieId)?.verdict ?? eventVerdict(film)}
+              onOpen={() => onOpenMovie(film.movieId, film.mediaType)}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        data-testid="add-another"
+        data-carousel-control=""
+        onClick={onAddAnother}
+        className="absolute top-2 left-2 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg"
+      >
+        Add another
+      </button>
+      {ordered.length > 1 && (
+        <span
+          data-testid="day-bill-index"
+          className="absolute bottom-2 right-2 z-30 px-1.5 py-0.5 bg-black/75 font-spec text-[10px] uppercase tracking-widest text-fg pointer-events-none"
+        >
+          {active + 1} / {ordered.length}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function HomeStrip({
   events,
   insightsLabel,
@@ -318,6 +427,7 @@ export default function HomeStrip({
   onOpenMovie,
   onOpenProfile,
   onAddMovie,
+  onLogNight,
 }: {
   events: CalendarEvent[];
   insightsLabel?: string | null;
@@ -325,6 +435,7 @@ export default function HomeStrip({
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   onOpenProfile?: () => void;
   onAddMovie: (date: Date) => void;
+  onLogNight: (event: CalendarEventInput) => Promise<unknown>;
 }) {
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
@@ -335,11 +446,13 @@ export default function HomeStrip({
     status,
     replacements,
     replaceSelect,
+    logSelectToday,
     retrySelectReplacement,
   } = useRecommendation({ events });
   const { byId: library, films: libraryFilms } = useLibrary();
   const profilePicks = useProfileFilms();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
+  const alignedSpan = useRef('');
   const nights = useMemo(() => eventsWithWatchDates(events, libraryFilms), [events, libraryFilms]);
 
   // Span from the earliest logged night (floored at five years) to sixty days ahead.
@@ -411,14 +524,23 @@ export default function HomeStrip({
     setStageOpen(true);
   }, [dateParam]);
 
-  useEffect(() => {
+  const stripSpan = days.length ? dayKey(days[0]) : '';
+  const selectedKey = dayKey(selected);
+  useLayoutEffect(() => {
     const track = stripTrackRef.current;
     if (!track) return;
     const active = track.querySelector<HTMLElement>('[aria-pressed="true"]');
     if (!active) return;
-    const nextLeft = active.offsetLeft - track.clientWidth + active.offsetWidth;
+    const viewLeft = track.scrollLeft;
+    const viewRight = viewLeft + track.clientWidth;
+    const dayLeft = active.offsetLeft;
+    const dayRight = dayLeft + active.offsetWidth;
+    const visible = dayLeft >= viewLeft - 1 && dayRight <= viewRight + 1;
+    if (visible && alignedSpan.current === stripSpan) return;
+    alignedSpan.current = stripSpan;
+    const nextLeft = dayLeft - track.clientWidth + active.offsetWidth;
     track.scrollTo({ left: Math.max(0, nextLeft), behavior: 'instant' });
-  }, []);
+  }, [stripSpan, selectedKey]);
 
   return (
     <div
@@ -485,6 +607,25 @@ export default function HomeStrip({
             onVerdict={(slotId, verdict) => {
               void replaceSelect(slotId, verdict);
             }}
+            onLogToday={(slotId, verdict) => {
+              const day = localDayKey(new Date());
+              void logSelectToday(slotId, verdict, async (rec) => {
+                await onLogNight({
+                  movieId: rec.movieId,
+                  title: rec.title,
+                  poster: rec.poster,
+                  date: `${day}T12:00:00`,
+                  inviteFriend: false,
+                  verdict,
+                  status: 'watched',
+                  backdrop: rec.backdrop,
+                  mediaType: rec.mediaType,
+                  year: rec.year,
+                  runtimeLabel: rec.runtime,
+                  source: 'select',
+                });
+              });
+            }}
             onRetry={(slotId) => {
               void retrySelectReplacement(slotId);
             }}
@@ -495,13 +636,12 @@ export default function HomeStrip({
             className="relative mt-4 overflow-hidden"
             style={{ height: '28vh', maxHeight: 220, minHeight: 140 }}
           >
-            <DayStage
-              key={dayStageKey(selected, dayFilm.movieId)}
-              stageKey={dayStageKey(selected, dayFilm.movieId)}
-              film={dayFilm}
-              watchCount={library.get(dayFilm.movieId)?.watchCount ?? 0}
-              verdict={library.get(dayFilm.movieId)?.verdict ?? eventVerdict(dayFilm)}
-              onOpen={() => (dayLogs.length > 1 ? setDaySheet(selected) : onOpenMovie(dayFilm.movieId, dayFilm.mediaType))}
+            <DayBill
+              films={dayLogs}
+              selected={selected}
+              library={library}
+              onOpenMovie={onOpenMovie}
+              onAddAnother={() => onAddMovie(selected)}
             />
           </div>
         ) : null}
@@ -551,13 +691,9 @@ export default function HomeStrip({
                   aria-label={film ? format(d, 'EEEE MMM d') : `Log a film on ${format(d, 'EEEE MMM d')}`}
                   aria-pressed={active}
                   onClick={() => {
-                    if (film && active) {
-                      setDaySheet(d);
-                      return;
-                    }
                     setSelected(d);
                     setStageOpen(true);
-                    if (!film) onAddMovie(d);
+                    if (logs.length === 0) onAddMovie(d);
                   }}
                   className="relative flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >

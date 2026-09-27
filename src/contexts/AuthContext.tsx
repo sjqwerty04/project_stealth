@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await signInWithEmailAndPassword(auth, email, password);
     await logUserSignedIn('email');
     const whitelisted = await checkWhitelistInternal(result.user.email || '');
-    setState((prev) => ({ ...prev, isWhitelisted: whitelisted }));
+    setState({ user: result.user, loading: false, isWhitelisted: whitelisted });
   };
 
   const signUp = async (email: string, password: string) => {
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await logUserSignedUp('email');
     sessionStorage.removeItem('appInvite');
-    setState((prev) => ({ ...prev, isWhitelisted: true }));
+    setState({ user: result.user, loading: false, isWhitelisted: true });
   };
 
   const signOut = async () => {

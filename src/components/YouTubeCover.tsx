@@ -5,7 +5,7 @@ type Props = {
   title?: string;
   testId?: string;
   poster?: string | null;
-  /** How long the still (and the logo above it) stays up before the crossfade. */
+  /** How long the still stays up before it fades. The title logo stays centered on the trailer. */
   holdMs?: number;
   onReveal?: (playing: boolean) => void;
 };
