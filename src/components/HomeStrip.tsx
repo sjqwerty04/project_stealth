@@ -241,12 +241,14 @@ function useDayClip(film: CalendarEvent | null) {
 function DayStage({
   film,
   onOpen,
+  onAddAnother,
   watchCount = 0,
   verdict,
   stageKey,
 }: {
   film: CalendarEvent;
   onOpen: () => void;
+  onAddAnother: () => void;
   watchCount?: number;
   verdict?: ReturnType<typeof eventVerdict>;
   stageKey: string;
@@ -289,6 +291,14 @@ function DayStage({
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.85))' }}
         />
       </span>
+      <button
+        type="button"
+        data-testid="add-another"
+        onClick={onAddAnother}
+        className="absolute top-2 left-2 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg"
+      >
+        Add another
+      </button>
       <span className="absolute top-2 right-2 z-10 flex items-center gap-1.5 pointer-events-none">
         {watchCount > 1 && (
           <span className="px-1.5 py-0.5 bg-black/70 font-spec text-[10px] uppercase tracking-widest text-fg" data-testid="day-stage-count">
@@ -520,6 +530,7 @@ export default function HomeStrip({
               watchCount={library.get(dayFilm.movieId)?.watchCount ?? 0}
               verdict={library.get(dayFilm.movieId)?.verdict ?? eventVerdict(dayFilm)}
               onOpen={() => (dayLogs.length > 1 ? setDaySheet(selected) : onOpenMovie(dayFilm.movieId, dayFilm.mediaType))}
+              onAddAnother={() => onAddMovie(selected)}
             />
           </div>
         ) : null}
@@ -571,7 +582,7 @@ export default function HomeStrip({
                   onClick={() => {
                     setSelected(d);
                     setStageOpen(true);
-                    onAddMovie(d);
+                    if (logs.length === 0) onAddMovie(d);
                   }}
                   className="relative flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >
