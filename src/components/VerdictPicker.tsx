@@ -28,17 +28,19 @@ export function VerdictBadge({ verdict, size = 20 }: { verdict: Verdict; size?: 
   );
 }
 
-/** Three chips: Liked, It's okay, Nope. */
+/** Three chips: Liked, It's okay, Nope. Pass labels to rename a chip without changing the verdict. */
 export default function VerdictPicker({
   value,
   onChange,
   disabled = false,
   size = 'md',
+  labels,
 }: {
   value: Verdict | null;
   onChange: (verdict: Verdict) => void;
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  labels?: Partial<Record<Verdict, string>>;
 }) {
   const pad = size === 'lg' ? 'p-4' : size === 'sm' ? 'py-2 px-3' : 'p-3';
   const iconSize = size === 'lg' ? 28 : size === 'sm' ? 14 : 20;
@@ -62,7 +64,7 @@ export default function VerdictPicker({
             style={{ borderRadius: 0 }}
           >
             <VerdictIcon verdict={v} size={iconSize} className={active ? 'fill-current' : ''} />
-            <span className={`font-bold ${size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>{VERDICT_LABEL[v]}</span>
+            <span className={`font-bold ${size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>{labels?.[v] ?? VERDICT_LABEL[v]}</span>
           </button>
         );
       })}

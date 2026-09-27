@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   collection,
   doc,
@@ -50,19 +50,22 @@ export function eventVerdict(event: { verdict?: unknown; rating?: unknown } | nu
 
 export function useCalendarLogs() {
   const { user } = useAuth();
+  const uid = user?.uid ?? null;
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
+      loadedFor.current = null;
       setEvents([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    const logsRef = collection(db, 'users', user.uid, 'calendar_logs');
+    if (loadedFor.current !== uid) setLoading(true);
+    const logsRef = collection(db, 'users', uid, 'calendar_logs');
     const logsQuery = query(logsRef, orderBy('date', 'desc'));
 
     const unsubscribe = onSnapshot(
@@ -73,6 +76,7 @@ export function useCalendarLogs() {
           return { id: d.id, ...data, verdict: verdictOf(data) } as CalendarEvent;
         });
         setEvents(logs);
+        loadedFor.current = uid;
         setLoading(false);
         setError(null);
       },
@@ -84,7 +88,7 @@ export function useCalendarLogs() {
     );
 
     return unsubscribe;
-  }, [user]);
+  }, [uid]);
 
   const addEvent = useCallback(
     async (eventData: CalendarEventInput): Promise<string> => {

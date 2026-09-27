@@ -6,6 +6,7 @@ import {
   readSelectsCache,
   resetSelectsCacheForTesting,
   selectsCacheFresh,
+  selectsRefreshDelay,
   writeSelectsCache,
 } from './selectsCache';
 import { LAST_PICKS_FRESH_MS, type TastePick } from './types';
@@ -15,6 +16,15 @@ const picks: TastePick[] = [
   { movieId: 11524, title: 'Thief', year: '1981', poster: 'y', whyMatch: 'Heat lineage.', confidence: 0.8 },
   { movieId: 8195, title: 'Ronin', year: '1998', poster: 'z', whyMatch: 'Crews.', confidence: 0.7 },
 ];
+
+describe('selects refresh', () => {
+  it('arms once for a cache stamp', () => {
+    expect(selectsRefreshDelay(null, 1000, 1000, LAST_PICKS_FRESH_MS)).toBe(LAST_PICKS_FRESH_MS);
+    expect(selectsRefreshDelay(1000, 1000, 1500, LAST_PICKS_FRESH_MS)).toBeNull();
+    expect(selectsRefreshDelay(1000, 5000, 5000, LAST_PICKS_FRESH_MS)).toBe(LAST_PICKS_FRESH_MS);
+    expect(selectsRefreshDelay(null, undefined, 1000, LAST_PICKS_FRESH_MS)).toBeNull();
+  });
+});
 
 describe('selectsCache', () => {
   it('returns the same movie ids after memory is cleared', () => {

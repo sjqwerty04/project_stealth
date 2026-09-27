@@ -9,6 +9,7 @@ import {
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_MS,
   carouselArtIdsStillNeeded,
+  selectsAutoplayRunning,
   slideIdentityKey,
   snapLoopIndex,
 } from './selectsCarouselLogic';
@@ -344,6 +345,24 @@ describe('relatedFromWhy', () => {
   });
 });
 
+describe('selects autoplay', () => {
+  it('pauses while a verdict, a log, or a replacement is open', () => {
+    const base = {
+      autoplay: true,
+      paused: false,
+      pickerOpen: false,
+      logOpen: false,
+      replacing: false,
+      count: 3,
+    };
+    expect(selectsAutoplayRunning(base)).toBe(true);
+    expect(selectsAutoplayRunning({ ...base, pickerOpen: true })).toBe(false);
+    expect(selectsAutoplayRunning({ ...base, logOpen: true })).toBe(false);
+    expect(selectsAutoplayRunning({ ...base, replacing: true })).toBe(false);
+    expect(selectsAutoplayRunning({ ...base, count: 1 })).toBe(false);
+  });
+});
+
 describe('select card watched control', () => {
   const film = {
     slotId: 1 as const,
@@ -367,10 +386,36 @@ describe('select card watched control', () => {
     );
 
     expect(html).toContain('Watched?');
+    expect(html).toContain('log-today-1');
     expect(html).toContain('select-open-movie');
     expect(html).toContain('Liked');
     expect(html).toContain("It&#x27;s okay");
     expect(html).toContain('Nope');
+    expect(html).not.toContain('Meh');
+    expect(html).not.toContain('Dislike');
+  });
+
+  it('asks Liked, Meh, or Dislike on the card for Log Today', () => {
+    const html = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: false,
+        logOpen: true,
+        replacement: null,
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(html).toContain('data-testid="log-today-picker-1"');
+    expect(html).toContain('Liked');
+    expect(html).toContain('Meh');
+    expect(html).toContain('Dislike');
+    expect(html).not.toContain("It&#x27;s okay");
+    expect(html).not.toContain('Nope');
   });
 
   it('shows loading only in the affected slot and keeps its title', () => {
