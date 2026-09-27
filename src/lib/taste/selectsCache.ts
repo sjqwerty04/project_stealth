@@ -61,6 +61,18 @@ export function firstSentence(text: string): string {
   return (match ? match[0] : protectedText).replace(/\0/g, '.').trim();
 }
 
+/** Milliseconds until a 6h refresh. Null means this cache stamp is already armed. */
+export function selectsRefreshDelay(
+  armedAt: number | null,
+  cachedAt: number | undefined,
+  now: number,
+  freshMs: number,
+): number | null {
+  if (cachedAt == null || !Number.isFinite(cachedAt)) return null;
+  if (armedAt === cachedAt) return null;
+  return Math.max(0, freshMs - (now - cachedAt));
+}
+
 export function selectsCacheFresh(entry: CachedSelects | null, now = Date.now()): entry is CachedSelects {
   if (!entry?.picks?.length) return false;
   if (!Number.isFinite(entry.at) || entry.at <= 0) return false;

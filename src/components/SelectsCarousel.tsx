@@ -4,10 +4,12 @@ import {
   SELECTS_AUTOPLAY_MS,
   SELECTS_TRANSITION_EASE,
   SELECTS_TRANSITION_MS,
+  selectsAutoplayRunning,
   slideIdentityKey,
   snapLoopIndex,
   type RelatedPoster,
 } from './selectsCarouselLogic';
+import { replacingBlocksGenerate } from '../hooks/selectReplacement';
 import type { SelectReplacement, SelectSlotId } from '../hooks/useRecommendation';
 import type { Verdict } from '../lib/library';
 import VerdictPicker from './VerdictPicker';
@@ -32,25 +34,38 @@ export type SelectFilm = {
 
 export type FilmArt = { logo: string | null; still: string | null };
 
+const LOG_TODAY_LABELS: Partial<Record<Verdict, string>> = {
+  okay: 'Meh',
+  nope: 'Dislike',
+};
+
 export function SelectCard({
   film,
   art,
   pickerOpen,
+  logOpen = false,
   replacement,
   onOpenMovie,
   onOpenPicker,
   onClosePicker,
   onVerdict,
+  onOpenLog = () => {},
+  onCloseLog = () => {},
+  onLogVerdict = () => {},
   onRetry,
 }: {
   film: SelectFilm;
   art?: FilmArt;
   pickerOpen: boolean;
+  logOpen?: boolean;
   replacement: SelectReplacement;
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   onOpenPicker: () => void;
   onClosePicker: () => void;
   onVerdict: (verdict: Verdict) => void;
+  onOpenLog?: () => void;
+  onCloseLog?: () => void;
+  onLogVerdict?: (verdict: Verdict) => void;
   onRetry: () => void;
 }) {
   const still = art?.still || film.backdrop || film.poster;
@@ -113,6 +128,31 @@ export function SelectCard({
       >
         Watched?
       </button>
+      <button
+        type="button"
+        data-testid={`log-today-${film.slotId}`}
+        data-carousel-control
+        onClick={logOpen ? onCloseLog : onOpenLog}
+        disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+        className="relative z-30 w-full min-h-11 border-x border-b border-line bg-base px-3 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+      >
+        Log Today
+      </button>
+      {logOpen ? (
+        <div
+          data-carousel-control
+          data-testid={`log-today-picker-${film.slotId}`}
+          className="relative z-30 border-x border-b border-line bg-base-2 p-3"
+        >
+          <VerdictPicker
+            value={null}
+            onChange={onLogVerdict}
+            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            size="sm"
+            labels={LOG_TODAY_LABELS}
+          />
+        </div>
+      ) : null}
       {pickerOpen ? (
         <div
           data-carousel-control
@@ -201,6 +241,7 @@ export default function SelectsCarousel({
   onOpenMovie,
   replacements = {},
   onVerdict,
+  onLogToday,
   onRetry,
   autoplay = true,
   intervalMs = SELECTS_AUTOPLAY_MS,
@@ -210,6 +251,7 @@ export default function SelectsCarousel({
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   replacements?: Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>;
   onVerdict: (slotId: SelectSlotId, verdict: Verdict) => void;
+  onLogToday?: (slotId: SelectSlotId, verdict: Verdict) => void;
   onRetry: (slotId: SelectSlotId) => void;
   autoplay?: boolean;
   intervalMs?: number;
@@ -218,6 +260,7 @@ export default function SelectsCarousel({
   const [slideTransition, setSlideTransition] = useState(true);
   const [paused, setPaused] = useState(false);
   const [pickerSlotId, setPickerSlotId] = useState<SelectSlotId | null>(null);
+  const [logSlotId, setLogSlotId] = useState<SelectSlotId | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
   const capturingSwipe = useRef(false);
@@ -261,8 +304,17 @@ export default function SelectsCarousel({
     return () => window.clearTimeout(t);
   }, [slide, count]);
 
+  const autoplayOn = selectsAutoplayRunning({
+    autoplay,
+    paused,
+    pickerOpen: pickerSlotId !== null,
+    logOpen: logSlotId !== null,
+    replacing: replacingBlocksGenerate(replacements),
+    count,
+  });
+
   useEffect(() => {
-    if (!autoplay || paused || pickerSlotId !== null || count < 2) return;
+    if (!autoplayOn) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     const t = window.setInterval(() => {
@@ -273,7 +325,7 @@ export default function SelectsCarousel({
       setSlideTransition(true);
     }, intervalMs);
     return () => window.clearInterval(t);
-  }, [autoplay, paused, pickerSlotId, count, intervalMs]);
+  }, [autoplayOn, count, intervalMs]);
 
   useEffect(() => {
     return () => {
@@ -378,13 +430,26 @@ export default function SelectsCarousel({
               film={film}
               art={art[film.id]}
               pickerOpen={pickerSlotId === film.slotId}
+              logOpen={logSlotId === film.slotId}
               replacement={replacements[film.slotId] ?? null}
               onOpenMovie={onOpenMovie}
-              onOpenPicker={() => setPickerSlotId(film.slotId)}
+              onOpenPicker={() => {
+                setLogSlotId(null);
+                setPickerSlotId(film.slotId);
+              }}
               onClosePicker={() => setPickerSlotId(null)}
               onVerdict={(verdict) => {
                 setPickerSlotId(null);
                 onVerdict(film.slotId, verdict);
+              }}
+              onOpenLog={() => {
+                setPickerSlotId(null);
+                setLogSlotId(film.slotId);
+              }}
+              onCloseLog={() => setLogSlotId(null)}
+              onLogVerdict={(verdict) => {
+                setLogSlotId(null);
+                onLogToday?.(film.slotId, verdict);
               }}
               onRetry={() => onRetry(film.slotId)}
             />

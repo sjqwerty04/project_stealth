@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
-import YouTubeCover, { COVER_FADE_MS } from '../components/YouTubeCover';
+import YouTubeCover from '../components/YouTubeCover';
 import FilmLogo from '../components/FilmLogo';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useMovieDetails } from '../hooks/useMovieDetails';
@@ -22,6 +22,7 @@ import { recordTasteEvent, useTaste } from '../lib/taste';
 import { useAuth } from '../hooks/useAuth';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import { setVerdict as setLedgerVerdict, useLibraryFilm, type Verdict } from '../lib/library';
+import { localDayKey } from '../lib/stripDays';
 
 const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
   if (!path) return null;
@@ -58,14 +59,14 @@ export default function MovieDetailScreen() {
   const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
   const [isMarkingSeen, setIsMarkingSeen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(preSelectedDate || new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(preSelectedDate || localDayKey(new Date()));
   const [showRatingPicker, setShowRatingPicker] = useState(false);
+  const [ratingDismissed, setRatingDismissed] = useState(false);
   const [selectedRating, setSelectedRating] = useState<Verdict | null>(null);
   // Key the ledger on the route id, not details.id, so the status survives the offline fallback catalogue.
   const { film: libraryFilm } = useLibraryFilm(id ? Number(id) : details?.id);
   const [showSuccessState, setShowSuccessState] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const [clipOn, setClipOn] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Reddit-grounded starter questions + known-for + letterboxd.
@@ -81,10 +82,6 @@ export default function MovieDetailScreen() {
   const [seedQuestion, setSeedQuestion] = useState<string | null>(null);
   const [showChips, setShowChips] = useState(true);
   const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    setClipOn(false);
-  }, [id, details?.heroVideo?.key]);
 
   // Floating chips hide on scroll-down, reveal on scroll-up.
   useEffect(() => {
@@ -118,16 +115,14 @@ export default function MovieDetailScreen() {
     }
   }, [id, mediaType, fetchDetails]);
 
-  // Auto-show rating picker when landing on page with past pre-selected date
+  // Ask for a verdict once when the strip already chose a past day. Cancel stays cancelled.
   useEffect(() => {
-    if (preSelectedDate && isPastDate(preSelectedDate) && !showRatingPicker && !showSuccessState) {
-      // Small delay to ensure component is fully mounted
-      const timer = setTimeout(() => {
-        setShowRatingPicker(true);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [preSelectedDate, isPastDate, showRatingPicker, showSuccessState]);
+    if (!preSelectedDate || !isPastDate(preSelectedDate) || showSuccessState || ratingDismissed) return;
+    const timer = setTimeout(() => {
+      setShowRatingPicker(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [preSelectedDate, isPastDate, showSuccessState, ratingDismissed]);
 
   // Log movie view for activity tracking
   useEffect(() => {
@@ -316,7 +311,6 @@ export default function MovieDetailScreen() {
               title="Clip"
               poster={backdropUrl}
               holdMs={details.logoPath ? 1100 : 400}
-              onReveal={setClipOn}
             />
             {/* Tap overlay — intercepts all taps so YouTube UI never fires.
                 On tap: go fullscreen + unmute so audio plays. */}
@@ -347,7 +341,7 @@ export default function MovieDetailScreen() {
         {/* Back */}
         <button
           onClick={handleBack}
-          className="absolute top-4 left-4 z-10 p-2.5 min-h-11 min-w-11 bg-black/50 text-fg flex items-center gap-1.5"
+          className="fixed top-4 left-4 z-[70] p-2.5 min-h-11 min-w-11 bg-black/50 text-fg flex items-center gap-1.5"
           aria-label="Go back"
         >
           <ArrowLeft size={20} />
@@ -358,7 +352,7 @@ export default function MovieDetailScreen() {
         {mediaType === 'movie' && (
           <button
             onClick={() => navigate(`/dna/${details.id}`)}
-            className="absolute top-4 right-4 z-10 px-3.5 py-2 min-h-11 bg-black/50 text-fg"
+            className="fixed top-4 right-4 z-[70] px-3.5 py-2 min-h-11 bg-black/50 text-fg"
             aria-label="Explore DNA"
           >
             <span className="text-base font-extrabold tracking-[-0.12em]">DNA</span>
@@ -375,16 +369,10 @@ export default function MovieDetailScreen() {
           </button>
         )}
 
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none"
-          style={{
-            opacity: details.heroVideo && clipOn ? 0 : 1,
-            transition: `opacity ${COVER_FADE_MS}ms ease`,
-          }}
-        >
+        <div className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
           <FilmLogo
-            src={details.logoPath ? `https://image.tmdb.org/t/p/w500${details.logoPath}` : null}
-            className="w-[82%] max-h-32 object-contain drop-shadow-2xl"
+            src={details.logoPath ? `https://image.tmdb.org/t/p/original${details.logoPath}` : null}
+            className="w-[36%] max-h-16 object-contain drop-shadow-2xl"
           />
           <h1 className="sr-only">{details.title}</h1>
         </div>
@@ -587,7 +575,7 @@ export default function MovieDetailScreen() {
 
       {/* Date Picker */}
       {showDatePicker && !showRatingPicker && !showSuccessState && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="above-tabs fixed inset-0 flex items-end justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm p-5 rounded-2xl bg-[#18181b] border border-white/10 space-y-4 mb-4">
             <h3 className="font-bold text-white">Pick a date</h3>
             <input
@@ -617,7 +605,7 @@ export default function MovieDetailScreen() {
 
       {/* Rating Picker */}
       {showRatingPicker && !showSuccessState && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="above-tabs fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm p-6 rounded-2xl bg-[#18181b] border border-white/10 space-y-5 shadow-2xl">
             <div className="text-center">
               <h3 className="text-xl font-bold text-white mb-1">Log Movie</h3>
@@ -638,7 +626,7 @@ export default function MovieDetailScreen() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowRatingPicker(false); setSelectedRating(null); }}
+                onClick={() => { setShowRatingPicker(false); setSelectedRating(null); setRatingDismissed(true); }}
                 className="flex-1 py-3 rounded-xl border border-white/10 text-gray-400 hover:text-white font-medium transition-all"
               >
                 Cancel
@@ -658,7 +646,7 @@ export default function MovieDetailScreen() {
 
       {/* Success State */}
       {showSuccessState && details && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="above-tabs fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm p-6 rounded-2xl bg-[#18181b] border border-white/10 space-y-5 shadow-2xl text-center">
             <div className="flex flex-col items-center py-2">
               <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-4">

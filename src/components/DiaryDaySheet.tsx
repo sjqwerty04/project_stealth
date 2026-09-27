@@ -22,7 +22,7 @@ export default function DiaryDaySheet({
 }) {
   if (!date) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" data-testid="diary-day-sheet">
+    <div className="above-tabs fixed inset-0 flex items-end justify-center" data-testid="diary-day-sheet">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md bg-base border-t border-line p-5 space-y-4 max-h-[75vh] overflow-y-auto">
         <div className="flex items-center justify-between">

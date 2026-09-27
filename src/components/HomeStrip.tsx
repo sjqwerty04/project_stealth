@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { addDays, differenceInCalendarDays, format, isSameDay, parseISO, startOfDay, subDays, subYears } from 'date-fns';
-import type { CalendarEvent } from '../hooks/useCalendarLogs';
+import { eventVerdict, type CalendarEvent, type CalendarEventInput } from '../hooks/useCalendarLogs';
 import { useRecommendation, type SelectSlotId } from '../hooks/useRecommendation';
 import YouTubeCover, { COVER_FADE_MS } from './YouTubeCover';
 import FilmLogo from './FilmLogo';
 import { eventsWithWatchDates } from '../lib/filmNights';
-import { eventDayKey, stripFill } from '../lib/stripDays';
+import { eventDayKey, localDayKey, stripFill } from '../lib/stripDays';
 import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
 import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
 import { dayStageKey, isSelectsDismissTarget, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
@@ -17,7 +17,6 @@ import { useLibrary } from '../lib/library';
 import { useProfileFilms } from '../hooks/useProfileFilms';
 import FeedbackFAB from './FeedbackFAB';
 import { VerdictBadge } from './VerdictPicker';
-import { eventVerdict } from '../hooks/useCalendarLogs';
 
 export type { SelectFilm };
 
@@ -30,7 +29,7 @@ function dayKey(d: Date) {
   return format(d, 'yyyy-MM-dd');
 }
 
-function tmdbImage(path: string | null | undefined, size: 'w500' | 'w780' = 'w780') {
+function tmdbImage(path: string | null | undefined, size: 'w500' | 'w780' | 'original' = 'w780') {
   if (!path) return null;
   if (path.startsWith('http')) return path;
   return `https://image.tmdb.org/t/p/${size}${path}`;
@@ -73,7 +72,7 @@ async function loadFilmArt(film: SelectFilm): Promise<FilmArt> {
       pool[0];
     const stillPath = data?.stills?.[0]?.file_path || data?.backdrops?.[0]?.file_path || null;
     return {
-      logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'w500') : fallbackLogo,
+      logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'original') : fallbackLogo,
       still: stillPath ? tmdbImage(stillPath, 'w780') : fallbackStill,
     };
   } catch {
@@ -219,7 +218,7 @@ function useDayClip(film: CalendarEvent | null) {
           pool[0];
         const next: DayClip = {
           key: trailer?.key ?? null,
-          logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'w500') : null,
+          logo: preferred?.file_path ? tmdbImage(preferred.file_path, 'original') : null,
           still: tmdbImage(imagesData?.backdrops?.[0]?.file_path) || fallback.still,
         };
         clipCache.set(cacheKey, next);
@@ -283,13 +282,10 @@ function DayStage({
         className="absolute inset-0 bg-black/35 pointer-events-none"
         style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
       />
-      <span
-        className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none"
-        style={{ opacity: clip?.key && clipOn ? 0 : 1, transition: `opacity ${COVER_FADE_MS}ms ease` }}
-      >
+      <span className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
         <FilmLogo
           src={logo}
-          className="w-[82%] max-h-[46%] object-contain"
+          className="w-[36%] max-h-16 object-contain"
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0,0,0,.85))' }}
         />
       </span>
@@ -318,6 +314,7 @@ export default function HomeStrip({
   onOpenMovie,
   onOpenProfile,
   onAddMovie,
+  onLogNight,
 }: {
   events: CalendarEvent[];
   insightsLabel?: string | null;
@@ -325,6 +322,7 @@ export default function HomeStrip({
   onOpenMovie: (id: number, mediaType?: string, whyMatch?: string) => void;
   onOpenProfile?: () => void;
   onAddMovie: (date: Date) => void;
+  onLogNight: (event: CalendarEventInput) => Promise<unknown>;
 }) {
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
@@ -335,6 +333,7 @@ export default function HomeStrip({
     status,
     replacements,
     replaceSelect,
+    logSelectToday,
     retrySelectReplacement,
   } = useRecommendation({ events });
   const { byId: library, films: libraryFilms } = useLibrary();
@@ -485,6 +484,25 @@ export default function HomeStrip({
             onVerdict={(slotId, verdict) => {
               void replaceSelect(slotId, verdict);
             }}
+            onLogToday={(slotId, verdict) => {
+              const day = localDayKey(new Date());
+              void logSelectToday(slotId, verdict, async (rec) => {
+                await onLogNight({
+                  movieId: rec.movieId,
+                  title: rec.title,
+                  poster: rec.poster,
+                  date: `${day}T12:00:00`,
+                  inviteFriend: false,
+                  verdict,
+                  status: 'watched',
+                  backdrop: rec.backdrop,
+                  mediaType: rec.mediaType,
+                  year: rec.year,
+                  runtimeLabel: rec.runtime,
+                  source: 'select',
+                });
+              });
+            }}
             onRetry={(slotId) => {
               void retrySelectReplacement(slotId);
             }}
@@ -551,13 +569,9 @@ export default function HomeStrip({
                   aria-label={film ? format(d, 'EEEE MMM d') : `Log a film on ${format(d, 'EEEE MMM d')}`}
                   aria-pressed={active}
                   onClick={() => {
-                    if (film && active) {
-                      setDaySheet(d);
-                      return;
-                    }
                     setSelected(d);
                     setStageOpen(true);
-                    if (!film) onAddMovie(d);
+                    onAddMovie(d);
                   }}
                   className="relative flex shrink-0 flex-col items-center gap-0.5 w-6 min-h-11"
                 >
