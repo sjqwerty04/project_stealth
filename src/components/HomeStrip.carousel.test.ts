@@ -371,7 +371,7 @@ describe('select card watched control', () => {
     poster: 'zodiac.jpg',
   };
 
-  it("uses the diary verdict labels in the Watched picker", () => {
+  it('opens Liked, Meh, Nope, and Log Today from Watched?', () => {
     const html = renderToString(
       React.createElement(SelectCard, {
         film,
@@ -387,12 +387,13 @@ describe('select card watched control', () => {
 
     expect(html).toContain('Watched?');
     expect(html).toContain('log-today-1');
+    expect(html).toContain('Log Today');
     expect(html).toContain('select-open-movie');
     expect(html).toContain('Liked');
-    expect(html).toContain("It&#x27;s okay");
+    expect(html).toContain('Meh');
     expect(html).toContain('Nope');
-    expect(html).not.toContain('Meh');
     expect(html).not.toContain('Dislike');
+    expect(html).not.toContain("It&#x27;s okay");
   });
 
   it('asks Liked, Meh, or Dislike on the card for Log Today', () => {

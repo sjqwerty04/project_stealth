@@ -34,6 +34,10 @@ export type SelectFilm = {
 
 export type FilmArt = { logo: string | null; still: string | null };
 
+const WATCHED_LABELS: Partial<Record<Verdict, string>> = {
+  okay: 'Meh',
+};
+
 const LOG_TODAY_LABELS: Partial<Record<Verdict, string>> = {
   okay: 'Meh',
   nope: 'Dislike',
@@ -122,21 +126,15 @@ export function SelectCard({
         type="button"
         data-testid={`watched-${film.slotId}`}
         data-carousel-control
-        onClick={pickerOpen ? onClosePicker : onOpenPicker}
+        onClick={() => {
+          if (logOpen) onCloseLog();
+          else if (pickerOpen) onClosePicker();
+          else onOpenPicker();
+        }}
         disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
         className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
       >
         Watched?
-      </button>
-      <button
-        type="button"
-        data-testid={`log-today-${film.slotId}`}
-        data-carousel-control
-        onClick={logOpen ? onCloseLog : onOpenLog}
-        disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
-        className="relative z-30 w-full min-h-11 border-x border-b border-line bg-base px-3 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
-      >
-        Log Today
       </button>
       {logOpen ? (
         <div
@@ -163,6 +161,12 @@ export function SelectCard({
             onChange={onVerdict}
             disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
             size="sm"
+            labels={WATCHED_LABELS}
+            extra={{
+              label: 'Log Today',
+              testId: `log-today-${film.slotId}`,
+              onClick: onOpenLog,
+            }}
           />
         </div>
       ) : null}

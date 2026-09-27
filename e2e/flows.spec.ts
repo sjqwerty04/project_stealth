@@ -407,6 +407,9 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   await expect(logged.first()).toBeVisible({ timeout: 20000 });
   expect(await logged.count()).toBeGreaterThanOrEqual(5);
   await logged.last().click();
+  await expect(page).toHaveURL(/\/app/);
+  await expect(page.getByTestId('day-stage')).toBeVisible();
+  await page.getByTestId('add-another').click();
   await expect(page).toHaveURL(/\/discover\?date=\d{4}-\d{2}-\d{2}/);
   const loggedDate = new URL(page.url()).searchParams.get('date');
   await page.goto(`/app?date=${loggedDate}`);
