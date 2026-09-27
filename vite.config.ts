@@ -15,6 +15,7 @@ function selectsSha() {
 }
 
 const SELECTS_SHA = selectsSha()
+const nativeBuild = process.env.CAPACITOR_BUILD === '1'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -39,6 +40,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      disable: nativeBuild,
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'selects-logo.png'],
       manifest: {

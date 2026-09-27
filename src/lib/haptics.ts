@@ -41,9 +41,10 @@ export const impact = async (style: HapticStyle = 'medium'): Promise<void> => {
       // Try to use Capacitor Haptics if available
       // Dynamic import with error handling for when plugin is not installed
       try {
-        const hapticsModule = await import('@capacitor/haptics' as string);
+        const hapticsModule = await import('@capacitor/haptics');
         const { Haptics, ImpactStyle } = hapticsModule;
-        const styleMap: Record<HapticStyle, unknown> = {
+        type ImpactName = (typeof ImpactStyle)[keyof typeof ImpactStyle];
+        const styleMap: Record<HapticStyle, ImpactName> = {
           light: ImpactStyle.Light,
           medium: ImpactStyle.Medium,
           heavy: ImpactStyle.Heavy,
@@ -72,9 +73,10 @@ export const notification = async (type: NotificationStyle = 'success'): Promise
   try {
     if (isCapacitor()) {
       try {
-        const hapticsModule = await import('@capacitor/haptics' as string);
+        const hapticsModule = await import('@capacitor/haptics');
         const { Haptics, NotificationType } = hapticsModule;
-        const typeMap: Record<NotificationStyle, unknown> = {
+        type NoticeName = (typeof NotificationType)[keyof typeof NotificationType];
+        const typeMap: Record<NotificationStyle, NoticeName> = {
           success: NotificationType.Success,
           warning: NotificationType.Warning,
           error: NotificationType.Error,
@@ -100,7 +102,7 @@ export const selection = async (): Promise<void> => {
   try {
     if (isCapacitor()) {
       try {
-        const hapticsModule = await import('@capacitor/haptics' as string);
+        const hapticsModule = await import('@capacitor/haptics');
         const { Haptics } = hapticsModule;
         await Haptics.selectionStart();
         await Haptics.selectionEnd();
@@ -124,7 +126,7 @@ export const vibrate = async (pattern: number | number[]): Promise<void> => {
   try {
     if (isCapacitor()) {
       try {
-        const hapticsModule = await import('@capacitor/haptics' as string);
+        const hapticsModule = await import('@capacitor/haptics');
         const { Haptics } = hapticsModule;
         if (typeof pattern === 'number') {
           await Haptics.vibrate({ duration: pattern });

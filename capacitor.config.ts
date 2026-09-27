@@ -1,16 +1,25 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.movielove.app',
-  appName: 'MovieLove',
+  appId: 'app.selects.film',
+  appName: 'Selects',
   webDir: 'dist',
-  server: {
-    androidScheme: 'https'
-  },
+  backgroundColor: '#0A0A0B',
   ios: {
-    contentInset: 'always'
-  }
+    contentInset: 'never',
+    backgroundColor: '#0A0A0B',
+  },
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: '#0A0A0B',
+      showSpinner: false,
+    },
+    StatusBar: {
+      overlaysWebView: true,
+      style: 'DARK',
+    },
+  },
 };
 
 export default config;
-

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { apiUrl } from '../../lib/apiOrigin';
 import { db } from '../../lib/firebase';
 import { oklabCentroid, samplePosterColours } from '../../lib/onboarding/colour';
 import { computeTasteStats, loadStatsInput, posterUrlsFor } from '../../lib/onboarding/stats';
@@ -12,7 +13,7 @@ export const READING_MAX_MS = 12000;
 export type ReadingProgress = { count: number; sampled: number; total: number; colours: string[] };
 
 async function fetchProfile(stats: TasteStats, picks: { positive: string[]; negative: string[]; axes: string[] }, signal: AbortSignal) {
-  const res = await fetch('/api/selects-profile', {
+  const res = await fetch(apiUrl('/api/selects-profile'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stats, picks }),

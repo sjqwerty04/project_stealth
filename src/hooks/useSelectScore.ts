@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { apiUrl } from '../lib/apiOrigin';
 import { blendSelect, type BlendResult } from '../lib/selectScore/blend';
 import { forYouScore } from '../lib/selectScore/forYou';
 import { fillClientRatings, parsePublicScores } from '../lib/selectScore/public';
@@ -22,7 +23,7 @@ async function fetchPublicScores(input: SelectScoreQuery): Promise<PublicScores>
   params.set('title', input.title);
   if (input.year) params.set('year', input.year);
   params.set('select', '1');
-  const response = await fetch(`/api/letterboxd-rating?${params.toString()}`);
+  const response = await fetch(apiUrl(`/api/letterboxd-rating?${params.toString()}`));
   if (!response.ok) throw new Error('select-score');
   return parsePublicScores(await response.json());
 }

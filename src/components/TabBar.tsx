@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { selection } from '../lib/haptics';
 
 const tabs = [
   { id: 'home', label: 'Home', to: '/app' },
@@ -32,11 +35,18 @@ function tabActive(id: string, pathname: string) {
 
 export default function TabBar() {
   const { pathname } = useLocation();
+  const activeId = tabs.find((tab) => tabActive(tab.id, pathname))?.id;
+  const previous = useRef(activeId);
+  useEffect(() => {
+    if (previous.current === activeId) return;
+    previous.current = activeId;
+    if (Capacitor.getPlatform() === 'ios') void selection();
+  }, [activeId]);
   return (
     <nav
       data-testid="tab-bar"
       aria-label="Primary"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-base border-t border-line font-spec"
+      className="tab-bar fixed bottom-0 left-0 right-0 z-50 font-spec"
       style={{ height: 'calc(68px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="h-[68px] max-w-md mx-auto grid grid-cols-4">

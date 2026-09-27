@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ExplorationProvider } from './contexts/ExplorationContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import PWAUpdatePrompt from './components/PWAUpdatePrompt';
+import WebUpdatePrompt from './components/WebUpdatePrompt';
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
 import WaitlistScreen from './screens/WaitlistScreen';
@@ -180,7 +180,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </AppShell>
-          <PWAUpdatePrompt />
+          <WebUpdatePrompt />
         </ExplorationProvider>
       </AuthProvider>
     </BrowserRouter>

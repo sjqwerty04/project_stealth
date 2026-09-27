@@ -1,3 +1,4 @@
+import { apiUrl } from '../apiOrigin';
 import { parseNeighbors } from './parseNeighbors';
 import { readAdjacency, writeAdjacency } from './adjacencyStore';
 import type { FilmNeighbor } from './types';
@@ -8,7 +9,7 @@ export async function fetchScholarNeighbors(input: {
   year: string;
   genres?: string[];
 }): Promise<FilmNeighbor[]> {
-  const res = await fetch('/api/movie-lookup', {
+  const res = await fetch(apiUrl('/api/movie-lookup'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

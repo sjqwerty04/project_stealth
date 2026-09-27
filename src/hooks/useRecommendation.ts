@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { apiUrl } from '../lib/apiOrigin';
 import { db } from '../lib/firebase';
 import { useAuth } from './useAuth';
 import { setVerdict as setLedgerVerdict, useLibrary, type Verdict } from '../lib/library';
@@ -126,7 +127,7 @@ async function hydrateFromApi(title: string, year?: string, id?: string): Promis
   if (title) params.set('title', title);
   if (year) params.set('year', String(year));
   try {
-    const res = await fetch(`/api/movie-lookup?${params.toString()}`);
+    const res = await fetch(apiUrl(`/api/movie-lookup?${params.toString()}`));
     if (!res.ok) return null;
     const data = await res.json();
     if (!data?.id) return null;
@@ -302,7 +303,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       try {
         const excluded = exclusionList();
         const requestPicks = async (nextExcluded: SelectExclusion[], count: 1 | 3) => {
-          const res = await fetch('/api/your-selects', {
+          const res = await fetch(apiUrl('/api/your-selects'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(buildYourSelectsBody(context, nextExcluded, count)),
@@ -397,7 +398,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
               );
             },
             requestPicks: async (updatedContext, excluded: SelectExclusion[], count: 1 | 3) => {
-              const res = await fetch('/api/your-selects', {
+              const res = await fetch(apiUrl('/api/your-selects'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, count)),
@@ -574,7 +575,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             );
           },
           requestPicks: async (updatedContext, excluded: SelectExclusion[], count: 1 | 3) => {
-            const res = await fetch('/api/your-selects', {
+            const res = await fetch(apiUrl('/api/your-selects'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(buildYourSelectsBody(updatedContext, excluded, count)),

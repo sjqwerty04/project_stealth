@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { MovieSnippet } from './useMovieInsights';
 import { useAuth } from './useAuth';
+import { apiUrl } from '../lib/apiOrigin';
 import { recordTasteEvent } from '../lib/taste';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -66,7 +67,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
       setIsThinking(true);
 
       try {
-        const res = await fetch('/api/movie-chat', {
+        const res = await fetch(apiUrl('/api/movie-chat'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
