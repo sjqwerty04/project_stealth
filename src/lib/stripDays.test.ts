@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventDayKey, stripFill } from './stripDays';
+import { eventDayKey, localDayKey, stripFill } from './stripDays';
 
 describe('eventDayKey', () => {
   it('keeps the ISO calendar day', () => {
@@ -13,6 +13,13 @@ describe('eventDayKey', () => {
   it('returns empty for junk', () => {
     expect(eventDayKey(null)).toBe('');
     expect(eventDayKey({})).toBe('');
+  });
+});
+
+describe('localDayKey', () => {
+  it('keeps the local calendar day of a midnight instant', () => {
+    const localMidnight = new Date(2026, 8, 27, 0, 30, 0);
+    expect(localDayKey(localMidnight)).toBe('2026-09-27');
   });
 });
 

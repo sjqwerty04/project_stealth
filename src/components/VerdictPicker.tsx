@@ -28,22 +28,26 @@ export function VerdictBadge({ verdict, size = 20 }: { verdict: Verdict; size?: 
   );
 }
 
-/** Three chips: Liked, It's okay, Nope. */
+/** Three chips: Liked, It's okay, Nope. Pass labels to rename a chip without changing the verdict. */
 export default function VerdictPicker({
   value,
   onChange,
   disabled = false,
   size = 'md',
+  labels,
+  extra,
 }: {
   value: Verdict | null;
   onChange: (verdict: Verdict) => void;
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  labels?: Partial<Record<Verdict, string>>;
+  extra?: { label: string; testId?: string; onClick: () => void };
 }) {
   const pad = size === 'lg' ? 'p-4' : size === 'sm' ? 'py-2 px-3' : 'p-3';
   const iconSize = size === 'lg' ? 28 : size === 'sm' ? 14 : 20;
   return (
-    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Verdict" data-testid="verdict-picker">
+    <div className={`grid ${extra ? 'grid-cols-4' : 'grid-cols-3'} gap-2`} role="radiogroup" aria-label="Verdict" data-testid="verdict-picker">
       {VERDICTS.map((v) => {
         const active = value === v;
         const tone = VERDICT_TONE[v];
@@ -62,10 +66,23 @@ export default function VerdictPicker({
             style={{ borderRadius: 0 }}
           >
             <VerdictIcon verdict={v} size={iconSize} className={active ? 'fill-current' : ''} />
-            <span className={`font-bold ${size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>{VERDICT_LABEL[v]}</span>
+            <span className={`font-bold ${size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>{labels?.[v] ?? VERDICT_LABEL[v]}</span>
           </button>
         );
       })}
+      {extra ? (
+        <button
+          type="button"
+          data-testid={extra.testId}
+          data-carousel-control
+          disabled={disabled}
+          onClick={extra.onClick}
+          className={`flex flex-col items-center justify-center gap-1 min-h-11 ${pad} border-2 border-line bg-base-2 text-fg disabled:opacity-50`}
+          style={{ borderRadius: 0 }}
+        >
+          <span className={`font-bold text-center leading-tight ${size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>{extra.label}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

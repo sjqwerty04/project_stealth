@@ -19,7 +19,7 @@ import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import FeedbackFAB from '../components/FeedbackFAB';
 import { useCalendarLogs, eventVerdict, type CalendarEvent } from '../hooks/useCalendarLogs';
 import { eventsWithWatchDates } from '../lib/filmNights';
-import { eventDayKey } from '../lib/stripDays';
+import { eventDayKey, localDayKey } from '../lib/stripDays';
 import { useLibrary } from '../lib/library';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import type { Verdict } from '../lib/library';
@@ -817,8 +817,7 @@ export default function MovieCalendarApp() {
       setIsModalOpen(true);
     } else {
       // No events - redirect to Discovery with date pre-selected
-      const dateStr = date.toISOString().split('T')[0];
-      navigate(`/discover?date=${dateStr}`);
+      navigate(`/discover?date=${localDayKey(date)}`);
     }
   };
 
@@ -1090,7 +1089,8 @@ export default function MovieCalendarApp() {
   };
 
 
-  if (eventsLoading) {
+  const stripVisible = homeChrome === 'strip' && !isModalOpen && !isAvatarModalOpen;
+  if (eventsLoading && !stripVisible) {
     return (
       <div className="min-h-screen bg-base flex items-center justify-center">
         <Skeleton className="w-32 h-10" />
@@ -1111,6 +1111,7 @@ export default function MovieCalendarApp() {
         }
         onOpenProfile={() => navigate('/me')}
         onAddMovie={(date) => handleDayClick(date)}
+        onLogNight={addEvent}
       />
     );
   }
@@ -1335,7 +1336,7 @@ export default function MovieCalendarApp() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+        <div className="above-tabs fixed inset-0 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
 
           <div className="bg-[#18181b] w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl z-50 relative animate-in slide-in-from-bottom-full duration-300 border border-gray-800 overflow-hidden">

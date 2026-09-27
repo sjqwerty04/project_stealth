@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 
-function tmdbImage(path: string | undefined, size: 'w500' | 'w780') {
+function tmdbImage(path: string | undefined, size: 'w500' | 'w780' | 'original') {
   if (!path) return null;
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       key: trailer?.key ?? null,
-      logo: tmdbImage(preferred?.file_path, 'w500'),
+      logo: tmdbImage(preferred?.file_path, 'original'),
       still: tmdbImage(stillPath, 'w780'),
     });
   } catch {

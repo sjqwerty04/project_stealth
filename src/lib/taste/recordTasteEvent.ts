@@ -40,7 +40,8 @@ function activityFor(event: TasteEvent): { action: ActivityAction; metadata: Rec
 }
 
 function shouldBustSelectsCache(event: TasteEvent) {
-  return event.type === 'verdict' || event.type === 'skip' || event.type === 'calendar_log';
+  // A verdict or a night replaces one slot. The cache stays until that slot is saved.
+  return event.type === 'skip';
 }
 
 function scheduleRebuild(uid: string, eventId: string) {

@@ -31,6 +31,18 @@ export function snapLoopIndex(index: number, count: number): number | null {
   return null;
 }
 
+export function selectsAutoplayRunning(opts: {
+  autoplay: boolean;
+  paused: boolean;
+  pickerOpen: boolean;
+  logOpen: boolean;
+  replacing: boolean;
+  count: number;
+}): boolean {
+  if (!opts.autoplay || opts.paused || opts.pickerOpen || opts.logOpen || opts.replacing) return false;
+  return opts.count >= 2;
+}
+
 export const SELECTS_AUTOPLAY_MS = 6200;
 export const SELECTS_TRANSITION_MS = 900;
 export const SELECTS_TRANSITION_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
