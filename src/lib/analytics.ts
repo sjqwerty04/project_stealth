@@ -82,3 +82,44 @@ export const logMovieAddedFromDiscovery = async (movieId: number, action: 'calen
   }
 };
 
+
+export type AskAiSurface = 'entry' | 'entry-chip' | 'floating-chip' | 'chat-chip' | 'starter-sheet';
+
+export const logAskAiOpened = async (movieId: number, surface: AskAiSurface) => {
+  const analytics = await analyticsPromise;
+  if (analytics) {
+    logEvent(analytics, 'ask_ai_opened', { movie_id: movieId, surface });
+  }
+};
+
+export const logAskAiStarterTapped = async (
+  movieId: number,
+  starter: { id: string; kind: string },
+  position: number,
+  surface: AskAiSurface,
+) => {
+  const analytics = await analyticsPromise;
+  if (analytics) {
+    logEvent(analytics, 'ask_ai_starter_tapped', {
+      movie_id: movieId,
+      starter_id: starter.id,
+      starter_kind: starter.kind,
+      position,
+      surface,
+    });
+  }
+};
+
+export const logAskAiStartersExpanded = async (movieId: number, count: number) => {
+  const analytics = await analyticsPromise;
+  if (analytics) {
+    logEvent(analytics, 'ask_ai_starters_expanded', { movie_id: movieId, count });
+  }
+};
+
+export const logAskAiTypedQuestion = async (movieId: number) => {
+  const analytics = await analyticsPromise;
+  if (analytics) {
+    logEvent(analytics, 'ask_ai_typed_question', { movie_id: movieId });
+  }
+};
