@@ -12,7 +12,8 @@ describe('ai film search', () => {
   it('asks the later pass only for films from the last 18 months', () => {
     const prompt = buildRecencyPrompt('Brad Pitt survival films with a combat dog');
     expect(prompt).toContain('Brad Pitt survival films with a combat dog');
-    expect(prompt).toContain('last 18 months');
+    expect(prompt).toContain('Search the web');
+    expect(prompt).toContain('released since 2025-04-18');
     expect(prompt).not.toContain('Heart of the Beast');
   });
 

@@ -18,12 +18,19 @@ export function buildAiSearchPrompt(query: string): string {
 Films. Keep each named person and trait. Vary decade and country. One per series.`;
 }
 
-/** Later pass. Asks only for films from the last 18 months that fit the same sentence. */
+function monthsBefore(isoDay: string, months: number): string {
+  const [year, month, day] = isoDay.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1 - months, day));
+  return date.toISOString().slice(0, 10);
+}
+
+/** Later pass. The web search tool is what can name a film newer than the model's cutoff. */
 export function buildRecencyPrompt(query: string, today = '2026-10-18'): string {
-  return `Today:${today}
+  const since = monthsBefore(today, 18);
+  return `Today:${today}. Search the web.
 Q:${JSON.stringify(query)}
-[{"t":"Title","y":1995}]
-Real films from the last 18 months only. No invented titles. [ first.`;
+[{"t":"Title","y":2026}]
+Real films released since ${since} that fit Q. No invented titles. [ first.`;
 }
 
 function findObjectEnd(source: string, start: number): number {
