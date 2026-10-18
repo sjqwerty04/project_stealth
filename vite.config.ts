@@ -23,9 +23,12 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // SELECTS_API_TARGET points local dev at a preview deployment; SELECTS_API_COOKIE
+      // carries its Vercel protection cookie (_vercel_jwt=...) when it is protected.
       '/api': {
-        target: 'https://selects-film.vercel.app',
+        target: process.env.SELECTS_API_TARGET || 'https://selects-film.vercel.app',
         changeOrigin: true,
+        headers: process.env.SELECTS_API_COOKIE ? { cookie: process.env.SELECTS_API_COOKIE } : undefined,
       },
     },
   },
