@@ -18,7 +18,7 @@ function pickTrailer(videos: { type?: string; site?: string; official?: boolean;
   );
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function movieClipHandler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
