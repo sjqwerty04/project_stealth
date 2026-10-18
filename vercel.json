@@ -17,6 +17,10 @@
     },
     "api/selects-profile.ts": {
       "includeFiles": "src/skills/**"
+    },
+    "api/voice/admin.ts": {
+      "includeFiles": "src/skills/**",
+      "maxDuration": 800
     }
   },
   "headers": [
