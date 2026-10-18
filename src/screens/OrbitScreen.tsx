@@ -17,6 +17,7 @@ import OrbitControls from '../components/orbit/OrbitControls';
 import ParryTransition from '../components/orbit/ParryTransition';
 import ConstellationView from '../components/orbit/ConstellationView';
 import { useAuth } from '../hooks/useAuth';
+import { useWatchedExclusions } from '../hooks/useWatchedExclusions';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { logActivity } from '../lib/activityLogger';
 import { recordTasteEvent, useTaste } from '../lib/taste';
@@ -29,6 +30,7 @@ export default function OrbitScreen() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { excluded: watchedExclusions, ready: watchedReady } = useWatchedExclusions();
   const { snapshot, loading: tasteLoading } = useTaste();
   const { addToWatchlist } = useWatchlist();
   
@@ -133,12 +135,13 @@ export default function OrbitScreen() {
           genres: data.genres?.map((g: any) => g.name) || [],
         };
         warmOrbitImages(movieWithoutColor);
-        if (!tasteLoading) {
+        if (!tasteLoading && watchedReady) {
           orbitRequests.prefetch(
             movieWithoutColor,
             null,
             snapshot.generated.compactForChat,
-            () => {}
+            () => {},
+            watchedExclusions,
           );
         }
 
@@ -202,15 +205,16 @@ export default function OrbitScreen() {
   }, [id]);
 
   useEffect(() => {
-    if (!currentMovie || tasteLoading) return;
+    if (!currentMovie || tasteLoading || !watchedReady) return;
     const taste = snapshot.generated.compactForChat;
-    const sourceKey = orbitRequests.sourceKey(currentMovie, taste);
+    const sourceKey = orbitRequests.sourceKey(currentMovie, taste, watchedExclusions);
     setPrefetchSource(sourceKey);
     orbitRequests.prefetch(
       currentMovie,
       getBackDirection(),
       taste,
-      publishPrefetchedMove
+      publishPrefetchedMove,
+      watchedExclusions,
     );
   }, [
     currentMovie,
@@ -219,6 +223,8 @@ export default function OrbitScreen() {
     setPrefetchSource,
     snapshot.generated.compactForChat,
     tasteLoading,
+    watchedExclusions,
+    watchedReady,
   ]);
 
   useEffect(() => {
@@ -267,14 +273,14 @@ export default function OrbitScreen() {
     orbitHaptics.swipeComplete();
 
     const taste = snapshot.generated.compactForChat;
-    const sourceKey = orbitRequests.sourceKey(currentMovie, taste);
+    const sourceKey = orbitRequests.sourceKey(currentMovie, taste, watchedExclusions);
     const attempt = ++activeSwipeAttempt.current;
     let result: OrbitRecommendation | null =
       prefetchedMoves.sourceKey === sourceKey
         ? prefetchedMoves.moves[direction]
         : null;
-    result ??= orbitRequests.peek(currentMovie, direction, taste);
-    const requestState = orbitRequests.status(currentMovie, direction, taste).state;
+    result ??= orbitRequests.peek(currentMovie, direction, taste, watchedExclusions);
+    const requestState = orbitRequests.status(currentMovie, direction, taste, watchedExclusions).state;
     swipeTiming.current = {
       releasedAt,
       sourceMovieId: currentMovie.id,
@@ -287,7 +293,7 @@ export default function OrbitScreen() {
     if (!result) {
       setPendingDirection(direction);
       setIsWaitingForRecommendation(true);
-      result = await orbitRequests.request(currentMovie, direction, taste);
+      result = await orbitRequests.request(currentMovie, direction, taste, watchedExclusions);
       setIsWaitingForRecommendation(false);
       if (
         activeSwipeAttempt.current !== attempt ||
@@ -355,6 +361,7 @@ export default function OrbitScreen() {
     setTransitioning,
     snapshot.generated.compactForChat,
     user,
+    watchedExclusions,
   ]);
 
   // Handle long press (save movie to watchlist)
@@ -410,7 +417,7 @@ export default function OrbitScreen() {
     setShowOnboarding(false);
   }, []);
 
-  if (isLoading) {
+  if (isLoading || !watchedReady) {
     return (
       <div 
         className="fixed inset-0 flex items-center justify-center"

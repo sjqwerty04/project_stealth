@@ -1,3 +1,9 @@
+import {
+  mergeSelectExclusions,
+  pickIsExcluded,
+  watchedExclusionPrompt,
+  type SelectExclusion,
+} from '../hooks/selectExclusions';
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
 import { callLlmForJSON } from './llm';
 import { recordOrbitTiming } from './orbitTelemetry';
@@ -210,6 +216,18 @@ const buildPrompt = (
     .replace('{director}', director);
 };
 
+function withViewerSteer(prompt: string, taste?: string | null, excluded?: readonly SelectExclusion[]): string {
+  let next = prompt;
+  if (taste) {
+    next += `\n<viewer_taste>\n${taste}\n</viewer_taste>\nSteer the pick toward this viewer. Do not fetch or invent their watch history.`;
+  }
+  const watched = watchedExclusionPrompt(excluded ?? []);
+  if (watched) {
+    next += `\n<already_watched>\n${watched}</already_watched>\n`;
+  }
+  return next;
+}
+
 // Ensure hex color is valid and dark enough for background atmosphere
 function clampDarkHex(hex: string): string {
   let clean = hex.startsWith('#') ? hex.slice(1) : hex;
@@ -339,17 +357,25 @@ const hydrateWithTMDB = async (orbitResponse: OrbitResponse): Promise<OrbitMovie
   }
 };
 
+type OrbitMove = { movie: OrbitMovie; connectionReason: string; similarityScore: number };
+
+function blockedWatched(
+  movie: OrbitMovie,
+  excluded: readonly SelectExclusion[],
+): boolean {
+  return excluded.length > 0 && pickIsExcluded({ movieId: movie.id, title: movie.title }, excluded);
+}
+
 // Main function to get next movie based on swipe direction
 export const getNextMovie = async (
   currentMovie: OrbitMovie,
   direction: SwipeDirection,
-  taste?: string | null
-): Promise<{ movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> => {
+  taste?: string | null,
+  excluded: readonly SelectExclusion[] = [],
+  attempt = 0,
+): Promise<OrbitMove | null> => {
   const recommendationStartedAt = performance.now();
-  let prompt = buildPrompt(currentMovie, direction);
-  if (taste) {
-    prompt += `\n<viewer_taste>\n${taste}\n</viewer_taste>\nSteer the pick toward this viewer. Do not fetch or invent their watch history.`;
-  }
+  const prompt = withViewerSteer(buildPrompt(currentMovie, direction), taste, excluded);
   
   console.log(`Orbit: Getting ${direction} recommendation for "${currentMovie.title}"`);
 
@@ -399,6 +425,17 @@ export const getNextMovie = async (
     return null;
   }
 
+  if (blockedWatched(hydratedMovie, excluded)) {
+    if (attempt >= 1) return null;
+    return getNextMovie(
+      currentMovie,
+      direction,
+      taste,
+      mergeSelectExclusions([...excluded, { movieId: hydratedMovie.id, title: hydratedMovie.title }]),
+      attempt + 1,
+    );
+  }
+
   recordOrbitTiming({
     phase: 'recommendation',
     durationMs: performance.now() - recommendationStartedAt,
@@ -416,19 +453,20 @@ export const getNextMovie = async (
 // Batch function to get recommendations for all 4 swipe directions in one LLM call
 export const getNextMovieBatch = async (
   currentMovie: OrbitMovie,
-  taste?: string | null
-): Promise<Record<SwipeDirection, { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> | null> => {
+  taste?: string | null,
+  excluded: readonly SelectExclusion[] = [],
+): Promise<Record<SwipeDirection, OrbitMove | null> | null> => {
   const genres = currentMovie.genres?.join(', ') || 'Drama';
   const director = currentMovie.director || 'Unknown';
-  let prompt = BATCH_ORBIT_PROMPT
-    .replace(/\{title\}/g, currentMovie.title)
-    .replace('{year}', currentMovie.year)
-    .replace('{genres}', genres)
-    .replace('{director}', director);
-
-  if (taste) {
-    prompt += `\n<viewer_taste>\n${taste}\n</viewer_taste>\nSteer the picks toward this viewer. Do not fetch or invent their watch history.`;
-  }
+  const prompt = withViewerSteer(
+    BATCH_ORBIT_PROMPT
+      .replace(/\{title\}/g, currentMovie.title)
+      .replace('{year}', currentMovie.year)
+      .replace('{genres}', genres)
+      .replace('{director}', director),
+    taste,
+    excluded,
+  ).replace('Steer the pick toward this viewer.', 'Steer the picks toward this viewer.');
 
   const llmStartedAt = performance.now();
   let parsed: Record<string, any> | null = null;
@@ -461,18 +499,27 @@ export const getNextMovieBatch = async (
       if (!normalized) return null;
       const movie = await hydrateWithTMDB(normalized);
       if (!movie) return null;
+      if (blockedWatched(movie, excluded)) {
+        const replacement = await getNextMovie(
+          currentMovie,
+          dir,
+          taste,
+          mergeSelectExclusions([...excluded, { movieId: movie.id, title: movie.title }]),
+        );
+        return { direction: dir, recommendation: replacement };
+      }
       return {
         direction: dir,
         recommendation: {
           movie,
           connectionReason: normalized.reason,
           similarityScore: normalized.score,
-        },
+        } as OrbitMove,
       };
     })
   );
 
-  const moves: Record<SwipeDirection, { movie: OrbitMovie; connectionReason: string; similarityScore: number } | null> = {
+  const moves: Record<SwipeDirection, OrbitMove | null> = {
     up: null,
     right: null,
     down: null,

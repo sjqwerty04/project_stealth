@@ -166,6 +166,9 @@ describe('Orbit request coordinator', () => {
     expect(coordinator.sourceKey(source, 'noir')).not.toBe(
       coordinator.sourceKey({ ...source, id: 999 }, 'noir')
     );
+    const watched = [{ id: '949', title: 'Heat' }];
+    expect(coordinator.sourceKey(source, 'noir', watched)).not.toBe(coordinator.sourceKey(source, 'noir'));
+    expect(coordinator.sourceKey(source, 'noir', [])).toBe(coordinator.sourceKey(source, 'noir'));
   });
 
   it('uses loadBatch during prefetch to populate all directions in one call', async () => {

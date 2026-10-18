@@ -5,10 +5,13 @@ import {
   canGenerateSelects,
   coerceSelectTrio,
   dropExcludedPicks,
+  omitExcluded,
   openSelectSlots,
   selectsStatusWhileBusy,
   hydrateUniqueSelectPicks,
   uniqueByMovieId,
+  watchedExclusionPrompt,
+  watchedExclusions,
 } from './selectExclusions';
 
 describe('select exclusions', () => {
@@ -139,6 +142,33 @@ describe('select exclusions', () => {
     expect(selectsStatusWhileBusy(3, false)).toBe('ready');
     expect(selectsStatusWhileBusy(0, true)).toBe('ready');
     expect(selectsStatusWhileBusy(0, false)).toBe('loading');
+  });
+
+  it('builds no watched list for a signed-out viewer', () => {
+    const films = [
+      { movieId: 949, title: 'Heat', watched: true },
+      { movieId: 11524, title: 'Thief', watched: false },
+    ];
+    expect(watchedExclusions(false, films)).toEqual([]);
+    expect(watchedExclusionPrompt([])).toBe('');
+    const picks = [{ movieId: 949, title: 'Heat' }];
+    expect(omitExcluded(picks, [])).toBe(picks);
+  });
+
+  it('excludes only films the signed-in viewer has watched', () => {
+    const excluded = watchedExclusions(true, [
+      { movieId: 949, title: 'Heat', watched: true },
+      { movieId: 11524, title: 'Thief', watched: false },
+    ]);
+    expect(excluded).toEqual([{ id: '949', title: 'Heat' }]);
+    expect(watchedExclusionPrompt(excluded)).toContain('Heat');
+    expect(omitExcluded(
+      [
+        { id: 949, title: 'Heat' },
+        { id: 11524, title: 'Thief' },
+      ],
+      excluded,
+    ).map((row) => row.id)).toEqual([11524]);
   });
 
   it('does not generate while the library is empty or a slot is replacing', () => {

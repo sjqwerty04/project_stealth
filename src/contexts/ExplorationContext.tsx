@@ -4,6 +4,8 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { callLlm } from '../lib/llm';
 import { recordTasteEvent } from '../lib/taste';
+import { omitExcluded, watchedExclusionPrompt } from '../hooks/selectExclusions';
+import { useWatchedExclusions } from '../hooks/useWatchedExclusions';
 
 type ExploredMovie = {
   id: number;
@@ -129,6 +131,7 @@ const searchTMDB = async (title: string, year?: string): Promise<any | null> => 
 
 export function ExplorationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { excluded } = useWatchedExclusions();
   const [clickedMovies, setClickedMovies] = useState<ExploredMovie[]>([]);
   const [patternInsight, setPatternInsight] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -213,9 +216,11 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
     setIsLoadingMore(true);
     try {
       const movieList = clickedMovies.map((m) => m.title).join(', ');
+      const watched = watchedExclusionPrompt(excluded);
       const prompt = SHOW_MORE_PROMPT
         .replace('{pattern}', patternInsight)
-        .replace('{movieList}', movieList);
+        .replace('{movieList}', movieList)
+        + (watched ? `\n<already_watched>\n${watched}</already_watched>\n` : '');
 
       const response = await callLlm(prompt, SHOW_MORE_SYSTEM_PROMPT);
       if (!response) return [];
@@ -245,7 +250,10 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
         })
       );
 
-      const validResults = detailedResults.filter(Boolean);
+      const validResults = omitExcluded(
+        detailedResults.filter(Boolean) as { id: number; title: string }[],
+        excluded,
+      );
       setShowMoreResults(validResults);
       return validResults;
     } catch (error) {
@@ -254,7 +262,7 @@ export function ExplorationProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [patternInsight, clickedMovies]);
+  }, [patternInsight, clickedMovies, excluded]);
 
   const saveVibe = useCallback(async (): Promise<boolean> => {
     if (!user || !patternInsight || clickedMovies.length < 3) return false;

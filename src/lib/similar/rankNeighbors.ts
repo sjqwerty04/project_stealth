@@ -1,3 +1,4 @@
+import { pickIsExcluded, type SelectExclusion } from '../../hooks/selectExclusions';
 import { normalizeFilmTitle, whyMatchNamesRecommended } from '../taste/selectPickCoherence';
 import type { TasteSnapshot } from '../taste/types';
 import type { FilmNeighbor, NeighborAxis, RankedNeighbor } from './types';
@@ -62,11 +63,13 @@ export function rankNeighbors(args: {
   currentMovieId: number;
   neighbors: FilmNeighbor[];
   snapshot: TasteSnapshot;
+  excluded?: readonly SelectExclusion[];
   limit?: number;
 }): RankedNeighbor[] {
   const excludedId = excludedIds(args.snapshot);
   excludedId.add(args.currentMovieId);
   const excludedTitle = excludedTitles(args.snapshot);
+  const watched = args.excluded ?? [];
   const boosts = boostTitles(args.snapshot);
   const axis = args.snapshot.identity.axis;
   const seen = new Set<number>();
@@ -76,6 +79,7 @@ export function rankNeighbors(args: {
     if (!neighbor.movieId || seen.has(neighbor.movieId)) continue;
     if (excludedId.has(neighbor.movieId)) continue;
     if (excludedTitle.has(titleKey(neighbor.title))) continue;
+    if (watched.length && pickIsExcluded({ movieId: neighbor.movieId, title: neighbor.title }, watched)) continue;
     seen.add(neighbor.movieId);
 
     const axisPts = axisBoost(axis, neighbor.axes);
@@ -99,11 +103,13 @@ export function mixScholarNeighbors(args: {
   lineage: FilmNeighbor[];
   scholar: FilmNeighbor[];
   snapshot: TasteSnapshot;
+  excluded?: readonly SelectExclusion[];
 }): RankedNeighbor[] {
   const lineageRanked = rankNeighbors({
     currentMovieId: args.currentMovieId,
     neighbors: args.lineage,
     snapshot: args.snapshot,
+    excluded: args.excluded,
   });
   const taken = new Set(lineageRanked.map((row) => row.movieId));
   const scholarOnly = args.scholar.filter((row) => row.movieId && !taken.has(row.movieId));
@@ -111,6 +117,7 @@ export function mixScholarNeighbors(args: {
     currentMovieId: args.currentMovieId,
     neighbors: scholarOnly,
     snapshot: args.snapshot,
+    excluded: args.excluded,
   });
   const mixed: RankedNeighbor[] = [];
   const steps = Math.max(lineageRanked.length, scholarRanked.length);
