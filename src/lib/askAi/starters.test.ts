@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_STARTERS, buildStarters, noEmDash, pickThemes, visibleStarters, type FilmRef } from './starters';
+import { MAX_STARTERS, buildStarters, noEmDash, pickThemes, resolveVisibleStarters, visibleStarters, type FilmRef, type Starter } from './starters';
 
 const ref = (id: number, title: string, year?: string): FilmRef => ({ id, title, year, posterPath: `/${id}.jpg` });
 const blinkTwice = ref(840705, 'Blink Twice', '2024');
@@ -78,5 +78,47 @@ describe('ask ai starters', () => {
     expect(noEmDash('Sharp \u2014 and mean.')).toBe('Sharp, and mean.');
     expect(noEmDash('A\u2014B')).toBe('A, B');
     expect(noEmDash('2019 \u2013 2021')).toBe('2019, 2021');
+  });
+});
+
+const row = (text: string, spoiler = false): Starter => ({
+  id: text,
+  text,
+  kind: spoiler ? 'ending' : 'meaning',
+  score: 1,
+  films: [],
+  spoiler,
+});
+
+describe('resolveVisibleStarters', () => {
+  const base = {
+    shown: null,
+    local: null,
+    server: null,
+    templates: [row('template')],
+    metaReady: false,
+    graceElapsed: false,
+    hasLogged: true,
+    logKnown: true,
+  };
+
+  it('paints a cached set immediately and keeps the spoiler only once logging is known', () => {
+    const local = [row('cached'), row('ending', true)];
+    expect(resolveVisibleStarters({ ...base, local, logKnown: false, hasLogged: true })).toBeNull();
+    expect(resolveVisibleStarters({ ...base, local, logKnown: true, hasLogged: false })!.some((s) => s.spoiler)).toBe(false);
+    expect(resolveVisibleStarters({ ...base, local, logKnown: true, hasLogged: true })![0].spoiler).toBe(true);
+  });
+
+  it('holds templates for compare targets, then locks them so a late server set cannot reshuffle', () => {
+    expect(resolveVisibleStarters(base)).toBeNull();
+    const painted = resolveVisibleStarters({ ...base, metaReady: true })!;
+    expect(painted.map((s) => s.text)).toEqual(['template']);
+    const stuck = resolveVisibleStarters({ ...base, shown: painted, server: [row('llm')] });
+    expect(stuck).toBe(painted);
+  });
+
+  it('lets a fast server set beat templates', () => {
+    const visible = resolveVisibleStarters({ ...base, server: [row('llm')], metaReady: true });
+    expect(visible!.map((s) => s.text)).toEqual(['llm']);
   });
 });

@@ -47,7 +47,7 @@ test('ask ai timings', async ({ page }) => {
     const reordered = last !== initial.join('|');
 
     const t1 = Date.now();
-    await page.getByTestId('ask-ai-floating').getByTestId('ask-ai-chip').first().click();
+    await page.getByTestId('ask-ai-entry').getByTestId('ask-ai-chip').first().click();
     const reply = page.getByTestId('ask-ai-reply').first();
     const firstToken = await until(async () => ((await reply.innerText()) || '').trim().length > 0, 120_000);
     const done = await until(async () => (await page.getByTestId('ask-ai-thinking').count()) === 0 && (await page.getByTestId('ask-ai-streaming').count()) === 0, 120_000);

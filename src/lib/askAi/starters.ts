@@ -37,7 +37,7 @@ export type StarterInput = {
   tapHistory?: Partial<Record<StarterKind, number>>;
 };
 
-/** Starters shown per film, across the row and the expanded view. */
+/** Starters shown per film, in the one scrolling row. */
 export const MAX_STARTERS = 5;
 
 const PRIOR: Record<StarterKind, number> = {
@@ -176,6 +176,37 @@ export function visibleStarters(starters: Starter[], hasLogged: boolean) {
   const safe = starters.filter((s) => !s.spoiler);
   const spoiler = hasLogged ? starters.find((s) => s.spoiler) : undefined;
   return (spoiler ? [spoiler, ...safe] : safe).slice(0, MAX_STARTERS);
+}
+
+/** Cold visits wait this long for compare targets or a cached set, then paint templates anyway. */
+export const STARTER_GRACE_MS = 900;
+
+export type VisibleState = {
+  /** Already painted this visit. Stays put, so a late response cannot reshuffle the row. */
+  shown: Starter[] | null;
+  local: Starter[] | null;
+  server: Starter[] | null;
+  templates: Starter[] | null;
+  /** Quick TMDB pass finished (compare targets are in, or the lookup failed). */
+  metaReady: boolean;
+  graceElapsed: boolean;
+  hasLogged: boolean;
+  /** Library snapshot has resolved, so the spoiler decision is real. */
+  logKnown: boolean;
+};
+
+/**
+ * Picks the row to paint. A cached set wins. Otherwise templates paint once compare
+ * targets are in, or once the grace window closes. The spoiler stays out until we
+ * know the film is logged. `shown` is returned unchanged.
+ */
+export function resolveVisibleStarters(state: VisibleState): Starter[] | null {
+  if (state.shown) return state.shown;
+  const cached = state.local || state.server;
+  const raw = cached || ((state.metaReady || state.graceElapsed) ? state.templates : null);
+  if (!raw?.length) return null;
+  if (!state.logKnown && !state.graceElapsed) return null;
+  return visibleStarters(raw, state.logKnown && state.hasLogged);
 }
 
 const TAPS_KEY = 'selects.askAi.taps';

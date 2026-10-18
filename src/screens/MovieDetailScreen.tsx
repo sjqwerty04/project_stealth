@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import YouTubeCover from '../components/YouTubeCover';
@@ -20,7 +20,7 @@ import BetaBadge from '../components/askAi/BetaBadge';
 import { useAskAiStarters } from '../hooks/useAskAiStarters';
 import { recordTap, type Starter } from '../lib/askAi/starters';
 import type { MentionEntity } from '../lib/askAi/mentions';
-import { logAskAiOpened, logAskAiStarterTapped, logAskAiStartersExpanded, logAskAiTypedQuestion, type AskAiSurface } from '../lib/analytics';
+import { logAskAiOpened, logAskAiStarterTapped, logAskAiTypedQuestion, type AskAiSurface } from '../lib/analytics';
 import { useMovieInsights } from '../hooks/useMovieInsights';
 import { useMovieKnownFor } from '../hooks/useMovieKnownFor';
 import { recordTasteEvent, useTaste } from '../lib/taste';
@@ -69,7 +69,7 @@ export default function MovieDetailScreen() {
   const [ratingDismissed, setRatingDismissed] = useState(false);
   const [selectedRating, setSelectedRating] = useState<Verdict | null>(null);
   // Key the ledger on the route id, not details.id, so the status survives the offline fallback catalogue.
-  const { film: libraryFilm } = useLibraryFilm(id ? Number(id) : details?.id);
+  const { film: libraryFilm, loading: libraryLoading } = useLibraryFilm(id ? Number(id) : details?.id);
   const [showSuccessState, setShowSuccessState] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -86,7 +86,22 @@ export default function MovieDetailScreen() {
   const [chatOpen, setChatOpen] = useState(false);
   const [seedStarter, setSeedStarter] = useState<Starter | null>(null);
   const hasLogged = (libraryFilm?.watchCount ?? 0) > 0 || !!libraryFilm?.verdict;
-  const { starters, loading: startersLoading } = useAskAiStarters(id ? Number(id) : undefined, mediaType, hasLogged);
+  const starterInstant = useMemo(() => {
+    if (!details) return null;
+    return {
+      film: { id: details.id, title: details.title, year: details.year, posterPath: details.posterPath },
+      genres: details.genres,
+      director: details.director,
+      cast: details.cast.slice(0, 4).map((c) => ({ name: c.name, character: c.character })),
+    };
+  }, [details]);
+  const { starters, loading: startersLoading } = useAskAiStarters(
+    id ? Number(id) : undefined,
+    mediaType,
+    hasLogged,
+    !libraryLoading,
+    starterInstant,
+  );
 
   const detailsId = details?.id;
   const openAskAi = useCallback((surface: AskAiSurface) => {
@@ -713,7 +728,6 @@ export default function MovieDetailScreen() {
         seedStarter={seedStarter}
         onSeedConsumed={() => setSeedStarter(null)}
         onStarterPicked={(s, i) => trackStarter(s, i, 'chat-chip')}
-        onStartersExpanded={() => detailsId && void logAskAiStartersExpanded(detailsId, starters.length)}
         onOpenEntity={openEntity}
         onTypedQuestion={() => detailsId && void logAskAiTypedQuestion(detailsId)}
       />

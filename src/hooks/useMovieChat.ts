@@ -3,7 +3,7 @@ import type { MovieSnippet } from './useMovieInsights';
 import { useAuth } from './useAuth';
 import { recordTasteEvent } from '../lib/taste';
 import type { MentionEntity } from '../lib/askAi/mentions';
-import { noEmDash } from '../lib/askAi/starters';
+import { noEmDash, type FilmRef } from '../lib/askAi/starters';
 import { prefetchStarters } from './useAskAiStarters';
 
 export type ChatMessageUI = {
@@ -24,6 +24,14 @@ export type ChatMovie = {
 
 const FAILED = "Couldn't reach the projector booth. Try again?";
 
+function mergeEntities(known: MentionEntity[], resolved: MentionEntity[]) {
+  const out = [...resolved];
+  for (const k of known) {
+    if (!out.some((e) => e.kind === k.kind && e.id === k.id)) out.push(k);
+  }
+  return out;
+}
+
 export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?: string) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessageUI[]>([]);
@@ -31,12 +39,19 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
   const busy = useRef(false);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, knownFilms?: FilmRef[]) => {
       const trimmed = text.trim();
       if (!trimmed || busy.current) return;
       busy.current = true;
 
-      const history = [...messages, { role: 'user' as const, content: trimmed }];
+      const known: MentionEntity[] = (knownFilms || []).map((f) => ({
+        kind: 'film',
+        id: f.id,
+        name: f.title,
+        year: f.year,
+        image: f.posterPath,
+      }));
+      const history = [...messages, { role: 'user' as const, content: trimmed, entities: known }];
       setMessages([...history, { role: 'assistant', content: '', streaming: true }]);
       setIsThinking(true);
       const patchLast = (patch: Partial<ChatMessageUI>) =>
@@ -58,7 +73,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
 
         if (!(res.headers.get('content-type') || '').includes('ndjson')) {
           const data = await res.json();
-          patchLast({ content: noEmDash(data.text || FAILED), entities: data.entities || [], streaming: false });
+          patchLast({ content: noEmDash(data.text || FAILED), entities: mergeEntities(known, data.entities || []), streaming: false });
         } else {
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
@@ -79,7 +94,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
                 setIsThinking(false);
                 patchLast({ content });
               } else if (ev.t === 'done') {
-                const entities: MentionEntity[] = ev.entities || [];
+                const entities = mergeEntities(known, ev.entities || []);
                 patchLast({ content: ev.text || content, entities, streaming: false });
                 entities.forEach((e) => e.kind === 'film' && prefetchStarters(e.id));
               } else if (ev.t === 'error') {

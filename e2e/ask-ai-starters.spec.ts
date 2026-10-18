@@ -56,11 +56,10 @@ test.describe('Ask AI starters', () => {
     await expect(filmMention).toBeVisible({ timeout: 15_000 });
     await pause(page, 2500);
 
-    await chat.getByTestId('ask-ai-expand').click();
     expect(await chat.getByTestId('ask-ai-chip').count()).toBeLessThanOrEqual(5);
+    await expect(chat.getByTestId('ask-ai-expand')).toHaveCount(0);
     await pause(page, 1500);
     await page.screenshot({ path: testInfo.outputPath('chat-reply.png') });
-    await chat.getByTestId('ask-ai-expand').click();
 
     const filmId = await filmMention.getAttribute('data-entity-id');
     await filmMention.click();

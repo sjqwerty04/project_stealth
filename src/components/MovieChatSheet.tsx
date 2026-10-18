@@ -20,7 +20,6 @@ type MovieChatSheetProps = {
   seedStarter?: Starter | null;
   onSeedConsumed?: () => void;
   onStarterPicked?: (starter: Starter, position: number) => void;
-  onStartersExpanded?: () => void;
   onTypedQuestion?: () => void;
   onOpenEntity: (entity: MentionEntity) => void;
 };
@@ -37,26 +36,20 @@ export default function MovieChatSheet({
   seedStarter,
   onSeedConsumed,
   onStarterPicked,
-  onStartersExpanded,
   onTypedQuestion,
   onOpenEntity,
 }: MovieChatSheetProps) {
   const { messages, isThinking, send } = useMovieChat(movie, snippets, taste);
   const [input, setInput] = useState('');
-  const [expanded, setExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open && seedStarter) {
-      send(seedStarter.text);
+      send(seedStarter.text, seedStarter.films);
       onSeedConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, seedStarter]);
-
-  useEffect(() => {
-    if (!open) setExpanded(false);
-  }, [open]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -72,8 +65,7 @@ export default function MovieChatSheet({
 
   const pick = (starter: Starter, position: number) => {
     onStarterPicked?.(starter, position);
-    setExpanded(false);
-    send(starter.text);
+    send(starter.text, starter.films);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,7 +119,7 @@ export default function MovieChatSheet({
               return (
                 <div key={i} className="flex justify-end">
                   <div data-testid="ask-ai-user-msg" className="max-w-[85%] px-3.5 py-2 bg-fg text-base text-sm leading-relaxed">
-                    {m.content}
+                    <MentionText text={m.content} entities={m.entities || []} />
                   </div>
                 </div>
               );
@@ -174,15 +166,7 @@ export default function MovieChatSheet({
 
         {remaining.length > 0 && !streaming && (
           <div className="px-4 pt-2">
-            <StarterChips
-              starters={remaining}
-              onPick={pick}
-              expanded={expanded}
-              onToggleExpand={() => {
-                if (!expanded) onStartersExpanded?.();
-                setExpanded(!expanded);
-              }}
-            />
+            <StarterChips starters={remaining} onPick={pick} />
           </div>
         )}
 

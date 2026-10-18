@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callXai, extractJSON } from './_lib/xai.js';
-import { tmdb, toFilm, searchFilm, type RawTmdb, type TmdbFilm } from './_lib/tmdb.js';
+import { callXai, extractJSON } from './xai.js';
+import { tmdb, toFilm, searchFilm, type RawTmdb, type TmdbFilm } from './tmdb.js';
+import { buildStarters, type FilmRef, type Starter } from '../../src/lib/askAi/starters.js';
 
 type Details = RawTmdb & {
   overview?: string;
@@ -11,10 +12,9 @@ type Details = RawTmdb & {
   keywords?: { keywords?: { name: string }[]; results?: { name: string }[] };
   belongs_to_collection?: { id: number } | null;
 };
-import { buildStarters, type FilmRef, type Starter } from '../src/lib/askAi/starters.js';
 
 export const STARTERS_VERSION = 2;
-const LLM_BUDGET_MS = 6000;
+const LLM_BUDGET_MS = 5000;
 
 const SYSTEM = `You write the starter questions under a film in a movie app. They read like posts on film X (Twitter): punchy, curious, opinionated, specific to this film. Never generic. No hashtags, emojis, or em dashes. Never spoil the plot in a non-spoiler question.`;
 
@@ -47,9 +47,8 @@ ${meta.candidates.map((c) => `${c.title} (${c.year || 'n/a'})`).join('\n') || '(
 Output ONLY JSON: {"compareOrder":["..."],"questions":[{"q":"...","films":["..."],"spoiler":false}]}`;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+/** GET /api/movie-starters. Served by the movie-chat function so the deploy stays within the function cap. */
+export async function handleMovieStarters(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const id = Number(req.query.id);
@@ -80,8 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const candidates = [...collection.filter((c) => c.id !== film.id), ...related];
   const byTitle = new Map<string, FilmRef>([film, ...candidates].map((f) => [f.title.toLowerCase(), f]));
-  const resolve = async (title: string): Promise<FilmRef | null> =>
-    byTitle.get(title.toLowerCase()) || (await searchFilm(title));
+  const resolve = async (title: string): Promise<FilmRef | null> => byTitle.get(title.toLowerCase()) || (await searchFilm(title));
 
   let llm: { text: string; films: FilmRef[]; spoiler?: boolean }[] = [];
   let reranked = related;
@@ -90,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const text = await callXai({
       system: SYSTEM,
       reasoningEffort: 'low',
-      maxTokens: 700,
+      maxTokens: 500,
       timeoutMs: LLM_BUDGET_MS,
       messages: [
         {
@@ -113,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         parsed.questions.slice(0, 6).map(async (q) => ({
           text: q.q,
           spoiler: !!q.spoiler,
-          films: ((await Promise.all((q.films || []).slice(0, 2).map(resolve))).filter(Boolean) as FilmRef[]),
+          films: (await Promise.all((q.films || []).slice(0, 2).map(resolve))).filter(Boolean) as FilmRef[],
         })),
       );
       source = 'llm';
@@ -133,7 +131,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     llm,
   });
 
-  // LLM sets are stable for a week; a template fallback is retried soon so the LLM set replaces it.
   res.setHeader(
     'Cache-Control',
     source === 'llm' ? 'public, s-maxage=604800, stale-while-revalidate=2592000' : 'public, s-maxage=300',

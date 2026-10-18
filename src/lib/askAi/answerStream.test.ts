@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAnswerStream, ENTITY_SENTINEL } from './answerStream';
+import { clampSentences, createAnswerStream, ENTITY_SENTINEL } from './answerStream';
 
 function run(chunks: string[]) {
   const s = createAnswerStream();
@@ -34,5 +34,16 @@ describe('answer stream', () => {
 
   it('streams text with no sentinel at all', () => {
     expect(run(['Just ', 'text.']).shown).toBe('Just text.');
+  });
+
+  it('stops after three sentences and still parses entities', () => {
+    const { shown, text, entities } = run([
+      'One. Two. Three. Four is too many.',
+      `${ENTITY_SENTINEL}{"films":[{"title":"Get Out"}],"people":[]}`,
+    ]);
+    expect(clampSentences('One. Two. Three. Four.')).toBe('One. Two. Three.');
+    expect(shown).toBe('One. Two. Three.');
+    expect(text).toBe('One. Two. Three.');
+    expect(entities.films?.[0].title).toBe('Get Out');
   });
 });

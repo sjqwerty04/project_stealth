@@ -5,6 +5,7 @@ import { readSkill } from './_lib/readSkill.js';
 import { searchFilm, searchPerson } from './_lib/tmdb.js';
 import { createAnswerStream, type RawEntities } from '../src/lib/askAi/answerStream.js';
 import type { MentionEntity } from '../src/lib/askAi/mentions.js';
+import { handleMovieStarters } from './_lib/movieStarters.js';
 
 type Movie = {
   id?: number;
@@ -32,7 +33,7 @@ ${taste ? `THE USER'S TASTE (use when recommending similar films):\n${taste}\n` 
 
 async function resolveEntities(raw: RawEntities, movie: Movie): Promise<MentionEntity[]> {
   const films = (raw.films || [])
-    .filter((f) => f?.title && f.title.toLowerCase() !== movie.title.toLowerCase())
+    .filter((f) => f?.title)
     .slice(0, 6);
   const people = (raw.people || []).filter((p) => typeof p === 'string' && p.trim()).slice(0, 6);
   const [filmHits, personHits] = await Promise.all([
@@ -56,6 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+  // /api/movie-starters rewrites here so starters don't cost a 13th serverless function.
+  if (req.query.route === 'starters' || (req.url || '').includes('/api/movie-starters')) {
+    return handleMovieStarters(req, res);
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { messages, movie, snippets, taste, stream } = req.body as {
@@ -74,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const deltas = streamXai({
     messages: messages.slice(-8),
     system: buildSystem(movie, snippets || [], taste),
-    maxTokens: 420,
+    maxTokens: 480,
     reasoningEffort: 'low',
   });
 

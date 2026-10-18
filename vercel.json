@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/movie-starters",
+      "destination": "/api/movie-chat?route=starters"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
