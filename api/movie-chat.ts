@@ -96,9 +96,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('X-Accel-Buffering', 'no');
-  const send = (obj: unknown) => res.write(`${JSON.stringify(obj)}\n`);
+  res.flushHeaders?.();
+  const send = (obj: unknown) => {
+    res.write(`${JSON.stringify(obj)}\n`);
+    (res as VercelResponse & { flush?: () => void }).flush?.();
+  };
   try {
     for await (const d of deltas) {
       const visible = answer.push(d);
