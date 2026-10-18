@@ -308,6 +308,7 @@ Rationale: per-user subcollections isolate concerns and simplify rule logic.
 
 ### App dev
 
+- Test login: use the one shared account (`SELECTS_TEST_EMAIL` / `SELECTS_TEST_PASSWORD`, seeded by `npm run seed:test-account`). Never sign up new accounts. See `AGENTS.md`.
 - `npm install`
 - `npm run dev` (UI only)
 - `vercel dev` (UI + local `/api/*` emulation for AI paths)
