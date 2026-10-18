@@ -9,7 +9,7 @@ Launch, doctor, drive, evidence, and cleanup for the Selects visual rebrand.
 3. Port `5173` responds.
 4. Firebase project `mvplockedin` is live.
 5. `/join` sets `sessionStorage.appInvite=1`.
-6. Optional: `SELECTS_TEST_EMAIL` / `SELECTS_TEST_PASSWORD` for F1.
+6. Required: `SELECTS_TEST_EMAIL` / `SELECTS_TEST_PASSWORD`, the one shared test account (`AGENTS.md`). Run `npm run seed:test-account` once per VM; it is idempotent. Never sign up a new account against `mvplockedin`.
 7. TMDB optional. Hunt/onboarding fall back to the local catalog.
 
 Laptop, cloud, phone, and the website all follow the same loop: branch off fetched `origin/main` → PR → merge → GitHub prod. Local `npm run dev` is the feature branch. Preview URLs are the PR. The home-screen PWA is production only. After a production SHA change, remove the home-screen icon once and add `https://selects-film.vercel.app` again if the install was a preview URL.
@@ -40,4 +40,4 @@ Flows live in `e2e/flows.spec.ts` (F0–F14) and `e2e/smokes.spec.ts`. Feature m
 
 ## Cleanup
 
-Do not delete `artifacts/verify`. Auth scratch: `e2e/.auth/` (gitignored).
+Do not delete `artifacts/verify`. Flows that need a brand-new user (F2, F15–F17) skip unless `VITE_FIREBASE_EMULATOR=1`; run them against the local emulator, never prod.

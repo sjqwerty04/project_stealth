@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
-import fs from 'node:fs';
-import { CREDS_PATH, signIn, saveEvidence, attachPageLog, dumpConsole, completeOnboarding } from './helpers';
+import { signIn, saveEvidence, attachPageLog, dumpConsole, completeOnboarding, testAccount } from './helpers';
 
 test.afterEach(async ({}, testInfo) => {
   const m = testInfo.title.match(/^(F-smoke-[^\s]+)/);
@@ -8,7 +7,7 @@ test.afterEach(async ({}, testInfo) => {
 });
 
 async function authed(page: import('@playwright/test').Page) {
-  const creds = fs.existsSync(CREDS_PATH) ? JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) : null;
+  const creds = testAccount();
   await page.goto('/app');
   const tabs = page.getByTestId('tab-bar');
   const email = page.getByLabel(/email/i);
@@ -17,7 +16,6 @@ async function authed(page: import('@playwright/test').Page) {
     email.waitFor({ state: 'visible', timeout: 20000 }),
   ]).catch(() => {});
   if (!(await tabs.isVisible().catch(() => false))) {
-    if (!creds) throw new Error('No F2 creds');
     await signIn(page, creds.email, creds.password);
   }
   if (page.url().includes('/onboarding')) await completeOnboarding(page);
