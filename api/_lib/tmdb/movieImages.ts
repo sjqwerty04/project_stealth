@@ -7,7 +7,7 @@ function tmdbImage(path: string | undefined, size: 'w500' | 'w780') {
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function movieImagesHandler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();

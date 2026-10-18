@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { bearerMatches } from '../_lib/voice/auth.js';
+import { bearerMatches } from './auth.js';
 
 const XAI = 'https://api.x.ai';
 
@@ -35,7 +35,7 @@ async function xai(path: string, init: RequestInit = {}) {
   return { status: res.status, body: redact(body) };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handleAdmin(req: VercelRequest, res: VercelResponse) {
   if (!bearerMatches(req.headers.authorization, process.env.VOICE_ADMIN_TOKEN)) {
     return res.status(401).json({ error: 'unauthorized' });
   }
