@@ -2,20 +2,20 @@ import { test, type Page, type TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { runThresholds } from './thresholds';
+import { loadTestAccount } from '../scripts/test-account-creds.mjs';
 
 /** Fresh sign-ups only ever land in the local emulator, never in mvplockedin. */
 export const ON_EMULATOR = process.env.VITE_FIREBASE_EMULATOR === '1';
 
 /** The one shared account (see AGENTS.md). Seed it with `npm run seed:test-account`. */
-export function testAccount() {
-  const email = process.env.SELECTS_TEST_EMAIL;
-  const password = process.env.SELECTS_TEST_PASSWORD;
-  if (!email || !password) {
+export function testAccount(): { email: string; password: string } {
+  const creds = loadTestAccount();
+  if (!creds) {
     throw new Error(
-      'SELECTS_TEST_EMAIL / SELECTS_TEST_PASSWORD are not set. Use the shared test account (AGENTS.md); do not sign up a new one.',
+      'Shared test account not found (SELECTS_TEST_EMAIL / SELECTS_TEST_PASSWORD or SELECTS_TEST_CREDS_FILE). See AGENTS.md; do not sign up a new one.',
     );
   }
-  return { email, password };
+  return creds;
 }
 
 /** Throwaway address for flows that must not create an account (F0 waitlist) or run on the emulator. */

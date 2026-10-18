@@ -6,6 +6,8 @@
 //   SELECTS_TEST_EMAIL=... SELECTS_TEST_PASSWORD=... npm run seed:test-account
 //   VITE_FIREBASE_EMULATOR=1 ... npm run seed:test-account   # local emulator instead of mvplockedin
 
+import { loadTestAccount } from './test-account-creds.mjs';
+
 const API_KEY = 'AIzaSyADZLBw2WEMYKpr9d_NKO1aEncT-tGX8PU';
 const PROJECT_ID = 'mvplockedin';
 const emulator = process.env.VITE_FIREBASE_EMULATOR === '1';
@@ -20,11 +22,12 @@ function fail(code, message) {
   process.exit(code);
 }
 
-const email = process.env.SELECTS_TEST_EMAIL?.trim().toLowerCase();
-const password = process.env.SELECTS_TEST_PASSWORD;
-if (!email || !password) {
-  fail(2, 'blocked. Set SELECTS_TEST_EMAIL and SELECTS_TEST_PASSWORD (Cursor Dashboard > Cloud Agents > Secrets).');
+const creds = loadTestAccount();
+if (!creds) {
+  fail(2, 'blocked. Set SELECTS_TEST_EMAIL and SELECTS_TEST_PASSWORD, or SELECTS_TEST_CREDS_FILE (see AGENTS.md).');
 }
+const email = creds.email.trim().toLowerCase();
+const { password } = creds;
 
 async function authCall(method, body) {
   const res = await fetch(`${AUTH_BASE}/accounts:${method}?key=${API_KEY}`, {
