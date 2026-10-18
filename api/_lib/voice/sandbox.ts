@@ -28,6 +28,7 @@ export async function startCallSandbox(input: {
   callId: string;
   xaiCallId: string;
   prior: PriorLike[];
+  lastFilm?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!process.env.XAI_API_KEY) return { ok: false, error: 'XAI_API_KEY is not set' };
   if (!process.env.VOICE_WEBHOOK_TOKEN) return { ok: false, error: 'VOICE_WEBHOOK_TOKEN is not set' };
@@ -49,7 +50,7 @@ export async function startCallSandbox(input: {
     const script = sessionScript();
     await sandbox.writeFiles([
       { path: 'session.mjs', content: Buffer.from(script) },
-      { path: 'session.json', content: Buffer.from(JSON.stringify(sessionUpdate(input.prior))) },
+      { path: 'session.json', content: Buffer.from(JSON.stringify(sessionUpdate(input.prior, input.lastFilm ?? null))) },
     ]);
     await sandbox.runCommand({
       cmd: 'bash',

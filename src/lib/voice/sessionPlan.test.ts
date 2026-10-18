@@ -31,7 +31,15 @@ describe('Liora session plan', () => {
   });
 
   it('keeps a first-time caller on the base script', () => {
-    expect(instructionsFor()).not.toContain('earlier calls');
+    expect(instructionsFor()).not.toContain('called before');
+    expect(instructionsFor()).toContain('Hey this is selects... um sooo what do you want to watch?');
+  });
+
+  it('names the last film when the caller has been here before', () => {
+    const text = instructionsFor([], 'Sicario');
+    expect(text).toContain('Hey, it\'s nice to see you again. Did you like Sicario?');
+    expect(text).toContain('Do not use the first-time opening.');
+    expect(text).not.toMatch(/[—–]/);
   });
 
   it('the sandbox runner enforces the same cap and does not embed a key', () => {

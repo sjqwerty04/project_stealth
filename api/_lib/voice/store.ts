@@ -107,6 +107,23 @@ export async function addPicks(
   }
 }
 
+/** Last film we recommended, then one we suggested, then one we talked about. */
+export async function lastFilm(client: pg.Client, callerId: string): Promise<string | null> {
+  const result = await client.query<{ title: string }>(
+    `SELECT title FROM (
+       SELECT title, created_at, 1 AS rank FROM final_picks WHERE caller_id = $1
+       UNION ALL
+       SELECT title, created_at, 2 AS rank FROM suggestions WHERE caller_id = $1
+       UNION ALL
+       SELECT title, created_at, 3 AS rank FROM mentions WHERE caller_id = $1
+     ) earlier
+     ORDER BY rank ASC, created_at DESC
+     LIMIT 1`,
+    [callerId],
+  );
+  return result.rows[0]?.title ?? null;
+}
+
 export async function priorLikes(client: pg.Client, callerId: string): Promise<{ title: string; reason: string | null }[]> {
   const result = await client.query<{ title: string; reason: string | null }>(
     `SELECT DISTINCT ON (lower(title)) title, reason

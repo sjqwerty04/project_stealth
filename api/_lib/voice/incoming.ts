@@ -1,7 +1,7 @@
 import { toE164 } from '../../../src/lib/phone.js';
 import { withVoiceDb } from './db.js';
 import { startCallSandbox } from './sandbox.js';
-import { priorLikes, startCall, upsertCaller } from './store.js';
+import { lastFilm, priorLikes, startCall, upsertCaller } from './store.js';
 import { webhookAuthorized } from './webhookAuth.js';
 
 type SipHeader = { name?: string; value?: string };
@@ -34,10 +34,11 @@ export async function handleIncoming(
       const caller = await upsertCaller(client, phone);
       const call = await startCall(client, caller.id, xaiCallId);
       const prior = call.created ? await priorLikes(client, caller.id) : [];
-      return { call, prior };
+      const film = call.created ? await lastFilm(client, caller.id) : null;
+      return { call, prior, film };
     });
     if (!started.call.created) return { status: 200, body: { ok: true, duplicate: true } };
-    const sandbox = await start({ callId: started.call.id, xaiCallId, prior: started.prior });
+    const sandbox = await start({ callId: started.call.id, xaiCallId, prior: started.prior, lastFilm: started.film });
     return {
       status: 200,
       body: { ok: true, callId: started.call.id, sandbox: sandbox.ok ? 'started' : 'unavailable' },

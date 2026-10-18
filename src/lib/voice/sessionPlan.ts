@@ -31,21 +31,35 @@ No spoilers unless they ask.
 The call ends at 10 minutes. If you are told to wrap up, say the pick you have, ask the text question, then stop.
 The caller can talk over you. Stop and listen.`;
 
-export function instructionsFor(prior: PriorLike[] = []): string {
+export function instructionsFor(prior: PriorLike[] = [], lastFilm: string | null = null): string {
+  const film = lastFilm?.trim() ?? '';
   const lines = prior
     .map((row) => {
       const reason = row.reason?.trim();
       return reason ? `${row.title}: ${reason}` : row.title;
     })
     .filter(Boolean);
-  if (!lines.length) return BASE;
-  return `${BASE}\n\n# This caller, from earlier calls\n${lines.join('\n')}\nStart from that. Do not ask them to repeat it unless they want to.`;
+  const memory: string[] = [];
+  if (film) {
+    memory.push(
+      `# This caller has called before`,
+      `The film from last time is ${film}.`,
+      `Your first line is: "Hey, it's nice to see you again. Did you like ${film}?"`,
+      `Say that title out loud. Do not use the first-time opening.`,
+      `Wait for their answer. If they liked it, prescribe the next film from that. If they did not, ask what missed, then prescribe.`,
+    );
+  }
+  if (lines.length) {
+    memory.push(`# What they already told you`, lines.join('\n'), `Do not ask them to repeat it unless they want to.`);
+  }
+  if (!memory.length) return BASE;
+  return `${BASE}\n\n${memory.join('\n')}`;
 }
 
-export function sessionUpdate(prior: PriorLike[] = []) {
+export function sessionUpdate(prior: PriorLike[] = [], lastFilm: string | null = null) {
   return {
     voice: VOICE_NAME,
-    instructions: instructionsFor(prior),
+    instructions: instructionsFor(prior, lastFilm),
     // Same server VAD the SpaceXAI realtime plugin sends: the caller can talk over her.
     turn_detection: {
       type: 'server_vad' as const,
@@ -116,6 +130,6 @@ export function sessionUpdate(prior: PriorLike[] = []) {
   };
 }
 
-export function wrapUpInstructions(prior: PriorLike[] = []): string {
-  return `${instructionsFor(prior)}\n\nWrap up now. Confirm two or three films, ask the text question, call save_picks, and say goodbye.`;
+export function wrapUpInstructions(prior: PriorLike[] = [], lastFilm: string | null = null): string {
+  return `${instructionsFor(prior, lastFilm)}\n\nWrap up now. Confirm two or three films, ask the text question, call save_picks, and say goodbye.`;
 }

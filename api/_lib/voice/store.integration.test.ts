@@ -2,7 +2,7 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resetSchemaFlag, withVoiceDb } from './db.js';
 import { handleIncoming } from './incoming.js';
-import { claimCaller, lookupImport } from './store.js';
+import { claimCaller, lastFilm, lookupImport } from './store.js';
 import { runTool } from './tools.js';
 
 const url = process.env.VOICE_DATABASE_URL || 'postgresql://voice@127.0.0.1/voice';
@@ -82,6 +82,8 @@ describe.skipIf(!hasDb)('voice call log', () => {
     const looked = await withVoiceDb((client) => lookupImport(client, phone));
     expect(looked.likes[0]?.reason).toBe('the telephoto across the street');
     expect(looked.picks[0]?.title).toBe('Sicario');
+    const earlier = looked.caller ? await withVoiceDb((client) => lastFilm(client, looked.caller!.id)) : null;
+    expect(earlier).toBe('Sicario');
     expect(looked.caller?.importedToUserId).toBeNull();
 
     const first = await withVoiceDb((client) => claimCaller(client, phone, 'user-a'));
