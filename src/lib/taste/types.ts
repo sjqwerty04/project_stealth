@@ -114,6 +114,7 @@ export type TasteEvent =
       dislikedFilms: FilmRef[];
       axis: Axis | null;
       personaLine?: string | null;
+      voiceReasons?: { title: string; reason: string }[];
     }
   | {
       type: 'verdict';

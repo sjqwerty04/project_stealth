@@ -19,7 +19,10 @@ import { buildTasteGraph } from '../lib/onboarding/graph';
 import Armature from '../components/Armature';
 import PickWall from '../components/PickWall';
 import { BarUnit, Button, Mark } from '../components/ui';
+import { saveVoicePicks } from '../lib/voice/applyImport';
+import { confirmVoicePhone, type VoiceLookup } from '../lib/voice/importClient';
 import ImportHub from './onboarding/ImportHub';
+import PhoneStep from './onboarding/PhoneStep';
 import { Cta, Label, Question, StepBody } from './onboarding/StepFrame';
 import { InsightsStep, NegativeProfileStep, ReadingStep } from './onboarding/RewardSteps';
 import { useReading } from './onboarding/useReading';
@@ -74,6 +77,9 @@ export default function OnboardingScreen() {
           dislikedFilms: state.negative,
           filmPreference: state.axes[0] ?? null,
           axes: state.axes,
+          voiceImport: state.phoneE164
+            ? { phone: state.phoneE164, reasons: state.voiceReasons }
+            : null,
           completedAt: serverTimestamp(),
           version: 2,
         },
@@ -81,7 +87,13 @@ export default function OnboardingScreen() {
       );
       await recordTasteEvent(
         user.uid,
-        { type: 'onboarding', favoriteFilms: favorite, dislikedFilms: disliked, axis: state.axes[0] ?? null },
+        {
+          type: 'onboarding',
+          favoriteFilms: favorite,
+          dislikedFilms: disliked,
+          axis: state.axes[0] ?? null,
+          voiceReasons: state.voiceReasons,
+        },
         { email: user.email },
       );
     } catch (e) {
@@ -90,7 +102,37 @@ export default function OnboardingScreen() {
       setSaving(false);
     }
     dispatch({ type: 'next' });
-  }, [user, state.positive, state.negative, state.axes]);
+  }, [user, state.positive, state.negative, state.axes, state.phoneE164, state.voiceReasons]);
+
+  const acceptPhone = useCallback(
+    async (lookup: VoiceLookup) => {
+      if (!user) throw new Error('Sign in again to bring a call over.');
+      if (lookup.found && !lookup.alreadyImported) {
+        await saveVoicePicks(user.uid, user.email, lookup.picks);
+        await confirmVoicePhone(lookup.phone, await user.getIdToken());
+        const likes = lookup.likes
+          .filter((like) => like.tmdbId)
+          .map((like) => ({
+            id: like.tmdbId as number,
+            title: like.title,
+            year: like.year,
+            posterPath: like.posterPath,
+          }));
+        dispatch({
+          type: 'phoneReady',
+          e164: lookup.phone,
+          likes,
+          reasons: lookup.likes
+            .filter((like) => like.reason.trim())
+            .map((like) => ({ title: like.title, reason: like.reason })),
+        });
+      } else {
+        dispatch({ type: 'phoneReady', e164: lookup.phone, likes: [], reasons: [] });
+      }
+      dispatch({ type: 'next' });
+    },
+    [user],
+  );
 
   const graph = useMemo(
     () => (state.stats ? buildTasteGraph(state.stats.graphSeed, reading.colours.length ? reading.colours : [state.stats.colourHex]) : null),
@@ -123,6 +165,12 @@ export default function OnboardingScreen() {
               <Button className="w-full max-w-sm mt-10" onClick={() => dispatch({ type: 'next' })} data-testid="onboarding-cta">
                 Begin
               </Button>
+            </StepBody>
+          )}
+
+          {state.step === 'phone' && (
+            <StepBody key="phone" testId="onboarding-phone">
+              <PhoneStep idToken={() => (user ? user.getIdToken() : Promise.reject(new Error('Sign in again to bring a call over.')))} onReady={acceptPhone} />
             </StepBody>
           )}
 

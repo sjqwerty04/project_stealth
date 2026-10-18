@@ -23,6 +23,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      ...(process.env.LOCAL_VOICE_API
+        ? { '/api/voice': { target: process.env.LOCAL_VOICE_API, changeOrigin: true } }
+        : {}),
       '/api': {
         target: 'https://selects-film.vercel.app',
         changeOrigin: true,

@@ -22,7 +22,7 @@ function dayOf(value: unknown): string | null {
 }
 
 function sourceOf(value: unknown, fallback: FilmSource): FilmSource {
-  const known: FilmSource[] = ['letterboxd', 'imdb', 'paste', 'screenshot', 'manual', 'calendar', 'discovery', 'rec'];
+  const known: FilmSource[] = ['letterboxd', 'imdb', 'paste', 'screenshot', 'manual', 'calendar', 'discovery', 'rec', 'voice'];
   return known.includes(value as FilmSource) ? (value as FilmSource) : fallback;
 }
 

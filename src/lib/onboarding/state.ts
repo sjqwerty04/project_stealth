@@ -5,6 +5,7 @@ export type { ImportSourceId };
 
 export type Step =
   | 'splash'
+  | 'phone'
   | 'positive'
   | 'negative'
   | 'neutral'
@@ -15,6 +16,7 @@ export type Step =
 
 export const STEP_ORDER: readonly Step[] = [
   'splash',
+  'phone',
   'positive',
   'negative',
   'neutral',
@@ -40,11 +42,15 @@ export type ImportSourceState =
   | { status: 'done'; films: number; nights: number }
   | { status: 'error'; message: string };
 
+export type VoiceReason = { title: string; reason: string };
+
 export type OnboardingState = {
   step: Step;
   positive: FilmPick[];
   negative: FilmPick[];
   axes: Axis[];
+  phoneE164: string | null;
+  voiceReasons: VoiceReason[];
   imports: Record<ImportSourceId, ImportSourceState>;
   stats: TasteStats | null;
   profile: SelectsProfile | null;
@@ -56,6 +62,7 @@ export type OnboardingAction =
   | { type: 'goto'; step: Step }
   | { type: 'togglePick'; wall: 'positive' | 'negative'; film: FilmPick }
   | { type: 'toggleAxis'; axis: Axis }
+  | { type: 'phoneReady'; e164: string; likes: FilmPick[]; reasons: VoiceReason[] }
   | { type: 'importStarted'; source: ImportSourceId }
   | { type: 'importDone'; source: ImportSourceId; films: number; nights: number }
   | { type: 'importFailed'; source: ImportSourceId; message: string }
@@ -68,6 +75,8 @@ export const initialOnboardingState: OnboardingState = {
   positive: [],
   negative: [],
   axes: [],
+  phoneE164: null,
+  voiceReasons: [],
   imports: { letterboxd: { status: 'idle' }, imdb: { status: 'idle' }, notes: { status: 'idle' }, images: { status: 'idle' } },
   stats: null,
   profile: null,
@@ -76,6 +85,8 @@ export const initialOnboardingState: OnboardingState = {
 /** The one place that knows which step may advance. */
 export function canAdvance(state: OnboardingState): boolean {
   switch (state.step) {
+    case 'phone':
+      return Boolean(state.phoneE164);
     case 'positive':
       return state.positive.length >= 1;
     case 'reading':
@@ -125,6 +136,13 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
       const has = state.axes.includes(action.axis);
       return { ...state, axes: has ? state.axes.filter((a) => a !== action.axis) : [...state.axes, action.axis] };
     }
+    case 'phoneReady':
+      return {
+        ...state,
+        phoneE164: action.e164,
+        voiceReasons: action.reasons,
+        positive: action.likes.length ? action.likes : state.positive,
+      };
     case 'importStarted':
       return { ...state, imports: { ...state.imports, [action.source]: { status: 'running' } } };
     case 'importDone':

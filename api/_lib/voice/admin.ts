@@ -43,7 +43,12 @@ export async function handleAdmin(req: VercelRequest, res: VercelResponse) {
 
   if (action === 'status') {
     const [numbers, voices] = await Promise.all([xai('/v2/phone-numbers?limit=100'), xai('/v1/tts/voices')]);
-    return res.status(200).json({ hasKey: Boolean(process.env.XAI_API_KEY), numbers, voices });
+    return res.status(200).json({
+      hasKey: Boolean(process.env.XAI_API_KEY),
+      hasDatabase: Boolean(process.env.VOICE_DATABASE_URL),
+      numbers,
+      voices,
+    });
   }
 
   if (action === 'xai') {

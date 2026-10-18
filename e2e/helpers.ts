@@ -89,7 +89,19 @@ export async function mockProfileApi(page: Page) {
 /** Splash through the three questions, stopping on the import hub. */
 export async function answerOnboardingQuestions(page: Page) {
   await mockProfileApi(page);
+  await page.route('**/api/voice/import', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ found: false, phone: '+12025550100' }),
+    }),
+  );
   await page.getByRole('button', { name: /begin/i }).click();
+  await page.getByTestId('onboarding-phone').waitFor();
+  await page.getByTestId('onboarding-phone-input').fill('+1 202 555 0100');
+  await page.getByRole('button', { name: /check this number/i }).click();
+  await page.getByTestId('onboarding-phone-empty').waitFor();
+  await page.getByRole('button', { name: /^continue$/i }).click();
   await page.getByTestId('onboarding-1').waitFor();
   const film = page.getByTestId('film-pick').first();
   await film.waitFor({ timeout: 20000 });
