@@ -4,7 +4,7 @@ import { useAuth } from './useAuth';
 import { useLibrary } from '../lib/library';
 import { getTaste } from '../lib/taste';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
-import { AI_SEARCH_CACHE_KEY, AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SERVICE_TIER, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
+import { AI_SEARCH_CACHE_KEY, AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_RECENT_EXTRA, AI_SEARCH_SYSTEM, buildAiSearchPrompt, buildRecencyPrompt, takeFilmTitles } from '../lib/aiSearch';
 import { watchedFilmExclusions, withoutWatched } from './selectExclusions';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -221,9 +221,10 @@ export function useMovieSearch() {
         let skippedWatched = 0;
         const hydrations: Promise<void>[] = [];
 
-        const accept = (film: { title: string; year: string }) => {
+        const accept = (film: { title: string; year: string }, fromRecency = false) => {
           const key = film.title.toLowerCase();
-          if (!key || seenTitles.has(key) || seenTitles.size >= AI_SEARCH_LIMIT) return;
+          const cap = fromRecency ? AI_SEARCH_LIMIT + AI_SEARCH_RECENT_EXTRA : AI_SEARCH_LIMIT;
+          if (!key || seenTitles.has(key) || seenTitles.size >= cap) return;
           seenTitles.add(key);
           if (withoutWatched([film], watchedRef.current).length === 0) {
             skippedWatched += 1;
@@ -246,6 +247,20 @@ export function useMovieSearch() {
           })());
         };
 
+        const recencyPromise = callLlm(
+          buildRecencyPrompt(trimmedQuery),
+          AI_SEARCH_SYSTEM,
+          {
+            maxTokens: AI_SEARCH_MAX_TOKENS,
+            reasoningEffort: AI_SEARCH_REASONING,
+            model: AI_SEARCH_MODEL,
+            webSearch: true,
+          },
+        ).catch((err) => {
+          console.error('Recent-film search failed:', err);
+          return null;
+        });
+
         try {
           await streamLlm(
             buildAiSearchPrompt(trimmedQuery),
@@ -254,7 +269,6 @@ export function useMovieSearch() {
               maxTokens: AI_SEARCH_MAX_TOKENS,
               reasoningEffort: AI_SEARCH_REASONING,
               model: AI_SEARCH_MODEL,
-              serviceTier: AI_SEARCH_SERVICE_TIER,
               promptCacheKey: AI_SEARCH_CACHE_KEY,
             },
             (delta) => {
@@ -273,6 +287,12 @@ export function useMovieSearch() {
         }
 
         await Promise.all(hydrations);
+        if (generation !== generationRef.current) return [];
+        const recencyText = await recencyPromise;
+        if (generation === generationRef.current && recencyText) {
+          takeFilmTitles(recencyText).titles.forEach((film) => accept(film, true));
+          await Promise.all(hydrations);
+        }
         if (generation !== generationRef.current) return [];
         searchResults = found;
 

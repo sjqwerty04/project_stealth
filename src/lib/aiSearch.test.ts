@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SERVICE_TIER, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
+import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SYSTEM, buildAiSearchPrompt, buildRecencyPrompt, takeFilmTitles } from './aiSearch';
 
 describe('ai film search', () => {
-  it('uses grok 4.7 low reasoning, priority, and a token cap', () => {
-    expect(AI_SEARCH_MODEL).toBe('grok-4.7');
-    expect(AI_SEARCH_REASONING).toBe('low');
-    expect(AI_SEARCH_SERVICE_TIER).toBe('priority');
+  it('uses grok 4.3 with reasoning off and a token cap', () => {
+    expect(AI_SEARCH_MODEL).toBe('grok-4.3');
+    expect(AI_SEARCH_REASONING).toBe('none');
     expect(AI_SEARCH_MAX_TOKENS).toBeLessThanOrEqual(512);
     expect(AI_SEARCH_SYSTEM.length).toBeLessThan(24);
+  });
+
+  it('asks the later pass only for films from the last 18 months', () => {
+    const prompt = buildRecencyPrompt('Brad Pitt survival films with a combat dog');
+    expect(prompt).toContain('Brad Pitt survival films with a combat dog');
+    expect(prompt).toContain('last 18 months');
+    expect(prompt).not.toContain('Heart of the Beast');
   });
 
   it('leads with one hit, then asks the list to spread out', () => {

@@ -30,7 +30,8 @@ export async function callXai(opts: {
   messages: ChatMessage[];
   system?: string;
   maxTokens?: number;
-  reasoningEffort?: 'low' | 'medium' | 'high' | null;
+  model?: string;
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null;
   webSearch?: boolean;
   /** Data URLs or https URLs attached to the last user message as input_image parts. */
   images?: string[];
@@ -49,7 +50,7 @@ export async function callXai(opts: {
   }
 
   const body: Record<string, unknown> = {
-    model: DEFAULT_MODEL,
+    model: opts.model || DEFAULT_MODEL,
     store: false,
     max_output_tokens: opts.maxTokens ?? 4096,
     input,

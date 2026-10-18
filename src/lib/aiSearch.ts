@@ -1,11 +1,10 @@
 export const AI_SEARCH_MAX_TOKENS = 512;
-export const AI_SEARCH_MODEL = 'grok-4.7';
-/** 4.7 cannot turn reasoning off. Low is the fastest effort it accepts. */
-export const AI_SEARCH_REASONING = 'low' as const;
-/** Public fast path. Grok 4.7 Fast is not on the xAI API. */
-export const AI_SEARCH_SERVICE_TIER = 'priority' as const;
+export const AI_SEARCH_MODEL = 'grok-4.3';
+export const AI_SEARCH_REASONING = 'none' as const;
 export const AI_SEARCH_CACHE_KEY = 'hunt-search';
 export const AI_SEARCH_LIMIT = 12;
+/** Extra slots for the web-search pass, after the fast list has already rendered. */
+export const AI_SEARCH_RECENT_EXTRA = 4;
 export const AI_SEARCH_SYSTEM = 'Real films. JSON.';
 
 export type FilmTitle = { title: string; year: string };
@@ -17,6 +16,14 @@ export function buildAiSearchPrompt(query: string): string {
 12 real films. [ first. No invented titles.
 1=obvious film, not a title already named.
 Films. Keep each named person and trait. Vary decade and country. One per series.`;
+}
+
+/** Later pass. Asks only for films from the last 18 months that fit the same sentence. */
+export function buildRecencyPrompt(query: string, today = '2026-10-18'): string {
+  return `Today:${today}
+Q:${JSON.stringify(query)}
+[{"t":"Title","y":1995}]
+Real films from the last 18 months only. No invented titles. [ first.`;
 }
 
 function findObjectEnd(source: string, start: number): number {

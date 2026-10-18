@@ -114,6 +114,7 @@ export interface LlmCallOptions {
   model?: string;
   serviceTier?: 'priority';
   promptCacheKey?: string;
+  webSearch?: boolean;
 }
 
 /** Newline-delimited `{d}` text deltas from /api/llm. Falls back to one JSON body. */
@@ -218,6 +219,8 @@ export const callLlm = async (
         systemPrompt,
         maxTokens: options?.maxTokens,
         reasoningEffort: options?.reasoningEffort,
+        model: options?.model,
+        webSearch: options?.webSearch,
       }),
     });
 
