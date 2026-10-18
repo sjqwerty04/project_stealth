@@ -56,6 +56,7 @@ export function SelectCard({
   onOpenLog = () => {},
   onCloseLog = () => {},
   onLogVerdict = () => {},
+  onNotInterested,
   onRetry,
 }: {
   film: SelectFilm;
@@ -70,6 +71,7 @@ export function SelectCard({
   onOpenLog?: () => void;
   onCloseLog?: () => void;
   onLogVerdict?: (verdict: Verdict) => void;
+  onNotInterested?: () => void;
   onRetry: () => void;
 }) {
   const still = art?.still || film.backdrop || film.poster;
@@ -86,56 +88,69 @@ export function SelectCard({
       className="relative w-full overflow-hidden bg-base text-left min-h-11"
       style={{ borderRadius: 0, border: 'none' }}
     >
-      <button
-        type="button"
-        data-testid="select-open-movie"
-        aria-label={film.title}
-        onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
-        disabled={loading}
-        className="relative block w-full overflow-hidden bg-base-3 text-left min-h-11"
-        style={{ height: 220 }}
-      >
-        {still ? (
-          <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="relative h-[220px]">
+        <button
+          type="button"
+          data-testid="select-open-movie"
+          aria-label={film.title}
+          onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
+          disabled={loading}
+          className="relative block h-full w-full overflow-hidden bg-base-3 text-left min-h-11"
+        >
+          {still ? (
+            <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          ) : null}
+          <span className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none">
+            <FilmLogo
+              src={logo}
+              className="relative object-contain"
+              style={{
+                width: '72%',
+                maxHeight: 72,
+                filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
+              }}
+            />
+          </span>
+        </button>
+        {loading ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
+            <SelectsChaseLoader
+              size="sm"
+              label={
+                slotReplacement?.phase === 'saving'
+                  ? 'Saving feedback'
+                  : 'Finding another select'
+              }
+            />
+          </div>
         ) : null}
-        <span className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none">
-          <FilmLogo
-            src={logo}
-            className="relative object-contain"
-            style={{
-              width: '72%',
-              maxHeight: 72,
-              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
-            }}
-          />
-        </span>
-      </button>
-      {loading ? (
-        <div className="absolute inset-x-0 top-0 z-20 flex h-[220px] items-center justify-center bg-black">
-          <SelectsChaseLoader
-            size="sm"
-            label={
-              slotReplacement?.phase === 'saving'
-                ? 'Saving feedback'
-                : 'Finding another select'
-            }
-          />
-        </div>
-      ) : null}
-      <button
-        type="button"
-        data-testid={`watched-${film.slotId}`}
-        data-carousel-control
-        onClick={() => {
-          if (logOpen) onCloseLog();
-          else if (pickerOpen) onClosePicker();
-          else onOpenPicker();
-        }}
-        disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
-        className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
-      >
-        Watched?
-      </button>
+        <button
+          type="button"
+          data-testid={`watched-${film.slotId}`}
+          data-carousel-control
+          onClick={() => {
+            if (logOpen) onCloseLog();
+            else if (pickerOpen) onClosePicker();
+            else onOpenPicker();
+          }}
+          disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+          className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+        >
+          Watched?
+        </button>
+        {onNotInterested ? (
+          <button
+            type="button"
+            data-testid={`not-interested-${film.slotId}`}
+            data-carousel-control
+            onClick={onNotInterested}
+            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            className="absolute bottom-3 left-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+          >
+            Not Interested
+          </button>
+        ) : null}
+      </div>
       {logOpen ? (
         <div
           data-carousel-control
@@ -246,6 +261,7 @@ export default function SelectsCarousel({
   replacements = {},
   onVerdict,
   onLogToday,
+  onNotInterested,
   onRetry,
   autoplay = true,
   intervalMs = SELECTS_AUTOPLAY_MS,
@@ -256,6 +272,7 @@ export default function SelectsCarousel({
   replacements?: Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>;
   onVerdict: (slotId: SelectSlotId, verdict: Verdict) => void;
   onLogToday?: (slotId: SelectSlotId, verdict: Verdict) => void;
+  onNotInterested?: (slotId: SelectSlotId) => void;
   onRetry: (slotId: SelectSlotId) => void;
   autoplay?: boolean;
   intervalMs?: number;
@@ -455,6 +472,15 @@ export default function SelectsCarousel({
                 setLogSlotId(null);
                 onLogToday?.(film.slotId, verdict);
               }}
+              onNotInterested={
+                onNotInterested
+                  ? () => {
+                      setPickerSlotId(null);
+                      setLogSlotId(null);
+                      onNotInterested(film.slotId);
+                    }
+                  : undefined
+              }
               onRetry={() => onRetry(film.slotId)}
             />
           </div>

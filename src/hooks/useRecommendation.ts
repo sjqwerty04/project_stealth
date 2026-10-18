@@ -557,6 +557,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       verdict?: Verdict,
       feedbackSaved = false,
       beforeRate?: (rec: RecommendationResult) => Promise<void>,
+      feedback: 'verdict' | 'skip' = 'verdict',
     ) => {
       const busy = replacementsRef.current[slotId];
       if (!user || (busy && (busy.phase === 'saving' || busy.phase === 'replacing'))) return;
@@ -583,6 +584,10 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           extraExcluded: exclusionList(),
           feedbackSaved,
           saveFeedback: async () => {
+            if (feedback === 'skip') {
+              await skipRecommendation(rec);
+              return;
+            }
             if (!verdict) throw new Error('Verdict is required');
             if (beforeRate) await beforeRate(rec);
             await rateRecommendation(rec, verdict);
@@ -643,7 +648,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         }
       }
     },
-    [user, rateRecommendation, patchReplacement, exclusionList],
+    [user, rateRecommendation, skipRecommendation, patchReplacement, exclusionList],
   );
 
   const replaceSelect = useCallback(
@@ -657,6 +662,11 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       verdict: Verdict,
       writeNight: (rec: RecommendationResult) => Promise<void>,
     ) => runSlotReplacement(slotId, verdict, false, writeNight),
+    [runSlotReplacement],
+  );
+
+  const dismissSelect = useCallback(
+    (slotId: SelectSlotId) => runSlotReplacement(slotId, undefined, false, undefined, 'skip'),
     [runSlotReplacement],
   );
 
@@ -685,6 +695,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     replacements,
     replaceSelect,
     logSelectToday,
+    dismissSelect,
     retrySelectReplacement,
   };
 }

@@ -31,6 +31,14 @@ export function snapLoopIndex(index: number, count: number): number | null {
   return null;
 }
 
+/** Real slide under the loop cursor. Clones map back onto the three films. */
+export function activeSelectIndex(slide: number, count: number): number {
+  if (count <= 1) return 0;
+  if (slide <= 0) return count - 1;
+  if (slide >= count + 1) return 0;
+  return slide - 1;
+}
+
 export function selectsAutoplayRunning(opts: {
   autoplay: boolean;
   paused: boolean;

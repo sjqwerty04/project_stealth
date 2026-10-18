@@ -447,6 +447,7 @@ export default function HomeStrip({
     replacements,
     replaceSelect,
     logSelectToday,
+    dismissSelect,
     retrySelectReplacement,
   } = useRecommendation({ events });
   const { byId: library, films: libraryFilms } = useLibrary();
@@ -625,6 +626,9 @@ export default function HomeStrip({
                   source: 'select',
                 });
               });
+            }}
+            onNotInterested={(slotId) => {
+              void dismissSelect(slotId);
             }}
             onRetry={(slotId) => {
               void retrySelectReplacement(slotId);
