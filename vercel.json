@@ -1,7 +1,15 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/call",
+      "destination": "/call/index.html"
+    },
+    {
+      "source": "/call/",
+      "destination": "/call/index.html"
+    },
+    {
+      "source": "/((?!api/|call(?:/|$)).*)",
       "destination": "/index.html"
     }
   ],

@@ -16,6 +16,13 @@ function selectsSha() {
 
 const SELECTS_SHA = selectsSha()
 
+function rewriteCallRoute(req: { url?: string }) {
+  const [pathname, query] = (req.url ?? '').split('?')
+  if (pathname === '/call' || pathname === '/call/') {
+    req.url = query ? `/call/index.html?${query}` : '/call/index.html'
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -30,6 +37,21 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      name: 'call-route',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          rewriteCallRoute(req)
+          next()
+        })
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          rewriteCallRoute(req)
+          next()
+        })
+      },
+    },
     {
       name: 'selects-sha-html',
       transformIndexHtml(html) {
@@ -77,6 +99,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallbackDenylist: [/^\/api\//, /^\/call(?:\/|$)/],
         skipWaiting: true, // Force service worker to update immediately
         clientsClaim: true, // Take control of all clients immediately
         runtimeCaching: [
