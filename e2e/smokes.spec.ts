@@ -62,6 +62,8 @@ test('F-smoke-call', async ({ page }, testInfo) => {
   await expect(page).toHaveURL(/\/call\/?$/);
   await expect(page.getByRole('img', { name: 'Selects' })).toBeVisible();
   await expect(page.getByText('(231) 525-7644')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Call Selects' })).toHaveCount(0);
+  await expect(page.getByText('Call Selects')).toHaveCount(1);
   const button = page.getByRole('link', { name: 'Call Selects' });
   await expect(button).toHaveAttribute('href', 'tel:+12315257644');
   await page.goto('/call/');

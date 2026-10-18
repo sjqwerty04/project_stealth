@@ -20,6 +20,13 @@ describe('call landing page', () => {
     expect(html).toContain('src="/selects-logo.png"');
   });
 
+  it('shows Call Selects only on the button, not as a page heading', () => {
+    const body = html.slice(html.indexOf('<body>'));
+    expect(body.match(/Call Selects/g)).toEqual(['Call Selects']);
+    expect(body).not.toMatch(/<h1\b/);
+    expect(body).toContain('>Call Selects</a>');
+  });
+
   it('links the fallback button to the E.164 tel URI', () => {
     expect(html).toContain('href="tel:+12315257644"');
     expect(html).toContain("var TEL = 'tel:+12315257644'");
