@@ -62,6 +62,45 @@ export function buildSelectExclusions(args: {
   ]);
 }
 
+/** Watched ledger for a signed-in viewer. Signed-out callers get an empty list. */
+export function watchedExclusions(
+  signedIn: boolean,
+  films: readonly { movieId: number; title: string; watched?: boolean }[],
+): SelectExclusion[] {
+  if (!signedIn) return [];
+  return buildSelectExclusions({
+    ledgerWatched: films.filter((film) => film.watched === true),
+  });
+}
+
+/** Prompt clause. Empty when there is nothing to exclude, so signed-out prompts stay unchanged. */
+export function watchedExclusionPrompt(excluded: readonly SelectExclusion[]): string {
+  if (!excluded.length) return '';
+  return `Do not recommend any of these films the viewer has already watched, matching by title or ID:\n${JSON.stringify(excluded)}\n`;
+}
+
+export function omitExcluded<T extends { movieId?: number; id?: string | number; title?: string }>(
+  items: readonly T[],
+  excluded: readonly SelectExclusion[],
+): T[] {
+  if (!excluded.length) return items as T[];
+  return items.filter((item) => {
+    const movieId = typeof item.movieId === 'number'
+      ? item.movieId
+      : typeof item.id === 'number'
+        ? item.id
+        : undefined;
+    return !pickIsExcluded(
+      {
+        movieId,
+        id: typeof item.id === 'string' ? item.id : undefined,
+        title: item.title,
+      },
+      excluded,
+    );
+  });
+}
+
 export function buildYourSelectsBody<TContext>(
   context: TContext,
   excluded: SelectExclusion[],

@@ -55,6 +55,17 @@ describe('rankNeighbors', () => {
     expect(ranked.map((r) => r.title)).toEqual(['Zodiac']);
   });
 
+  it('drops a watched ledger film that is not in the taste history', () => {
+    const ranked = rankNeighbors({
+      currentMovieId: 0,
+      neighbors: pool,
+      snapshot: emptySnapshot(),
+      excluded: [{ id: '1', title: 'Heat' }],
+    });
+    expect(ranked.map((row) => row.title)).not.toContain('Heat');
+    expect(ranked.map((row) => row.movieId)).toContain(2);
+  });
+
   it('boosts axis overlap and marks tasteBoost', () => {
     const snap = snapshot((base) => ({
       ...base,

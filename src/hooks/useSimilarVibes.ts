@@ -5,6 +5,7 @@ import { mixScholarNeighbors } from '../lib/similar/rankNeighbors';
 import { readAdjacency, writeAdjacency } from '../lib/similar/adjacencyStore';
 import { fetchScholarNeighbors } from '../lib/similar/prefetch';
 import { type FilmNeighbor } from '../lib/similar/types';
+import { useWatchedExclusions } from './useWatchedExclusions';
 
 export type SimilarMovieInput = {
   id: number;
@@ -17,6 +18,7 @@ export type SimilarMovieInput = {
 
 export function useSimilarVibes(movie: SimilarMovieInput) {
   const { snapshot } = useTaste();
+  const { excluded, ready: exclusionsReady } = useWatchedExclusions();
   const [lineage, setLineage] = useState<FilmNeighbor[]>([]);
   const [scholar, setScholar] = useState<FilmNeighbor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,13 +91,16 @@ export function useSimilarVibes(movie: SimilarMovieInput) {
         lineage,
         scholar,
         snapshot,
+        excluded,
       }),
-    [movie.id, lineage, scholar, snapshot],
+    [movie.id, lineage, scholar, snapshot, excluded],
   );
 
+  const similarMovies = exclusionsReady ? ranked : [];
+
   return {
-    similarMovies: ranked,
-    isLoading: isLoading && ranked.length === 0,
+    similarMovies,
+    isLoading: !exclusionsReady || (isLoading && similarMovies.length === 0),
     refreshed: refreshed && scholar.length > 0,
     scholarLoading,
     scholarElapsed,

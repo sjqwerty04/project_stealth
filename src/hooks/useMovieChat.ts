@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import type { MovieSnippet } from './useMovieInsights';
 import { useAuth } from './useAuth';
 import { recordTasteEvent } from '../lib/taste';
+import { omitExcluded } from './selectExclusions';
+import { useWatchedExclusions } from './useWatchedExclusions';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -52,6 +54,7 @@ async function hydrate(recs: { title: string; year?: string }[]): Promise<ChatRe
 
 export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?: string) {
   const { user } = useAuth();
+  const { excluded } = useWatchedExclusions();
   const [messages, setMessages] = useState<ChatMessageUI[]>([]);
   const [isThinking, setIsThinking] = useState(false);
 
@@ -74,10 +77,14 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
             movie,
             snippets,
             taste,
+            excluded,
           }),
         });
         const data = res.ok ? await res.json() : { text: "Sorry, I couldn't reach the projector booth. Try again?" };
-        const recommendations = data.recommendations?.length ? await hydrate(data.recommendations) : undefined;
+        const hydratedRecs = data.recommendations?.length ? await hydrate(data.recommendations) : undefined;
+        const recommendations = hydratedRecs?.length
+          ? omitExcluded(hydratedRecs, excluded)
+          : undefined;
         setMessages((prev) => [...prev, { role: 'assistant', content: data.text || '', recommendations }]);
         if (user?.uid && movie.id) {
           void recordTasteEvent(
@@ -95,7 +102,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
         setIsThinking(false);
       }
     },
-    [messages, isThinking, movie, snippets, taste, user]
+    [messages, isThinking, movie, snippets, taste, user, excluded]
   );
 
   const reset = useCallback(() => setMessages([]), []);

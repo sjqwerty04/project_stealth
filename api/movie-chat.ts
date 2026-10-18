@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { callXai, type ChatMessage } from './_lib/xai.js';
 import { snippetsToPromptBlock, type RedditSnippet } from './_lib/reddit.js';
 import { readSkill } from './_lib/readSkill.js';
+import { watchedExclusionPrompt, type SelectExclusion } from '../src/hooks/selectExclusions.js';
 
 type Movie = {
   title: string;
@@ -11,9 +12,15 @@ type Movie = {
   overview?: string;
 };
 
-const buildSystem = (movie: Movie, snippets: RedditSnippet[], taste?: string): string => {
+const buildSystem = (
+  movie: Movie,
+  snippets: RedditSnippet[],
+  taste?: string,
+  excluded?: SelectExclusion[],
+): string => {
   const skill = readSkill('movie-chat');
   const grounding = snippetsToPromptBlock(snippets || [], 5000);
+  const watched = watchedExclusionPrompt(Array.isArray(excluded) ? excluded : []);
   return `${skill}
 
 THE FILM:
@@ -23,7 +30,8 @@ Genres: ${(movie.genres || []).join(', ') || 'unknown'}
 Overview: ${movie.overview || 'n/a'}
 
 ${grounding ? `WHAT REAL VIEWERS DISCUSS (from Reddit):\n${grounding}\n` : ''}
-${taste ? `THE USER'S TASTE (use when recommending similar films):\n${taste}\n` : ''}`;
+${taste ? `THE USER'S TASTE (use when recommending similar films):\n${taste}\n` : ''}
+${watched ? `ALREADY WATCHED:\n${watched}` : ''}`;
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -34,11 +42,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { messages, movie, snippets, taste } = req.body as {
+  const { messages, movie, snippets, taste, excluded } = req.body as {
     messages: ChatMessage[];
     movie: Movie;
     snippets?: RedditSnippet[];
     taste?: string;
+    excluded?: SelectExclusion[];
   };
 
   if (!messages?.length || !movie?.title) {
@@ -48,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const text = await callXai({
       messages,
-      system: buildSystem(movie, snippets || [], taste),
+      system: buildSystem(movie, snippets || [], taste, excluded),
       maxTokens: 1024,
     });
 

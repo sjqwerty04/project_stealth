@@ -4,6 +4,8 @@ import { useAuth } from './useAuth';
 import { getTaste } from '../lib/taste';
 import { loadSkill } from '../lib/skills';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
+import { omitExcluded, watchedExclusionPrompt, type SelectExclusion } from './selectExclusions';
+import { useWatchedExclusions } from './useWatchedExclusions';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -109,6 +111,9 @@ export function useMovieSearch() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string>('');
   const { user } = useAuth();
+  const { excluded } = useWatchedExclusions();
+  const excludedRef = useRef<SelectExclusion[]>(excluded);
+  excludedRef.current = excluded;
 
   const searchMovies = useCallback(async (query: string): Promise<SearchResult[]> => {
     const trimmedQuery = query.trim();
@@ -142,6 +147,7 @@ export function useMovieSearch() {
       const classification = classifyQuery(trimmedQuery);
       
       let searchResults: SearchResult[] = [];
+      let aiReturnedFilms = false;
       let metadata: SearchMetadata = { mode: classification.mode };
       
       // Handle different search modes
@@ -153,6 +159,7 @@ export function useMovieSearch() {
         const tasteBlock = snapshot?.generated.compactForChat
           ? `\n<user_taste>\n${snapshot.generated.compactForChat}\n</user_taste>`
           : '';
+        const watchedBlock = watchedExclusionPrompt(excludedRef.current);
         const aiPrompt = `${loadSkill('search-intent')}
 
 <task>
@@ -160,6 +167,7 @@ The user is searching for movies with this query: "${trimmedQuery}"
 Interpret their intent and recommend 8-10 highly relevant movies.
 </task>
 ${tasteBlock}
+${watchedBlock ? `\n<already_watched>\n${watchedBlock}</already_watched>\n` : ''}
 
 <output_format>
 [
@@ -217,7 +225,9 @@ ${tasteBlock}
               });
               
               const hydrated = await Promise.all(hydratePromises);
-              searchResults = hydrated.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+              const hydratedFilms = hydrated.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+              aiReturnedFilms = hydratedFilms.length > 0;
+              searchResults = omitExcluded(hydratedFilms, excludedRef.current);
             }
           } catch (err) {
             console.error('Failed to parse AI response:', err);
@@ -229,14 +239,15 @@ ${tasteBlock}
           generateVibeList(trimmedQuery, '');
         }
         
-        if (searchResults.length === 0) {
-          // Fall back to standard search if AI fails
+        if (searchResults.length === 0 && !aiReturnedFilms) {
+          // Fall back to standard search if AI fails. A list that was only watched films stays empty.
           classification.mode = 'standard';
         }
       }
       
-      // Standard search (or fallback)
-      if (classification.mode === 'standard' || searchResults.length === 0) {
+      // Standard search, or fallback when the model returned nothing.
+      // An AI list that was entirely already-watched stays empty instead of falling through.
+      if (classification.mode === 'standard' || (searchResults.length === 0 && !aiReturnedFilms)) {
         metadata.mode = 'standard';
         
         // Search movies (pages 1+2) and TV (page 1) in parallel so popular films
@@ -397,10 +408,12 @@ ${tasteBlock}
       const taste = await fetchUserContext(user.uid);
       const contextString = taste ? `\nViewer taste: ${taste}` : '';
       
+      const watchedBlock = watchedExclusionPrompt(excludedRef.current);
       const vibePrompt = `<task>
 Create a personalized movie recommendation list based on the user's search query and their viewing history.
 Query: "${query}"
 Genre hint: "${genreHint}"${contextString}
+${watchedBlock ? `\nAlready watched, do not recommend:\n${watchedBlock}` : ''}
 
 Generate a catchy list title and 6-8 movie recommendations tailored to this user's tastes.
 </task>
@@ -471,7 +484,10 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
             });
             
             const hydratedMovies = await Promise.all(hydratePromises);
-            const validMovies = hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+            const validMovies = omitExcluded(
+              hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[],
+              excludedRef.current,
+            );
             
             if (validMovies.length > 0) {
               setVibeList({

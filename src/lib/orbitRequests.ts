@@ -1,3 +1,4 @@
+import type { SelectExclusion } from '../hooks/selectExclusions';
 import type { OrbitMovie, SwipeDirection } from '../stores/orbitStore';
 
 export interface OrbitRecommendation {
@@ -15,12 +16,14 @@ export type OrbitRequestStatus =
 export type OrbitLoader = (
   movie: OrbitMovie,
   direction: SwipeDirection,
-  taste?: string | null
+  taste?: string | null,
+  excluded?: readonly SelectExclusion[],
 ) => Promise<OrbitRecommendation | null>;
 
 export type OrbitBatchLoader = (
   movie: OrbitMovie,
-  taste?: string | null
+  taste?: string | null,
+  excluded?: readonly SelectExclusion[],
 ) => Promise<Record<SwipeDirection, OrbitRecommendation | null> | null>;
 
 type ImageWarmer = (url: string) => void;
@@ -33,9 +36,15 @@ const defaultImageWarmer: ImageWarmer = (url) => {
   image.src = url;
 };
 
+function exclusionCacheKey(excluded?: readonly SelectExclusion[]): string | null {
+  if (!excluded?.length) return null;
+  return excluded.map((row) => row.id).slice().sort().join(',');
+}
+
 export const getOrbitSourceKey = (
   movie: OrbitMovie,
-  taste?: string | null
+  taste?: string | null,
+  excluded?: readonly SelectExclusion[],
 ): string => JSON.stringify([
   movie.id,
   movie.mediaType,
@@ -44,13 +53,15 @@ export const getOrbitSourceKey = (
   movie.genres ?? [],
   movie.director ?? null,
   taste ?? null,
+  exclusionCacheKey(excluded),
 ]);
 
 const getRequestKey = (
   movie: OrbitMovie,
   direction: SwipeDirection,
-  taste?: string | null
-): string => JSON.stringify([getOrbitSourceKey(movie, taste), direction]);
+  taste?: string | null,
+  excluded?: readonly SelectExclusion[],
+): string => JSON.stringify([getOrbitSourceKey(movie, taste, excluded), direction]);
 
 export const warmOrbitImages = (
   movie: OrbitMovie,
@@ -65,21 +76,24 @@ export const warmOrbitImages = (
 };
 
 export interface OrbitRequestCoordinator {
-  sourceKey: (movie: OrbitMovie, taste?: string | null) => string;
+  sourceKey: (movie: OrbitMovie, taste?: string | null, excluded?: readonly SelectExclusion[]) => string;
   status: (
     movie: OrbitMovie,
     direction: SwipeDirection,
-    taste?: string | null
+    taste?: string | null,
+    excluded?: readonly SelectExclusion[],
   ) => OrbitRequestStatus;
   peek: (
     movie: OrbitMovie,
     direction: SwipeDirection,
-    taste?: string | null
+    taste?: string | null,
+    excluded?: readonly SelectExclusion[],
   ) => OrbitRecommendation | null;
   request: (
     movie: OrbitMovie,
     direction: SwipeDirection,
-    taste?: string | null
+    taste?: string | null,
+    excluded?: readonly SelectExclusion[],
   ) => Promise<OrbitRecommendation | null>;
   prefetch: (
     movie: OrbitMovie,
@@ -89,7 +103,8 @@ export interface OrbitRequestCoordinator {
       sourceKey: string,
       direction: SwipeDirection,
       result: OrbitRecommendation
-    ) => void
+    ) => void,
+    excluded?: readonly SelectExclusion[],
   ) => string;
 }
 
@@ -103,16 +118,16 @@ export const createOrbitRequestCoordinator = (
   const inFlightBatches = new Map<string, Promise<Record<SwipeDirection, OrbitRecommendation | null> | null>>();
   const batchSubscribers = new Map<string, Set<(sourceKey: string, dir: SwipeDirection, rec: OrbitRecommendation) => void>>();
 
-  const status: OrbitRequestCoordinator['status'] = (movie, direction, taste) =>
-    entries.get(getRequestKey(movie, direction, taste)) ?? { state: 'idle' };
+  const status: OrbitRequestCoordinator['status'] = (movie, direction, taste, excluded) =>
+    entries.get(getRequestKey(movie, direction, taste, excluded)) ?? { state: 'idle' };
 
-  const request: OrbitRequestCoordinator['request'] = (movie, direction, taste) => {
-    const key = getRequestKey(movie, direction, taste);
+  const request: OrbitRequestCoordinator['request'] = (movie, direction, taste, excluded) => {
+    const key = getRequestKey(movie, direction, taste, excluded);
     const entry = entries.get(key);
     if (entry?.state === 'loading') return entry.promise;
     if (entry?.state === 'ready') return Promise.resolve(entry.value);
 
-    const promise = load(movie, direction, taste)
+    const promise = load(movie, direction, taste, excluded)
       .then((result) => {
         if (!result) {
           entries.set(key, { state: 'failed' });
@@ -138,13 +153,13 @@ export const createOrbitRequestCoordinator = (
   return {
     sourceKey: getOrbitSourceKey,
     status,
-    peek: (movie, direction, taste) => {
-      const entry = status(movie, direction, taste);
+    peek: (movie, direction, taste, excluded) => {
+      const entry = status(movie, direction, taste, excluded);
       return entry.state === 'ready' ? entry.value : null;
     },
     request,
-    prefetch: (movie, backDirection, taste, publish) => {
-      const sourceKey = getOrbitSourceKey(movie, taste);
+    prefetch: (movie, backDirection, taste, publish, excluded) => {
+      const sourceKey = getOrbitSourceKey(movie, taste, excluded);
       activeSourceKey = sourceKey;
 
       if (loadBatch) {
@@ -158,7 +173,7 @@ export const createOrbitRequestCoordinator = (
         // Immediately publish any directions already ready
         for (const direction of directions) {
           if (direction === backDirection) continue;
-          const key = getRequestKey(movie, direction, taste);
+          const key = getRequestKey(movie, direction, taste, excluded);
           const existing = entries.get(key);
           if (existing?.state === 'ready') {
             publish(sourceKey, direction, existing.value);
@@ -169,7 +184,7 @@ export const createOrbitRequestCoordinator = (
         if (!batchPromise) {
           const resolvers: Partial<Record<SwipeDirection, (val: OrbitRecommendation | null) => void>> = {};
           for (const direction of directions) {
-            const key = getRequestKey(movie, direction, taste);
+            const key = getRequestKey(movie, direction, taste, excluded);
             const existing = entries.get(key);
             if (!existing || existing.state === 'failed') {
               const p = new Promise<OrbitRecommendation | null>((resolve) => {
@@ -179,7 +194,7 @@ export const createOrbitRequestCoordinator = (
             }
           }
 
-          batchPromise = loadBatch(movie, taste)
+          batchPromise = loadBatch(movie, taste, excluded)
             .then((batchResult) => {
               inFlightBatches.delete(sourceKey);
               const currentSubs = batchSubscribers.get(sourceKey);
@@ -188,7 +203,7 @@ export const createOrbitRequestCoordinator = (
               if (batchResult) {
                 for (const direction of directions) {
                   const result = batchResult[direction];
-                  const key = getRequestKey(movie, direction, taste);
+                  const key = getRequestKey(movie, direction, taste, excluded);
                   if (result) {
                     entries.set(key, { state: 'ready', value: result });
                     try {
@@ -207,7 +222,7 @@ export const createOrbitRequestCoordinator = (
                 }
               } else {
                 for (const direction of directions) {
-                  const key = getRequestKey(movie, direction, taste);
+                  const key = getRequestKey(movie, direction, taste, excluded);
                   if (entries.get(key)?.state === 'loading') {
                     entries.set(key, { state: 'failed' });
                   }
@@ -220,7 +235,7 @@ export const createOrbitRequestCoordinator = (
               inFlightBatches.delete(sourceKey);
               batchSubscribers.delete(sourceKey);
               for (const direction of directions) {
-                const key = getRequestKey(movie, direction, taste);
+                const key = getRequestKey(movie, direction, taste, excluded);
                 if (entries.get(key)?.state === 'loading') {
                   entries.set(key, { state: 'failed' });
                 }
@@ -236,7 +251,7 @@ export const createOrbitRequestCoordinator = (
 
       for (const direction of directions) {
         if (direction === backDirection) continue;
-        void request(movie, direction, taste).then((result) => {
+        void request(movie, direction, taste, excluded).then((result) => {
           if (result && activeSourceKey === sourceKey) {
             publish(sourceKey, direction, result);
           }
