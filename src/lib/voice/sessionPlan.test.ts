@@ -20,6 +20,8 @@ describe('Liora session plan', () => {
     expect(session.instructions).toContain('A tool call is not saying it');
     expect(session.instructions).toContain('have not seen and they want to watch');
     expect(session.instructions).toContain('Do not keep interviewing once you can pick');
+    expect(session.instructions).toContain('Call web_search with that title before you answer');
+    expect(session.instructions).not.toContain('say it again');
     expect(session.instructions).not.toContain('before you suggest anything');
     expect(session.instructions).not.toMatch(/[—–]/);
     expect(session.tools.map((tool) => ('name' in tool ? tool.name : tool.type))).toEqual([
