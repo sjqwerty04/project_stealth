@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs';
-import { CREDS_PATH, signIn } from './helpers';
+import { signIn, testAccount } from './helpers';
 
 test('Visual proof of SelectsChaseLoader and Orbit clean wait state', async ({ page }) => {
   await page.addInitScript(() => {
@@ -17,13 +17,8 @@ test('Visual proof of SelectsChaseLoader and Orbit clean wait state', async ({ p
   await page.screenshot({ path: path.join(loginDir, 'login-brand.png') });
 
   // Sign in so protected routes work
-  if (fs.existsSync(CREDS_PATH)) {
-    const credentials = JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) as {
-      email: string;
-      password: string;
-    };
-    await signIn(page, credentials.email, credentials.password);
-  }
+  const credentials = testAccount();
+  await signIn(page, credentials.email, credentials.password);
 
   // 2. Mock TMDB entry for Orbit
   await page.route('https://api.themoviedb.org/3/**', async (route) => {

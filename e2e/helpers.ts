@@ -1,12 +1,31 @@
-import type { Page, TestInfo } from '@playwright/test';
+import { test, type Page, type TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { runThresholds } from './thresholds';
 
-export const CREDS_PATH = path.join(process.cwd(), 'e2e', '.auth', 'creds.json');
+/** Fresh sign-ups only ever land in the local emulator, never in mvplockedin. */
+export const ON_EMULATOR = process.env.VITE_FIREBASE_EMULATOR === '1';
 
+/** The one shared account (see AGENTS.md). Seed it with `npm run seed:test-account`. */
+export function testAccount() {
+  const email = process.env.SELECTS_TEST_EMAIL;
+  const password = process.env.SELECTS_TEST_PASSWORD;
+  if (!email || !password) {
+    throw new Error(
+      'SELECTS_TEST_EMAIL / SELECTS_TEST_PASSWORD are not set. Use the shared test account (AGENTS.md); do not sign up a new one.',
+    );
+  }
+  return { email, password };
+}
+
+/** Throwaway address for flows that must not create an account (F0 waitlist) or run on the emulator. */
 export function uniqueEmail() {
   return `selects.verify.${Date.now()}.${Math.floor(Math.random() * 1e4)}@example.com`;
+}
+
+/** Call at the top of any test that signs up a brand-new user. */
+export function requireEmulatorForSignup() {
+  test.skip(!ON_EMULATOR, 'New-account flows run only with VITE_FIREBASE_EMULATOR=1 so prod never gets spam accounts.');
 }
 
 export async function saveEvidence(testInfo: TestInfo, flowId: string) {
@@ -122,7 +141,9 @@ export async function completeOnboarding(page: Page) {
   await finishOnboardingReward(page);
 }
 
-export async function signupFreshAccount(page: Page, password = 'REDACTED_TEST_PASSWORD') {
+/** Emulator only: signs up a disposable user and stops on `/onboarding`. */
+export async function signUpOnEmulator(page: Page, password = 'REDACTED_TEST_PASSWORD') {
+  if (!ON_EMULATOR) throw new Error('signUpOnEmulator called without VITE_FIREBASE_EMULATOR=1');
   const email = uniqueEmail();
   await page.goto('/join');
   await page.waitForURL(/\/login/, { timeout: 15000 });
@@ -133,14 +154,11 @@ export async function signupFreshAccount(page: Page, password = 'REDACTED_TEST_P
   await page.getByLabel(/confirm password/i).fill(password);
   await page.getByRole('button', { name: /^continue$/i }).click();
   await page.waitForURL(/\/onboarding/, { timeout: 25000 });
-  await completeOnboarding(page);
-  fs.mkdirSync(path.dirname(CREDS_PATH), { recursive: true });
-  fs.writeFileSync(CREDS_PATH, JSON.stringify({ email, password }));
   return { email, password };
 }
 
 export async function ensureAuthed(page: Page) {
-  const creds = fs.existsSync(CREDS_PATH) ? JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) : null;
+  const creds = testAccount();
   await page.goto('/app');
   await page.waitForLoadState('domcontentloaded');
   const tabs = page.getByTestId('tab-bar');
@@ -159,10 +177,6 @@ export async function ensureAuthed(page: Page) {
     return;
   }
   if (!(await tabs.isVisible().catch(() => false))) {
-    if (!creds) {
-      await signupFreshAccount(page);
-      return;
-    }
     await signIn(page, creds.email, creds.password);
   }
   if (page.url().includes('/onboarding')) {
