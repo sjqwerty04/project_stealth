@@ -124,6 +124,20 @@ export function SelectCard({
             />
           </div>
         ) : null}
+        <button
+          type="button"
+          data-testid={`watched-${film.slotId}`}
+          data-carousel-control
+          onClick={() => {
+            if (logOpen) onCloseLog();
+            else if (pickerOpen) onClosePicker();
+            else onOpenPicker();
+          }}
+          disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+          className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+        >
+          Watched?
+        </button>
         {onNotInterested ? (
           <button
             type="button"
@@ -135,22 +149,7 @@ export function SelectCard({
           >
             Not Interested
           </button>
-        ) : (
-          <button
-            type="button"
-            data-testid={`watched-${film.slotId}`}
-            data-carousel-control
-            onClick={() => {
-              if (logOpen) onCloseLog();
-              else if (pickerOpen) onClosePicker();
-              else onOpenPicker();
-            }}
-            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
-            className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
-          >
-            Watched?
-          </button>
-        )}
+        ) : null}
       </div>
       {logOpen ? (
         <div

@@ -427,7 +427,9 @@ describe('select card watched control', () => {
     expect(html).toContain('Not Interested');
     expect(html).toContain('data-testid="not-interested-1"');
     expect(html).toContain('bottom-3 left-3');
-    expect(html).not.toContain('Watched?');
+    expect(html).toContain('Watched?');
+    expect(html).toContain('data-testid="watched-1"');
+    expect(html).toContain('top-3 right-3');
     expect(html).not.toContain('Next to Watch');
   });
 
