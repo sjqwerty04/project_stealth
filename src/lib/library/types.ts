@@ -16,7 +16,8 @@ export type FilmSource =
   | 'manual'
   | 'calendar'
   | 'discovery'
-  | 'rec';
+  | 'rec'
+  | 'voice';
 
 export type MediaType = 'movie' | 'tv';
 

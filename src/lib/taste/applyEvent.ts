@@ -81,6 +81,14 @@ export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, even
         patterns: next.generated.patterns,
       });
       next = { ...next, context };
+      if (event.voiceReasons?.length) {
+        let preferences = next.context.preferences;
+        for (const row of event.voiceReasons) {
+          const reason = row.reason.trim();
+          if (reason) preferences = uniqPref(preferences, `${row.title}: ${reason}`);
+        }
+        next = { ...next, context: { ...next.context, preferences } };
+      }
       break;
     }
     case 'verdict': {

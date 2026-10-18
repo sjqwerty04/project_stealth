@@ -176,6 +176,18 @@ describe('applyTasteEvent', () => {
     expect(snap.identity.personaLine).toBe('Night drives and moral math.');
     expect(snap.context.history[0].item).toBe('Drive');
     expect(snap.context.preferences.some((p) => p.includes('A Fast One'))).toBe(true);
+    const withReason = applyTasteEvent(
+      emptySnapshot(),
+      {
+        type: 'onboarding',
+        favoriteFilms: [{ title: 'Heat', movieId: 949 }],
+        dislikedFilms: [],
+        axis: null,
+        voiceReasons: [{ title: 'Heat', reason: 'the telephoto across the street' }],
+      },
+      'voice',
+    );
+    expect(withReason.context.preferences).toContain('Heat: the telephoto across the street');
     expect(snap.generated.compactForChat).toContain('Night drives');
     expect(compactTaste(snap.context, snap.identity).length).toBeGreaterThan(10);
   });

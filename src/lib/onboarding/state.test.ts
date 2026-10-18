@@ -17,14 +17,25 @@ function run(actions: Parameters<typeof onboardingReducer>[1][], from: Onboardin
 }
 
 describe('onboardingReducer', () => {
-  it('starts on splash and advances to positive', () => {
-    expect(run([{ type: 'next' }]).step).toBe('positive');
+  it('starts on splash and asks for a phone before the positive wall', () => {
+    expect(run([{ type: 'next' }]).step).toBe('phone');
+    const stuck = run([{ type: 'next' }, { type: 'next' }]);
+    expect(stuck.step).toBe('phone');
+    expect(canAdvance(stuck)).toBe(false);
   });
 
-  it('refuses to leave positive with zero picks', () => {
-    const s = run([{ type: 'next' }, { type: 'next' }]);
-    expect(s.step).toBe('positive');
-    expect(canAdvance(s)).toBe(false);
+  it('a checked number can seed the positive wall and then refuses an empty wall', () => {
+    const ready = run([
+      { type: 'next' },
+      { type: 'phoneReady', e164: '+12025550100', likes: [film(949)], reasons: [{ title: 'Heat', reason: 'the telephoto' }] },
+      { type: 'next' },
+    ]);
+    expect(ready.step).toBe('positive');
+    expect(ready.positive.map((item) => item.id)).toEqual([949]);
+    expect(ready.voiceReasons[0]?.reason).toBe('the telephoto');
+    const empty = run([{ type: 'next' }, { type: 'phoneReady', e164: '+12025550100', likes: [], reasons: [] }, { type: 'next' }, { type: 'next' }]);
+    expect(empty.step).toBe('positive');
+    expect(canAdvance(empty)).toBe(false);
   });
 
   it('takes any number of picks and toggles off on repeat', () => {
@@ -44,6 +55,8 @@ describe('onboardingReducer', () => {
 
   it('negative and neutral are skippable, reading waits for stats', () => {
     const s = run([
+      { type: 'next' },
+      { type: 'phoneReady', e164: '+12025550100', likes: [], reasons: [] },
       { type: 'next' },
       { type: 'togglePick', wall: 'positive', film: film(1) },
       { type: 'next' },

@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/movie-images",
+      "destination": "/api/movie-media?kind=images"
+    },
+    {
+      "source": "/api/movie-clip",
+      "destination": "/api/movie-media?kind=clip"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -17,6 +25,10 @@
     },
     "api/selects-profile.ts": {
       "includeFiles": "src/skills/**"
+    },
+    "api/voice/[route].ts": {
+      "includeFiles": "{voice/**,src/skills/**}",
+      "maxDuration": 300
     }
   },
   "headers": [

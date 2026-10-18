@@ -14,6 +14,7 @@ const ROW = (lit: number[], h = 80, y = 20, gap = 18, x0 = 40): Bar[] =>
  */
 const POSES: Record<Step, Bar[]> = {
   splash: ROW([2]),
+  phone: ROW([1, 2, 3], 48, 36, 18, 48),
   positive: ROW([2], 60, 30, 26, 32),
   negative: [
     { x: 32, y: 30, h: 60, rotate: 0, lit: false },
