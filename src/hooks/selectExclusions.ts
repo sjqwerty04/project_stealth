@@ -94,6 +94,27 @@ export function dropExcludedPicks<T extends { movieId: number; title?: string }>
   return picks.filter((pick) => !pickIsExcluded(pick, excluded));
 }
 
+/** Watched ledger rows only. A watchlist film stays recommendable. */
+export function watchedFilmExclusions(
+  library: readonly { movieId: number; title: string; watched: boolean }[],
+): SelectExclusion[] {
+  return buildSelectExclusions({
+    ledgerWatched: library.filter((film) => film.watched),
+  });
+}
+
+/** Same id and title match Your Selects uses. An empty ledger (signed out) changes nothing. */
+export function withoutWatched<T extends { movieId?: number; id?: number; title?: string }>(
+  picks: readonly T[],
+  excluded: readonly SelectExclusion[],
+): T[] {
+  if (!excluded.length) return picks as T[];
+  const next = picks.filter(
+    (pick) => !pickIsExcluded({ movieId: pick.movieId ?? pick.id, title: pick.title }, excluded),
+  );
+  return next.length === picks.length ? (picks as T[]) : next;
+}
+
 export function canGenerateSelects(opts: { libraryReady: boolean; replacing: boolean }): boolean {
   return opts.libraryReady && !opts.replacing;
 }

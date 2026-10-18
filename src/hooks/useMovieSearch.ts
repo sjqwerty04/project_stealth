@@ -1,9 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
-import { callLlm } from '../lib/llm';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { callLlm, streamLlm } from '../lib/llm';
 import { useAuth } from './useAuth';
+import { useLibrary } from '../lib/library';
 import { getTaste } from '../lib/taste';
-import { loadSkill } from '../lib/skills';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
+import { AI_SEARCH_CACHE_KEY, AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SERVICE_TIER, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
+import { watchedFilmExclusions, withoutWatched } from './selectExclusions';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -57,6 +59,43 @@ export type SearchMetadata = {
   label?: string;
 };
 
+async function hydrateMovie(title: string, year: string, signal?: AbortSignal): Promise<SearchResult | null> {
+  try {
+    const signalInit = signal ? { signal } : undefined;
+    let res = await fetch(
+      `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&year=${year}&language=en-US`,
+      signalInit,
+    );
+    let data = res.ok ? await res.json() : { results: [] };
+    if (!data.results?.length) {
+      res = await fetch(
+        `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=en-US`,
+        signalInit,
+      );
+      data = res.ok ? await res.json() : { results: [] };
+    }
+    const movie = data.results?.[0];
+    if (!movie) return null;
+    return {
+      id: movie.id,
+      title: movie.title,
+      year: movie.release_date?.slice(0, 4) || '',
+      posterPath: movie.poster_path,
+      backdropPath: movie.backdrop_path,
+      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
+      overview: movie.overview || '',
+      popularity: movie.popularity || 0,
+      voteAverage: movie.vote_average || 0,
+      voteCount: movie.vote_count || 0,
+      mediaType: 'movie' as const,
+    };
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err;
+    console.error('Failed to hydrate movie:', title, err);
+    return null;
+  }
+}
+
 // Query intent classifier — simple: short queries go to TMDB, everything else to AI
 const classifyQuery = (query: string): { mode: SearchMode } => {
   const lower = query.toLowerCase().trim();
@@ -107,8 +146,30 @@ export function useMovieSearch() {
   const [vibeList, setVibeList] = useState<VibeList | null>(null);
   const [isLoadingVibe, setIsLoadingVibe] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
   const lastQueryRef = useRef<string>('');
   const { user } = useAuth();
+  const { films: libraryFilms } = useLibrary();
+  const watchedExclusions = useMemo(() => watchedFilmExclusions(libraryFilms), [libraryFilms]);
+  const watchedRef = useRef(watchedExclusions);
+  watchedRef.current = watchedExclusions;
+
+  useEffect(() => {
+    const excluded = watchedRef.current;
+    if (!excluded.length) return;
+    if (searchMetadata.mode === 'ai-curated') {
+      setResults((prev) => {
+        const next = withoutWatched(prev, excluded);
+        return next.length === prev.length ? prev : next;
+      });
+    }
+    setVibeList((prev) => {
+      if (!prev) return prev;
+      const movies = withoutWatched(prev.movies, excluded);
+      if (movies.length === prev.movies.length) return prev;
+      return movies.length ? { ...prev, movies } : null;
+    });
+  }, [watchedExclusions, searchMetadata.mode]);
 
   const searchMovies = useCallback(async (query: string): Promise<SearchResult[]> => {
     const trimmedQuery = query.trim();
@@ -121,21 +182,26 @@ export function useMovieSearch() {
     lastQueryRef.current = trimmedQuery;
     
     if (!trimmedQuery) {
+      generationRef.current += 1;
+      abortControllerRef.current?.abort();
+      setIsSearching(false);
       setResults([]);
       setVibeList(null);
       setSearchMetadata({ mode: 'standard' });
       return [];
     }
 
-    // Cancel previous request
+    const generation = ++generationRef.current;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     setIsSearching(true);
     setError(null);
     setVibeList(null);
+    setResults([]);
 
     try {
       // Classify query intent
@@ -146,92 +212,77 @@ export function useMovieSearch() {
       
       // Handle different search modes
       if (classification.mode === 'ai-curated') {
-        // AI-powered search for complex queries
         metadata.label = 'AI-curated results';
-        
-        const snapshot = user?.uid ? await getTaste(user.uid).catch(() => null) : null;
-        const tasteBlock = snapshot?.generated.compactForChat
-          ? `\n<user_taste>\n${snapshot.generated.compactForChat}\n</user_taste>`
-          : '';
-        const aiPrompt = `${loadSkill('search-intent')}
+        setSearchMetadata(metadata);
+        const seenTitles = new Set<string>();
+        const seenIds = new Set<number>();
+        const found: SearchResult[] = [];
+        let pending = '';
+        let skippedWatched = 0;
+        const hydrations: Promise<void>[] = [];
 
-<task>
-The user is searching for movies with this query: "${trimmedQuery}"
-Interpret their intent and recommend 8-10 highly relevant movies.
-</task>
-${tasteBlock}
-
-<output_format>
-[
-  {"title": "Movie Title", "year": "2024"}
-]
-</output_format>`;
-
-        const aiResponse = await callLlm(aiPrompt, loadSkill('search-intent') || 'You are a film expert helping users discover movies.');
-        
-        if (aiResponse) {
-          try {
-            // Extract JSON from response
-            const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-              const movieTitles: {title: string, year: string}[] = JSON.parse(jsonMatch[0]);
-              
-              // Hydrate each movie via TMDB search (with year fallback)
-              const hydratePromises = movieTitles.map(async (m) => {
-                try {
-                  const signal = abortControllerRef.current?.signal;
-                  // First try with year for precision
-                  let res = await fetch(
-                    `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&year=${m.year}&language=en-US`,
-                    { signal }
-                  );
-                  let data = res.ok ? await res.json() : { results: [] };
-                  // Fallback: search without year if no results (handles year mismatches & new films)
-                  if (!data.results?.length) {
-                    res = await fetch(
-                      `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(m.title)}&language=en-US`,
-                      { signal }
-                    );
-                    data = res.ok ? await res.json() : { results: [] };
-                  }
-                  if (data.results && data.results.length > 0) {
-                    const movie = data.results[0];
-                    return {
-                      id: movie.id,
-                      title: movie.title,
-                      year: movie.release_date?.slice(0, 4) || '',
-                      posterPath: movie.poster_path,
-                      backdropPath: movie.backdrop_path,
-                      genres: (movie.genre_ids || []).map((id: number) => GENRE_MAP[id]).filter(Boolean),
-                      overview: movie.overview || '',
-                      popularity: movie.popularity || 0,
-                      voteAverage: movie.vote_average || 0,
-                      voteCount: movie.vote_count || 0,
-                      mediaType: 'movie' as const,
-                    };
-                  }
-                } catch (err) {
-                  console.error('Failed to hydrate movie:', m.title, err);
-                }
-                return null;
-              });
-              
-              const hydrated = await Promise.all(hydratePromises);
-              searchResults = hydrated.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
-            }
-          } catch (err) {
-            console.error('Failed to parse AI response:', err);
+        const accept = (film: { title: string; year: string }) => {
+          const key = film.title.toLowerCase();
+          if (!key || seenTitles.has(key) || seenTitles.size >= AI_SEARCH_LIMIT) return;
+          seenTitles.add(key);
+          if (withoutWatched([film], watchedRef.current).length === 0) {
+            skippedWatched += 1;
+            return;
           }
+          hydrations.push((async () => {
+            try {
+              const movie = await hydrateMovie(film.title, film.year, signal);
+              if (!movie || generation !== generationRef.current || seenIds.has(movie.id)) return;
+              if (withoutWatched([movie], watchedRef.current).length === 0) {
+                skippedWatched += 1;
+                return;
+              }
+              seenIds.add(movie.id);
+              found.push(movie);
+              setResults((prev) => (prev.some((row) => row.id === movie.id) ? prev : [...prev, movie]));
+            } catch (err) {
+              if ((err as Error).name !== 'AbortError') console.error('Failed to hydrate movie:', film.title, err);
+            }
+          })());
+        };
+
+        try {
+          await streamLlm(
+            buildAiSearchPrompt(trimmedQuery),
+            AI_SEARCH_SYSTEM,
+            {
+              maxTokens: AI_SEARCH_MAX_TOKENS,
+              reasoningEffort: AI_SEARCH_REASONING,
+              model: AI_SEARCH_MODEL,
+              serviceTier: AI_SEARCH_SERVICE_TIER,
+              promptCacheKey: AI_SEARCH_CACHE_KEY,
+            },
+            (delta) => {
+              pending += delta;
+              const next = takeFilmTitles(pending);
+              pending = next.rest;
+              next.titles.forEach(accept);
+            },
+            signal,
+          );
+          const tail = takeFilmTitles(pending + ']');
+          tail.titles.forEach(accept);
+        } catch (err) {
+          if ((err as Error).name === 'AbortError') throw err;
+          console.error('AI search stream failed:', err);
         }
-        
-        // Trigger personalized vibe list in parallel for AI queries
-        if (user?.uid) {
+
+        await Promise.all(hydrations);
+        if (generation !== generationRef.current) return [];
+        searchResults = found;
+
+        if (user?.uid && searchResults.length > 0) {
           generateVibeList(trimmedQuery, '');
         }
-        
-        if (searchResults.length === 0) {
-          // Fall back to standard search if AI fails
+
+        if (searchResults.length === 0 && skippedWatched === 0) {
           classification.mode = 'standard';
+          metadata = { mode: 'standard' };
         }
       }
       
@@ -241,7 +292,7 @@ ${tasteBlock}
         
         // Search movies (pages 1+2) and TV (page 1) in parallel so popular films
         // like "Casino Royale" that TMDB buries on page 2 still surface correctly.
-        const sig = { signal: abortControllerRef.current.signal };
+        const sig = { signal };
         const movieUrl = (page: number) =>
           `${TMDB_BASE}/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(trimmedQuery)}&language=en-US&page=${page}`;
         const tvUrl =
@@ -357,6 +408,7 @@ ${tasteBlock}
         });
       }
       
+      if (generation !== generationRef.current) return [];
       setResults(searchResults);
       setSearchMetadata(metadata);
       return searchResults;
@@ -378,11 +430,12 @@ ${tasteBlock}
         voteCount: 0,
         mediaType: f.mediaType,
       }));
+      if (generation !== generationRef.current) return [];
       setResults(local);
       setError(null);
       return local;
     } finally {
-      setIsSearching(false);
+      if (generation === generationRef.current) setIsSearching(false);
     }
   }, [user?.uid]); // Depend on user ID for personalized vibes
 
@@ -424,7 +477,10 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
 }
 </output_format>`;
 
-      const aiResponse = await callLlm(vibePrompt, 'You are a film curator creating personalized movie lists.');
+      const aiResponse = await callLlm(vibePrompt, 'You are a film curator creating personalized movie lists.', {
+        maxTokens: 480,
+        reasoningEffort: 'none',
+      });
       
       if (aiResponse) {
         try {
@@ -471,7 +527,10 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
             });
             
             const hydratedMovies = await Promise.all(hydratePromises);
-            const validMovies = hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+            const validMovies = withoutWatched(
+              hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[],
+              watchedRef.current,
+            );
             
             if (validMovies.length > 0) {
               setVibeList({

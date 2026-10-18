@@ -205,7 +205,7 @@ export default function DiscoverScreen() {
       {/* Content */}
       <div className={`p-4 ${contentPadding}`}>
         {/* Loading State */}
-        {isSearching && (
+        {isSearching && results.length === 0 && (
           <div className="flex items-center justify-center py-12">
             <div className="w-20 h-8 bg-base-3" data-testid="skeleton" />
           </div>
@@ -239,15 +239,18 @@ export default function DiscoverScreen() {
           </div>
         )}
 
-        {/* Results List */}
-        {results.length > 0 && !isSearching && (
-          <div className="space-y-4">
+        {/* Results List — cards appear as each poster resolves */}
+        {results.length > 0 && (
+          <div className="space-y-4" data-testid="hunt-results">
             {/* Search mode label */}
             {searchMetadata.label && (
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Sparkles className="w-4 h-4" />
                 <span>{searchMetadata.label}</span>
               </div>
+            )}
+            {isSearching && (
+              <p className="text-xs text-fg-3">Finding more</p>
             )}
             
             {/* AI-Generated Vibe List */}
