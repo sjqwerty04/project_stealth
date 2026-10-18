@@ -15,6 +15,11 @@ describe('Liora session plan', () => {
     expect(WRAP_UP_MS).toBe(8 * 60 * 1000);
     expect(session.instructions).toContain(TEXT_QUESTION);
     expect(session.instructions).toContain('Heat: the telephoto across the street');
+    expect(session.instructions).toContain('say the title out loud as ordinary words');
+    expect(session.instructions).toContain('A tool call is not saying it');
+    expect(session.instructions).toContain('have not seen and they want to watch');
+    expect(session.instructions).toContain('Do not keep interviewing once you can pick');
+    expect(session.instructions).not.toContain('before you suggest anything');
     expect(session.instructions).not.toMatch(/[—–]/);
     expect(session.tools.map((tool) => ('name' in tool ? tool.name : tool.type))).toEqual([
       'web_search',
