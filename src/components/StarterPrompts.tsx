@@ -1,34 +1,41 @@
-import { MessageCircle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import type { Starter } from '../lib/askAi/starters';
+import StarterChips from './askAi/StarterChips';
 
 type StarterPromptsProps = {
-  questions: string[];
-  onAsk: (question: string) => void;
+  starters: Starter[];
+  onPick: (starter: Starter, position: number) => void;
+  onOpen: () => void;
   // Controls the scroll-driven hide/show animation.
   visible: boolean;
 };
 
-// Floating question chips surfaced from Reddit discussion, pinned above the bottom
-// of the screen. Hidden on scroll-down, revealed on scroll-up (via `visible`).
-export default function StarterPrompts({ questions, onAsk, visible }: StarterPromptsProps) {
-  if (questions.length === 0) return null;
+// Compact Ask AI row that rides above the tab bar while the page scrolls.
+// Hidden on scroll-down, revealed on scroll-up (via `visible`).
+export default function StarterPrompts({ starters, onPick, onOpen, visible }: StarterPromptsProps) {
+  if (starters.length === 0) return null;
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-30 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-8 px-4 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none transition-all duration-300 ${
+      data-testid="ask-ai-floating"
+      className={`fixed inset-x-0 z-40 pt-8 pb-2 px-4 bg-gradient-to-t from-base via-base/85 to-transparent pointer-events-none transition-all duration-300 ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
       }`}
+      style={{ bottom: 'calc(var(--tab-h) + env(safe-area-inset-bottom))' }}
     >
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pointer-events-auto">
-        {questions.map((q, i) => (
-          <button
-            key={i}
-            onClick={() => onAsk(q)}
-            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-gray-800/90 backdrop-blur-sm border border-gray-700 text-sm text-gray-100 hover:bg-gray-700 hover:border-purple-500/50 transition-colors shadow-lg"
-          >
-            <MessageCircle size={14} className="text-purple-400 shrink-0" />
-            <span className="whitespace-nowrap">{q}</span>
-          </button>
-        ))}
+      <div className={`flex items-center gap-2 ${visible ? 'pointer-events-auto' : ''}`}>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="Ask AI"
+          className="shrink-0 min-h-11 px-3 flex items-center gap-2 bg-fg text-base"
+        >
+          <Sparkles size={14} />
+          <span className="font-spec text-[10px] uppercase tracking-widest">Ask</span>
+        </button>
+        <div className="min-w-0 flex-1">
+          <StarterChips starters={starters.slice(0, 4)} onPick={onPick} testId="ask-ai-floating-chips" />
+        </div>
       </div>
     </div>
   );

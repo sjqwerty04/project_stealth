@@ -16,6 +16,11 @@ import WhereToWatch from '../components/WhereToWatch';
 import TechBadges from '../components/TechBadges';
 import StarterPrompts from '../components/StarterPrompts';
 import MovieChatSheet from '../components/MovieChatSheet';
+import AskAiEntry from '../components/askAi/AskAiEntry';
+import BetaBadge from '../components/askAi/BetaBadge';
+import { useAskAiStarters } from '../hooks/useAskAiStarters';
+import { recordTap, type Starter } from '../lib/askAi/starters';
+import { logAskAiOpened, logAskAiStarterTapped, logAskAiStartersExpanded, logAskAiTypedQuestion, type AskAiSurface } from '../lib/analytics';
 import { useMovieInsights } from '../hooks/useMovieInsights';
 import { useMovieKnownFor } from '../hooks/useMovieKnownFor';
 import { recordTasteEvent, useTaste } from '../lib/taste';
@@ -78,8 +83,10 @@ export default function MovieDetailScreen() {
       : '';
   const { insights } = useMovieInsights(details?.title, details?.year, details?.genres);
   const { knownFor } = useMovieKnownFor(details?.title, details?.year, snapshot.generated.compactForChat);
+  const starters = useAskAiStarters(details, insights.suggestedQuestions);
   const [chatOpen, setChatOpen] = useState(false);
-  const [seedQuestion, setSeedQuestion] = useState<string | null>(null);
+  const [chatExpanded, setChatExpanded] = useState(false);
+  const [seedStarter, setSeedStarter] = useState<Starter | null>(null);
   const [showChips, setShowChips] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -96,10 +103,28 @@ export default function MovieDetailScreen() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleAsk = useCallback((question: string) => {
-    setSeedQuestion(question);
+  const detailsId = details?.id;
+  const openAskAi = useCallback((surface: AskAiSurface, expanded = false) => {
+    if (detailsId) {
+      void logAskAiOpened(detailsId, surface);
+      if (expanded) void logAskAiStartersExpanded(detailsId, starters.length);
+    }
+    setChatExpanded(expanded);
     setChatOpen(true);
-  }, []);
+  }, [detailsId, starters.length]);
+
+  const trackStarter = useCallback((starter: Starter, position: number, surface: AskAiSurface) => {
+    recordTap(starter.kind);
+    if (detailsId) void logAskAiStarterTapped(detailsId, starter, position, surface);
+  }, [detailsId]);
+
+  const handleAsk = useCallback((starter: Starter, position: number, surface: AskAiSurface) => {
+    trackStarter(starter, position, surface);
+    if (detailsId) void logAskAiOpened(detailsId, surface);
+    setSeedStarter(starter);
+    setChatExpanded(false);
+    setChatOpen(true);
+  }, [detailsId, trackStarter]);
 
   // Check if selected date is past or today
   const isPastDate = useCallback((dateStr: string) => {
@@ -451,22 +476,15 @@ export default function MovieDetailScreen() {
             </button>
             <button
               type="button"
-              onClick={() => setChatOpen(true)}
+              data-testid="ask-ai-cta"
+              onClick={() => openAskAi('entry')}
               className="flex items-center justify-center gap-2 min-h-11 py-3 bg-base-3 border border-line text-fg font-semibold text-sm"
             >
-              <Sparkles className="w-4 h-4 text-fg-2" />
+              <Sparkles className="w-4 h-4 text-select" />
               <span>Ask AI</span>
+              <BetaBadge />
             </button>
           </div>
-        )}
-        {mediaType !== 'movie' && (
-          <button
-            onClick={() => setChatOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#18181b] hover:bg-[#27272a] border border-white/10 text-gray-100 font-semibold text-sm transition-colors"
-          >
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <span>Ask AI about {details.title}</span>
-          </button>
         )}
 
         <WhereToWatch providers={details.watchProviders} />
@@ -496,6 +514,15 @@ export default function MovieDetailScreen() {
             )}
           </div>
         )}
+
+        <AskAiEntry
+          title={details.title}
+          knownFor={details.tagline}
+          starters={starters}
+          onOpen={() => openAskAi('entry')}
+          onPick={(s, i) => handleAsk(s, i, 'entry-chip')}
+          onExpand={() => openAskAi('entry', true)}
+        />
 
         {/* Cast — horizontal scroll with profile photos */}
         {details.cast.length > 0 && (
@@ -684,8 +711,12 @@ export default function MovieDetailScreen() {
         </div>
       )}
 
-      {/* Floating starter-question chips */}
-      <StarterPrompts questions={insights.suggestedQuestions} onAsk={handleAsk} visible={showChips} />
+      <StarterPrompts
+        starters={starters}
+        onPick={(s, i) => handleAsk(s, i, 'floating-chip')}
+        onOpen={() => openAskAi('floating-chip')}
+        visible={showChips && !chatOpen}
+      />
 
       {/* Movie-scoped chat sheet */}
       <MovieChatSheet
@@ -701,8 +732,13 @@ export default function MovieDetailScreen() {
         }}
         snippets={insights.snippets}
         taste={snapshot.generated.compactForChat || undefined}
-        seedQuestion={seedQuestion}
-        onSeedConsumed={() => setSeedQuestion(null)}
+        starters={starters}
+        seedStarter={seedStarter}
+        onSeedConsumed={() => setSeedStarter(null)}
+        startExpanded={chatExpanded}
+        onStarterPicked={trackStarter}
+        onStartersExpanded={() => detailsId && void logAskAiStartersExpanded(detailsId, starters.length)}
+        onTypedQuestion={() => detailsId && void logAskAiTypedQuestion(detailsId)}
       />
     </div>
   );
