@@ -275,12 +275,12 @@ export function useMovieSearch() {
               pending += delta;
               const next = takeFilmTitles(pending);
               pending = next.rest;
-              next.titles.forEach(accept);
+              next.titles.forEach((film) => accept(film));
             },
             signal,
           );
           const tail = takeFilmTitles(pending + ']');
-          tail.titles.forEach(accept);
+          tail.titles.forEach((film) => accept(film));
         } catch (err) {
           if ((err as Error).name === 'AbortError') throw err;
           console.error('AI search stream failed:', err);
