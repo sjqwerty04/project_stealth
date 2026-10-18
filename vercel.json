@@ -20,7 +20,7 @@
     },
     "api/voice/admin.ts": {
       "includeFiles": "src/skills/**",
-      "maxDuration": 800
+      "maxDuration": 300
     }
   },
   "headers": [
