@@ -7,7 +7,7 @@ describe('ai film search', () => {
     expect(AI_SEARCH_REASONING).toBe('low');
     expect(AI_SEARCH_SERVICE_TIER).toBe('priority');
     expect(AI_SEARCH_MAX_TOKENS).toBeLessThanOrEqual(512);
-    expect(AI_SEARCH_SYSTEM.length).toBeLessThan(16);
+    expect(AI_SEARCH_SYSTEM.length).toBeLessThan(24);
   });
 
   it('leads with one hit, then asks the list to spread out', () => {
@@ -15,9 +15,10 @@ describe('ai film search', () => {
     expect(prompt).toContain('Tom Cruise action films with a little comedy');
     expect(prompt).toContain('1=obvious');
     expect(prompt).toContain('Vary decade');
+    expect(prompt).toContain('real films');
     expect(prompt).toContain('"t"');
     expect(prompt).not.toContain('```');
-    expect(prompt.length).toBeLessThan(280);
+    expect(prompt.length).toBeLessThan(320);
   });
 
   it('yields each film as soon as its object closes', () => {

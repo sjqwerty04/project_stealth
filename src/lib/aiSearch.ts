@@ -6,7 +6,7 @@ export const AI_SEARCH_REASONING = 'low' as const;
 export const AI_SEARCH_SERVICE_TIER = 'priority' as const;
 export const AI_SEARCH_CACHE_KEY = 'hunt-search';
 export const AI_SEARCH_LIMIT = 12;
-export const AI_SEARCH_SYSTEM = 'JSON.';
+export const AI_SEARCH_SYSTEM = 'Real films. JSON.';
 
 export type FilmTitle = { title: string; year: string };
 
@@ -14,7 +14,7 @@ export type FilmTitle = { title: string; year: string };
 export function buildAiSearchPrompt(query: string): string {
   return `Q:${JSON.stringify(query)}
 [{"t":"Title","y":1995}]
-12 films. [ first.
+12 real films. [ first. No invented titles.
 1=obvious film, not a title already named.
 Films. Keep each named person and trait. Vary decade and country. One per series.`;
 }
