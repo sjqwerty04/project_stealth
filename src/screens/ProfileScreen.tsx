@@ -73,14 +73,6 @@ export default function ProfileScreen() {
           <p className="font-spec text-xs text-fg-3 mt-2">Set a handle</p>
         )}
         <h1 className="font-display text-2xl text-fg mt-1">{displayName}</h1>
-        <button
-          type="button"
-          onClick={() => navigate('/settings')}
-          className="mt-3 min-h-11 font-spec text-[10px] uppercase tracking-widest text-fg-2"
-          data-testid="open-settings"
-        >
-          Settings
-        </button>
         {pageLoading ? (
           <div className="h-4 w-48 bg-base-3 mt-2" data-testid="skeleton" />
         ) : (

@@ -80,14 +80,14 @@ test.describe('selects taste ingest', () => {
   test.describe.configure({ timeout: 180_000 });
 
   test.beforeEach(({}, testInfo) => {
-    test.skip(testInfo.project.name === 'desktop', 'Watched? ingest is a phone layout');
+    test.skip(testInfo.project.name === 'desktop', 'Not Interested ingest is a phone layout');
   });
 
   test.afterEach(async ({}, testInfo) => {
     await saveEvidence(testInfo, 'selects-taste-ingest');
   });
 
-  test('Watched? liked on slot 0 leaves that title after replacement and reload', async ({
+  test('Not Interested on the visible select leaves that title after replacement and reload', async ({
     page,
   }, testInfo) => {
     const logs = await attachPageLog(page);
@@ -98,8 +98,7 @@ test.describe('selects taste ingest', () => {
     const title = await visibleSelectTitle(page);
     expect(title.length).toBeGreaterThan(0);
     const card = page.locator(`[data-testid="ticket-slot"][data-title="${title}"]`).filter({ visible: true }).first();
-    await card.getByRole('button', { name: /watched\?/i }).click();
-    await page.getByRole('radio', { name: 'Liked' }).first().click();
+    await card.getByRole('button', { name: /not interested/i }).click();
     await expect(slotsNamed(page, title)).toHaveCount(0, { timeout: 90_000 });
 
     await page.reload();

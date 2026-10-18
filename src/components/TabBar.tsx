@@ -27,7 +27,7 @@ function tabActive(id: string, pathname: string) {
       pathname.startsWith('/vibes')
     );
   }
-  return pathname === '/me' || pathname === '/settings';
+  return pathname === '/me';
 }
 
 export default function TabBar() {

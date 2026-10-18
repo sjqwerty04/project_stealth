@@ -11,8 +11,6 @@ const AXIS_LINE: Record<Axis, string> = {
 export type TasteVoice = {
   lead: string;
   profileBody: string;
-  settingsLead: string;
-  settingsBody: string;
   importLine: string;
   retakeLine: string;
   keep: string[];
@@ -83,19 +81,6 @@ export function tasteVoice(snapshot: TasteSnapshot): TasteVoice {
   ].filter(Boolean);
   if (!profileParts.length && recent.length) profileParts.push(`Recent marks: ${list(recent)}.`);
   const profileBody = clean(profileParts.join(' ') || lead);
-  const settingsLead = clean(
-    leave.length ? `Leaving ${list(leave.slice(0, 3))}.` : keep.length ? `Keeping ${list(keep.slice(0, 3))}.` : lead,
-  );
-  const steer = leave.length
-    ? `The next selects step around ${list(leave.slice(0, 2))}.`
-    : keep.length
-      ? `The next selects stay near ${list(keep.slice(0, 2))}.`
-      : 'The next select has no likes or dislikes to read.';
-  const settingsBody = clean(
-    [axisLine && axisLine !== lead ? axisLine : '', recent.length ? `Recent marks: ${list(recent)}.` : '', steer]
-      .filter(Boolean)
-      .join(' '),
-  );
   const importLine = clean(
     keep[0]
       ? `New history should sit with ${keep[0]}.`
@@ -107,8 +92,6 @@ export function tasteVoice(snapshot: TasteSnapshot): TasteVoice {
   return {
     lead,
     profileBody,
-    settingsLead,
-    settingsBody,
     importLine,
     retakeLine: empty ? 'Set the marks' : 'Retake the marks',
     keep,

@@ -15,7 +15,6 @@ const TAB_PREFIXES = [
   '/shared',
   '/vibes',
   '/me',
-  '/settings',
 ];
 
 /** Routes that fill the viewport and scroll inside themselves instead of scrolling the document. */

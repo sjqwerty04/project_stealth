@@ -88,68 +88,70 @@ export function SelectCard({
       className="relative w-full overflow-hidden bg-base text-left min-h-11"
       style={{ borderRadius: 0, border: 'none' }}
     >
-      <button
-        type="button"
-        data-testid="select-open-movie"
-        aria-label={film.title}
-        onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
-        disabled={loading}
-        className="relative block w-full overflow-hidden bg-base-3 text-left min-h-11"
-        style={{ height: 220 }}
-      >
-        {still ? (
-          <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        ) : null}
-        <span className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none">
-          <FilmLogo
-            src={logo}
-            className="relative object-contain"
-            style={{
-              width: '72%',
-              maxHeight: 72,
-              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
-            }}
-          />
-        </span>
-      </button>
-      {loading ? (
-        <div className="absolute inset-x-0 top-0 z-20 flex h-[220px] items-center justify-center bg-black">
-          <SelectsChaseLoader
-            size="sm"
-            label={
-              slotReplacement?.phase === 'saving'
-                ? 'Saving feedback'
-                : 'Finding another select'
-            }
-          />
-        </div>
-      ) : null}
-      <button
-        type="button"
-        data-testid={`watched-${film.slotId}`}
-        data-carousel-control
-        onClick={() => {
-          if (logOpen) onCloseLog();
-          else if (pickerOpen) onClosePicker();
-          else onOpenPicker();
-        }}
-        disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
-        className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
-      >
-        Watched?
-      </button>
-      {onNotInterested ? (
+      <div className="relative h-[220px]">
         <button
           type="button"
-          data-testid={`not-interested-${film.slotId}`}
-          data-carousel-control
-          onClick={onNotInterested}
-          disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
-          className="relative z-30 flex w-full min-h-11 items-center justify-center border-x border-b border-line bg-base-2 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+          data-testid="select-open-movie"
+          aria-label={film.title}
+          onClick={() => onOpenMovie(film.id, film.mediaType, film.whyMatch)}
+          disabled={loading}
+          className="relative block h-full w-full overflow-hidden bg-base-3 text-left min-h-11"
         >
-          Not Interested
+          {still ? (
+            <img src={still} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          ) : null}
+          <span className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none">
+            <FilmLogo
+              src={logo}
+              className="relative object-contain"
+              style={{
+                width: '72%',
+                maxHeight: 72,
+                filter: 'drop-shadow(0 4px 16px rgba(0,0,0,.8))',
+              }}
+            />
+          </span>
         </button>
-      ) : null}
+        {loading ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
+            <SelectsChaseLoader
+              size="sm"
+              label={
+                slotReplacement?.phase === 'saving'
+                  ? 'Saving feedback'
+                  : 'Finding another select'
+              }
+            />
+          </div>
+        ) : null}
+        {onNotInterested ? (
+          <button
+            type="button"
+            data-testid={`not-interested-${film.slotId}`}
+            data-carousel-control
+            onClick={onNotInterested}
+            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            className="absolute bottom-3 left-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+          >
+            Not Interested
+          </button>
+        ) : (
+          <button
+            type="button"
+            data-testid={`watched-${film.slotId}`}
+            data-carousel-control
+            onClick={() => {
+              if (logOpen) onCloseLog();
+              else if (pickerOpen) onClosePicker();
+              else onOpenPicker();
+            }}
+            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+          >
+            Watched?
+          </button>
+        )}
+      </div>
       {logOpen ? (
         <div
           data-carousel-control
@@ -281,7 +283,6 @@ export default function SelectsCarousel({
   const [paused, setPaused] = useState(false);
   const [pickerSlotId, setPickerSlotId] = useState<SelectSlotId | null>(null);
   const [logSlotId, setLogSlotId] = useState<SelectSlotId | null>(null);
-  const [chosenId, setChosenId] = useState<number | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
   const capturingSwipe = useRef(false);
@@ -412,15 +413,6 @@ export default function SelectsCarousel({
 
   if (!slides.length) return null;
 
-  const chooseFilm = (film: SelectFilm, index: number) => {
-    setChosenId(film.id);
-    setPickerSlotId(null);
-    setLogSlotId(null);
-    setPaused(true);
-    setSlide(count < 2 ? 0 : index + 1);
-    setSlideTransition(true);
-  };
-
   return (
     <div
       className="overflow-hidden"
@@ -437,32 +429,6 @@ export default function SelectsCarousel({
         swallowClick.current = false;
       }}
     >
-      <div className="mb-3 grid grid-cols-3 gap-2" data-testid="select-tile">
-        {slides.map((film, index) => {
-          const chosen = chosenId === film.id;
-          return (
-            <button
-              key={film.slotId}
-              type="button"
-              data-testid={`select-film-${film.slotId}`}
-              data-carousel-control
-              aria-label={`Select ${film.title}`}
-              aria-pressed={chosen}
-              onClick={() => chooseFilm(film, index)}
-              className={`min-h-11 overflow-hidden border text-left ${chosen ? 'border-fg' : 'border-line'}`}
-            >
-              {film.poster ? (
-                <img src={film.poster} alt="" className="h-24 w-full object-cover" />
-              ) : (
-                <span className="block h-24 bg-base-3" />
-              )}
-              <span className="block truncate px-1 py-1 font-spec text-[10px] uppercase tracking-widest text-fg">
-                {film.title}
-              </span>
-            </button>
-          );
-        })}
-      </div>
       <div
         ref={trackRef}
         className="flex"
@@ -508,7 +474,7 @@ export default function SelectsCarousel({
                 onLogToday?.(film.slotId, verdict);
               }}
               onNotInterested={
-                onNotInterested && chosenId === film.id
+                onNotInterested
                   ? () => {
                       setPickerSlotId(null);
                       setLogSlotId(null);

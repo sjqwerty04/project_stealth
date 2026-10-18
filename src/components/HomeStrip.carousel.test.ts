@@ -409,7 +409,7 @@ describe('select card watched control', () => {
     expect(html).not.toContain('Next to Watch');
   });
 
-  it('offers Not Interested once the film is selected', () => {
+  it('puts Not Interested at the bottom left of the select', () => {
     const html = renderToString(
       React.createElement(SelectCard, {
         film,
@@ -426,6 +426,8 @@ describe('select card watched control', () => {
 
     expect(html).toContain('Not Interested');
     expect(html).toContain('data-testid="not-interested-1"');
+    expect(html).toContain('bottom-3 left-3');
+    expect(html).not.toContain('Watched?');
     expect(html).not.toContain('Next to Watch');
   });
 

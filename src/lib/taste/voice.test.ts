@@ -25,16 +25,13 @@ describe('tasteVoice', () => {
     expect(voice.profileBody).toContain('Heat');
     expect(voice.profileBody).toContain('The Room');
     expect(voice.leave).toEqual(['The Room']);
-    expect(voice.settingsLead).toContain('The Room');
-    expect(voice.settingsBody).toContain('The Room');
-    expect(`${voice.lead} ${voice.profileBody} ${voice.settingsLead} ${voice.settingsBody}`).not.toMatch(/[—–]/);
+    expect(`${voice.lead} ${voice.profileBody}`).not.toMatch(/[—–]/);
   });
 
   it('does not invent a watchlist slogan when the taste is empty', () => {
     const voice = tasteVoice(emptySnapshot());
     expect(voice.empty).toBe(true);
     expect(voice.lead).toBe('No marks in this taste yet.');
-    expect(voice.settingsBody).toContain('no likes or dislikes');
     expect(voice.profileBody).not.toMatch(/watch some films/i);
     expect(voice.importLine).toBe('New history becomes the first mark.');
   });
