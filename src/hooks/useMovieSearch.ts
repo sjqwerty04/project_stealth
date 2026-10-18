@@ -4,7 +4,7 @@ import { useAuth } from './useAuth';
 import { getTaste } from '../lib/taste';
 import { loadSkill } from '../lib/skills';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
-import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_REASONING, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
+import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -219,7 +219,7 @@ export function useMovieSearch() {
           await streamLlm(
             buildAiSearchPrompt(trimmedQuery),
             loadSkill('search-intent') || 'You are a film expert helping users discover movies.',
-            { maxTokens: AI_SEARCH_MAX_TOKENS, reasoningEffort: AI_SEARCH_REASONING },
+            { maxTokens: AI_SEARCH_MAX_TOKENS, reasoningEffort: AI_SEARCH_REASONING, model: AI_SEARCH_MODEL },
             (delta) => {
               pending += delta;
               const next = takeFilmTitles(pending);

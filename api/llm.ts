@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, systemPrompt, maxTokens, reasoningEffort } = req.body || {};
+  const { prompt, systemPrompt, maxTokens, reasoningEffort, model } = req.body || {};
 
   if (!prompt) {
     return res.status(400).json({ error: 'prompt is required' });
@@ -38,6 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         system: systemPrompt,
         maxTokens: tokens,
         reasoningEffort: effort,
+        model: model === 'grok-4.3' ? 'grok-4.3' : undefined,
       })) {
         if (delta) send({ d: delta });
       }

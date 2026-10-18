@@ -110,7 +110,8 @@ export const extractJSON = (text: string): any | null => {
 
 export interface LlmCallOptions {
   maxTokens?: number;
-  reasoningEffort?: 'low' | 'medium' | 'high' | null;
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null;
+  model?: string;
 }
 
 /** Newline-delimited `{d}` text deltas from /api/llm. Falls back to one JSON body. */
@@ -127,9 +128,10 @@ export async function streamLlm(
     body: JSON.stringify({
       prompt,
       systemPrompt,
-      maxTokens: options?.maxTokens,
-      reasoningEffort: options?.reasoningEffort,
-      stream: true,
+        maxTokens: options?.maxTokens,
+        reasoningEffort: options?.reasoningEffort,
+        model: options?.model,
+        stream: true,
     }),
     signal,
   });

@@ -84,11 +84,12 @@ export async function* streamXai(opts: {
   messages: ChatMessage[];
   system?: string;
   maxTokens?: number;
-  reasoningEffort?: 'low' | 'medium' | 'high' | null;
+  model?: string;
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null;
 }): AsyncGenerator<string> {
   if (!XAI_API_KEY) throw new XaiConfigError();
   const body: Record<string, unknown> = {
-    model: DEFAULT_MODEL,
+    model: opts.model || DEFAULT_MODEL,
     store: false,
     stream: true,
     max_output_tokens: opts.maxTokens ?? 480,

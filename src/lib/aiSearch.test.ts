@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_REASONING, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
+import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
 
 describe('ai film search', () => {
-  it('keeps the model on a small, low-reasoning budget', () => {
-    expect(AI_SEARCH_REASONING).toBe('low');
+  it('keeps the model on a small budget with reasoning off', () => {
+    expect(AI_SEARCH_MODEL).toBe('grok-4.3');
+    expect(AI_SEARCH_REASONING).toBe('none');
     expect(AI_SEARCH_MAX_TOKENS).toBeLessThanOrEqual(480);
   });
 

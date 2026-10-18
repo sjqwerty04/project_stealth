@@ -1,5 +1,7 @@
 export const AI_SEARCH_MAX_TOKENS = 480;
-export const AI_SEARCH_REASONING = 'low' as const;
+export const AI_SEARCH_MODEL = 'grok-4.3';
+/** grok-4.3 can skip reasoning. grok-4.6 cannot, and even "low" waits several seconds. */
+export const AI_SEARCH_REASONING = 'none' as const;
 
 export type FilmTitle = { title: string; year: string };
 
@@ -10,7 +12,8 @@ export function buildAiSearchPrompt(query: string): string {
 Return only a JSON array of 8 films, closest match first:
 [{"title":"Film Title","year":"YYYY"}]
 
-No markdown. No prose. Start with [. Always return films.`;
+No markdown. No prose. Start with [. Always return films.
+If the query names actors, those actors are in the films. If it names a mood, genre, or a mix of titles, match that mix. Do not answer with an unrelated best-of list.`;
 }
 
 function findObjectEnd(source: string, start: number): number {
