@@ -191,7 +191,7 @@ Streamlit operational tooling:
 - `app.py`: dashboard app shell.
 - `pages/1_Users.py`: whitelist/user management view.
 - `pages/2_Activity.py`: activity log and monitoring view.
-- `streamlit-secrets.toml` + example: admin runtime secrets.
+- `.streamlit/secrets.toml.example`: template for admin runtime secrets (real `secrets.toml` is gitignored; Streamlit Cloud keeps its own copy).
 - `README.md`: admin setup/deploy.
 
 ### `ios/`

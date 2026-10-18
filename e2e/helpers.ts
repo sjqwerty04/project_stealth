@@ -1,4 +1,5 @@
 import { test, type Page, type TestInfo } from '@playwright/test';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { runThresholds } from './thresholds';
@@ -142,7 +143,7 @@ export async function completeOnboarding(page: Page) {
 }
 
 /** Emulator only: signs up a disposable user and stops on `/onboarding`. */
-export async function signUpOnEmulator(page: Page, password = 'REDACTED_TEST_PASSWORD') {
+export async function signUpOnEmulator(page: Page, password = `emu-${crypto.randomUUID()}`) {
   if (!ON_EMULATOR) throw new Error('signUpOnEmulator called without VITE_FIREBASE_EMULATOR=1');
   const email = uniqueEmail();
   await page.goto('/join');
