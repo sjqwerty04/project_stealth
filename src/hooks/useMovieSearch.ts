@@ -2,9 +2,8 @@ import { useState, useCallback, useRef } from 'react';
 import { callLlm, streamLlm } from '../lib/llm';
 import { useAuth } from './useAuth';
 import { getTaste } from '../lib/taste';
-import { loadSkill } from '../lib/skills';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
-import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
+import { AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -200,7 +199,7 @@ export function useMovieSearch() {
 
         const accept = (film: { title: string; year: string }) => {
           const key = film.title.toLowerCase();
-          if (!key || seenTitles.has(key) || seenTitles.size >= 8) return;
+          if (!key || seenTitles.has(key) || seenTitles.size >= AI_SEARCH_LIMIT) return;
           seenTitles.add(key);
           hydrations.push((async () => {
             try {
@@ -218,7 +217,7 @@ export function useMovieSearch() {
         try {
           await streamLlm(
             buildAiSearchPrompt(trimmedQuery),
-            loadSkill('search-intent') || 'You are a film expert helping users discover movies.',
+            AI_SEARCH_SYSTEM,
             { maxTokens: AI_SEARCH_MAX_TOKENS, reasoningEffort: AI_SEARCH_REASONING, model: AI_SEARCH_MODEL },
             (delta) => {
               pending += delta;

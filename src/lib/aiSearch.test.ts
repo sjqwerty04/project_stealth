@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
+import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
 
 describe('ai film search', () => {
   it('keeps the model on a small budget with reasoning off', () => {
     expect(AI_SEARCH_MODEL).toBe('grok-4.3');
     expect(AI_SEARCH_REASONING).toBe('none');
     expect(AI_SEARCH_MAX_TOKENS).toBeLessThanOrEqual(480);
+    expect(AI_SEARCH_SYSTEM.length).toBeLessThan(80);
   });
 
-  it('asks for a JSON array and nothing else', () => {
+  it('leads with one hit, then asks the list to spread out', () => {
     const prompt = buildAiSearchPrompt('Tom Cruise action films with a little comedy');
     expect(prompt).toContain('Tom Cruise action films with a little comedy');
-    expect(prompt).toContain('JSON array');
+    expect(prompt).toContain('Item 1');
+    expect(prompt).toContain('Vary the decade');
     expect(prompt).not.toContain('```');
+    expect(prompt.length).toBeLessThan(400);
   });
 
   it('yields each film as soon as its object closes', () => {

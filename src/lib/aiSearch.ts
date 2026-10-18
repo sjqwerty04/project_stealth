@@ -2,18 +2,22 @@ export const AI_SEARCH_MAX_TOKENS = 480;
 export const AI_SEARCH_MODEL = 'grok-4.3';
 /** grok-4.3 can skip reasoning. grok-4.6 cannot, and even "low" waits several seconds. */
 export const AI_SEARCH_REASONING = 'none' as const;
+export const AI_SEARCH_LIMIT = 12;
+/** Kept short on purpose. A long system prompt delays the first title. */
+export const AI_SEARCH_SYSTEM = 'Name real films. JSON array only. First character is [.';
 
 export type FilmTitle = { title: string; year: string };
 
-/** Short user turn. The search-intent skill stays the system prompt. */
+/**
+ * One short turn. Item 1 is the obvious hit so it can stream immediately.
+ * The rest split the query so the list is not eight versions of the same film.
+ */
 export function buildAiSearchPrompt(query: string): string {
-  return `The user is searching for films: ${JSON.stringify(query)}
-
-Return only a JSON array of 8 films, closest match first:
-[{"title":"Film Title","year":"YYYY"}]
-
-No markdown. No prose. Start with [. Always return films.
-If the query names actors, those actors are in the films. If it names a mood, genre, or a mix of titles, match that mix. Do not answer with an unrelated best-of list.`;
+  return `Q:${JSON.stringify(query)}
+[{"title":"Title","year":"YYYY"}]
+12 films. First character is [.
+Item 1 is the obvious film, not a title the query already names.
+Films only. Keep every named person and trait. Vary the decade and the country. One title from each series.`;
 }
 
 function findObjectEnd(source: string, start: number): number {
