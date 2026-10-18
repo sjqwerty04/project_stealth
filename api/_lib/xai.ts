@@ -34,6 +34,7 @@ export async function callXai(opts: {
   webSearch?: boolean;
   /** Data URLs or https URLs attached to the last user message as input_image parts. */
   images?: string[];
+  timeoutMs?: number;
 }): Promise<string> {
   if (!XAI_API_KEY) throw new XaiConfigError();
 
@@ -69,6 +70,7 @@ export async function callXai(opts: {
       Authorization: `Bearer ${XAI_API_KEY}`,
     },
     body: JSON.stringify(body),
+    signal: opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined,
   });
 
   if (!res.ok) {
@@ -77,6 +79,63 @@ export async function callXai(opts: {
   }
   const data = await res.json();
   return extractText(data);
+}
+
+/** Streams output text deltas from the Responses API (server-sent events). */
+export async function* streamXai(opts: {
+  messages: ChatMessage[];
+  system?: string;
+  maxTokens?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high' | null;
+}): AsyncGenerator<string> {
+  if (!XAI_API_KEY) throw new XaiConfigError();
+  const body: Record<string, unknown> = {
+    model: DEFAULT_MODEL,
+    store: false,
+    stream: true,
+    max_output_tokens: opts.maxTokens ?? 512,
+    input: opts.messages.map((m) => ({ role: m.role, content: m.content })),
+  };
+  if (opts.reasoningEffort) body.reasoning = { effort: opts.reasoningEffort };
+  if (opts.system) body.instructions = opts.system;
+
+  const res = await fetch('https://api.x.ai/v1/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${XAI_API_KEY}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok || !res.body) throw new Error(`xAI error ${res.status}: ${await res.text()}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let streamed = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      let event: { type?: string; delta?: unknown; response?: unknown };
+      try {
+        event = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+      if (event.type === 'response.output_text.delta' && typeof event.delta === 'string') {
+        streamed = true;
+        yield event.delta;
+      } else if (event.type === 'response.completed' && !streamed) {
+        const text = extractText(event.response);
+        if (text) yield text;
+      }
+    }
+  }
 }
 
 export function extractJSON<T = any>(text: string): T | null {
