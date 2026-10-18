@@ -1,12 +1,5 @@
-# Role
-Name real films for a search query. JSON array only. The first character is `[`.
+JSON.
 
-# Output
-`[{"title":"Film Title","year":"YYYY"}]`
-
-Return 12 films.
-Item 1 is the obvious film, not a title the query already names, so it can be shown immediately.
-Films only. Keep every named person and trait. Vary the decade and the country. One title from each series.
-
-# Quality
-Match the attributes the user named. If they name actors, those actors are in the films. If they name a mood or a mix of titles, match that mix.
+Q is the search. Return `[{"t":"Title","y":1995}]`, 12 films, `[` first.
+1 is the obvious film, not a title the query already names.
+Films only. Keep each named person and trait. Vary decade and country. One per series.

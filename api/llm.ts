@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, systemPrompt, maxTokens, reasoningEffort, model } = req.body || {};
+  const { prompt, systemPrompt, maxTokens, reasoningEffort, model, serviceTier, promptCacheKey } = req.body || {};
 
   if (!prompt) {
     return res.status(400).json({ error: 'prompt is required' });
@@ -32,13 +32,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.write(`${JSON.stringify(obj)}\n`);
       (res as VercelResponse & { flush?: () => void }).flush?.();
     };
+    const allowedModel = model === 'grok-4.7' || model === 'grok-4.3' ? model : undefined;
     try {
       for await (const delta of streamXai({
         messages: [{ role: 'user', content: prompt }],
         system: systemPrompt,
         maxTokens: tokens,
         reasoningEffort: effort,
-        model: model === 'grok-4.3' ? 'grok-4.3' : undefined,
+        model: allowedModel,
+        serviceTier: allowedModel === 'grok-4.7' && serviceTier === 'priority' ? 'priority' : undefined,
+        promptCacheKey: typeof promptCacheKey === 'string' && promptCacheKey.length > 0 && promptCacheKey.length <= 64
+          ? promptCacheKey
+          : undefined,
       })) {
         if (delta) send({ d: delta });
       }

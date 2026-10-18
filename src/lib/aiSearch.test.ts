@@ -1,21 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
+import { AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SERVICE_TIER, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from './aiSearch';
 
 describe('ai film search', () => {
-  it('keeps the model on a small budget with reasoning off', () => {
-    expect(AI_SEARCH_MODEL).toBe('grok-4.3');
-    expect(AI_SEARCH_REASONING).toBe('none');
-    expect(AI_SEARCH_MAX_TOKENS).toBeLessThanOrEqual(480);
-    expect(AI_SEARCH_SYSTEM.length).toBeLessThan(80);
+  it('uses grok 4.7 low reasoning, priority, and a token cap', () => {
+    expect(AI_SEARCH_MODEL).toBe('grok-4.7');
+    expect(AI_SEARCH_REASONING).toBe('low');
+    expect(AI_SEARCH_SERVICE_TIER).toBe('priority');
+    expect(AI_SEARCH_MAX_TOKENS).toBeLessThanOrEqual(512);
+    expect(AI_SEARCH_SYSTEM.length).toBeLessThan(16);
   });
 
   it('leads with one hit, then asks the list to spread out', () => {
     const prompt = buildAiSearchPrompt('Tom Cruise action films with a little comedy');
     expect(prompt).toContain('Tom Cruise action films with a little comedy');
-    expect(prompt).toContain('Item 1');
-    expect(prompt).toContain('Vary the decade');
+    expect(prompt).toContain('1=obvious');
+    expect(prompt).toContain('Vary decade');
+    expect(prompt).toContain('"t"');
     expect(prompt).not.toContain('```');
-    expect(prompt.length).toBeLessThan(400);
+    expect(prompt.length).toBeLessThan(280);
   });
 
   it('yields each film as soon as its object closes', () => {
@@ -38,6 +40,10 @@ describe('ai film search', () => {
       { title: 'Knight and Day', year: '2010' },
     ]);
     expect(pending).toBe('');
+  });
+
+  it('reads short keys and the longer title and year keys', () => {
+    expect(takeFilmTitles('[{"t":"Heat","y":1995}]').titles).toEqual([{ title: 'Heat', year: '1995' }]);
   });
 
   it('reads a fenced array and numeric years', () => {

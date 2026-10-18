@@ -1,23 +1,22 @@
-export const AI_SEARCH_MAX_TOKENS = 480;
-export const AI_SEARCH_MODEL = 'grok-4.3';
-/** grok-4.3 can skip reasoning. grok-4.6 cannot, and even "low" waits several seconds. */
-export const AI_SEARCH_REASONING = 'none' as const;
+export const AI_SEARCH_MAX_TOKENS = 512;
+export const AI_SEARCH_MODEL = 'grok-4.7';
+/** 4.7 cannot turn reasoning off. Low is the fastest effort it accepts. */
+export const AI_SEARCH_REASONING = 'low' as const;
+/** Public fast path. Grok 4.7 Fast is not on the xAI API. */
+export const AI_SEARCH_SERVICE_TIER = 'priority' as const;
+export const AI_SEARCH_CACHE_KEY = 'hunt-search';
 export const AI_SEARCH_LIMIT = 12;
-/** Kept short on purpose. A long system prompt delays the first title. */
-export const AI_SEARCH_SYSTEM = 'Name real films. JSON array only. First character is [.';
+export const AI_SEARCH_SYSTEM = 'JSON.';
 
 export type FilmTitle = { title: string; year: string };
 
-/**
- * One short turn. Item 1 is the obvious hit so it can stream immediately.
- * The rest split the query so the list is not eight versions of the same film.
- */
+/** Short keys so twelve films fit in the token cap. Item 1 streams first. */
 export function buildAiSearchPrompt(query: string): string {
   return `Q:${JSON.stringify(query)}
-[{"title":"Title","year":"YYYY"}]
-12 films. First character is [.
-Item 1 is the obvious film, not a title the query already names.
-Films only. Keep every named person and trait. Vary the decade and the country. One title from each series.`;
+[{"t":"Title","y":1995}]
+12 films. [ first.
+1=obvious film, not a title already named.
+Films. Keep each named person and trait. Vary decade and country. One per series.`;
 }
 
 function findObjectEnd(source: string, start: number): number {
@@ -45,9 +44,10 @@ function findObjectEnd(source: string, start: number): number {
 function parseTitle(slice: string): FilmTitle | null {
   try {
     const obj = JSON.parse(slice);
-    const title = typeof obj?.title === 'string' ? obj.title.trim() : '';
+    const rawTitle = obj?.t ?? obj?.title;
+    const title = typeof rawTitle === 'string' ? rawTitle.trim() : '';
     if (!title || title.length > 160) return null;
-    const year = String(obj.year ?? '').replace(/[^\d]/g, '').slice(0, 4);
+    const year = String(obj?.y ?? obj?.year ?? '').replace(/[^\d]/g, '').slice(0, 4);
     return { title, year };
   } catch {
     return null;

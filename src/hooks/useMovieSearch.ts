@@ -4,7 +4,7 @@ import { useAuth } from './useAuth';
 import { useLibrary } from '../lib/library';
 import { getTaste } from '../lib/taste';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
-import { AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
+import { AI_SEARCH_CACHE_KEY, AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SERVICE_TIER, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
 import { watchedFilmExclusions, withoutWatched } from './selectExclusions';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
@@ -250,7 +250,13 @@ export function useMovieSearch() {
           await streamLlm(
             buildAiSearchPrompt(trimmedQuery),
             AI_SEARCH_SYSTEM,
-            { maxTokens: AI_SEARCH_MAX_TOKENS, reasoningEffort: AI_SEARCH_REASONING, model: AI_SEARCH_MODEL },
+            {
+              maxTokens: AI_SEARCH_MAX_TOKENS,
+              reasoningEffort: AI_SEARCH_REASONING,
+              model: AI_SEARCH_MODEL,
+              serviceTier: AI_SEARCH_SERVICE_TIER,
+              promptCacheKey: AI_SEARCH_CACHE_KEY,
+            },
             (delta) => {
               pending += delta;
               const next = takeFilmTitles(pending);
@@ -472,8 +478,8 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
 </output_format>`;
 
       const aiResponse = await callLlm(vibePrompt, 'You are a film curator creating personalized movie lists.', {
-        maxTokens: AI_SEARCH_MAX_TOKENS,
-        reasoningEffort: AI_SEARCH_REASONING,
+        maxTokens: 480,
+        reasoningEffort: 'none',
       });
       
       if (aiResponse) {

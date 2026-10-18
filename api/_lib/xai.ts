@@ -86,6 +86,8 @@ export async function* streamXai(opts: {
   maxTokens?: number;
   model?: string;
   reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null;
+  serviceTier?: 'priority';
+  promptCacheKey?: string;
 }): AsyncGenerator<string> {
   if (!XAI_API_KEY) throw new XaiConfigError();
   const body: Record<string, unknown> = {
@@ -97,6 +99,8 @@ export async function* streamXai(opts: {
   };
   if (opts.reasoningEffort) body.reasoning = { effort: opts.reasoningEffort };
   if (opts.system) body.instructions = opts.system;
+  if (opts.serviceTier) body.service_tier = opts.serviceTier;
+  if (opts.promptCacheKey) body.prompt_cache_key = opts.promptCacheKey;
 
   const res = await fetch('https://api.x.ai/v1/responses', {
     method: 'POST',

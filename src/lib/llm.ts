@@ -112,6 +112,8 @@ export interface LlmCallOptions {
   maxTokens?: number;
   reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null;
   model?: string;
+  serviceTier?: 'priority';
+  promptCacheKey?: string;
 }
 
 /** Newline-delimited `{d}` text deltas from /api/llm. Falls back to one JSON body. */
@@ -128,10 +130,12 @@ export async function streamLlm(
     body: JSON.stringify({
       prompt,
       systemPrompt,
-        maxTokens: options?.maxTokens,
-        reasoningEffort: options?.reasoningEffort,
-        model: options?.model,
-        stream: true,
+      maxTokens: options?.maxTokens,
+      reasoningEffort: options?.reasoningEffort,
+      model: options?.model,
+      serviceTier: options?.serviceTier,
+      promptCacheKey: options?.promptCacheKey,
+      stream: true,
     }),
     signal,
   });
