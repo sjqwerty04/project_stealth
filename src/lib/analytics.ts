@@ -83,7 +83,7 @@ export const logMovieAddedFromDiscovery = async (movieId: number, action: 'calen
 };
 
 
-export type AskAiSurface = 'entry' | 'entry-chip' | 'floating-chip' | 'chat-chip' | 'starter-sheet';
+export type AskAiSurface = 'entry' | 'entry-chip' | 'chat-chip';
 
 export const logAskAiOpened = async (movieId: number, surface: AskAiSurface) => {
   const analytics = await analyticsPromise;

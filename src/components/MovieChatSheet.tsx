@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, Send, Sparkles } from 'lucide-react';
 import SelectsChaseLoader from './ui/SelectsChaseLoader';
 import { useMovieChat, type ChatMovie } from '../hooks/useMovieChat';
 import type { MovieSnippet } from '../hooks/useMovieInsights';
 import type { Starter } from '../lib/askAi/starters';
+import { unmentioned, type MentionEntity } from '../lib/askAi/mentions';
 import BetaBadge from './askAi/BetaBadge';
 import StarterChips from './askAi/StarterChips';
-import StarterSheet from './askAi/StarterSheet';
+import MentionText, { EntityThumb } from './askAi/MentionText';
 
 type MovieChatSheetProps = {
   open: boolean;
@@ -19,14 +19,11 @@ type MovieChatSheetProps = {
   // A starter to auto-send when the sheet opens (picked outside the sheet).
   seedStarter?: Starter | null;
   onSeedConsumed?: () => void;
-  /** Opens straight into the expanded starter list. */
-  startExpanded?: boolean;
-  onStarterPicked?: (starter: Starter, position: number, surface: 'chat-chip' | 'starter-sheet') => void;
+  onStarterPicked?: (starter: Starter, position: number) => void;
   onStartersExpanded?: () => void;
   onTypedQuestion?: () => void;
+  onOpenEntity: (entity: MentionEntity) => void;
 };
-
-const tmdbImg = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w185${path}` : null);
 
 // Movie-scoped chat that slides up from the bottom. Generic over `movie` so it can
 // be mounted on any screen.
@@ -39,12 +36,11 @@ export default function MovieChatSheet({
   starters = [],
   seedStarter,
   onSeedConsumed,
-  startExpanded,
   onStarterPicked,
   onStartersExpanded,
   onTypedQuestion,
+  onOpenEntity,
 }: MovieChatSheetProps) {
-  const navigate = useNavigate();
   const { messages, isThinking, send } = useMovieChat(movie, snippets, taste);
   const [input, setInput] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -59,10 +55,9 @@ export default function MovieChatSheet({
   }, [open, seedStarter]);
 
   useEffect(() => {
-    if (open) setExpanded(!!startExpanded);
-  }, [open, startExpanded]);
+    if (!open) setExpanded(false);
+  }, [open]);
 
-  // Keep the transcript pinned to the latest message.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isThinking]);
@@ -73,8 +68,10 @@ export default function MovieChatSheet({
     return starters.filter((s) => !asked.has(s.text));
   }, [messages, starters]);
 
-  const pick = (starter: Starter, position: number, surface: 'chat-chip' | 'starter-sheet') => {
-    onStarterPicked?.(starter, position, surface);
+  const streaming = messages.some((m) => m.streaming);
+
+  const pick = (starter: Starter, position: number) => {
+    onStarterPicked?.(starter, position);
     setExpanded(false);
     send(starter.text);
   };
@@ -102,12 +99,12 @@ export default function MovieChatSheet({
         className={`fixed inset-x-0 bottom-0 z-[80] flex flex-col bg-base border-t border-line shadow-2xl transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ height: '82vh' }}
+        style={{ height: '78vh' }}
       >
-        <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-line">
+        <div className="flex items-center justify-between px-4 pt-2 pb-1.5 border-b border-line">
           <div className="flex items-center gap-2 min-w-0">
-            <Sparkles size={16} className="text-select shrink-0" />
-            <span className="font-semibold truncate">Ask about {movie.title}</span>
+            <Sparkles size={15} className="text-select shrink-0" />
+            <span className="font-semibold text-sm truncate">Ask about {movie.title}</span>
             <BetaBadge />
           </div>
           <button
@@ -120,75 +117,70 @@ export default function MovieChatSheet({
           </button>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {messages.length === 0 && !isThinking && (
-            <div className="py-6 text-center">
-              <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-2">Start with a question</p>
-              <p className="text-sm text-fg-2 leading-relaxed">
-                Plot, meaning, connections, the people behind it, or what to watch next after{' '}
-                <span className="text-fg">{movie.title}</span>.
-              </p>
-            </div>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {messages.length === 0 && (
+            <p className="py-6 text-center text-sm text-fg-3">Ask anything about {movie.title}.</p>
           )}
 
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-              <div className={m.role === 'user' ? 'max-w-[85%]' : 'max-w-[90%] w-full'}>
-                <div
-                  data-testid={m.role === 'user' ? 'ask-ai-user-msg' : 'ask-ai-reply'}
-                  className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                    m.role === 'user' ? 'bg-fg text-base' : 'bg-base-3 border border-line text-fg'
-                  }`}
-                >
-                  {m.content}
+          {messages.map((m, i) => {
+            if (m.role === 'user') {
+              return (
+                <div key={i} className="flex justify-end">
+                  <div data-testid="ask-ai-user-msg" className="max-w-[85%] px-3.5 py-2 bg-fg text-base text-sm leading-relaxed">
+                    {m.content}
+                  </div>
                 </div>
-
-                {m.recommendations && m.recommendations.length > 0 && (
-                  <div className="flex gap-3 overflow-x-auto mt-3 pb-1 no-scrollbar">
-                    {m.recommendations.map((rec) => (
+              );
+            }
+            if (!m.content && m.streaming) {
+              return (
+                <div key={i} data-testid="ask-ai-thinking" className="inline-flex px-3.5 py-2.5 bg-base-3 border border-line">
+                  <SelectsChaseLoader size="xs" />
+                </div>
+              );
+            }
+            const entities = m.entities || [];
+            const extra = m.streaming ? [] : unmentioned(m.content, entities);
+            return (
+              <div key={i} className="max-w-[92%]">
+                <div
+                  data-testid="ask-ai-reply"
+                  className="px-3.5 py-2.5 bg-base-3 border border-line text-sm leading-relaxed text-fg"
+                >
+                  <MentionText text={m.content} entities={entities} onOpen={onOpenEntity} />
+                  {m.streaming && <span data-testid="ask-ai-streaming" className="inline-block w-1.5 h-3.5 ml-0.5 align-middle bg-fg-3 animate-pulse" />}
+                </div>
+                {extra.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-1.5">
+                    {extra.map((e) => (
                       <button
-                        key={rec.id}
+                        key={`${e.kind}-${e.id}`}
                         type="button"
-                        onClick={() => {
-                          onClose();
-                          navigate(`/movie/${rec.id}?type=movie`);
-                        }}
-                        className="shrink-0 w-24 text-left group"
+                        data-testid={`mention-${e.kind}`}
+                        data-entity-id={e.id}
+                        onClick={() => onOpenEntity(e)}
+                        className="shrink-0 min-h-11 px-2.5 inline-flex items-center gap-1.5 bg-base-2 border border-line text-xs text-fg-2 hover:text-fg"
                       >
-                        <div className="aspect-[2/3] overflow-hidden bg-base-3 group-hover:ring-1 ring-fg-3 transition-all" style={{ borderRadius: 'var(--radius-poster)' }}>
-                          {tmdbImg(rec.posterPath) ? (
-                            <img src={tmdbImg(rec.posterPath)!} alt={rec.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full" />
-                          )}
-                        </div>
-                        <p className="text-xs text-fg mt-1 line-clamp-2 leading-tight">{rec.title}</p>
-                        {rec.year && <p className="font-spec text-[10px] text-fg-3">{rec.year}</p>}
+                        <EntityThumb entity={e} size="md" />
+                        <span className="whitespace-nowrap">{e.name}</span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-            </div>
-          ))}
-
-          {isThinking && (
-            <div className="flex justify-start">
-              <div className="px-4 py-2.5 bg-base-3 border border-line">
-                <SelectsChaseLoader size="xs" />
-              </div>
-            </div>
-          )}
+            );
+          })}
         </div>
 
-        {remaining.length > 0 && !isThinking && (
+        {remaining.length > 0 && !streaming && (
           <div className="px-4 pt-2">
             <StarterChips
               starters={remaining}
-              onPick={(s, i) => pick(s, i, 'chat-chip')}
-              onExpand={() => {
-                onStartersExpanded?.();
-                setExpanded(true);
+              onPick={pick}
+              expanded={expanded}
+              onToggleExpand={() => {
+                if (!expanded) onStartersExpanded?.();
+                setExpanded(!expanded);
               }}
             />
           </div>
@@ -196,7 +188,7 @@ export default function MovieChatSheet({
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-2 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          className="flex items-center gap-2 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
         >
           <input
             value={input}
@@ -207,21 +199,13 @@ export default function MovieChatSheet({
           />
           <button
             type="submit"
-            disabled={!input.trim() || isThinking}
+            disabled={!input.trim() || streaming}
             aria-label="Send"
             className="min-h-11 min-w-11 flex items-center justify-center bg-fg text-base disabled:opacity-40 disabled:cursor-not-allowed hover:bg-fg-2 transition-colors"
           >
             <Send size={18} />
           </button>
         </form>
-
-        <StarterSheet
-          open={expanded}
-          title={movie.title}
-          starters={remaining}
-          onPick={(s, i) => pick(s, i, 'starter-sheet')}
-          onClose={() => setExpanded(false)}
-        />
       </div>
     </>
   );

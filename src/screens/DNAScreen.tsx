@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, User, Film, ExternalLink } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import { useDNAStore, nodeId } from '../stores/dnaStore';
@@ -15,6 +15,9 @@ type Dots = { people?: DNAPerson[]; films?: DNAMovie[] };
 export default function DNAScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Ask AI hands over a person to open on, e.g. an actor named in an answer.
+  const startPerson = (location.state as { person?: DNAPerson } | null)?.person;
   const { path, currentIndex, enter, pushNode, jumpTo, reset } = useDNAStore();
 
   const [loading, setLoading] = useState(true);
@@ -38,11 +41,13 @@ export default function DNAScreen() {
       }
       enter(res.movie);
       cache.current.set(`m${res.movie.id}`, { people: res.people });
+      if (startPerson?.id) pushNode({ kind: 'person', person: startPerson });
       setLoading(false);
     });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, enter, reset]);
 
   // Load the dots for whatever node is currently focused.
