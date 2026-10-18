@@ -13,6 +13,7 @@ describe('Liora session plan', () => {
     });
     expect(CALL_CAP_MS).toBe(10 * 60 * 1000);
     expect(WRAP_UP_MS).toBe(8 * 60 * 1000);
+    expect(session.instructions).toContain('Hey this is selects... um sooo what do you want to watch?');
     expect(session.instructions).toContain(TEXT_QUESTION);
     expect(session.instructions).toContain('Heat: the telephoto across the street');
     expect(session.instructions).toContain('say the title out loud as ordinary words');
