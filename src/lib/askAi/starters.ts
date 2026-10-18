@@ -1,5 +1,5 @@
 export type StarterKind =
-  | 'faq'
+  | 'llm'
   | 'compare'
   | 'related'
   | 'meaning'
@@ -10,51 +10,55 @@ export type StarterKind =
   | 'before'
   | 'ending';
 
+export type FilmRef = { id: number; title: string; year?: string; posterPath: string | null };
+
 export type Starter = {
   id: string;
   text: string;
   kind: StarterKind;
   score: number;
+  /** Films the text names, in order, so chips can show a poster next to each title. */
+  films: FilmRef[];
+  spoiler?: boolean;
 };
 
-export type StarterFilm = { title: string; year?: string };
-
 export type StarterInput = {
-  title: string;
-  year?: string;
+  film: FilmRef;
   genres?: string[];
   director?: string | null;
   cast?: { name: string; character?: string }[];
-  /** Other entries in the same TMDB collection (sequels, prequels). */
-  collection?: StarterFilm[];
-  /** TMDB recommendations, best first. */
-  related?: StarterFilm[];
-  /** TMDB keywords, used as themes. */
+  /** Other entries in the same collection, release order. */
+  collection?: FilmRef[];
+  /** Related films, best first (TMDB recommendations, or LLM-reranked). */
+  related?: FilmRef[];
   keywords?: string[];
-  /** Most-asked questions for this film (Reddit-grounded LLM), most asked first. */
-  faq?: string[];
-  /** How often this user has tapped each kind before. */
+  /** Questions written by the LLM in the voice of film posts on X, best first. */
+  llm?: { text: string; films?: FilmRef[]; spoiler?: boolean }[];
   tapHistory?: Partial<Record<StarterKind, number>>;
 };
 
-// Priors reflect how often each question shape gets tapped across films; FAQ wins
-// because it is grounded in what viewers of this exact film ask.
+/** Starters shown per film, across the row and the expanded view. */
+export const MAX_STARTERS = 5;
+
 const PRIOR: Record<StarterKind, number> = {
-  faq: 100,
+  llm: 100,
   compare: 80,
   meaning: 74,
-  related: 70,
-  'more-like': 66,
-  theme: 60,
-  director: 56,
-  before: 50,
-  cast: 46,
-  ending: 40,
+  related: 72,
+  director: 64,
+  cast: 60,
+  theme: 56,
+  'more-like': 52,
+  before: 48,
+  ending: 44,
 };
 
-// Keywords that must never be surfaced as a one-tap prompt, even when TMDB tags the film with them.
 const SENSITIVE = /(rape|sexual|abuse|suicide|incest|pedophil|murder|torture|violence|gore|nudity|sex|death of|killing|drug|overdose|self-harm|assault|slur)/i;
 const GENERIC = /^(woman director|duringcreditsstinger|aftercreditsstinger|sequel|remake|biography|independent film|anime|aftercredits|3d|based on .*)$/i;
+// TMDB keywords mix themes with props and places ("sandstorm", "laundromat"); only
+// keywords naming an idea read well as a question.
+const THEMATIC =
+  /(allegory|ambition|betrayal|class|consumerism|corruption|destiny|dream|exploitation|faith|family|fate|forgiveness|freedom|gender|grief|guilt|identity|isolation|jealousy|justice|loneliness|loss|love|madness|manipulation|masculinity|memory|moral|nihilism|obsession|paranoia|patriotism|philosophy|power|privilege|redemption|regret|religio|revenge|vengeance|seclusion|social commentary|subconscious|surveillance|survival|trauma|wealth|capitalis)/i;
 
 const normalize = (s: string) =>
   s
@@ -73,78 +77,74 @@ function similar(a: string, b: string, title: string) {
   return shared / Math.min(wa.size, wb.size) >= 0.75;
 }
 
-const genreNoun = (genre: string) => {
-  const g = genre.toLowerCase();
-  if (g === 'science fiction') return 'sci-fi';
-  if (g === 'tv movie') return '';
-  return g;
-};
-
-// TMDB keywords mix themes with props and places ("sandstorm", "laundromat"); only
-// keywords naming an idea read well as "How does X explore …?".
-const THEMATIC =
-  /(allegory|ambition|betrayal|class|consumerism|corruption|destiny|dream|exploitation|faith|family|fate|forgiveness|freedom|gender|grief|guilt|identity|isolation|jealousy|justice|loneliness|loss|love|madness|manipulation|masculinity|memory|moral|nihilism|obsession|paranoia|patriotism|philosophy|power|privilege|redemption|regret|religio|revenge|vengeance|seclusion|social commentary|subconscious|surveillance|survival|trauma|wealth|capitalis)/i;
-
-export function pickThemes(keywords: string[] = [], max = 2) {
+export function pickThemes(keywords: string[] = [], max = 1) {
   return keywords
     .map((k) => k.trim())
     .filter((k) => k && k.length <= 28 && THEMATIC.test(k) && !SENSITIVE.test(k) && !GENERIC.test(k))
     .slice(0, max);
 }
 
-function templates(input: StarterInput): Omit<Starter, 'id' | 'score'>[] {
-  const t = input.title;
-  const out: Omit<Starter, 'id' | 'score'>[] = [];
-  const sibling = input.collection?.find((f) => f.title !== t);
-  const related = (input.related || []).filter((f) => f.title !== t && f.title !== sibling?.title);
-  const genre = genreNoun(input.genres?.[0] || '');
+/** Strips em dashes (and spaced en dashes) the model likes to add. */
+export function noEmDash(text: string) {
+  return text
+    .replace(/\s*\u2014\s*/g, ', ')
+    .replace(/\s+\u2013\s+/g, ', ')
+    .replace(/,\s*([,.!?])/g, '$1')
+    .replace(/^,\s*/, '');
+}
 
-  if (sibling) {
-    out.push({ kind: 'related', text: `How is ${t} related to ${sibling.title}?` });
-  }
+type Draft = Omit<Starter, 'id' | 'score'>;
+
+// Fallback questions, written the way people post about a film on X: short, opinionated, specific.
+function templates(input: StarterInput): Draft[] {
+  const f = input.film;
+  const t = f.title;
+  const out: Draft[] = [];
+  const sibling = input.collection?.find((c) => c.id !== f.id && (c.year || '') < (f.year || '9999'));
+  const related = (input.related || []).filter((r) => r.id !== f.id && r.id !== sibling?.id);
+
   if (related[0]) {
-    out.push({ kind: 'compare', text: `How does ${t} compare to ${related[0].title}?` });
+    out.push({ kind: 'compare', text: `${t} vs ${related[0].title}: which one hits harder?`, films: [f, related[0]] });
   }
-  if (!sibling && related[1]) {
-    out.push({ kind: 'related', text: `How is ${t} related to ${related[1].title}?` });
+  if (sibling) {
+    out.push({ kind: 'related', text: `Do I need to see ${sibling.title} before ${t}?`, films: [sibling, f] });
+  } else if (related[1]) {
+    out.push({ kind: 'related', text: `Is ${t} basically ${related[1].title} for a new crowd?`, films: [f, related[1]] });
   }
-  out.push({ kind: 'meaning', text: `What is the meaning behind ${t}?` });
-  out.push({
-    kind: 'more-like',
-    text: genre ? `Pull together some ${genre} films, starting with ${t}` : `Pull together some films like ${t}`,
-  });
-  for (const theme of pickThemes(input.keywords)) {
-    out.push({ kind: 'theme', text: `How does ${t} explore ${theme}?` });
-  }
-  if (input.director) {
-    out.push({ kind: 'director', text: `What makes ${t} feel like a ${input.director} film?` });
-  }
+  out.push({ kind: 'meaning', text: `Okay, what is ${t} actually about?`, films: [f] });
+  if (input.director) out.push({ kind: 'director', text: `Is this ${input.director}'s best work?`, films: [] });
   const lead = input.cast?.[0];
-  if (lead?.character) {
-    out.push({ kind: 'cast', text: `How did ${lead.name} approach playing ${lead.character}?` });
-  } else if (lead) {
-    out.push({ kind: 'cast', text: `What did ${lead.name} bring to ${t}?` });
-  }
-  out.push({ kind: 'before', text: `What should I know before watching ${t}?` });
-  out.push({ kind: 'ending', text: `Explain the ending of ${t} (spoilers)` });
+  if (lead?.character) out.push({ kind: 'cast', text: `${lead.name} as ${lead.character}: career best?`, films: [] });
+  const theme = pickThemes(input.keywords)[0];
+  if (theme) out.push({ kind: 'theme', text: `Is ${t} secretly about ${theme}?`, films: [f] });
+  out.push({ kind: 'more-like', text: `What should I watch after ${t}?`, films: [f] });
+  out.push({ kind: 'before', text: `Is ${t} worth the hype?`, films: [f] });
+  out.push({ kind: 'ending', text: `That ending. What actually happened?`, films: [], spoiler: true });
   return out;
 }
 
 const slug = (s: string) => normalize(s).join('-').slice(0, 60);
 
 /**
- * Per-film starter prompts: Reddit-grounded FAQ first, then metadata templates,
- * deduped and spread across question shapes so the first chips are never three
- * variants of the same question.
+ * Per-film starters: LLM-written questions first, metadata templates fill the gaps.
+ * Returns MAX_STARTERS non-spoiler starters plus at most one spoiler, which the client
+ * shows only once the film is logged (see `visibleStarters`).
  */
-export function buildStarters(input: StarterInput, limit = 10): Starter[] {
+export function buildStarters(input: StarterInput): Starter[] {
   const history = input.tapHistory || {};
   const candidates: Starter[] = [];
 
-  (input.faq || []).forEach((q, i) => {
-    const text = q.trim();
+  (input.llm || []).forEach((q, i) => {
+    const text = noEmDash(q.text.trim());
     if (!text) return;
-    candidates.push({ id: `faq-${slug(text)}`, kind: 'faq', text, score: PRIOR.faq - i * 6 });
+    candidates.push({
+      id: `llm-${slug(text)}`,
+      kind: 'llm',
+      text,
+      films: q.films || [],
+      spoiler: q.spoiler,
+      score: PRIOR.llm - i * 4,
+    });
   });
   templates(input).forEach((c, i) => {
     const learned = Math.min(12, (history[c.kind] || 0) * 3);
@@ -153,21 +153,29 @@ export function buildStarters(input: StarterInput, limit = 10): Starter[] {
 
   const unique: Starter[] = [];
   for (const c of [...candidates].sort((a, b) => b.score - a.score)) {
-    if (unique.some((u) => u.id === c.id || similar(u.text, c.text, input.title))) continue;
+    if (unique.some((u) => u.id === c.id || similar(u.text, c.text, input.film.title))) continue;
     unique.push(c);
   }
 
-  // One of each kind before any kind repeats, except FAQ which is allowed to lead.
   const seen = new Map<StarterKind, number>();
   const firstPass: Starter[] = [];
   const rest: Starter[] = [];
   for (const s of unique) {
     const n = seen.get(s.kind) || 0;
-    const cap = s.kind === 'faq' ? 2 : 1;
-    (n < cap ? firstPass : rest).push(s);
+    (n < (s.kind === 'llm' ? 4 : 1) ? firstPass : rest).push(s);
     seen.set(s.kind, n + 1);
   }
-  return [...firstPass, ...rest].slice(0, limit);
+  const ordered = [...firstPass, ...rest];
+  const safe = ordered.filter((s) => !s.spoiler).slice(0, MAX_STARTERS);
+  const spoiler = ordered.find((s) => s.spoiler);
+  return spoiler ? [...safe, spoiler] : safe;
+}
+
+/** What the user actually sees: spoilers only after they have logged the film. */
+export function visibleStarters(starters: Starter[], hasLogged: boolean) {
+  const safe = starters.filter((s) => !s.spoiler);
+  const spoiler = hasLogged ? starters.find((s) => s.spoiler) : undefined;
+  return (spoiler ? [spoiler, ...safe] : safe).slice(0, MAX_STARTERS);
 }
 
 const TAPS_KEY = 'selects.askAi.taps';

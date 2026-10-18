@@ -1,97 +1,106 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildStarters, readTapHistory, type StarterFilm } from '../lib/askAi/starters';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from './useAuth';
+import { visibleStarters, type Starter } from '../lib/askAi/starters';
 
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
-const TMDB_BASE = 'https://api.themoviedb.org/3';
-const CACHE_PREFIX = 'selects.askAi.meta.v1.';
-
-type StarterMeta = { collection: StarterFilm[]; related: StarterFilm[]; keywords: string[] };
-const EMPTY_META: StarterMeta = { collection: [], related: [], keywords: [] };
-
-type Film = {
-  id: number;
-  title: string;
-  year?: string;
-  genres?: string[];
-  director?: string | null;
-  cast?: { name: string; character?: string }[];
-  mediaType?: 'movie' | 'tv';
+export type StartersPayload = {
+  version: number;
+  source: 'llm' | 'template';
+  generatedAt: string;
+  starters: Starter[];
 };
 
-const toFilm = (r: { title?: string; name?: string; release_date?: string }): StarterFilm | null => {
-  const title = r.title || r.name;
-  return title ? { title, year: r.release_date?.slice(0, 4) } : null;
-};
+const VERSION = 2;
+const LLM_TTL_MS = 7 * 24 * 3600_000;
+const TEMPLATE_TTL_MS = 10 * 60_000;
+const localKey = (type: string, id: number) => `selects.askAi.starters.v${VERSION}.${type}.${id}`;
+export const starterDocId = (type: string, id: number) => `v${VERSION}_${type}_${id}`;
 
-async function fetchMeta(id: number, mediaType: 'movie' | 'tv'): Promise<StarterMeta> {
-  const cached = sessionStorage.getItem(`${CACHE_PREFIX}${mediaType}.${id}`);
-  if (cached) return JSON.parse(cached);
-
-  const res = await fetch(
-    `${TMDB_BASE}/${mediaType}/${id}?api_key=${TMDB_API_KEY}&append_to_response=keywords,recommendations`,
-  );
-  if (!res.ok) return EMPTY_META;
-  const data = await res.json();
-
-  let collection: StarterFilm[] = [];
-  if (data.belongs_to_collection?.id) {
-    const c = await fetch(`${TMDB_BASE}/collection/${data.belongs_to_collection.id}?api_key=${TMDB_API_KEY}`);
-    if (c.ok) {
-      const parts = ((await c.json()).parts || []) as { title?: string; release_date?: string }[];
-      collection = parts
-        .filter((p) => p.release_date)
-        .sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''))
-        .map(toFilm)
-        .filter((f): f is StarterFilm => !!f);
-    }
-  }
-  const meta: StarterMeta = {
-    collection,
-    related: ((data.recommendations?.results || []) as { title?: string; name?: string; release_date?: string }[])
-      .slice(0, 6)
-      .map(toFilm)
-      .filter((f): f is StarterFilm => !!f),
-    keywords: ((data.keywords?.keywords || data.keywords?.results || []) as { name: string }[]).map((k) => k.name),
-  };
-  sessionStorage.setItem(`${CACHE_PREFIX}${mediaType}.${id}`, JSON.stringify(meta));
-  return meta;
+function fresh(p: StartersPayload | null | undefined): p is StartersPayload {
+  if (!p || p.version !== VERSION || !Array.isArray(p.starters) || !p.starters.length) return false;
+  const age = Date.now() - new Date(p.generatedAt).getTime();
+  return age < (p.source === 'llm' ? LLM_TTL_MS : TEMPLATE_TTL_MS);
 }
 
-/** Tailored Ask AI starters for one film: metadata templates now, FAQ merged in when it lands. */
-export function useAskAiStarters(film: Film | null, faq: string[]) {
-  const [meta, setMeta] = useState<StarterMeta>(EMPTY_META);
-  const id = film?.id;
-  const mediaType = film?.mediaType || 'movie';
+function readLocal(type: string, id: number): StartersPayload | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(localKey(type, id)) || 'null');
+    return fresh(p) ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocal(type: string, id: number, p: StartersPayload) {
+  try {
+    localStorage.setItem(localKey(type, id), JSON.stringify(p));
+  } catch {
+    // storage full or unavailable: the CDN and Firestore layers still cache
+  }
+}
+
+/** Fetches (and warms the CDN cache for) a film's starters without rendering them. */
+export function prefetchStarters(id: number, type: 'movie' | 'tv' = 'movie') {
+  if (readLocal(type, id)) return;
+  void fetch(`/api/movie-starters?id=${id}&type=${type}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((p) => fresh(p) && writeLocal(type, id, p))
+    .catch(() => {});
+}
+
+/**
+ * Starters for one film. Order of preference: this device's cache, the shared
+ * Firestore cache (askAiStarters/{v2_type_id}), then /api/movie-starters (CDN-cached).
+ * The first set that arrives is kept for the whole visit, so chips never reorder.
+ */
+export function useAskAiStarters(id: number | undefined, type: 'movie' | 'tv', hasLogged: boolean) {
+  const { user } = useAuth();
+  const key = id ? `${type}.${id}` : '';
+  const local = useMemo(() => (id ? readLocal(type, id) : null), [id, type]);
+  const [fetched, setFetched] = useState<{ key: string; payload: StartersPayload | null } | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || local) return;
+    let settled = false;
     let cancelled = false;
-    setMeta(EMPTY_META);
-    fetchMeta(id, mediaType)
-      .then((m) => !cancelled && setMeta(m))
-      .catch(() => !cancelled && setMeta(EMPTY_META));
+    const accept = (p: StartersPayload) => {
+      if (cancelled || settled) return;
+      settled = true;
+      setFetched({ key, payload: p });
+      writeLocal(type, id, p);
+    };
+
+    const ref = doc(db, 'askAiStarters', starterDocId(type, id));
+    const shared = user
+      ? getDoc(ref)
+          .then((snap) => (snap.exists() ? (snap.data() as StartersPayload) : null))
+          .catch(() => null)
+      : Promise.resolve(null);
+    shared.then((p) => fresh(p) && accept(p));
+
+    fetch(`/api/movie-starters?id=${id}&type=${type}`)
+      .then((r) => (r.ok ? (r.json() as Promise<StartersPayload>) : null))
+      .then(async (p) => {
+        if (!fresh(p)) return;
+        accept(p);
+        const existing = await shared;
+        if (user && p.source === 'llm' && !fresh(existing)) {
+          void setDoc(ref, { version: p.version, source: p.source, generatedAt: p.generatedAt, starters: p.starters }).catch(() => {});
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled && !settled) setFetched({ key, payload: null });
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [id, mediaType]);
+  }, [id, type, key, local, user]);
 
-  const faqKey = faq.join('|');
-  const castKey = film?.cast?.map((c) => c.name).join('|');
-  return useMemo(
-    () =>
-      film
-        ? buildStarters({
-            title: film.title,
-            year: film.year,
-            genres: film.genres,
-            director: film.director,
-            cast: film.cast,
-            ...meta,
-            faq,
-            tapHistory: readTapHistory(),
-          })
-        : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [film?.title, film?.director, castKey, meta, faqKey],
-  );
+  const payload = local || (fetched?.key === key ? fetched.payload : null);
+  const loading = !!id && !local && fetched?.key !== key;
+  const starters = useMemo(() => visibleStarters(payload?.starters || [], hasLogged), [payload, hasLogged]);
+  return { starters, loading, source: payload?.source };
 }

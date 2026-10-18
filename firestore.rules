@@ -156,6 +156,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Ask AI starter cache, keyed v{version}_{movie|tv}_{tmdbId}. Signed-in clients
+    // read it and fill a miss with what /api/movie-starters returned; nobody rewrites a row,
+    // so a bumped version is how a set gets replaced.
+    match /askAiStarters/{key} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && key.matches('^v[0-9]+_(movie|tv)_[0-9]+$')
+        && request.resource.data.keys().hasOnly(['version', 'source', 'generatedAt', 'starters'])
+        && request.resource.data.version == int(key.split('_')[0].replace('v', ''))
+        && request.resource.data.source == 'llm'
+        && request.resource.data.generatedAt is string
+        && request.resource.data.starters is list
+        && request.resource.data.starters.size() > 0
+        && request.resource.data.starters.size() <= 6;
+      allow update, delete: if false;
+    }
+
     // Activity logs - authenticated users can create, only admin can read
     match /activity_logs/{logId} {
       allow create: if request.auth != null;

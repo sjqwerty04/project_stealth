@@ -1,70 +1,82 @@
 import { describe, expect, it } from 'vitest';
-import { buildStarters, pickThemes } from './starters';
+import { MAX_STARTERS, buildStarters, noEmDash, pickThemes, visibleStarters, type FilmRef } from './starters';
 
-const blinkTwice = {
-  title: 'Blink Twice',
-  year: '2024',
+const ref = (id: number, title: string, year?: string): FilmRef => ({ id, title, year, posterPath: `/${id}.jpg` });
+const blinkTwice = ref(840705, 'Blink Twice', '2024');
+const getOut = ref(419430, 'Get Out', '2017');
+
+const input = {
+  film: blinkTwice,
   genres: ['Thriller', 'Mystery'],
   director: 'Zoë Kravitz',
   cast: [{ name: 'Naomi Ackie', character: 'Frida' }],
-  related: [{ title: 'Get Out' }, { title: 'Infinity Pool' }, { title: 'Barbarian' }],
+  related: [getOut, ref(667216, 'Infinity Pool'), ref(1, 'Barbarian')],
   keywords: ['rape', 'forgiveness', 'exploitation', 'dark comedy', 'seclusion', 'sexual violence'],
 };
 
 describe('ask ai starters', () => {
-  it('tailors the Blink Twice starters to its related films, genre and people', () => {
-    const texts = buildStarters(blinkTwice).map((s) => s.text);
-    expect(texts).toContain('How does Blink Twice compare to Get Out?');
-    expect(texts).toContain('How is Blink Twice related to Infinity Pool?');
-    expect(texts).toContain('What is the meaning behind Blink Twice?');
-    expect(texts).toContain('Pull together some thriller films, starting with Blink Twice');
-    expect(texts).toContain('How did Naomi Ackie approach playing Frida?');
+  it('writes punchy, film-specific fallbacks and tags every film they name', () => {
+    const starters = buildStarters(input);
+    const compare = starters.find((s) => s.kind === 'compare')!;
+    expect(compare.text).toBe('Blink Twice vs Get Out: which one hits harder?');
+    expect(compare.films.map((f) => f.title)).toEqual(['Blink Twice', 'Get Out']);
+    expect(starters.map((s) => s.text)).toContain('Is this Zoë Kravitz\'s best work?');
   });
 
-  it('never surfaces sensitive keywords as one-tap themes', () => {
-    expect(pickThemes(blinkTwice.keywords)).toEqual(['forgiveness', 'exploitation']);
-    expect(pickThemes(['based on novel or book', 'sandstorm', 'chosen one', 'destiny', 'vengeance'])).toEqual([
-      'destiny',
-      'vengeance',
-    ]);
-    const texts = buildStarters(blinkTwice).map((s) => s.text.toLowerCase());
-    expect(texts.some((t) => t.includes('rape') || t.includes('sexual'))).toBe(false);
+  it('caps the set at five plus one gated spoiler', () => {
+    const starters = buildStarters(input);
+    expect(starters.filter((s) => !s.spoiler)).toHaveLength(MAX_STARTERS);
+    expect(starters.filter((s) => s.spoiler)).toHaveLength(1);
   });
 
-  it('prefers a collection sibling for the "related to" prompt', () => {
-    const texts = buildStarters({
-      title: 'Dune: Part Two',
-      collection: [{ title: 'Dune' }, { title: 'Dune: Part Two' }],
-      related: [{ title: 'Oppenheimer' }],
-    }).map((s) => s.text);
-    expect(texts).toContain('How is Dune: Part Two related to Dune?');
-    expect(texts).toContain('How does Dune: Part Two compare to Oppenheimer?');
+  it('hides the spoiler starter until the film is logged', () => {
+    const starters = buildStarters(input);
+    expect(visibleStarters(starters, false).some((s) => s.spoiler)).toBe(false);
+    const logged = visibleStarters(starters, true);
+    expect(logged).toHaveLength(MAX_STARTERS);
+    expect(logged[0].spoiler).toBe(true);
   });
 
-  it('ranks frequently asked questions first and dedupes template echoes', () => {
+  it('never surfaces sensitive keywords as themes', () => {
+    expect(pickThemes(input.keywords, 2)).toEqual(['forgiveness', 'exploitation']);
+    expect(pickThemes(['based on novel or book', 'sandstorm', 'chosen one', 'destiny'])).toEqual(['destiny']);
+  });
+
+  it('asks about the earlier collection entry', () => {
+    const dune2 = ref(693134, 'Dune: Part Two', '2024');
+    const starters = buildStarters({ film: dune2, collection: [ref(438631, 'Dune', '2021'), dune2] });
+    const related = starters.find((s) => s.kind === 'related')!;
+    expect(related.text).toBe('Do I need to see Dune before Dune: Part Two?');
+    expect(related.films.map((f) => f.id)).toEqual([438631, 693134]);
+  });
+
+  it('puts LLM questions first, strips their em dashes, and drops template echoes', () => {
     const starters = buildStarters({
-      ...blinkTwice,
-      faq: ['What is the meaning behind Blink Twice really?', 'Why does everyone forget on the island?'],
+      ...input,
+      llm: [
+        { text: 'Blink Twice vs Get Out \u2014 which one hits harder?', films: [blinkTwice, getOut] },
+        { text: 'Why does nobody on the island remember anything?' },
+      ],
     });
-    expect(starters[0].kind).toBe('faq');
-    expect(starters[1].kind).toBe('faq');
-    expect(starters.filter((s) => /meaning behind/i.test(s.text))).toHaveLength(1);
+    expect(starters[0].kind).toBe('llm');
+    expect(starters[0].text).toBe('Blink Twice vs Get Out, which one hits harder?');
+    expect(starters.filter((s) => /hits harder/.test(s.text))).toHaveLength(1);
   });
 
-  it('spreads the first chips across question shapes', () => {
-    const top = buildStarters(blinkTwice).slice(0, 4).map((s) => s.kind);
-    expect(new Set(top).size).toBe(4);
-  });
-
-  it('still gives a bare film tailored starters when metadata is missing', () => {
-    const starters = buildStarters({ title: 'Untitled' });
-    expect(starters.length).toBeGreaterThanOrEqual(4);
-    expect(starters.every((s) => s.text.includes('Untitled'))).toBe(true);
+  it('gives a bare film enough starters', () => {
+    expect(buildStarters({ film: ref(9, 'Untitled') }).filter((s) => !s.spoiler).length).toBeGreaterThanOrEqual(3);
   });
 
   it('learns from what this user taps', () => {
-    const base = buildStarters(blinkTwice).map((s) => s.kind);
-    const tuned = buildStarters({ ...blinkTwice, tapHistory: { cast: 5 } }).map((s) => s.kind);
-    expect(tuned.indexOf('cast')).toBeLessThan(base.indexOf('cast'));
+    const base = buildStarters(input).map((s) => s.kind);
+    const tuned = buildStarters({ ...input, tapHistory: { theme: 5 } }).map((s) => s.kind);
+    expect(base).not.toContain('theme');
+    expect(tuned).toContain('theme');
+  });
+
+  it('rewrites em dashes into commas', () => {
+    expect(noEmDash('Sharp \u2014 and mean.')).toBe('Sharp, and mean.');
+    expect(noEmDash('A\u2014B')).toBe('A, B');
+    expect(noEmDash('2019 \u2013 2021')).toBe('2019, 2021');
   });
 });
