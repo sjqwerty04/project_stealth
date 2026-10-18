@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Call Selects</title>
+    <meta name="description" content="Call Selects at (231) 525-7644" />
+    <meta name="theme-color" content="#0A0A0B" />
+    <link rel="canonical" href="https://selectsfilm.com/call" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta property="og:title" content="Call Selects" />
+    <meta property="og:description" content="Call Selects at (231) 525-7644" />
+    <meta property="og:url" content="https://selectsfilm.com/call" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Selects" />
+    <meta property="og:image" content="https://selectsfilm.com/selects-logo.png" />
+    <meta property="og:image:alt" content="Selects" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Call Selects" />
+    <meta name="twitter:description" content="Call Selects at (231) 525-7644" />
+    <meta name="twitter:image" content="https://selectsfilm.com/selects-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --base: #0A0A0B;
+        --fg: #EFEDE9;
+        --fg-2: #B9B6B0;
+        --select: #FF3B14;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--base);
+        color: var(--fg);
+        font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      body {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: max(32px, env(safe-area-inset-top)) 24px max(32px, env(safe-area-inset-bottom));
+      }
+      main {
+        width: min(100%, 22rem);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      img {
+        width: 88px;
+        height: 88px;
+        display: block;
+      }
+      .number {
+        margin: 28px 0 0;
+        color: var(--fg-2);
+        font-size: 1.05rem;
+        letter-spacing: 0.02em;
+      }
+      a.call {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 64px;
+        margin-top: 32px;
+        padding: 16px 24px;
+        background: var(--fg);
+        color: var(--base);
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        text-decoration: none;
+        border-radius: 0;
+      }
+      a.call:active { opacity: 0.88; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/selects-logo.png" width="88" height="88" alt="Selects" />
+      <p class="number">(231) 525-7644</p>
+      <a class="call" id="call-selects" href="tel:+12315257644">Call Selects</a>
+    </main>
+    <script>
+      (function () {
+        var TEL = 'tel:+12315257644';
+        if (navigator.webdriver) return;
+        function openDialer() {
+          window.location.href = TEL;
+        }
+        function start() {
+          openDialer();
+          setTimeout(openDialer, 250);
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', start);
+        } else {
+          start();
+        }
+      })();
+    </script>
+  </body>
+</html>
