@@ -9,6 +9,8 @@ import {
   selectsStatusWhileBusy,
   hydrateUniqueSelectPicks,
   uniqueByMovieId,
+  watchedFilmExclusions,
+  withoutWatched,
 } from './selectExclusions';
 
 describe('select exclusions', () => {
@@ -145,5 +147,26 @@ describe('select exclusions', () => {
     expect(canGenerateSelects({ libraryReady: false, replacing: false })).toBe(false);
     expect(canGenerateSelects({ libraryReady: true, replacing: true })).toBe(false);
     expect(canGenerateSelects({ libraryReady: true, replacing: false })).toBe(true);
+  });
+
+  it('drops watched films from AI picks and keeps everything for a signed-out library', () => {
+    const library = [
+      { movieId: 949, title: 'Heat', watched: true },
+      { movieId: 680, title: 'Pulp Fiction', watched: false },
+    ];
+    const excluded = watchedFilmExclusions(library);
+    const picks = [
+      { id: 949, title: 'Heat' },
+      { id: 680, title: 'Pulp Fiction' },
+      { id: 550, title: 'Fight Club' },
+      { id: 121, title: 'The Lord of the Rings: The Two Towers' },
+    ];
+    expect(withoutWatched(picks, excluded).map((row) => row.title)).toEqual([
+      'Pulp Fiction',
+      'Fight Club',
+      'The Lord of the Rings: The Two Towers',
+    ]);
+    expect(withoutWatched([{ id: 77, title: 'Heat' }], excluded)).toEqual([]);
+    expect(withoutWatched(picks, watchedFilmExclusions([]))).toBe(picks);
   });
 });

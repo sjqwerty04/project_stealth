@@ -1,9 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { callLlm, streamLlm } from '../lib/llm';
 import { useAuth } from './useAuth';
+import { useLibrary } from '../lib/library';
 import { getTaste } from '../lib/taste';
 import { fallbackByQuery } from '../lib/fallbackCatalog';
 import { AI_SEARCH_LIMIT, AI_SEARCH_MAX_TOKENS, AI_SEARCH_MODEL, AI_SEARCH_REASONING, AI_SEARCH_SYSTEM, buildAiSearchPrompt, takeFilmTitles } from '../lib/aiSearch';
+import { watchedFilmExclusions, withoutWatched } from './selectExclusions';
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 
@@ -147,6 +149,27 @@ export function useMovieSearch() {
   const generationRef = useRef(0);
   const lastQueryRef = useRef<string>('');
   const { user } = useAuth();
+  const { films: libraryFilms } = useLibrary();
+  const watchedExclusions = useMemo(() => watchedFilmExclusions(libraryFilms), [libraryFilms]);
+  const watchedRef = useRef(watchedExclusions);
+  watchedRef.current = watchedExclusions;
+
+  useEffect(() => {
+    const excluded = watchedRef.current;
+    if (!excluded.length) return;
+    if (searchMetadata.mode === 'ai-curated') {
+      setResults((prev) => {
+        const next = withoutWatched(prev, excluded);
+        return next.length === prev.length ? prev : next;
+      });
+    }
+    setVibeList((prev) => {
+      if (!prev) return prev;
+      const movies = withoutWatched(prev.movies, excluded);
+      if (movies.length === prev.movies.length) return prev;
+      return movies.length ? { ...prev, movies } : null;
+    });
+  }, [watchedExclusions, searchMetadata.mode]);
 
   const searchMovies = useCallback(async (query: string): Promise<SearchResult[]> => {
     const trimmedQuery = query.trim();
@@ -195,16 +218,25 @@ export function useMovieSearch() {
         const seenIds = new Set<number>();
         const found: SearchResult[] = [];
         let pending = '';
+        let skippedWatched = 0;
         const hydrations: Promise<void>[] = [];
 
         const accept = (film: { title: string; year: string }) => {
           const key = film.title.toLowerCase();
           if (!key || seenTitles.has(key) || seenTitles.size >= AI_SEARCH_LIMIT) return;
           seenTitles.add(key);
+          if (withoutWatched([film], watchedRef.current).length === 0) {
+            skippedWatched += 1;
+            return;
+          }
           hydrations.push((async () => {
             try {
               const movie = await hydrateMovie(film.title, film.year, signal);
               if (!movie || generation !== generationRef.current || seenIds.has(movie.id)) return;
+              if (withoutWatched([movie], watchedRef.current).length === 0) {
+                skippedWatched += 1;
+                return;
+              }
               seenIds.add(movie.id);
               found.push(movie);
               setResults((prev) => (prev.some((row) => row.id === movie.id) ? prev : [...prev, movie]));
@@ -242,7 +274,7 @@ export function useMovieSearch() {
           generateVibeList(trimmedQuery, '');
         }
 
-        if (searchResults.length === 0) {
+        if (searchResults.length === 0 && skippedWatched === 0) {
           classification.mode = 'standard';
           metadata = { mode: 'standard' };
         }
@@ -489,7 +521,10 @@ Generate a catchy list title and 6-8 movie recommendations tailored to this user
             });
             
             const hydratedMovies = await Promise.all(hydratePromises);
-            const validMovies = hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[];
+            const validMovies = withoutWatched(
+              hydratedMovies.filter((m): m is NonNullable<typeof m> => m !== null) as SearchResult[],
+              watchedRef.current,
+            );
             
             if (validMovies.length > 0) {
               setVibeList({
