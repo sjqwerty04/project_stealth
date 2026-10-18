@@ -39,7 +39,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
   const busy = useRef(false);
 
   const send = useCallback(
-    async (text: string, knownFilms?: FilmRef[]) => {
+    async (text: string, knownFilms?: FilmRef[], brief?: string) => {
       const trimmed = text.trim();
       if (!trimmed || busy.current) return;
       busy.current = true;
@@ -66,6 +66,7 @@ export function useMovieChat(movie: ChatMovie, snippets: MovieSnippet[], taste?:
             movie,
             snippets,
             taste,
+            brief,
             stream: true,
           }),
         });

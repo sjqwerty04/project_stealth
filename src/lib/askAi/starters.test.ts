@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_STARTERS, buildStarters, noEmDash, pickThemes, resolveVisibleStarters, visibleStarters, type FilmRef, type Starter } from './starters';
+import { MAX_STARTERS, buildStarters, noEmDash, resolveVisibleStarters, visibleStarters, type FilmRef, type Starter } from './starters';
 
 const ref = (id: number, title: string, year?: string): FilmRef => ({ id, title, year, posterPath: `/${id}.jpg` });
 const blinkTwice = ref(840705, 'Blink Twice', '2024');
@@ -7,71 +7,98 @@ const getOut = ref(419430, 'Get Out', '2017');
 
 const input = {
   film: blinkTwice,
-  genres: ['Thriller', 'Mystery'],
-  director: 'Zoë Kravitz',
-  cast: [{ name: 'Naomi Ackie', character: 'Frida' }],
   related: [getOut, ref(667216, 'Infinity Pool'), ref(1, 'Barbarian')],
-  keywords: ['rape', 'forgiveness', 'exploitation', 'dark comedy', 'seclusion', 'sexual violence'],
 };
 
 describe('ask ai starters', () => {
-  it('writes punchy, film-specific fallbacks and tags every film they name', () => {
-    const starters = buildStarters(input);
-    const compare = starters.find((s) => s.kind === 'compare')!;
-    expect(compare.text).toBe('Blink Twice vs Get Out: which one hits harder?');
-    expect(compare.films.map((f) => f.title)).toEqual(['Blink Twice', 'Get Out']);
-    expect(starters.map((s) => s.text)).toContain('Is this Zoë Kravitz\'s best work?');
+  it('keeps a question only when it opens a specific claim, and posters only for titles it names', () => {
+    const starters = buildStarters({
+      ...input,
+      questions: [
+        {
+          text: 'What did the island have to do with that summer?',
+          brief: 'People read the island as the news of that year, not as a vacation.',
+        },
+        { text: 'Blink Twice vs Get Out: which one hits harder?', films: [blinkTwice, getOut] },
+        { text: "Is this Zoë Kravitz's best work?" },
+        { text: 'Okay, what is Blink Twice actually about?' },
+        {
+          text: 'Is the party doing what Get Out did?',
+          films: [blinkTwice, getOut, ref(1, 'Barbarian')],
+          brief: 'The dinner scenes got compared to the Armitage house.',
+        },
+        {
+          text: 'Blink Twice and Get Out, same house different decade?',
+          films: [getOut, blinkTwice],
+          brief: 'People put the two dinners next to each other.',
+        },
+      ],
+    });
+    expect(starters.map((s) => s.text)).toEqual([
+      'What did the island have to do with that summer?',
+      'Is the party doing what Get Out did?',
+      'Blink Twice and Get Out, same house different decade?',
+    ]);
+    expect(starters[0].films).toEqual([]);
+    expect(starters[0].brief).toMatch(/island/);
+    expect(starters[1].films.map((f) => f.title)).toEqual(['Get Out']);
+    expect(starters[2].films.map((f) => f.title)).toEqual(['Blink Twice', 'Get Out']);
+  });
+
+  it('does not invent questions from metadata', () => {
+    expect(buildStarters(input)).toEqual([]);
+    expect(buildStarters({ film: ref(9, 'Untitled') })).toEqual([]);
   });
 
   it('caps the set at five plus one gated spoiler', () => {
-    const starters = buildStarters(input);
+    const llm = Array.from({ length: 7 }, (_, i) => ({
+      text: `What is detail ${i} that only this cut mentions?`,
+      brief: `Detail ${i}.`,
+      spoiler: i === 6,
+    }));
+    const starters = buildStarters({ film: blinkTwice, questions: llm });
     expect(starters.filter((s) => !s.spoiler)).toHaveLength(MAX_STARTERS);
     expect(starters.filter((s) => s.spoiler)).toHaveLength(1);
   });
 
   it('hides the spoiler starter until the film is logged', () => {
-    const starters = buildStarters(input);
-    expect(visibleStarters(starters, false).some((s) => s.spoiler)).toBe(false);
-    const logged = visibleStarters(starters, true);
-    expect(logged).toHaveLength(MAX_STARTERS);
-    expect(logged[0].spoiler).toBe(true);
-  });
-
-  it('never surfaces sensitive keywords as themes', () => {
-    expect(pickThemes(input.keywords, 2)).toEqual(['forgiveness', 'exploitation']);
-    expect(pickThemes(['based on novel or book', 'sandstorm', 'chosen one', 'destiny'])).toEqual(['destiny']);
-  });
-
-  it('asks about the earlier collection entry', () => {
-    const dune2 = ref(693134, 'Dune: Part Two', '2024');
-    const starters = buildStarters({ film: dune2, collection: [ref(438631, 'Dune', '2021'), dune2] });
-    const related = starters.find((s) => s.kind === 'related')!;
-    expect(related.text).toBe('Do I need to see Dune before Dune: Part Two?');
-    expect(related.films.map((f) => f.id)).toEqual([438631, 693134]);
-  });
-
-  it('puts LLM questions first, strips their em dashes, and drops template echoes', () => {
     const starters = buildStarters({
-      ...input,
-      llm: [
-        { text: 'Blink Twice vs Get Out \u2014 which one hits harder?', films: [blinkTwice, getOut] },
-        { text: 'Why does nobody on the island remember anything?' },
+      film: blinkTwice,
+      questions: [
+        { text: 'Why does the champagne never stop?', brief: 'The pour is the image people keep posting.' },
+        { text: 'What was actually in the gift bags?', brief: 'The bags are the argument.', spoiler: true },
       ],
     });
-    expect(starters[0].kind).toBe('llm');
-    expect(starters[0].text).toBe('Blink Twice vs Get Out, which one hits harder?');
-    expect(starters.filter((s) => /hits harder/.test(s.text))).toHaveLength(1);
+    expect(visibleStarters(starters, false).some((s) => s.spoiler)).toBe(false);
+    const logged = visibleStarters(starters, true);
+    expect(logged[0].spoiler).toBe(true);
+    expect(logged).toHaveLength(2);
   });
 
-  it('gives a bare film enough starters', () => {
-    expect(buildStarters({ film: ref(9, 'Untitled') }).filter((s) => !s.spoiler).length).toBeGreaterThanOrEqual(3);
+  it('strips em dashes and does not keep a canned echo of a real question', () => {
+    const starters = buildStarters({
+      film: blinkTwice,
+      questions: [
+        { text: 'Why does nobody on the island remember the night \u2014 any of it?' },
+        { text: 'Blink Twice vs Get Out \u2014 which one hits harder?', films: [blinkTwice, getOut] },
+      ],
+    });
+    expect(starters).toHaveLength(1);
+    expect(starters[0].text).toBe('Why does nobody on the island remember the night, any of it?');
   });
 
-  it('learns from what this user taps', () => {
-    const base = buildStarters(input).map((s) => s.kind);
-    const tuned = buildStarters({ ...input, tapHistory: { theme: 5 } }).map((s) => s.kind);
-    expect(base).not.toContain('theme');
-    expect(tuned).toContain('theme');
+  it('asks different films different questions', () => {
+    const blink = buildStarters({
+      film: blinkTwice,
+      questions: [{ text: 'What did the island have to do with that summer?', brief: 'The news.' }],
+    });
+    const dune = buildStarters({
+      film: ref(693134, 'Dune: Part Two', '2024'),
+      questions: [{ text: 'Why does the spice look like that on Arrakis?', brief: 'The color.' }],
+    });
+    expect(blink[0].text).not.toBe(dune[0].text);
+    expect(blink[0].text).not.toMatch(/Dune/);
+    expect(dune[0].text).not.toMatch(/Blink Twice/);
   });
 
   it('rewrites em dashes into commas', () => {
@@ -84,7 +111,7 @@ describe('ask ai starters', () => {
 const row = (text: string, spoiler = false): Starter => ({
   id: text,
   text,
-  kind: spoiler ? 'ending' : 'meaning',
+  kind: 'llm',
   score: 1,
   films: [],
   spoiler,
@@ -95,8 +122,6 @@ describe('resolveVisibleStarters', () => {
     shown: null,
     local: null,
     server: null,
-    templates: [row('template')],
-    metaReady: false,
     graceElapsed: false,
     hasLogged: true,
     logKnown: true,
@@ -109,16 +134,15 @@ describe('resolveVisibleStarters', () => {
     expect(resolveVisibleStarters({ ...base, local, logKnown: true, hasLogged: true })![0].spoiler).toBe(true);
   });
 
-  it('holds templates for compare targets, then locks them so a late server set cannot reshuffle', () => {
+  it('does not paint a row until discourse arrives, then locks it', () => {
     expect(resolveVisibleStarters(base)).toBeNull();
-    const painted = resolveVisibleStarters({ ...base, metaReady: true })!;
-    expect(painted.map((s) => s.text)).toEqual(['template']);
-    const stuck = resolveVisibleStarters({ ...base, shown: painted, server: [row('llm')] });
+    const painted = resolveVisibleStarters({ ...base, server: [row('island')] })!;
+    expect(painted.map((s) => s.text)).toEqual(['island']);
+    const stuck = resolveVisibleStarters({ ...base, shown: painted, server: [row('later')] });
     expect(stuck).toBe(painted);
   });
 
-  it('lets a fast server set beat templates', () => {
-    const visible = resolveVisibleStarters({ ...base, server: [row('llm')], metaReady: true });
-    expect(visible!.map((s) => s.text)).toEqual(['llm']);
+  it('treats an empty discourse set as a real row', () => {
+    expect(resolveVisibleStarters({ ...base, server: [] })).toEqual([]);
   });
 });

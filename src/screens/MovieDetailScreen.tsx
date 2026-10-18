@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Orbit, X, Check, Plus, Volume2, VolumeX, Sparkles } from 'lucide-react';
 import YouTubeCover from '../components/YouTubeCover';
@@ -74,7 +74,6 @@ export default function MovieDetailScreen() {
   const [isMuted, setIsMuted] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Reddit-grounded starter questions + known-for + letterboxd.
   const { snapshot } = useTaste();
   const location = useLocation();
   const stateWhy =
@@ -86,21 +85,12 @@ export default function MovieDetailScreen() {
   const [chatOpen, setChatOpen] = useState(false);
   const [seedStarter, setSeedStarter] = useState<Starter | null>(null);
   const hasLogged = (libraryFilm?.watchCount ?? 0) > 0 || !!libraryFilm?.verdict;
-  const starterInstant = useMemo(() => {
-    if (!details) return null;
-    return {
-      film: { id: details.id, title: details.title, year: details.year, posterPath: details.posterPath },
-      genres: details.genres,
-      director: details.director,
-      cast: details.cast.slice(0, 4).map((c) => ({ name: c.name, character: c.character })),
-    };
-  }, [details]);
   const { starters, loading: startersLoading } = useAskAiStarters(
     id ? Number(id) : undefined,
     mediaType,
     hasLogged,
     !libraryLoading,
-    starterInstant,
+    details ? { title: details.title, year: details.year } : null,
   );
 
   const detailsId = details?.id;

@@ -16,9 +16,12 @@ type Movie = {
   overview?: string;
 };
 
-const buildSystem = (movie: Movie, snippets: RedditSnippet[], taste?: string): string => {
+const buildSystem = (movie: Movie, snippets: RedditSnippet[], taste?: string, brief?: string): string => {
   const skill = readSkill('movie-chat');
   const grounding = snippetsToPromptBlock(snippets || [], 2500);
+  const briefBlock = brief?.trim()
+    ? `THE BRIEF FOR THIS QUESTION:\n${brief.trim()}\nAnswer from this brief. Do not add a comparison or a plot point the brief does not contain.\n`
+    : '';
   return `${skill}
 
 THE FILM:
@@ -27,11 +30,11 @@ Director: ${movie.director || 'unknown'}
 Genres: ${(movie.genres || []).join(', ') || 'unknown'}
 Overview: ${movie.overview || 'n/a'}
 
-${grounding ? `WHAT REAL VIEWERS DISCUSS (from Reddit):\n${grounding}\n` : ''}
+${briefBlock}${grounding ? `WHAT REAL VIEWERS DISCUSS (from Reddit):\n${grounding}\n` : ''}
 ${taste ? `THE USER'S TASTE (use when recommending similar films):\n${taste}\n` : ''}`;
 };
 
-async function resolveEntities(raw: RawEntities, movie: Movie): Promise<MentionEntity[]> {
+async function resolveEntities(raw: RawEntities): Promise<MentionEntity[]> {
   const films = (raw.films || [])
     .filter((f) => f?.title)
     .slice(0, 6);
@@ -63,12 +66,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { messages, movie, snippets, taste, stream } = req.body as {
+  const { messages, movie, snippets, taste, stream, brief } = req.body as {
     messages: ChatMessage[];
     movie: Movie;
     snippets?: RedditSnippet[];
     taste?: string;
     stream?: boolean;
+    brief?: string;
   };
 
   if (!messages?.length || !movie?.title) {
@@ -78,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const answer = createAnswerStream();
   const deltas = streamXai({
     messages: messages.slice(-8),
-    system: buildSystem(movie, snippets || [], taste),
+    system: buildSystem(movie, snippets || [], taste, brief),
     maxTokens: 480,
     reasoningEffort: 'low',
   });
@@ -87,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       for await (const d of deltas) answer.push(d);
       const { text, entities } = answer.finish();
-      const resolved = await resolveEntities(entities, movie);
+      const resolved = await resolveEntities(entities);
       return res.status(200).json({ text, entities: resolved });
     } catch (err) {
       console.error('movie-chat error:', err);
@@ -109,7 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (visible) send({ t: 'd', v: visible });
     }
     const { text, entities } = answer.finish();
-    send({ t: 'done', text, entities: await resolveEntities(entities, movie) });
+    send({ t: 'done', text, entities: await resolveEntities(entities) });
   } catch (err) {
     console.error('movie-chat stream error:', err);
     send({ t: 'error', error: err instanceof Error ? err.message : 'stream failed' });

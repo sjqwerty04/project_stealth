@@ -45,7 +45,7 @@ export default function MovieChatSheet({
 
   useEffect(() => {
     if (open && seedStarter) {
-      send(seedStarter.text, seedStarter.films);
+      send(seedStarter.text, seedStarter.films, seedStarter.brief);
       onSeedConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,7 +65,7 @@ export default function MovieChatSheet({
 
   const pick = (starter: Starter, position: number) => {
     onStarterPicked?.(starter, position);
-    send(starter.text, starter.films);
+    send(starter.text, starter.films, starter.brief);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
