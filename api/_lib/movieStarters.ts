@@ -14,7 +14,7 @@ type Details = RawTmdb & {
 };
 
 export const STARTERS_VERSION = 2;
-const LLM_BUDGET_MS = 12000;
+const LLM_BUDGET_MS = 18000;
 
 const SYSTEM = `You write the starter questions under a film in a movie app. They read like posts on film X (Twitter): punchy, curious, opinionated, specific to this film. Never generic. No hashtags, emojis, or em dashes. Never spoil the plot in a non-spoiler question.`;
 
@@ -87,7 +87,7 @@ export async function handleMovieStarters(req: VercelRequest, res: VercelRespons
   try {
     const text = await callXai({
       system: SYSTEM,
-      reasoningEffort: null,
+      reasoningEffort: 'low',
       maxTokens: 500,
       timeoutMs: LLM_BUDGET_MS,
       messages: [
