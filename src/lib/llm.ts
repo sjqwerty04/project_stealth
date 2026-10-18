@@ -113,6 +113,65 @@ export interface LlmCallOptions {
   reasoningEffort?: 'low' | 'medium' | 'high' | null;
 }
 
+/** Newline-delimited `{d}` text deltas from /api/llm. Falls back to one JSON body. */
+export async function streamLlm(
+  prompt: string,
+  systemPrompt: string | undefined,
+  options: LlmCallOptions | undefined,
+  onDelta: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch('/api/llm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      systemPrompt,
+      maxTokens: options?.maxTokens,
+      reasoningEffort: options?.reasoningEffort,
+      stream: true,
+    }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const message = errorData.error || errorData.details || `Grok API ${response.status}`;
+    throw new Error(message);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.body || !contentType.includes('ndjson')) {
+    const data = await response.json().catch(() => ({ text: '' }));
+    if (data?.error) throw new Error(data.error);
+    if (typeof data?.text === 'string' && data.text) onDelta(data.text);
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      let row: { d?: unknown; error?: unknown };
+      try {
+        row = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (typeof row.error === 'string' && row.error) throw new Error(row.error);
+      if (typeof row.d === 'string' && row.d) onDelta(row.d);
+    }
+  }
+}
+
 export const callLlm = async (
   prompt: string,
   systemPrompt?: string,

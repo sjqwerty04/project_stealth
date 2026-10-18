@@ -29,7 +29,9 @@ export default function SearchResultCard({
 
   return (
     <button
+      type="button"
       onClick={onClick}
+      data-testid="hunt-result"
       className="w-full h-20 rounded-xl overflow-hidden relative group transition-transform active:scale-[0.98]"
     >
       {/* Backdrop Image */}
@@ -53,7 +55,8 @@ export default function SearchResultCard({
           {posterUrl ? (
             <img
               src={posterUrl}
-              alt={title}
+              alt=""
+              data-testid="hunt-poster"
               className="w-full h-full object-cover"
             />
           ) : (

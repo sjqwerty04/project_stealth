@@ -11,7 +11,8 @@ Given a search query, generate 8-10 specific film titles that best match the use
 
 # Output format
 Return a JSON array of objects: `[{"title": "Film Title", "year": "YYYY"}, ...]`
-Always include year for disambiguation. Return 8-10 results.
+Always include year for disambiguation. Return 8 results.
+Start with `[` and the closest match. No preamble, no markdown. The first object is shown as soon as it closes.
 
 # Quality rules
 - Prioritize critically acclaimed and culturally significant films over obscure picks.

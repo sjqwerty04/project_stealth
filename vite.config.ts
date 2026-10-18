@@ -24,7 +24,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://selects-film.vercel.app',
+        target: process.env.SELECTS_API_PROXY || 'https://selects-film.vercel.app',
         changeOrigin: true,
       },
     },
