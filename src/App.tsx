@@ -26,6 +26,7 @@ import OnboardingScreen from './screens/OnboardingScreen';
 import AdminScreen from './screens/AdminScreen';
 import JoinScreen from './screens/JoinScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import AppShell from './components/AppShell';
 import SelectsCarouselPreviewScreen from './screens/SelectsCarouselPreviewScreen';
 import WhereToWatchPreviewScreen from './screens/WhereToWatchPreviewScreen';
@@ -175,6 +176,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ProfileScreen />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsScreen />
                 </ProtectedRoute>
               }
             />

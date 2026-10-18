@@ -11,6 +11,7 @@ import {
   carouselArtIdsStillNeeded,
   selectsAutoplayRunning,
   slideIdentityKey,
+  activeSelectIndex,
   snapLoopIndex,
 } from './selectsCarouselLogic';
 
@@ -363,6 +364,16 @@ describe('selects autoplay', () => {
   });
 });
 
+describe('active select index', () => {
+  it('maps the loop cursor onto the three films', () => {
+    expect(activeSelectIndex(1, 3)).toBe(0);
+    expect(activeSelectIndex(2, 3)).toBe(1);
+    expect(activeSelectIndex(3, 3)).toBe(2);
+    expect(activeSelectIndex(0, 3)).toBe(2);
+    expect(activeSelectIndex(4, 3)).toBe(0);
+  });
+});
+
 describe('select card watched control', () => {
   const film = {
     slotId: 1 as const,
@@ -394,6 +405,28 @@ describe('select card watched control', () => {
     expect(html).toContain('Nope');
     expect(html).not.toContain('Dislike');
     expect(html).not.toContain("It&#x27;s okay");
+    expect(html).not.toContain('Not Interested');
+    expect(html).not.toContain('Next to Watch');
+  });
+
+  it('offers Not Interested once the film is selected', () => {
+    const html = renderToString(
+      React.createElement(SelectCard, {
+        film,
+        pickerOpen: false,
+        replacement: null,
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onNotInterested: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(html).toContain('Not Interested');
+    expect(html).toContain('data-testid="not-interested-1"');
+    expect(html).not.toContain('Next to Watch');
   });
 
   it('asks Liked, Meh, or Dislike on the card for Log Today', () => {

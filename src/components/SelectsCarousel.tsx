@@ -56,6 +56,7 @@ export function SelectCard({
   onOpenLog = () => {},
   onCloseLog = () => {},
   onLogVerdict = () => {},
+  onNotInterested,
   onRetry,
 }: {
   film: SelectFilm;
@@ -70,6 +71,7 @@ export function SelectCard({
   onOpenLog?: () => void;
   onCloseLog?: () => void;
   onLogVerdict?: (verdict: Verdict) => void;
+  onNotInterested?: () => void;
   onRetry: () => void;
 }) {
   const still = art?.still || film.backdrop || film.poster;
@@ -136,6 +138,18 @@ export function SelectCard({
       >
         Watched?
       </button>
+      {onNotInterested ? (
+        <button
+          type="button"
+          data-testid={`not-interested-${film.slotId}`}
+          data-carousel-control
+          onClick={onNotInterested}
+          disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+          className="relative z-30 flex w-full min-h-11 items-center justify-center border-x border-b border-line bg-base-2 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+        >
+          Not Interested
+        </button>
+      ) : null}
       {logOpen ? (
         <div
           data-carousel-control
@@ -246,6 +260,7 @@ export default function SelectsCarousel({
   replacements = {},
   onVerdict,
   onLogToday,
+  onNotInterested,
   onRetry,
   autoplay = true,
   intervalMs = SELECTS_AUTOPLAY_MS,
@@ -256,6 +271,7 @@ export default function SelectsCarousel({
   replacements?: Partial<Record<SelectSlotId, NonNullable<SelectReplacement>>>;
   onVerdict: (slotId: SelectSlotId, verdict: Verdict) => void;
   onLogToday?: (slotId: SelectSlotId, verdict: Verdict) => void;
+  onNotInterested?: (slotId: SelectSlotId) => void;
   onRetry: (slotId: SelectSlotId) => void;
   autoplay?: boolean;
   intervalMs?: number;
@@ -265,6 +281,7 @@ export default function SelectsCarousel({
   const [paused, setPaused] = useState(false);
   const [pickerSlotId, setPickerSlotId] = useState<SelectSlotId | null>(null);
   const [logSlotId, setLogSlotId] = useState<SelectSlotId | null>(null);
+  const [chosenId, setChosenId] = useState<number | null>(null);
   const carouselStartX = useRef<number | null>(null);
   const swallowClick = useRef(false);
   const capturingSwipe = useRef(false);
@@ -395,6 +412,15 @@ export default function SelectsCarousel({
 
   if (!slides.length) return null;
 
+  const chooseFilm = (film: SelectFilm, index: number) => {
+    setChosenId(film.id);
+    setPickerSlotId(null);
+    setLogSlotId(null);
+    setPaused(true);
+    setSlide(count < 2 ? 0 : index + 1);
+    setSlideTransition(true);
+  };
+
   return (
     <div
       className="overflow-hidden"
@@ -411,6 +437,32 @@ export default function SelectsCarousel({
         swallowClick.current = false;
       }}
     >
+      <div className="mb-3 grid grid-cols-3 gap-2" data-testid="select-tile">
+        {slides.map((film, index) => {
+          const chosen = chosenId === film.id;
+          return (
+            <button
+              key={film.slotId}
+              type="button"
+              data-testid={`select-film-${film.slotId}`}
+              data-carousel-control
+              aria-label={`Select ${film.title}`}
+              aria-pressed={chosen}
+              onClick={() => chooseFilm(film, index)}
+              className={`min-h-11 overflow-hidden border text-left ${chosen ? 'border-fg' : 'border-line'}`}
+            >
+              {film.poster ? (
+                <img src={film.poster} alt="" className="h-24 w-full object-cover" />
+              ) : (
+                <span className="block h-24 bg-base-3" />
+              )}
+              <span className="block truncate px-1 py-1 font-spec text-[10px] uppercase tracking-widest text-fg">
+                {film.title}
+              </span>
+            </button>
+          );
+        })}
+      </div>
       <div
         ref={trackRef}
         className="flex"
@@ -455,6 +507,15 @@ export default function SelectsCarousel({
                 setLogSlotId(null);
                 onLogToday?.(film.slotId, verdict);
               }}
+              onNotInterested={
+                onNotInterested && chosenId === film.id
+                  ? () => {
+                      setPickerSlotId(null);
+                      setLogSlotId(null);
+                      onNotInterested(film.slotId);
+                    }
+                  : undefined
+              }
               onRetry={() => onRetry(film.slotId)}
             />
           </div>

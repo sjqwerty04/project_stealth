@@ -1,45 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Film,
-  Globe,
-  Clock,
-  Sparkles,
-  Star,
-  TrendingUp,
-  ChevronRight,
-} from 'lucide-react';
+import { ChevronRight, Film, Star } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
+import TasteMarks, { knownTasteFilms } from '../components/TasteMarks';
 import { useAuth } from '../hooks/useAuth';
+import { useProfileFilms } from '../hooks/useProfileFilms';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserInsights } from '../hooks/useUserInsights';
 import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import ImportDropZone from '../components/ImportDropZone';
-
-const TASTE_DNA_ICONS = [Film, Globe, Clock];
-
-const filmPrefLabel: Record<string, string> = {
-  story: 'A great story',
-  visual: 'A great visual experience',
-  mood: 'Depends on the mood',
-};
-
-function PosterThumb({ posterPath, title }: { posterPath?: string; title?: string }) {
-  const src = posterPath
-    ? `https://image.tmdb.org/t/p/w200${posterPath}`
-    : null;
-  return (
-    <div className="w-16 aspect-[2/3] overflow-hidden bg-base-3 shrink-0" style={{ borderRadius: 2 }}>
-      {src ? (
-        <img src={src} alt={title ?? ''} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <Film size={16} className="text-fg-3" />
-        </div>
-      )}
-    </div>
-  );
-}
+import { useTaste } from '../lib/taste';
+import { tasteVoice } from '../lib/taste/voice';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -54,6 +25,10 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { profile } = useUserProfile();
   const insights = useUserInsights();
+  const { snapshot, loading: tasteLoading } = useTaste();
+  const profileFilms = useProfileFilms();
+  const voice = tasteVoice(snapshot);
+  const tasteFilms = knownTasteFilms(profileFilms, snapshot);
   const {
     importFromLetterboxd,
     isImporting: lbImporting,
@@ -84,15 +59,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const { stats, tasteProfile, personaLine, insightCards, isLoading } = insights;
-
-  const hasData =
-    (stats?.watchedCount ?? 0) > 0 ||
-    (tasteProfile?.favoriteFilms?.length ?? 0) > 0;
-
-  const favoriteFilms: any[] = tasteProfile?.favoriteFilms ?? [];
-  const dislikedFilms: any[] = tasteProfile?.dislikedFilms ?? [];
-  const filmPref: string | undefined = tasteProfile?.filmPreference;
+  const { stats, isLoading } = insights;
+  const pageLoading = isLoading || tasteLoading;
+  const hasData = !voice.empty || (stats?.watchedCount ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-base text-fg max-w-md mx-auto relative overflow-x-hidden" data-testid="you-screen">
@@ -104,18 +73,24 @@ export default function ProfileScreen() {
           <p className="font-spec text-xs text-fg-3 mt-2">Set a handle</p>
         )}
         <h1 className="font-display text-2xl text-fg mt-1">{displayName}</h1>
-        {isLoading ? (
+        <button
+          type="button"
+          onClick={() => navigate('/settings')}
+          className="mt-3 min-h-11 font-spec text-[10px] uppercase tracking-widest text-fg-2"
+          data-testid="open-settings"
+        >
+          Settings
+        </button>
+        {pageLoading ? (
           <div className="h-4 w-48 bg-base-3 mt-2" data-testid="skeleton" />
-        ) : personaLine ? (
-          <p className="text-fg-2 text-sm mt-2" data-testid="insights-label">{personaLine}</p>
         ) : (
-          <p className="text-fg-3 text-sm mt-2">Watch some films. The read shows up here.</p>
+          <p className="text-fg-2 text-sm mt-2" data-testid="insights-label">{voice.lead}</p>
         )}
       </div>
 
       <div className="px-7 mt-2 space-y-6 pb-8">
         <div className="border border-line p-4 flex items-stretch">
-          {isLoading ? (
+          {pageLoading ? (
             <div className="flex-1 h-14 bg-base-3" data-testid="skeleton" />
           ) : (
             <>
@@ -139,90 +114,41 @@ export default function ProfileScreen() {
           )}
         </div>
 
-        {!isLoading && !hasData ? (
+        {!pageLoading && !hasData ? (
           <div className="border border-line p-8 flex flex-col items-center gap-3 text-center">
             <Film size={32} className="text-fg-3" />
-            <p className="text-fg-2 text-sm">Watch some films first</p>
+            <p className="text-fg-2 text-sm" data-testid="profile-body">{voice.profileBody}</p>
             <button
               type="button"
               onClick={() => navigate('/app')}
               className="min-h-11 text-fg text-sm font-medium"
             >
-              Start discovering
+              Open selects
             </button>
           </div>
         ) : null}
 
-        {(isLoading || insightCards.length > 0) && (
+        {!pageLoading && hasData ? (
           <div>
             <SectionLabel>The read</SectionLabel>
-            <div className="space-y-3">
-              {isLoading
-                ? [0, 1, 2].map((i) => (
-                    <div key={i} className="bg-base-3 h-16" data-testid="skeleton" />
-                  ))
-                : insightCards.map((card, i) => {
-                    const Icon = TASTE_DNA_ICONS[i] ?? Sparkles;
-                    return (
-                      <div key={i} className="border border-line p-4 flex items-start gap-3">
-                        <Icon size={18} className="text-fg-2 mt-0.5 shrink-0" />
-                        <p className="text-fg text-sm leading-relaxed">{card}</p>
-                      </div>
-                    );
-                  })}
-            </div>
-          </div>
-        )}
-
-        {favoriteFilms.length > 0 && (
-          <div>
-            <SectionLabel>Your picks</SectionLabel>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-gray-500 mb-2 px-0.5 flex items-center gap-1">
-                  <Star size={12} className="text-yellow-500" />
-                  Loved
-                </p>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {favoriteFilms.map((film: any, i: number) => (
-                    <PosterThumb
-                      key={i}
-                      posterPath={film?.posterPath ?? film?.poster_path}
-                      title={typeof film === 'string' ? film : film?.title}
-                    />
-                  ))}
-                </div>
+            <p className="text-fg text-sm leading-relaxed" data-testid="profile-body">{voice.profileBody}</p>
+            {voice.keep.length > 0 && (
+              <div className="mt-4">
+                <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-2">Keeping</p>
+                <TasteMarks titles={voice.keep} films={tasteFilms} onOpen={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)} />
               </div>
-              {dislikedFilms.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-2 px-0.5 flex items-center gap-1">
-                    <TrendingUp size={12} className="text-gray-500" />
-                    Passed
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                    {dislikedFilms.map((film: any, i: number) => (
-                      <PosterThumb
-                        key={i}
-                        posterPath={film?.posterPath ?? film?.poster_path}
-                        title={typeof film === 'string' ? film : film?.title}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
+            {voice.leave.length > 0 && (
+              <div className="mt-4">
+                <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-2">Leaving</p>
+                <TasteMarks titles={voice.leave} films={tasteFilms} onOpen={(id, type) => navigate(`/movie/${id}${type ? `?type=${type}` : ''}`)} />
+              </div>
+            )}
           </div>
-        )}
-
-        {filmPref && filmPrefLabel[filmPref] && (
-          <div className="border border-line p-4">
-            <p className="text-xs text-gray-400 mb-1">Looking for</p>
-            <p className="text-white font-bold">{filmPrefLabel[filmPref]}</p>
-          </div>
-        )}
+        ) : null}
 
         <div>
-          <SectionLabel>Import history</SectionLabel>
+          <SectionLabel>{voice.importLine}</SectionLabel>
           <div className="space-y-3">
             <div className="border border-line">
               <button
@@ -237,7 +163,7 @@ export default function ProfileScreen() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium text-sm">Letterboxd</p>
-                  <p className="text-gray-400 text-xs">Import your watch history</p>
+                  <p className="text-gray-400 text-xs">Username or the full export</p>
                 </div>
                 <ChevronRight
                   size={16}
@@ -296,7 +222,7 @@ export default function ProfileScreen() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium text-sm">IMDB</p>
-                  <p className="text-gray-400 text-xs">Drop your ratings.csv</p>
+                  <p className="text-gray-400 text-xs">ratings.csv</p>
                 </div>
                 <ChevronRight
                   size={16}
@@ -318,7 +244,7 @@ export default function ProfileScreen() {
             onClick={() => navigate('/onboarding?retake=true')}
             className="min-h-11 text-fg-2 text-sm"
           >
-            Update your picks
+            {voice.retakeLine}
           </button>
         </div>
       </div>
