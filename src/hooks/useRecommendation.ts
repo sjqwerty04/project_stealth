@@ -11,6 +11,7 @@ import {
   readSelectsCache,
   recordTasteEvent,
   selectsRefreshDelay,
+  subscribeSelectsCache,
   useTaste,
   writeSelectsCache,
   LAST_PICKS_FRESH_MS,
@@ -21,6 +22,7 @@ import {
 import { getTaste } from '../lib/taste/getTaste';
 import { hydratedTitleMatchesPick, whyMatchNamesRecommended } from '../lib/taste/selectPickCoherence';
 import { prefetchScholarAdjacency } from '../lib/similar/prefetch';
+import { selectSlotLoaderVisible } from '../components/homeStripLogic';
 import {
   executeSelectReplacement,
   replacePickAtSlot,
@@ -42,9 +44,9 @@ import {
 export type { SelectSlotId };
 
 export type SelectReplacement =
-  | { slotId: SelectSlotId; phase: 'saving'; feedbackSaved: false }
-  | { slotId: SelectSlotId; phase: 'replacing'; feedbackSaved: true }
-  | { slotId: SelectSlotId; phase: 'failed'; feedbackSaved: true; message: string }
+  | { slotId: SelectSlotId; phase: 'saving'; feedbackSaved: false; movieId?: number }
+  | { slotId: SelectSlotId; phase: 'replacing'; feedbackSaved: true; movieId?: number }
+  | { slotId: SelectSlotId; phase: 'failed'; feedbackSaved: true; message: string; movieId?: number }
   | null;
 
 export type RecommendationResult = {
@@ -228,9 +230,72 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     setReplacements(current);
   }, []);
 
+  const coverSlot = useCallback((slotId: SelectSlotId, phase: 'saving' | 'replacing') => {
+    const movieId = picksRef.current[slotId]?.movieId;
+    patchReplacement(
+      slotId,
+      phase === 'saving'
+        ? { slotId, phase, feedbackSaved: false, ...(movieId != null ? { movieId } : {}) }
+        : { slotId, phase, feedbackSaved: true, ...(movieId != null ? { movieId } : {}) },
+    );
+  }, [patchReplacement]);
+
+  const paintCachedSelects = useCallback((uid: string) => {
+    const cached = readSelectsCache(uid);
+    if (!cached?.picks.length) return;
+    const visible = cached.picks.slice(0, 3).map(fromStored);
+    picksRef.current = visible;
+    setPicks(visible);
+    setStatus('ready');
+    const current = { ...replacementsRef.current };
+    let changed = false;
+    for (const slotId of [0, 1, 2] as const) {
+      const row = current[slotId];
+      if (!row || (row.phase !== 'saving' && row.phase !== 'replacing')) continue;
+      const filmId = visible[slotId]?.movieId;
+      if (filmId == null || selectSlotLoaderVisible(row.phase, row.movieId, filmId)) continue;
+      delete current[slotId];
+      changed = true;
+    }
+    if (!changed) return;
+    replacementsRef.current = current;
+    setReplacements(current);
+  }, []);
+
   useEffect(() => {
     picksRef.current = picks;
   }, [picks]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    return subscribeSelectsCache((uid) => {
+      if (uid !== user.uid) return;
+      paintCachedSelects(uid);
+    });
+  }, [user?.uid, paintCachedSelects]);
+
+  const publishReplacedSlot = useCallback(
+    async (slotId: SelectSlotId, updatedPicks: RecommendationResult[]) => {
+      const incoming = updatedPicks[slotId];
+      if (!incoming || !user) return;
+      const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
+      picksRef.current = merged;
+      setPicks(merged);
+      setStatus('ready');
+      patchReplacement(slotId, null);
+      writeSelectsCache(user.uid, merged.map(toStored));
+      try {
+        await recordTasteEvent(
+          user.uid,
+          { type: 'last_picks', picks: merged.map(toStored) },
+          { email: user.email },
+        );
+      } catch (err) {
+        console.warn('Your Selects cache write failed:', err);
+      }
+    },
+    [user, patchReplacement],
+  );
 
   const exclusionList = useCallback((includeLastPicks = true) => {
     return buildSelectExclusions({
@@ -301,7 +366,13 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     }
 
     const run = (async () => {
-      const havePicks = stored.length > 0 || (readSelectsCache(user.uid)?.picks.length ?? 0) > 0;
+      const cached = readSelectsCache(user.uid);
+      if (picksRef.current.length === 0 && cached?.picks.length) {
+        const visible = cached.picks.slice(0, 3).map(fromStored);
+        picksRef.current = visible;
+        setPicks(visible);
+      }
+      const havePicks = stored.length > 0 || (cached?.picks.length ?? 0) > 0 || picksRef.current.length > 0;
       setStatus(selectsStatusWhileBusy(picksRef.current.length, havePicks));
       setError(null);
       try {
@@ -328,6 +399,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         );
 
         const shown = coerceSelectTrio(picksRef.current, hydrated);
+        picksRef.current = shown;
         setPicks(shown);
         setStatus(shown.length ? 'ready' : 'empty');
         if (hydrated.length >= 3) {
@@ -385,7 +457,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         const busy = replacementsRef.current[slotId];
         if (busy && (busy.phase === 'saving' || busy.phase === 'replacing' || busy.phase === 'failed')) continue;
         if (!picksRef.current[slotId]) continue;
-        patchReplacement(slotId, { slotId, phase: 'replacing', feedbackSaved: true });
+        coverSlot(slotId, 'replacing');
         try {
           const nextFromStart = await executeSelectReplacement({
             slotId,
@@ -412,18 +484,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
               return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
             },
             hydratePick: hydrateSelectPick,
-            persistPicks: async (updatedPicks) => {
-              const incoming = updatedPicks[slotId];
-              if (!incoming) return;
-              const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
-              picksRef.current = merged;
-              writeSelectsCache(user.uid, merged.map(toStored));
-              await recordTasteEvent(
-                user.uid,
-                { type: 'last_picks', picks: merged.map(toStored) },
-                { email: user.email },
-              );
-            },
+            persistPicks: (updatedPicks) => publishReplacedSlot(slotId, updatedPicks),
           });
           const incoming = nextFromStart[slotId];
           const merged = incoming ? replacePickAtSlot(picksRef.current, slotId, incoming) : picksRef.current;
@@ -437,7 +498,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         }
       }
     },
-    [user, exclusionList, patchReplacement],
+    [user, exclusionList, coverSlot, publishReplacedSlot],
   );
 
   useEffect(() => {
@@ -449,24 +510,22 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
     const stale = readSelectsCache(user.uid);
     const source = hit?.length ? hit : stale?.picks.length ? stale.picks.map(fromStored) : [];
-    if (source.length >= 3) {
-      setPicks(source.slice(0, 3));
+    if (source.length > 0) {
+      const visible = source.slice(0, 3);
+      picksRef.current = visible;
+      setPicks(visible);
       setStatus('ready');
-      if (hit?.length) {
-        const openSlots = openSelectSlots(source, exclusionList(false));
+      if (hit?.length && source.length >= 3) {
+        const openSlots = openSelectSlots(visible, exclusionList(false));
         if (openSlots.length === 0) return;
         if (tasteLoading || libraryLoading) return;
         const slotIds = openSlots.filter((id): id is SelectSlotId => id === 0 || id === 1 || id === 2);
         void fillOpenSlots(slotIds);
         return;
       }
-    }
-    if (tasteLoading || libraryLoading) {
-      if (source.length === 0 && picksRef.current.length === 0) setStatus('loading');
-      else if (source.length) {
-        setPicks(source);
-        setStatus('ready');
-      }
+      if (tasteLoading || libraryLoading) return;
+    } else if (tasteLoading || libraryLoading) {
+      if (picksRef.current.length === 0) setStatus('loading');
       return;
     }
     if (!hasMeaningfulContext(context)) {
@@ -565,12 +624,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       if (!rec) return;
 
       let saved = feedbackSaved;
-      patchReplacement(
-        slotId,
-        feedbackSaved
-          ? { slotId, phase: 'replacing', feedbackSaved: true }
-          : { slotId, phase: 'saving', feedbackSaved: false },
-      );
+      coverSlot(slotId, feedbackSaved ? 'replacing' : 'saving');
       setError(null);
 
       try {
@@ -594,7 +648,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           },
           onFeedbackSaved: () => {
             saved = true;
-            patchReplacement(slotId, { slotId, phase: 'replacing', feedbackSaved: true });
+            coverSlot(slotId, 'replacing');
           },
           readContext: async () => {
             const updated = await getTaste(user.uid);
@@ -614,18 +668,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             return Array.isArray(data.picks) ? (data.picks as ApiSelectPick[]) : [];
           },
           hydratePick: hydrateSelectPick,
-          persistPicks: async (updatedPicks) => {
-            const incoming = updatedPicks[slotId];
-            if (!incoming) return;
-            const merged = replacePickAtSlot(picksRef.current, slotId, incoming);
-            picksRef.current = merged;
-            writeSelectsCache(user.uid, merged.map(toStored));
-            await recordTasteEvent(
-              user.uid,
-              { type: 'last_picks', picks: merged.map(toStored) },
-              { email: user.email },
-            );
-          },
+          persistPicks: (updatedPicks) => publishReplacedSlot(slotId, updatedPicks),
         });
         const incoming = nextFromStart[slotId];
         const merged = incoming
@@ -648,7 +691,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         }
       }
     },
-    [user, rateRecommendation, skipRecommendation, patchReplacement, exclusionList],
+    [user, rateRecommendation, skipRecommendation, patchReplacement, exclusionList, coverSlot, publishReplacedSlot],
   );
 
   const replaceSelect = useCallback(

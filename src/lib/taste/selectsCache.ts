@@ -7,6 +7,23 @@ export type CachedSelects = {
 
 const memory = new Map<string, CachedSelects>();
 const persist = new Map<string, string>();
+const listeners = new Set<(uid: string) => void>();
+
+function emitSelectsCache(uid: string) {
+  for (const listener of [...listeners]) {
+    try {
+      listener(uid);
+    } catch (err) {
+      console.warn('selects cache listener failed:', err);
+    }
+  }
+}
+
+/** Fires after a finished trio is stored, including for a hook mounted after the request started. */
+export function subscribeSelectsCache(listener: (uid: string) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 function storageKey(uid: string) {
   return `selects:lastPicks:${uid}`;
@@ -111,6 +128,7 @@ export function writeSelectsCache(uid: string, picks: TastePick[], at = Date.now
   const entry: CachedSelects = { picks: uniqueByMovieId(picks), at };
   memory.set(uid, entry);
   persistSet(uid, JSON.stringify(entry));
+  emitSelectsCache(uid);
   return entry;
 }
 
@@ -140,6 +158,7 @@ export function clearSelectsCache(uid: string) {
 export function resetSelectsCacheForTesting() {
   memory.clear();
   persist.clear();
+  listeners.clear();
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.clear();
