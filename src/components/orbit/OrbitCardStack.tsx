@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, animate, type PanInfo, AnimatePresence } from 'framer-motion';
+import type { Verdict } from '../../lib/library';
+import type { TasteSnapshot } from '../../lib/taste/types';
 import { useOrbitStore, type SwipeDirection } from '../../stores/orbitStore';
 import OrbitCard from './OrbitCard';
 
@@ -7,6 +9,9 @@ interface OrbitCardStackProps {
   onSwipe: (direction: SwipeDirection, releasedAt: number) => void;
   onLongPress: () => void;
   onInfoPress?: () => void;
+  onVerdict?: (verdict: Verdict) => void;
+  verdictDisabled?: boolean;
+  snapshot: TasteSnapshot;
   isTransitioning: boolean;
 }
 
@@ -18,6 +23,9 @@ export default function OrbitCardStack({
   onSwipe,
   onLongPress,
   onInfoPress,
+  onVerdict,
+  verdictDisabled = false,
+  snapshot,
   isTransitioning,
 }: OrbitCardStackProps) {
   const { currentMovie, history, historyIndex, edges } = useOrbitStore();
@@ -231,8 +239,11 @@ export default function OrbitCardStack({
             <OrbitCard
               movie={currentMovie}
               isSaved={isSaved}
+              snapshot={snapshot}
               connectionReason={historyIndex > 0 ? edges.find(e => e.toId === currentMovie.id)?.connectionReason : undefined}
               onInfoPress={onInfoPress}
+              onVerdict={onVerdict}
+              verdictDisabled={verdictDisabled}
               isActive={!isTransitioning}
             />
           </motion.div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
@@ -17,9 +17,11 @@ import OrbitControls from '../components/orbit/OrbitControls';
 import ParryTransition from '../components/orbit/ParryTransition';
 import ConstellationView from '../components/orbit/ConstellationView';
 import { useAuth } from '../hooks/useAuth';
+import { mergeSelectExclusions, type SelectExclusion } from '../hooks/selectExclusions';
 import { useWatchedExclusions } from '../hooks/useWatchedExclusions';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { logActivity } from '../lib/activityLogger';
+import { setVerdict as setLedgerVerdict, type Verdict } from '../lib/library';
 import { recordTasteEvent, useTaste } from '../lib/taste';
 import { fallbackById } from '../lib/fallbackCatalog';
 
@@ -31,6 +33,14 @@ export default function OrbitScreen() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { excluded: watchedExclusions, ready: watchedReady } = useWatchedExclusions();
+  const sessionRatedRef = useRef<SelectExclusion[]>([]);
+  const [sessionRated, setSessionRated] = useState<SelectExclusion[]>([]);
+  const verdictBusyRef = useRef(false);
+  const [verdictBusy, setVerdictBusy] = useState(false);
+  const orbitExclusions = useMemo(
+    () => mergeSelectExclusions([...watchedExclusions, ...sessionRated]),
+    [watchedExclusions, sessionRated],
+  );
   const { snapshot, loading: tasteLoading } = useTaste();
   const { addToWatchlist } = useWatchlist();
   
@@ -207,23 +217,23 @@ export default function OrbitScreen() {
   useEffect(() => {
     if (!currentMovie || tasteLoading || !watchedReady) return;
     const taste = snapshot.generated.compactForChat;
-    const sourceKey = orbitRequests.sourceKey(currentMovie, taste, watchedExclusions);
+    const sourceKey = orbitRequests.sourceKey(currentMovie, taste, orbitExclusions);
     setPrefetchSource(sourceKey);
     orbitRequests.prefetch(
       currentMovie,
       getBackDirection(),
       taste,
       publishPrefetchedMove,
-      watchedExclusions,
+      orbitExclusions,
     );
   }, [
     currentMovie,
     getBackDirection,
+    orbitExclusions,
     publishPrefetchedMove,
     setPrefetchSource,
     snapshot.generated.compactForChat,
     tasteLoading,
-    watchedExclusions,
     watchedReady,
   ]);
 
@@ -257,7 +267,8 @@ export default function OrbitScreen() {
   // UP = visual, RIGHT = balanced, DOWN = storytelling, LEFT = emotional
   // BUT: if swipe direction is opposite of how we arrived, go BACK instead
   const handleSwipe = useCallback(async (direction: SwipeDirection, releasedAt: number) => {
-    if (!currentMovie || isTransitioning || isWaitingForRecommendation) return;
+    if (!currentMovie || isTransitioning || isWaitingForRecommendation || verdictBusyRef.current) return;
+    const excluded = mergeSelectExclusions([...watchedExclusions, ...sessionRatedRef.current]);
     
     // Check if this direction is the "back" direction
     if (isBackDirection(direction)) {
@@ -273,14 +284,14 @@ export default function OrbitScreen() {
     orbitHaptics.swipeComplete();
 
     const taste = snapshot.generated.compactForChat;
-    const sourceKey = orbitRequests.sourceKey(currentMovie, taste, watchedExclusions);
+    const sourceKey = orbitRequests.sourceKey(currentMovie, taste, excluded);
     const attempt = ++activeSwipeAttempt.current;
     let result: OrbitRecommendation | null =
       prefetchedMoves.sourceKey === sourceKey
         ? prefetchedMoves.moves[direction]
         : null;
-    result ??= orbitRequests.peek(currentMovie, direction, taste, watchedExclusions);
-    const requestState = orbitRequests.status(currentMovie, direction, taste, watchedExclusions).state;
+    result ??= orbitRequests.peek(currentMovie, direction, taste, excluded);
+    const requestState = orbitRequests.status(currentMovie, direction, taste, excluded).state;
     swipeTiming.current = {
       releasedAt,
       sourceMovieId: currentMovie.id,
@@ -293,7 +304,7 @@ export default function OrbitScreen() {
     if (!result) {
       setPendingDirection(direction);
       setIsWaitingForRecommendation(true);
-      result = await orbitRequests.request(currentMovie, direction, taste, watchedExclusions);
+      result = await orbitRequests.request(currentMovie, direction, taste, excluded);
       setIsWaitingForRecommendation(false);
       if (
         activeSwipeAttempt.current !== attempt ||
@@ -357,6 +368,97 @@ export default function OrbitScreen() {
     isWaitingForRecommendation,
     navigateTo,
     prefetchedMoves,
+    setPendingDirection,
+    setTransitioning,
+    snapshot.generated.compactForChat,
+    user,
+    watchedExclusions,
+  ]);
+
+  const handleVerdict = useCallback(async (verdict: Verdict) => {
+    if (!currentMovie || !user || isTransitioning || isWaitingForRecommendation || verdictBusyRef.current) return;
+    const rated = currentMovie;
+    verdictBusyRef.current = true;
+    setVerdictBusy(true);
+    activeSwipeAttempt.current += 1;
+
+    try {
+      await setLedgerVerdict(
+        user.uid,
+        {
+          movieId: rated.id,
+          title: rated.title,
+          year: rated.year,
+          poster: rated.posterPath ? `https://image.tmdb.org/t/p/w500${rated.posterPath}` : '',
+          backdrop: rated.backdropPath ? `https://image.tmdb.org/t/p/w780${rated.backdropPath}` : undefined,
+          mediaType: rated.mediaType,
+        },
+        verdict,
+        'discovery',
+      );
+      await recordTasteEvent(
+        user.uid,
+        {
+          type: 'verdict',
+          movieId: rated.id,
+          title: rated.title,
+          year: rated.year,
+          verdict,
+          source: 'orbit',
+        },
+        { email: user.email },
+      );
+    } catch (error) {
+      console.error('Failed to save orbit verdict:', error);
+      verdictBusyRef.current = false;
+      setVerdictBusy(false);
+      return;
+    }
+
+    sessionRatedRef.current = mergeSelectExclusions([
+      ...sessionRatedRef.current,
+      { movieId: rated.id, title: rated.title },
+    ]);
+    setSessionRated(sessionRatedRef.current);
+    const excluded = mergeSelectExclusions([...watchedExclusions, ...sessionRatedRef.current]);
+
+    if (useOrbitStore.getState().currentMovie?.id !== rated.id) {
+      verdictBusyRef.current = false;
+      setVerdictBusy(false);
+      return;
+    }
+
+    const direction: SwipeDirection = 'up';
+    const taste = snapshot.generated.compactForChat;
+    setPendingDirection(direction);
+    setIsWaitingForRecommendation(true);
+    const result = await orbitRequests.request(rated, direction, taste, excluded);
+    setIsWaitingForRecommendation(false);
+
+    if (
+      useOrbitStore.getState().currentMovie?.id !== rated.id ||
+      !result ||
+      result.movie.id === rated.id
+    ) {
+      setPendingDirection(null);
+      verdictBusyRef.current = false;
+      setVerdictBusy(false);
+      return;
+    }
+
+    setTransitionColor(result.movie.dominantHex);
+    setTransitioning(true);
+    setPendingDirection(direction);
+    navigateTo(result.movie, direction, result.connectionReason, result.similarityScore);
+    setTransitioning(false);
+    setPendingDirection(null);
+    verdictBusyRef.current = false;
+    setVerdictBusy(false);
+  }, [
+    currentMovie,
+    isTransitioning,
+    isWaitingForRecommendation,
+    navigateTo,
     setPendingDirection,
     setTransitioning,
     snapshot.generated.compactForChat,
@@ -475,6 +577,9 @@ export default function OrbitScreen() {
               onSwipe={handleSwipe}
               onLongPress={handleLongPress}
               onInfoPress={handleInfoPress}
+              onVerdict={handleVerdict}
+              verdictDisabled={verdictBusy || isTransitioning || isWaitingForRecommendation}
+              snapshot={snapshot}
               isTransitioning={isTransitioning || isWaitingForRecommendation}
             />
           </motion.div>
