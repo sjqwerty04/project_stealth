@@ -21,7 +21,7 @@ export default function OrbitControls({
   return (
     <>
       {/* Top controls bar */}
-      <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between">
+      <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between">
         {/* Exit button */}
         <motion.button
           onClick={onExit}

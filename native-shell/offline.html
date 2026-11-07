@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Selects</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0a0b; color: #efede9; }
+      body {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+        padding: env(safe-area-inset-top) 32px env(safe-area-inset-bottom);
+        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; text-align: center;
+      }
+      svg { width: 56px; height: 56px; }
+      h1 { margin: 0; font-size: 20px; font-weight: 600; }
+      p { margin: 0; max-width: 280px; font-size: 15px; line-height: 1.4; color: rgba(239, 237, 233, 0.6); }
+      a {
+        margin-top: 8px; padding: 12px 28px; border-radius: 999px;
+        background: #efede9; color: #0a0a0b; font-size: 15px; font-weight: 600; text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <g transform="translate(6,6) skewX(-13.5)">
+        <rect x="0" y="2" width="3" height="20" fill="#efede9" />
+        <rect x="5" y="2" width="3" height="20" fill="#efede9" />
+        <rect x="10" y="2" width="3" height="20" fill="#ff3b14" />
+        <rect x="15" y="2" width="3" height="20" fill="#efede9" />
+        <rect x="20" y="2" width="3" height="20" fill="#efede9" />
+      </g>
+    </svg>
+    <h1>You're offline</h1>
+    <p>Selects needs a connection. It will reload when you're back online.</p>
+    <a href="https://selects-film.vercel.app">Try again</a>
+    <script>
+      window.addEventListener('online', () => window.location.replace('https://selects-film.vercel.app'));
+    </script>
+  </body>
+</html>

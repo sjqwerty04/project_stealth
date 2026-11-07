@@ -341,7 +341,7 @@ export default function MovieDetailScreen() {
         {/* Back */}
         <button
           onClick={handleBack}
-          className="fixed top-4 left-4 z-[70] p-2.5 min-h-11 min-w-11 bg-black/50 text-fg flex items-center gap-1.5"
+          className="fixed top-[calc(1rem+env(safe-area-inset-top))] left-4 z-[70] p-2.5 min-h-11 min-w-11 bg-black/50 text-fg flex items-center gap-1.5"
           aria-label="Go back"
         >
           <ArrowLeft size={20} />
@@ -352,7 +352,7 @@ export default function MovieDetailScreen() {
         {mediaType === 'movie' && (
           <button
             onClick={() => navigate(`/dna/${details.id}`)}
-            className="fixed top-4 right-4 z-[70] px-3.5 py-2 min-h-11 bg-black/50 text-fg"
+            className="fixed top-[calc(1rem+env(safe-area-inset-top))] right-4 z-[70] px-3.5 py-2 min-h-11 bg-black/50 text-fg"
             aria-label="Explore DNA"
           >
             <span className="text-base font-extrabold tracking-[-0.12em]">DNA</span>
