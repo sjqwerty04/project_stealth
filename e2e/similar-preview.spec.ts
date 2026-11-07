@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signIn } from './helpers';
+import { signIn, testAccount } from './helpers';
 
 const preview = process.env.PREVIEW_URL || '';
 const share = process.env.PREVIEW_SHARE || '';
@@ -14,7 +14,8 @@ test('preview similar films lineage then scholar refresh', async ({ page }) => {
     await page.waitForLoadState('domcontentloaded');
   }
   await page.goto('/join');
-  await signIn(page, 'selects.preview.0210.speed@example.com', 'REDACTED_TEST_PASSWORD');
+  const { email, password } = testAccount();
+  await signIn(page, email, password);
   await page.goto('/movie/155');
   await expect(page.getByTestId('action-watchlist')).toBeVisible({ timeout: 30000 });
   const start = Date.now();

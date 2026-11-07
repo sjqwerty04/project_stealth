@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CREDS_PATH, signIn } from './helpers';
+import { signIn, testAccount } from './helpers';
 
 const recommendations = {
   emotional: { id: 152601, title: 'Her', year: '2013', reason: 'Same lonely ache as The Dark Knight' },
@@ -111,13 +111,7 @@ test('Orbit publishes a completed direction without duplicate generation', async
     });
   });
 
-  if (!fs.existsSync(CREDS_PATH)) {
-    throw new Error('No saved E2E credentials. Run F2 New account first.');
-  }
-  const credentials = JSON.parse(fs.readFileSync(CREDS_PATH, 'utf8')) as {
-    email: string;
-    password: string;
-  };
+  const credentials = testAccount();
   await signIn(page, credentials.email, credentials.password);
   const gestureSamples: number[] = [];
   const settledSamples: number[] = [];

@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   uniqueEmail,
-  CREDS_PATH,
+  requireEmulatorForSignup,
+  signUpOnEmulator,
   saveEvidence,
   attachPageLog,
   dumpConsole,
@@ -54,23 +55,12 @@ test('F1 Sign-in', async ({ page }, testInfo) => {
 });
 
 test('F2 New account', async ({ page }, testInfo) => {
+  requireEmulatorForSignup();
   const logs = await attachPageLog(page);
-  const email = uniqueEmail();
-  const password = 'REDACTED_TEST_PASSWORD';
-  await page.goto('/join');
-  await page.waitForURL(/\/login/, { timeout: 15000 });
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.getByRole('button', { name: /create new account/i }).click();
-  await page.getByLabel(/^password$/i).fill(password);
-  await page.getByLabel(/confirm password/i).fill(password);
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.waitForURL(/\/onboarding/, { timeout: 25000 });
+  await signUpOnEmulator(page);
   await completeOnboarding(page);
   await expect(page.getByTestId('tab-bar')).toBeVisible();
   await expect(page.getByTestId('home-strip')).toBeVisible();
-  fs.mkdirSync(path.dirname(CREDS_PATH), { recursive: true });
-  fs.writeFileSync(CREDS_PATH, JSON.stringify({ email, password }));
   await gate(page, 'F2', testInfo.project.name);
   await dumpConsole(page, 'F2', testInfo.project.name, logs);
 });
@@ -366,18 +356,11 @@ async function fixtureZip(): Promise<Buffer> {
 }
 
 test('F15 Letterboxd export import', async ({ page }, testInfo) => {
+  // A fresh account so counts are exact. Re-importing into an existing one dedupes to zero nights.
+  requireEmulatorForSignup();
   const logs = await attachPageLog(page);
   await mockMovieLookup(page);
-  // A fresh account so counts are exact. Re-importing into an existing one dedupes to zero nights.
-  await page.goto('/join');
-  await page.waitForURL(/\/login/, { timeout: 15000 });
-  await page.getByLabel(/email/i).fill(uniqueEmail());
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.getByRole('button', { name: /create new account/i }).click();
-  await page.getByLabel(/^password$/i).fill('REDACTED_TEST_PASSWORD');
-  await page.getByLabel(/confirm password/i).fill('REDACTED_TEST_PASSWORD');
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.waitForURL(/\/onboarding/, { timeout: 25000 });
+  await signUpOnEmulator(page);
   await completeOnboarding(page);
   await page.goto('/watched');
   await page.getByTestId('watched-import').click();
@@ -420,18 +403,6 @@ test('F15 Letterboxd export import', async ({ page }, testInfo) => {
   await dumpConsole(page, 'F15', testInfo.project.name, logs);
 });
 
-async function signUpFresh(page: PageLike) {
-  await page.goto('/join');
-  await page.waitForURL(/\/login/, { timeout: 15000 });
-  await page.getByLabel(/email/i).fill(uniqueEmail());
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.getByRole('button', { name: /create new account/i }).click();
-  await page.getByLabel(/^password$/i).fill('REDACTED_TEST_PASSWORD');
-  await page.getByLabel(/confirm password/i).fill('REDACTED_TEST_PASSWORD');
-  await page.getByRole('button', { name: /^continue$/i }).click();
-  await page.waitForURL(/\/onboarding/, { timeout: 25000 });
-}
-
 async function mockMovieLookup(page: PageLike) {
   await page.route('**/api/movie-lookup**', async (route) => {
     const url = new URL(route.request().url());
@@ -455,9 +426,10 @@ async function mockMovieLookup(page: PageLike) {
 }
 
 test('F16 Onboarding import hub, three sources', async ({ page }, testInfo) => {
+  requireEmulatorForSignup();
   const logs = await attachPageLog(page);
   await mockMovieLookup(page);
-  await signUpFresh(page);
+  await signUpOnEmulator(page);
   await answerOnboardingQuestions(page);
   const shot = (name: string) => page.screenshot({ path: path.join('artifacts', 'verify', `F16-${testInfo.project.name}`, `${name}.png`) });
   await expect(page.getByTestId('import-hub')).toBeVisible();
@@ -499,8 +471,9 @@ test('F16 Onboarding import hub, three sources', async ({ page }, testInfo) => {
 });
 
 test('F17 Onboarding reward without an import', async ({ page }, testInfo) => {
+  requireEmulatorForSignup();
   const logs = await attachPageLog(page);
-  await signUpFresh(page);
+  await signUpOnEmulator(page);
   await answerOnboardingQuestions(page);
   await page.getByTestId('onboarding-skip-lb').click();
   await page.getByTestId('onboarding-reading').waitFor({ timeout: 20000 });

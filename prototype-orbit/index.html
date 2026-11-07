@@ -147,7 +147,9 @@ html,body{height:100%;overflow:hidden;font-family:'Archivo',system-ui,sans-serif
 </div>
 
 <script>
-const TMDB_KEY='REDACTED_TMDB_KEY';
+// Pass ?tmdb=<key> once; it is remembered in localStorage. Never commit a key here.
+const TMDB_KEY=new URLSearchParams(location.search).get('tmdb') || localStorage.getItem('TMDB_KEY') || '';
+if (TMDB_KEY) localStorage.setItem('TMDB_KEY', TMDB_KEY);
 const TMDB='https://api.themoviedb.org/3';
 const IMG=(path,size='w500')=>path?`https://image.tmdb.org/t/p/${size}${path}`:null;
 

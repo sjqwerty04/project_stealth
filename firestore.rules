@@ -1,11 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Whitelist - anyone can read to check if email is allowed.
+    // Whitelist - anyone can look up one email to check if it is allowed.
+    // Listing every email is admin-only (/admin), so the collection is not enumerable.
     // Authenticated users may create their own entry (self-whitelist via invite).
     // Updates and deletes remain admin-only.
     match /whitelist/{email} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if request.auth != null
+                  && request.auth.token.email == 'shroomyai2000@gmail.com';
       allow create: if request.auth != null
                     && (request.auth.token.email.lower() == email
                         || request.auth.token.email == 'shroomyai2000@gmail.com')
