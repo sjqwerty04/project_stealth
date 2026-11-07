@@ -122,7 +122,7 @@ export type TasteEvent =
       year?: string | number;
       verdict: Verdict;
       stars?: number | null;
-      source: 'calendar' | 'rec' | 'detail' | 'watched';
+      source: 'calendar' | 'rec' | 'detail' | 'watched' | 'orbit';
     }
   | { type: 'watched_remove'; movieId: number; title: string }
   | { type: 'skip'; movieId: number; title: string; year?: string | number }

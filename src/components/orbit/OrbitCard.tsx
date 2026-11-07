@@ -1,12 +1,24 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Bookmark, BookmarkCheck, Info } from 'lucide-react';
+import SelectScore from '../SelectScore';
+import VerdictPicker from '../VerdictPicker';
+import type { Verdict } from '../../lib/library';
+import type { TasteSnapshot } from '../../lib/taste/types';
 import type { OrbitMovie } from '../../stores/orbitStore';
+
+const WATCHED_LABELS: Partial<Record<Verdict, string>> = {
+  okay: 'Meh',
+};
 
 interface OrbitCardProps {
   movie: OrbitMovie;
   isSaved: boolean;
+  snapshot: TasteSnapshot;
   connectionReason?: string;
   onInfoPress?: () => void;
+  onVerdict?: (verdict: Verdict) => void;
+  verdictDisabled?: boolean;
   isActive?: boolean;
 }
 
@@ -18,12 +30,20 @@ const buildImageUrl = (path: string | null, size: 'w500' | 'w780' | 'original' =
 export default function OrbitCard({
   movie,
   isSaved,
+  snapshot,
   connectionReason,
   onInfoPress,
+  onVerdict,
+  verdictDisabled = false,
   isActive = true,
 }: OrbitCardProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const posterUrl = buildImageUrl(movie.posterPath, 'w500');
   const backdropUrl = buildImageUrl(movie.backdropPath, 'w780');
+
+  const stopGesture = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
 
   const handleInfoClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -32,7 +52,7 @@ export default function OrbitCard({
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col items-center justify-center p-6"
+      className="absolute inset-0 flex flex-col items-center overflow-y-auto px-6 pb-24 pt-20"
       style={{ pointerEvents: isActive ? 'auto' : 'none' }}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -49,7 +69,7 @@ export default function OrbitCard({
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" />
 
       {/* Card content */}
-      <div className="relative z-10 flex flex-col items-center max-w-sm w-full">
+      <div className="relative z-10 my-auto flex w-full max-w-sm flex-col items-center">
         {/* Connection reason badge */}
         {connectionReason && (
           <motion.div
@@ -75,29 +95,64 @@ export default function OrbitCard({
             <img
               src={posterUrl}
               alt={movie.title}
-              className="w-64 h-96 object-cover"
+              className="h-96 max-h-[40vh] w-64 object-cover"
               loading="eager"
             />
           ) : (
             <div 
-              className="w-64 h-96 flex items-center justify-center"
+              className="flex h-96 max-h-[40vh] w-64 items-center justify-center"
               style={{ backgroundColor: movie.dominantHex }}
             >
               <Star className="w-16 h-16 text-white/50" />
             </div>
           )}
 
+          {onVerdict ? (
+            <button
+              type="button"
+              data-testid="orbit-watched"
+              onPointerDown={stopGesture}
+              onClick={(event) => {
+                stopGesture(event);
+                setPickerOpen((open) => !open);
+              }}
+              disabled={verdictDisabled}
+              className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+            >
+              Watched?
+            </button>
+          ) : null}
+
           {/* Save indicator overlay */}
           {isSaved && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="absolute top-3 right-3 p-2 rounded-full bg-green-500 shadow-lg"
+              className="absolute top-3 left-3 p-2 rounded-full bg-green-500 shadow-lg"
             >
               <BookmarkCheck className="w-5 h-5 text-white" />
             </motion.div>
           )}
         </motion.div>
+
+        {pickerOpen && onVerdict ? (
+          <div
+            data-testid="orbit-verdict-picker"
+            className="mt-4 w-full border border-line bg-base-2 p-3"
+            onPointerDown={stopGesture}
+          >
+            <VerdictPicker
+              value={null}
+              onChange={(verdict) => {
+                setPickerOpen(false);
+                onVerdict(verdict);
+              }}
+              disabled={verdictDisabled}
+              size="sm"
+              labels={WATCHED_LABELS}
+            />
+          </div>
+        ) : null}
 
         {/* Movie info */}
         <motion.div
@@ -107,6 +162,14 @@ export default function OrbitCard({
           className="mt-6 text-center"
         >
           <h2 className="text-2xl font-bold text-white mb-1">{movie.title}</h2>
+          <div className="flex justify-center" onPointerDown={stopGesture}>
+            <SelectScore
+              movieId={movie.id}
+              title={movie.title}
+              year={movie.year}
+              snapshot={snapshot}
+            />
+          </div>
           <p className="text-white/60 text-lg">{movie.year}</p>
           
           {movie.director && (
