@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, format, startOfDay } from 'date-fns';
-import { dayBillStep, dayStageKey, nightOrder, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
+import {
+  dayBillStep,
+  dayStageKey,
+  nightOrder,
+  parseAppDateParam,
+  selectSlotLoaderVisible,
+  showSelectsSkeleton,
+} from './homeStripLogic';
 
 describe('home strip date param', () => {
   const now = startOfDay(new Date('2026-09-19T12:00:00'));
@@ -29,6 +36,14 @@ describe('selects loading chrome', () => {
     expect(showSelectsSkeleton('loading', 0)).toBe(true);
     expect(showSelectsSkeleton('ready', 0)).toBe(false);
     expect(showSelectsSkeleton('ready', 3)).toBe(false);
+  });
+
+  it('drops the slot spinner once that slot shows a different film', () => {
+    expect(selectSlotLoaderVisible('replacing', 2, 2)).toBe(true);
+    expect(selectSlotLoaderVisible('saving', 2, 2)).toBe(true);
+    expect(selectSlotLoaderVisible('replacing', 2, 4)).toBe(false);
+    expect(selectSlotLoaderVisible('failed', 2, 2)).toBe(false);
+    expect(selectSlotLoaderVisible('replacing', undefined, 4)).toBe(true);
   });
 });
 

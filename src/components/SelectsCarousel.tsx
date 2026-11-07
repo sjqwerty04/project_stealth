@@ -10,6 +10,7 @@ import {
   type RelatedPoster,
 } from './selectsCarouselLogic';
 import { replacingBlocksGenerate } from '../hooks/selectReplacement';
+import { selectSlotLoaderVisible } from './homeStripLogic';
 import type { SelectReplacement, SelectSlotId } from '../hooks/useRecommendation';
 import type { Verdict } from '../lib/library';
 import VerdictPicker from './VerdictPicker';
@@ -79,8 +80,11 @@ export function SelectCard({
   const related = film.related?.slice(0, 2) ?? [];
   const why = film.whyMatch?.trim() ?? '';
   const slotReplacement = replacement?.slotId === film.slotId ? replacement : null;
-  const loading =
-    slotReplacement?.phase === 'saving' || slotReplacement?.phase === 'replacing';
+  const loading = selectSlotLoaderVisible(
+    slotReplacement?.phase,
+    slotReplacement?.movieId,
+    film.id,
+  );
   return (
     <div
       data-testid="ticket-slot"
@@ -133,7 +137,7 @@ export function SelectCard({
             else if (pickerOpen) onClosePicker();
             else onOpenPicker();
           }}
-          disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+          disabled={loading}
           className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
         >
           Watched?
@@ -144,7 +148,7 @@ export function SelectCard({
             data-testid={`not-interested-${film.slotId}`}
             data-carousel-control
             onClick={onNotInterested}
-            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            disabled={loading}
             className="absolute bottom-3 left-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
           >
             Not Interested
@@ -160,7 +164,7 @@ export function SelectCard({
           <VerdictPicker
             value={null}
             onChange={onLogVerdict}
-            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            disabled={loading}
             size="sm"
             labels={LOG_TODAY_LABELS}
           />
@@ -174,7 +178,7 @@ export function SelectCard({
           <VerdictPicker
             value={null}
             onChange={onVerdict}
-            disabled={Boolean(slotReplacement && slotReplacement.phase !== 'failed')}
+            disabled={loading}
             size="sm"
             labels={WATCHED_LABELS}
             extra={{

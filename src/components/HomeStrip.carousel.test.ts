@@ -490,6 +490,25 @@ describe('select card watched control', () => {
     expect(affected).toMatch(/data-testid="watched-1"[^>]*\sdisabled=/);
   });
 
+  it('hides the slot spinner when that slot already shows the finished film', () => {
+    const html = renderToString(
+      React.createElement(SelectCard, {
+        film: { ...film, id: 4, title: 'Manhunter' },
+        pickerOpen: false,
+        replacement: { slotId: 1, phase: 'replacing', feedbackSaved: true, movieId: 2 },
+        onOpenMovie: () => {},
+        onOpenPicker: () => {},
+        onClosePicker: () => {},
+        onVerdict: () => {},
+        onRetry: () => {},
+      }),
+    );
+
+    expect(html).not.toContain('Finding another select');
+    expect(html).toContain('aria-label="Manhunter"');
+    expect(html).not.toMatch(/data-testid="watched-1"[^>]*\sdisabled=/);
+  });
+
   it('shows retry only on the failed slot', () => {
     const html = renderToString(
       React.createElement(SelectCard, {

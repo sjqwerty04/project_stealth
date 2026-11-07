@@ -7,6 +7,7 @@ import {
   resetSelectsCacheForTesting,
   selectsCacheFresh,
   selectsRefreshDelay,
+  subscribeSelectsCache,
   writeSelectsCache,
 } from './selectsCache';
 import { LAST_PICKS_FRESH_MS, type TastePick } from './types';
@@ -105,6 +106,21 @@ describe('selectsCache', () => {
     } finally {
       delete (globalThis as unknown as { localStorage?: Storage }).localStorage;
       resetSelectsCacheForTesting();
+    }
+  });
+});
+
+describe('selects cache listeners', () => {
+  it('tells a mounted screen when a finished trio is stored', () => {
+    resetSelectsCacheForTesting();
+    const seen: string[] = [];
+    const stop = subscribeSelectsCache((uid) => seen.push(uid));
+    try {
+      writeSelectsCache('viewer', picks, 50);
+      expect(seen).toEqual(['viewer']);
+      expect(readSelectsCache('viewer')?.picks).toHaveLength(3);
+    } finally {
+      stop();
     }
   });
 });

@@ -58,6 +58,17 @@ export function showSelectsSkeleton(status: string, slideCount: number): boolean
   return status === 'loading' && slideCount === 0;
 }
 
+/** Slot spinner covers the film it started on. A finished replacement has a different id. */
+export function selectSlotLoaderVisible(
+  phase: string | undefined,
+  coveredMovieId: number | undefined,
+  filmId: number,
+): boolean {
+  if (phase !== 'saving' && phase !== 'replacing') return false;
+  if (coveredMovieId != null && coveredMovieId !== filmId) return false;
+  return true;
+}
+
 export function isSelectsDismissTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-testid="strip-dock"]')) return false;
