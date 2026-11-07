@@ -1,4 +1,4 @@
-import { hydratedTitleMatchesPick } from '../lib/taste/selectPickCoherence';
+import { hydratedTitleMatchesPick } from '../lib/taste/selectPickCoherence.js';
 
 export type SelectExclusion = {
   id: string;
