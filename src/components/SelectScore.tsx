@@ -43,25 +43,41 @@ function SelectBars({ score, open, reduce }: { score: number; open: boolean; red
   );
 }
 
-export function SelectScoreLockup({ result }: { result: BlendResult }) {
+export function SelectScoreLockup({
+  result,
+  presentation = 'detail',
+}: {
+  result: BlendResult;
+  presentation?: 'detail' | 'orbit';
+}) {
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion() === true;
   if (result.score == null) return null;
 
+  const orbit = presentation === 'orbit';
   const logos = result.rows.filter((row) => row.native != null);
   const motionProps = reduce ? { duration: 0 } : { duration: 0.28, ease: EASE };
+  const inviteTap = orbit && !open && !reduce;
 
   return (
-    <div className="mt-4 flex flex-col items-start" data-testid="select-score">
+    <div className={`mt-4 flex flex-col ${orbit ? 'items-center' : 'items-start'}`} data-testid="select-score">
       <button
         type="button"
-        className="flex flex-col items-start bg-transparent p-0 text-left"
+        className={`flex flex-col bg-transparent p-0 ${orbit ? 'items-center text-center' : 'items-start text-left'}`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Select</span>
-        <span className="mt-1.5 flex items-center gap-3.5">
-          <span className="inline-flex items-center gap-2.5">
+        <span className={`mt-1.5 flex items-center ${orbit ? 'justify-center' : 'gap-3.5'}`}>
+          <motion.span
+            className="inline-flex items-center gap-2.5"
+            animate={inviteTap ? { y: [0, -5, 0] } : { y: 0 }}
+            transition={
+              inviteTap
+                ? { duration: 1.15, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.55 }
+                : { duration: reduce ? 0 : 0.2 }
+            }
+          >
             <SelectBars score={result.score} open={open} reduce={reduce} />
             <motion.span
               className="font-extrabold leading-none tracking-tight text-fg tabular-nums"
@@ -71,10 +87,12 @@ export function SelectScoreLockup({ result }: { result: BlendResult }) {
             >
               {result.score}
             </motion.span>
-          </span>
-          <span className="max-w-[156px] text-[13px] leading-[18px] text-fg" style={{ opacity: 0.48 }}>
-            {SENTENCE}
-          </span>
+          </motion.span>
+          {orbit ? null : (
+            <span className="max-w-[156px] text-[13px] leading-[18px] text-fg" style={{ opacity: 0.48 }}>
+              {SENTENCE}
+            </span>
+          )}
         </span>
       </button>
       <AnimatePresence initial={false}>
@@ -87,7 +105,7 @@ export function SelectScoreLockup({ result }: { result: BlendResult }) {
             transition={motionProps}
             className="overflow-hidden"
           >
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-4">
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 pt-4 ${orbit ? 'justify-center' : ''}`}>
               {logos.map((row) => (
                 <span
                   key={row.key}
@@ -106,7 +124,10 @@ export function SelectScoreLockup({ result }: { result: BlendResult }) {
   );
 }
 
-export default function SelectScore(props: Omit<SelectScoreQuery, 'snapshot'> & { snapshot: TasteSnapshot }) {
-  const result = useSelectScore(props);
-  return <SelectScoreLockup result={result} />;
+export default function SelectScore({
+  presentation = 'detail',
+  ...query
+}: Omit<SelectScoreQuery, 'snapshot'> & { snapshot: TasteSnapshot; presentation?: 'detail' | 'orbit' }) {
+  const result = useSelectScore(query);
+  return <SelectScoreLockup result={result} presentation={presentation} />;
 }

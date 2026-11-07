@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Star, Bookmark, BookmarkCheck, Info } from 'lucide-react';
 import SelectScore from '../SelectScore';
 import VerdictPicker from '../VerdictPicker';
@@ -107,22 +107,6 @@ export default function OrbitCard({
             </div>
           )}
 
-          {onVerdict ? (
-            <button
-              type="button"
-              data-testid="orbit-watched"
-              onPointerDown={stopGesture}
-              onClick={(event) => {
-                stopGesture(event);
-                setPickerOpen((open) => !open);
-              }}
-              disabled={verdictDisabled}
-              className="absolute top-3 right-3 z-30 min-h-11 px-3 bg-black/75 border border-white/30 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
-            >
-              Watched?
-            </button>
-          ) : null}
-
           {/* Save indicator overlay */}
           {isSaved && (
             <motion.div
@@ -134,25 +118,6 @@ export default function OrbitCard({
             </motion.div>
           )}
         </motion.div>
-
-        {pickerOpen && onVerdict ? (
-          <div
-            data-testid="orbit-verdict-picker"
-            className="mt-4 w-full border border-line bg-base-2 p-3"
-            onPointerDown={stopGesture}
-          >
-            <VerdictPicker
-              value={null}
-              onChange={(verdict) => {
-                setPickerOpen(false);
-                onVerdict(verdict);
-              }}
-              disabled={verdictDisabled}
-              size="sm"
-              labels={WATCHED_LABELS}
-            />
-          </div>
-        ) : null}
 
         {/* Movie info */}
         <motion.div
@@ -168,6 +133,7 @@ export default function OrbitCard({
               title={movie.title}
               year={movie.year}
               snapshot={snapshot}
+              presentation="orbit"
             />
           </div>
           <p className="text-white/60 text-lg">{movie.year}</p>
@@ -192,19 +158,66 @@ export default function OrbitCard({
           )}
         </motion.div>
 
-        {/* Info button */}
-        {onInfoPress && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            onClick={handleInfoClick}
-            className="mt-4 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-colors flex items-center gap-2"
-          >
-            <Info className="w-4 h-4 text-white" />
-            <span className="text-sm text-white/90 font-medium">View Details</span>
-          </motion.button>
-        )}
+        <div className="mt-4 flex w-full justify-center" onPointerDown={stopGesture}>
+          <AnimatePresence mode="wait" initial={false}>
+            {pickerOpen && onVerdict ? (
+              <motion.div
+                key="verdict"
+                data-testid="orbit-verdict-picker"
+                className="w-full origin-center"
+                initial={{ opacity: 0, scale: 0.86 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 32 }}
+              >
+                <VerdictPicker
+                  value={null}
+                  onChange={(verdict) => {
+                    setPickerOpen(false);
+                    onVerdict(verdict);
+                  }}
+                  disabled={verdictDisabled}
+                  size="sm"
+                  labels={WATCHED_LABELS}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="actions"
+                className="inline-flex items-stretch overflow-hidden rounded-full border border-white/20 bg-white/10 backdrop-blur-md"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 34 }}
+              >
+                {onVerdict ? (
+                  <button
+                    type="button"
+                    data-testid="orbit-watched"
+                    onClick={(event) => {
+                      stopGesture(event);
+                      setPickerOpen(true);
+                    }}
+                    disabled={verdictDisabled}
+                    className="min-h-11 px-4 font-spec text-[10px] uppercase tracking-widest text-fg disabled:opacity-50"
+                  >
+                    Watched?
+                  </button>
+                ) : null}
+                {onInfoPress ? (
+                  <button
+                    type="button"
+                    onClick={handleInfoClick}
+                    className={`inline-flex min-h-11 items-center gap-2 px-4 text-sm font-medium text-white/90 ${onVerdict ? 'border-l border-white/20' : ''}`}
+                  >
+                    <Info className="w-4 h-4 text-white" />
+                    View Details
+                  </button>
+                ) : null}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Save button hint */}
         <motion.div
