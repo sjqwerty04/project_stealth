@@ -580,7 +580,7 @@ export default function OrbitScreen() {
               onVerdict={handleVerdict}
               verdictDisabled={verdictBusy || isTransitioning || isWaitingForRecommendation}
               snapshot={snapshot}
-              isTransitioning={isTransitioning || isWaitingForRecommendation}
+              isTransitioning={isTransitioning || isWaitingForRecommendation || verdictBusy}
             />
           </motion.div>
         )}
