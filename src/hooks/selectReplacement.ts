@@ -34,6 +34,21 @@ export function replacingBlocksGenerate(
   return Object.values(replacements).some((row) => row && (row.phase === 'saving' || row.phase === 'replacing'));
 }
 
+/** Keep the on-screen film for a slot that is still saving or replacing. */
+export function keepReplacingSlots<T>(
+  cached: readonly T[],
+  current: readonly T[],
+  replacements: Partial<Record<SelectSlotId, { phase?: string } | null | undefined>>,
+): T[] {
+  return cached.map((film, index) => {
+    const row = replacements[index as SelectSlotId];
+    if (row && (row.phase === 'saving' || row.phase === 'replacing')) {
+      return current[index] ?? film;
+    }
+    return film;
+  });
+}
+
 export function replacePickAtSlot<T>(picks: readonly T[], slotId: SelectSlotId, replacement: T): T[] {
   return picks.map((pick, index) => (index === slotId ? replacement : pick));
 }

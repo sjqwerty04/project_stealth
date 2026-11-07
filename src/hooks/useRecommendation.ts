@@ -22,9 +22,9 @@ import {
 import { getTaste } from '../lib/taste/getTaste';
 import { hydratedTitleMatchesPick, whyMatchNamesRecommended } from '../lib/taste/selectPickCoherence';
 import { prefetchScholarAdjacency } from '../lib/similar/prefetch';
-import { selectSlotLoaderVisible } from '../components/homeStripLogic';
 import {
   executeSelectReplacement,
+  keepReplacingSlots,
   replacePickAtSlot,
   replacingBlocksGenerate,
   type SelectExclusion,
@@ -243,23 +243,11 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
   const paintCachedSelects = useCallback((uid: string) => {
     const cached = readSelectsCache(uid);
     if (!cached?.picks.length) return;
-    const visible = cached.picks.slice(0, 3).map(fromStored);
+    const incoming = cached.picks.slice(0, 3).map(fromStored);
+    const visible = keepReplacingSlots(incoming, picksRef.current, replacementsRef.current);
     picksRef.current = visible;
     setPicks(visible);
     setStatus('ready');
-    const current = { ...replacementsRef.current };
-    let changed = false;
-    for (const slotId of [0, 1, 2] as const) {
-      const row = current[slotId];
-      if (!row || (row.phase !== 'saving' && row.phase !== 'replacing')) continue;
-      const filmId = visible[slotId]?.movieId;
-      if (filmId == null || selectSlotLoaderVisible(row.phase, row.movieId, filmId)) continue;
-      delete current[slotId];
-      changed = true;
-    }
-    if (!changed) return;
-    replacementsRef.current = current;
-    setReplacements(current);
   }, []);
 
   useEffect(() => {
@@ -282,7 +270,6 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       picksRef.current = merged;
       setPicks(merged);
       setStatus('ready');
-      patchReplacement(slotId, null);
       writeSelectsCache(user.uid, merged.map(toStored));
       try {
         await recordTasteEvent(
@@ -294,7 +281,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         console.warn('Your Selects cache write failed:', err);
       }
     },
-    [user, patchReplacement],
+    [user],
   );
 
   const exclusionList = useCallback((includeLastPicks = true) => {
@@ -325,6 +312,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     const stored = snapshot.generated.lastPicks.map(fromStored);
     const replacing = replacingBlocksGenerate(replacementsRef.current);
     if (!canGenerateSelects({ libraryReady: !libraryLoading, replacing })) {
+      if (replacing) return picksRef.current.length ? picksRef.current : [];
       const hit = resolveHit(user.uid, snapshot.generated.lastPicks, snapshot.generated.lastPicksAt);
       const source = hit?.length ? hit : stored.length ? stored : picksRef.current;
       const visible = coerceSelectTrio(picksRef.current, source.slice(0, 3));
@@ -359,6 +347,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
     if (existing) {
       if (replacingBlocksGenerate(replacementsRef.current)) return picksRef.current;
       const shared = await existing;
+      if (replacingBlocksGenerate(replacementsRef.current)) return picksRef.current;
       const visible = coerceSelectTrio(picksRef.current, dropExcludedPicks(shared, exclusionList(false)));
       setPicks(visible);
       setStatus(visible.length ? 'ready' : 'empty');
@@ -399,6 +388,9 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         );
 
         const shown = coerceSelectTrio(picksRef.current, hydrated);
+        if (replacingBlocksGenerate(replacementsRef.current)) {
+          return picksRef.current;
+        }
         picksRef.current = shown;
         setPicks(shown);
         setStatus(shown.length ? 'ready' : 'empty');
@@ -459,7 +451,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         if (!picksRef.current[slotId]) continue;
         coverSlot(slotId, 'replacing');
         try {
-          const nextFromStart = await executeSelectReplacement({
+          await executeSelectReplacement({
             slotId,
             picks: picksRef.current,
             extraExcluded: exclusionList(false),
@@ -486,11 +478,6 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
             hydratePick: hydrateSelectPick,
             persistPicks: (updatedPicks) => publishReplacedSlot(slotId, updatedPicks),
           });
-          const incoming = nextFromStart[slotId];
-          const merged = incoming ? replacePickAtSlot(picksRef.current, slotId, incoming) : picksRef.current;
-          picksRef.current = merged;
-          setPicks(merged);
-          setStatus('ready');
           patchReplacement(slotId, null);
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Could not find another select';
@@ -498,7 +485,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
         }
       }
     },
-    [user, exclusionList, coverSlot, publishReplacedSlot],
+    [user, exclusionList, coverSlot, patchReplacement, publishReplacedSlot],
   );
 
   useEffect(() => {
@@ -628,7 +615,7 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
       setError(null);
 
       try {
-        const nextFromStart = await executeSelectReplacement<
+        await executeSelectReplacement<
           RecommendationResult,
           ApiSelectPick,
           RecommendContext
@@ -670,13 +657,6 @@ export function useRecommendation(opts?: { events?: CalendarLogLike[] }) {
           hydratePick: hydrateSelectPick,
           persistPicks: (updatedPicks) => publishReplacedSlot(slotId, updatedPicks),
         });
-        const incoming = nextFromStart[slotId];
-        const merged = incoming
-          ? replacePickAtSlot(picksRef.current, slotId, incoming)
-          : picksRef.current;
-        picksRef.current = merged;
-        setPicks(merged);
-        setStatus('ready');
         patchReplacement(slotId, null);
       } catch (err) {
         const message =

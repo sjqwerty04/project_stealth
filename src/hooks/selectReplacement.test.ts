@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { executeSelectReplacement, replacePickAtSlot } from './selectReplacement';
+import { executeSelectReplacement, keepReplacingSlots, replacePickAtSlot } from './selectReplacement';
 
 type Pick = { movieId: number; title: string };
 type RawPick = { title: string; id: string };
@@ -17,6 +17,37 @@ describe('select replacement', () => {
       { movieId: 4, title: 'Manhunter' },
       { movieId: 3, title: 'Thief' },
     ]);
+  });
+
+  it('keeps the on-screen film when a cache write hits a slot that is still replacing', () => {
+    const cached: [Pick, Pick, Pick] = [
+      { movieId: 10, title: 'The Insider' },
+      { movieId: 11, title: 'Gone Girl' },
+      { movieId: 12, title: 'Se7en' },
+    ];
+    expect(
+      keepReplacingSlots(cached, picks, {
+        0: { phase: 'saving' },
+        2: { phase: 'replacing' },
+      }),
+    ).toEqual([
+      { movieId: 1, title: 'Heat' },
+      { movieId: 11, title: 'Gone Girl' },
+      { movieId: 3, title: 'Thief' },
+    ]);
+  });
+
+  it('uses the cached film when that slot is idle or already failed', () => {
+    const cached: [Pick, Pick, Pick] = [
+      { movieId: 10, title: 'The Insider' },
+      { movieId: 11, title: 'Gone Girl' },
+      { movieId: 12, title: 'Se7en' },
+    ];
+    expect(
+      keepReplacingSlots(cached, picks, {
+        1: { phase: 'failed' },
+      }),
+    ).toEqual(cached);
   });
 
   it('excludes every visible card and persists one replacement', async () => {
