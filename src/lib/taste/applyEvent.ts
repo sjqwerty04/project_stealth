@@ -125,7 +125,10 @@ export function applyTasteEvent(snapshot: TasteSnapshot, event: TasteEvent, even
     case 'calendar_log': {
       const score = historyScore(event.verdict ?? null, event.stars);
       if (score != null) next = prependHistory(next, event.title, score, event.movieId);
-      next = bustLastPicks(next);
+      let preferences = dropPref(next.context.preferences, event.title);
+      if (event.verdict === 'liked') preferences = uniqPref(preferences, event.title);
+      if (event.verdict === 'nope') preferences = uniqPref(preferences, `dislikes: ${event.title}`);
+      next = bustLastPicks({ ...next, context: { ...next.context, preferences } });
       break;
     }
     case 'search': {
