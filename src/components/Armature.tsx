@@ -38,12 +38,13 @@ const POSES: Record<Step, Bar[]> = {
 export default function Armature({ step, className = '' }: { step: Step; className?: string }) {
   const bars = POSES[step];
   const compact = step === 'negativeProfile' || step === 'insights';
+  const wall = step === 'positive' || step === 'negative';
   return (
     <div
       aria-hidden
       data-testid="armature"
       data-step={step}
-      className={`relative mx-auto ${compact ? 'h-[30px] w-[80px]' : 'h-[120px] w-[180px]'} ${className}`}
+      className={`relative mx-auto ${compact ? 'h-[30px] w-[80px]' : wall ? 'h-0 w-0 overflow-hidden' : 'h-[120px] w-[180px]'} ${className}`}
       style={{ transition: 'height 1.2s cubic-bezier(0.22,1,0.36,1), width 1.2s cubic-bezier(0.22,1,0.36,1)' }}
     >
       {bars.map((b, i) => (
