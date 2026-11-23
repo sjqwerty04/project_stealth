@@ -242,26 +242,24 @@ export default function WatchedScreen() {
 
   return (
     <div className="min-h-screen bg-base font-display text-fg flex flex-col max-w-md mx-auto overflow-hidden border-x border-line">
-      <LibraryHub />
-      <div id="timeline" className="bg-base px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-line">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/app')} className="p-2 min-h-11 min-w-11 text-fg-2 hover:text-fg" aria-label="Go back">
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-white">Watched</h1>
-            <p className="text-xs text-gray-500" data-testid="watched-count">
-              {counts.all} films · {watchedEvents.length} nights
-            </p>
-          </div>
-        </div>
+      <LibraryHub
+        count={
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-2" data-testid="watched-count">
+            {counts.all} films · {watchedEvents.length} nights
+          </p>
+        }
+      />
+      <div id="timeline" className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-base px-4 py-2">
+        <button onClick={() => navigate('/app')} className="min-h-11 min-w-11 p-2 text-fg-2" aria-label="Go back">
+          <ArrowLeft size={20} />
+        </button>
         <button
           onClick={() => setShowImport(true)}
           data-testid="watched-import"
           className="flex items-center gap-2 px-3 min-h-11 bg-base-3 text-fg border border-line text-sm font-medium"
         >
           <Plus size={16} />
-          <span className="hidden sm:inline">Import</span>
+          <span>Import</span>
         </button>
       </div>
 
