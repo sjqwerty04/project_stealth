@@ -27,7 +27,7 @@ function Bars({ size }: { size: number }) {
           y={y}
           width={barW}
           height={h}
-          fill={i === 2 ? '#FF3B14' : '#EFEDE9'}
+          fill={i === 2 ? 'var(--select)' : 'var(--fg)'}
           transform={`skewX(${skew})`}
         />
       ))}

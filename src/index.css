@@ -2,13 +2,16 @@
 
 @theme {
   --color-base: #0A0A0B;
-  --color-base-2: #141416;
-  --color-base-3: #1D1D20;
-  --color-line: #2B2B2F;
+  --color-base-2: #111113;
+  --color-base-3: #18181B;
+  --color-line: #26262A;
+  --color-line-2: #36363C;
   --color-fg: #EFEDE9;
-  --color-fg-2: #B9B6B0;
-  --color-fg-3: #7C7A76;
+  --color-fg-2: #A8A6A1;
+  --color-fg-3: #6E6C68;
+  --color-fg-4: #48474B;
   --color-select: #FF3B14;
+  --color-select-ink: #FF6A4A;
   --color-film: #1D5B8A;
   --color-film-2: #8A3A1D;
   --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
@@ -24,13 +27,16 @@
 
 :root {
   --base: #0A0A0B;
-  --base-2: #141416;
-  --base-3: #1D1D20;
-  --line: #2B2B2F;
+  --base-2: #111113;
+  --base-3: #18181B;
+  --line: #26262A;
+  --line-2: #36363C;
   --fg: #EFEDE9;
-  --fg-2: #B9B6B0;
-  --fg-3: #7C7A76;
+  --fg-2: #A8A6A1;
+  --fg-3: #6E6C68;
+  --fg-4: #48474B;
   --select: #FF3B14;
+  --select-ink: #FF6A4A;
   --film: #1D5B8A;
   --film-2: #8A3A1D;
   --radius-none: 0px;
@@ -51,6 +57,7 @@ body {
   min-height: 100dvh;
   width: 100%;
   font-family: var(--font-display);
+  font-variation-settings: 'wdth' 100;
   -webkit-font-smoothing: antialiased;
 }
 
