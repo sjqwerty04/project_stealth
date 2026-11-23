@@ -73,7 +73,7 @@ export default function ProfileScreen() {
           ) : (
             <p className="mt-2 font-spec text-xs text-fg-3">Set a handle</p>
           )}
-          <h1 className="mt-1 font-display text-[34px] leading-none tracking-tight text-fg">{displayName}</h1>
+          <h1 className="mt-1 break-words font-display text-[34px] leading-none tracking-tight text-fg">{displayName}</h1>
           {pageLoading ? (
             <div className="mt-2 h-4 w-48 bg-base-3" data-testid="skeleton" />
           ) : (
