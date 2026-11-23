@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { ChevronRight, Film, Star } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
 import TasteMarks, { knownTasteFilms } from '../components/TasteMarks';
@@ -17,6 +19,53 @@ function Stat({ n, label }: { n: string; label: string }) {
     <div className="flex flex-col gap-1">
       <span className="font-spec text-[32px] uppercase leading-none tracking-tight text-fg">{n}</span>
       <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">{label}</span>
+    </div>
+  );
+}
+
+function AssemblyStage({
+  films,
+  colour,
+  label,
+  exposed,
+}: {
+  films: Array<{ title: string; poster?: string; movieId?: number; mediaType?: string }>;
+  colour: string;
+  label: string;
+  exposed: number;
+}) {
+  const nodes = films.slice(0, 8);
+  const orbit = 64;
+  return (
+    <div className="assembly-stage relative mt-4 overflow-hidden" data-testid="you-assembly-stage">
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[148px] w-[148px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed"
+        style={{ borderColor: colour }}
+      />
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+        <p className="font-spec text-[34px] leading-none tracking-tight text-fg">{exposed}%</p>
+        <p className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">{label}</p>
+      </div>
+      {nodes.map((film, index) => {
+        const angle = -Math.PI / 2 + (index / Math.max(nodes.length, 1)) * Math.PI * 2;
+        const x = Math.cos(angle) * orbit;
+        const y = Math.sin(angle) * (orbit * 0.82);
+        const initial = (film.title.trim()[0] || '·').toUpperCase();
+        return (
+          <span
+            key={`${film.title}-${index}`}
+            className="absolute grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden rounded-full border-2 bg-base-3"
+            style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, borderColor: colour }}
+            title={film.title}
+          >
+            {film.poster ? (
+              <img src={film.poster} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="font-spec text-[11px] text-fg">{initial}</span>
+            )}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -71,7 +120,19 @@ export default function ProfileScreen() {
   const { stats, isLoading, tasteProfile } = insights;
   const pageLoading = isLoading || tasteLoading;
   const hasData = !voice.empty || (stats?.watchedCount ?? 0) > 0;
-  const colour = '#3A6E85';
+  const [selectsProfile, setSelectsProfile] = useState<{ archetype: string | null; read: string | null; colour: string | null } | null>(null);
+  useEffect(() => {
+    if (!user?.uid) return;
+    void getDoc(doc(db, 'users', user.uid, 'profile_data', 'selects_profile')).then((snap) => {
+      const data = snap.data() as { profile?: { archetype?: string | null; read?: string }; stats?: { colourHex?: string } } | undefined;
+      setSelectsProfile({
+        archetype: typeof data?.profile?.archetype === 'string' ? data.profile.archetype : null,
+        read: typeof data?.profile?.read === 'string' ? data.profile.read : null,
+        colour: typeof data?.stats?.colourHex === 'string' ? data.stats.colourHex : null,
+      });
+    });
+  }, [user?.uid]);
+  const colour = selectsProfile?.colour || '#3A6E85';
   const profileDoc = tasteProfile as { favoriteFilms?: unknown[]; dislikedFilms?: unknown[]; lightsDownHour?: number } | null;
   const keptCount = Array.isArray(profileDoc?.favoriteFilms) ? profileDoc.favoriteFilms.length : voice.keep.length;
   const struckCount = Array.isArray(profileDoc?.dislikedFilms) ? profileDoc.dislikedFilms.length : voice.leave.length;
@@ -79,7 +140,9 @@ export default function ProfileScreen() {
   const hour = typeof profileDoc?.lightsDownHour === 'number' ? profileDoc.lightsDownHour : null;
   const hourLabel = hour == null ? '—' : `${((hour + 11) % 12) + 1} ${hour >= 12 ? 'PM' : 'AM'}`;
   const initial = (displayName.trim()[0] || 'Y').toUpperCase();
-  const archWord = voice.axis === 'mood' ? 'Mood first' : voice.axis === 'visual' ? 'The room' : voice.axis === 'story' ? 'The writing' : 'Your read';
+  const archWord = selectsProfile?.archetype || (voice.axis === 'mood' ? 'Mood first' : voice.axis === 'visual' ? 'The room' : voice.axis === 'story' ? 'The writing' : 'Your read');
+  const readLine = selectsProfile?.read || voice.lead;
+  const exposed = Math.min(100, keptCount * 12 + struckCount * 8 + loggedCount * 20 + (hour == null ? 0 : 10));
 
   return (
     <div className="you-page relative min-h-screen max-w-md mx-auto overflow-x-hidden bg-base text-fg" data-testid="you-screen" style={{ ['--you' as string]: colour }}>
@@ -95,8 +158,10 @@ export default function ProfileScreen() {
           <div className="mt-6 h-16 w-full bg-base-3" data-testid="skeleton" />
         ) : (
           <>
-            <p className="mt-7 font-display text-[40px] font-extrabold leading-[0.9] tracking-tight" style={{ color: colour }}>{archWord}</p>
-            <p className="mt-3 max-w-[22ch] text-[20px] leading-snug text-fg" data-testid="insights-label">{voice.lead}</p>
+            <div className="you-fit">
+              <p className="you-arch font-display uppercase" style={{ ['--n' as string]: String(Math.max(archWord.length, 4)), color: colour }} data-testid="profile-archetype">{archWord}</p>
+            </div>
+            <p className="max-w-[28ch] text-[18px] leading-snug text-fg" data-testid="insights-label">{readLine}</p>
           </>
         )}
         <div className="mt-6 flex flex-wrap gap-x-7 gap-y-4 border-t border-line pt-4">
@@ -112,7 +177,25 @@ export default function ProfileScreen() {
         </div>
       </header>
 
-      <div className="mt-2 space-y-6 px-5 pb-8">
+      <section className="px-5 pt-6" data-testid="you-assembly">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-[28px] font-bold tracking-tight text-fg">The Assembly</h2>
+            <p className="mt-1 text-sm text-fg-2">How well Selects knows you, craft by craft.</p>
+          </div>
+          <span className="shrink-0 font-spec text-[10px] uppercase tracking-widest text-fg-3">
+            <b className="font-spec text-sm text-fg">{pageLoading ? '—' : `${exposed}%`}</b> exposed
+          </span>
+        </div>
+        <AssemblyStage
+          films={tasteFilms}
+          colour={colour}
+          label={(displayName.split(' ')[0] || 'You').length > 12 ? 'You' : (displayName.split(' ')[0] || 'You')}
+          exposed={pageLoading ? 0 : exposed}
+        />
+      </section>
+
+      <div className="mt-8 space-y-6 px-5 pb-8">
 
         {!pageLoading && !hasData ? (
           <div className="border border-line p-8 flex flex-col items-center gap-3 text-center">
