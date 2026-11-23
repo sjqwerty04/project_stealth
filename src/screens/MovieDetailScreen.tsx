@@ -298,10 +298,17 @@ export default function MovieDetailScreen() {
 
   const backdropUrl = buildImageUrl(details.backdropPath, 'original');
 
+  const metaBits = [
+    details.year,
+    details.runtime,
+    details.techSpecs?.certification,
+    details.genres.slice(0, 2).join(' / '),
+  ].filter(Boolean);
+
   return (
     <div className="min-h-screen bg-base text-fg">
 
-      <div className="relative h-[70vh] min-h-[420px] overflow-hidden">
+      <div className="relative flex h-[62vh] min-h-[420px] items-end overflow-hidden">
         {details.heroVideo ? (
           <div className="hero-video-wrap absolute inset-0" style={{ background: '#000' }}>
             <YouTubeCover
@@ -335,22 +342,23 @@ export default function MovieDetailScreen() {
         )}
 
         {/* Gradient overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-base via-base/25 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-base via-base/40 to-black/20" />
 
         <button
           onClick={handleBack}
-          className="phone-pin-left fixed z-[70] flex min-h-11 min-w-11 items-center gap-1.5 bg-base/50 p-2.5 text-fg"
+          className="absolute left-4 top-[max(12px,env(safe-area-inset-top))] z-20 flex min-h-11 items-center gap-2 font-spec text-[10px] uppercase tracking-widest text-fg"
           aria-label="Go back"
         >
-          <ArrowLeft size={20} />
-          {fromOrbit && <span className="text-sm font-medium pr-1">Orbit</span>}
+          <ArrowLeft size={16} />
+          Back
+          {fromOrbit && <span>Orbit</span>}
         </button>
 
         {/* DNA */}
         {mediaType === 'movie' && (
           <button
             onClick={() => navigate(`/dna/${details.id}`)}
-            className="phone-pin-right fixed z-[70] min-h-11 bg-base/50 px-3.5 py-2 text-fg"
+            className="absolute right-4 top-[max(12px,env(safe-area-inset-top))] z-20 min-h-11 font-spec text-[10px] uppercase tracking-widest text-fg"
             aria-label="Explore DNA"
           >
             <span className="text-base font-extrabold tracking-[-0.12em]">DNA</span>
@@ -367,24 +375,19 @@ export default function MovieDetailScreen() {
           </button>
         )}
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end px-5 pb-8">
+        <div className="pointer-events-none relative z-10 w-full px-5 pb-2">
+          <p className="font-spec text-[10px] uppercase tracking-[0.14em] text-fg-2">{metaBits.join(' · ')}</p>
           <FilmLogo
             src={details.logoPath ? `https://image.tmdb.org/t/p/original${details.logoPath}` : null}
-            className="max-h-[140px] w-[82%] object-contain object-left drop-shadow-2xl"
+            className="mt-3 max-h-[92px] w-[88%] object-contain object-left drop-shadow-2xl"
           />
+          {!details.logoPath && <h1 className="mt-3 font-display text-[40px] font-extrabold leading-none text-fg">{details.title}</h1>}
           <h1 className="sr-only">{details.title}</h1>
+          {details.tagline && <p className="mt-3 text-[18px] leading-snug text-fg">{details.tagline}</p>}
         </div>
       </div>
 
-      <div className="px-5 pb-2 pt-4">
-        <p className="font-spec text-[10px] uppercase tracking-widest text-fg-2">
-          {details.year}
-          {details.runtime && <> &bull; {details.runtime}</>}
-          {details.director && <> &bull; {details.director}</>}
-          {details.techSpecs?.certification && (
-            <> &bull; <span className="text-white/70">{details.techSpecs.certification}</span></>
-          )}
-        </p>
+      <div className="px-5 pb-2 pt-1">
         {mediaType === 'movie' && (
           <SelectScore
             movieId={details.id}

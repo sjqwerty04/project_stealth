@@ -68,7 +68,7 @@ export function SelectScoreLockup({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Select</span>
+        <span className="font-spec text-[10px] uppercase tracking-widest text-select">Select</span>
         <span className={`mt-1.5 flex items-center ${orbit ? 'justify-center' : 'gap-3.5'}`}>
           <motion.span
             className="inline-flex items-center gap-2.5"
