@@ -4,7 +4,7 @@ import { db } from '../lib/firebase';
 import { posterUrl } from '../lib/fallbackCatalog';
 import { useAuth } from './useAuth';
 
-export type ProfileFilm = { title: string; poster?: string; movieId?: number; mediaType?: 'movie' | 'tv' };
+export type ProfileFilm = { title: string; poster?: string; movieId?: number; mediaType?: 'movie' | 'tv'; kept?: boolean };
 
 function posterFrom(row: Record<string, unknown>): string | undefined {
   const raw =
@@ -33,6 +33,7 @@ export function profileFilms(data: unknown): ProfileFilm[] {
       out.push({
         title,
         poster,
+        kept: key === 'favoriteFilms',
         ...(typeof id === 'number' ? { movieId: id, mediaType: 'movie' } : {}),
       });
     }

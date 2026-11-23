@@ -13,59 +13,13 @@ import { useLetterboxdImport } from '../hooks/useLetterboxdImport';
 import ImportDropZone from '../components/ImportDropZone';
 import { useTaste } from '../lib/taste';
 import { tasteVoice } from '../lib/taste/voice';
+import { CraftGraphView } from '../components/CraftWheel';
 
 function Stat({ n, label }: { n: string; label: string }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="font-spec text-[32px] uppercase leading-none tracking-tight text-fg">{n}</span>
       <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">{label}</span>
-    </div>
-  );
-}
-
-function AssemblyStage({
-  films,
-  colour,
-  label,
-  exposed,
-}: {
-  films: Array<{ title: string; poster?: string; movieId?: number; mediaType?: string }>;
-  colour: string;
-  label: string;
-  exposed: number;
-}) {
-  const nodes = films.slice(0, 8);
-  const orbit = 64;
-  return (
-    <div className="assembly-stage relative mt-4 overflow-hidden" data-testid="you-assembly-stage">
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[148px] w-[148px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed"
-        style={{ borderColor: colour }}
-      />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-        <p className="font-spec text-[34px] leading-none tracking-tight text-fg">{exposed}%</p>
-        <p className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">{label}</p>
-      </div>
-      {nodes.map((film, index) => {
-        const angle = -Math.PI / 2 + (index / Math.max(nodes.length, 1)) * Math.PI * 2;
-        const x = Math.cos(angle) * orbit;
-        const y = Math.sin(angle) * (orbit * 0.82);
-        const initial = (film.title.trim()[0] || '·').toUpperCase();
-        return (
-          <span
-            key={`${film.title}-${index}`}
-            className="absolute grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden rounded-full border-2 bg-base-3"
-            style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, borderColor: colour }}
-            title={film.title}
-          >
-            {film.poster ? (
-              <img src={film.poster} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span className="font-spec text-[11px] text-fg">{initial}</span>
-            )}
-          </span>
-        );
-      })}
     </div>
   );
 }
@@ -162,6 +116,20 @@ export default function ProfileScreen() {
   const archWord = selectsProfile?.archetype || (voice.axis === 'mood' ? 'Mood first' : voice.axis === 'visual' ? 'The room' : voice.axis === 'story' ? 'The writing' : 'Your read');
   const readLine = selectsProfile?.read || voice.lead;
   const exposed = Math.min(100, keptCount * 12 + struckCount * 8 + loggedCount * 20 + (hour == null ? 0 : 10));
+  const keptSeeds = profileFilms.filter((film) => film.kept && typeof film.movieId === 'number').map((film) => ({
+    id: film.movieId as number,
+    title: film.title,
+    poster: film.poster ?? null,
+    mediaType: film.mediaType,
+  }));
+  const youSeeds = keptSeeds.length > 0
+    ? keptSeeds
+    : snapshot.generated.lastPicks.slice(0, 6).map((film) => ({
+      id: film.movieId,
+      title: film.title,
+      poster: film.poster || null,
+      mediaType: film.mediaType ?? 'movie' as const,
+    }));
 
   return (
     <div className="you-page relative min-h-screen max-w-md mx-auto overflow-x-hidden bg-base text-fg" data-testid="you-screen" style={{ ['--you' as string]: colour }}>
@@ -218,11 +186,12 @@ export default function ProfileScreen() {
             <b className="font-spec text-sm text-fg">{pageLoading ? '—' : `${exposed}%`}</b> exposed
           </span>
         </div>
-        <AssemblyStage
-          films={tasteFilms}
-          colour={colour}
+        <CraftGraphView
+          heading=""
           label={(displayName.split(' ')[0] || 'You').length > 12 ? 'You' : (displayName.split(' ')[0] || 'You')}
-          exposed={pageLoading ? 0 : exposed}
+          colour={colour}
+          keptIds={keptSeeds.map((film) => film.id)}
+          seeds={youSeeds}
         />
       </section>
 
