@@ -52,7 +52,7 @@ export default function MovieActions({
         </p>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-2 border-t border-line pt-4">
         <button
           onClick={onAddToCalendar}
           disabled={isAddingToCalendar}
@@ -83,7 +83,7 @@ export default function MovieActions({
           style={{ borderRadius: 0 }}
         >
           {isInWatchlist ? <Check className="w-5 h-5" /> : <BookmarkPlus className="w-5 h-5" />}
-          <span className="hidden sm:inline">{isInWatchlist ? 'Saved' : 'Save'}</span>
+          <span>{isInWatchlist ? 'Saved' : 'Save'}</span>
         </button>
 
         <button
@@ -104,7 +104,7 @@ export default function MovieActions({
           ) : (
             <Eye className="w-5 h-5" />
           )}
-          <span className="hidden sm:inline">{verdict ? VERDICT_LABEL[verdict] : 'Seen'}</span>
+          <span>{verdict ? VERDICT_LABEL[verdict] : 'Seen'}</span>
         </button>
       </div>
 

@@ -23,7 +23,8 @@ function SelectBars({ score, open, reduce }: { score: number; open: boolean; red
   const width = open ? 8 : 9;
   const gap = open ? 3 : 4;
   return (
-    <span className="inline-flex items-center" style={{ height, gap }} aria-hidden>
+    <span className="relative inline-flex items-center" style={{ height, gap }} aria-hidden>
+      <span className="select-scan" />
       {Array.from({ length: 5 }, (_, index) => {
         const fill = Math.min(1, Math.max(0, (score - index * 20) / 20));
         return (
