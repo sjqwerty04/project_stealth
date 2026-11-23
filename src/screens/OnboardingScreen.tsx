@@ -5,6 +5,8 @@ import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firest
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
+import { setVerdict } from '../lib/library';
+import { posterUrl } from '../lib/fallbackCatalog';
 import { recordTasteEvent } from '../lib/taste';
 import type { Axis } from '../lib/taste/types';
 import {
@@ -146,6 +148,19 @@ export default function OnboardingScreen() {
         },
         { merge: true },
       );
+      for (const film of state.positive) {
+        const poster = !film.posterPath
+          ? ''
+          : film.posterPath.startsWith('http')
+            ? film.posterPath
+            : posterUrl(film.posterPath, 'w500');
+        await setVerdict(
+          user.uid,
+          { movieId: film.id, title: film.title, year: film.year, poster },
+          'liked',
+          'manual',
+        );
+      }
       await recordTasteEvent(
         user.uid,
         { type: 'onboarding', favoriteFilms: favorite, dislikedFilms: disliked, axis: state.axes[0] ?? null },

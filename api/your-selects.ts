@@ -115,6 +115,7 @@ async function recommendWithGrok(
       skill || 'Recommend films that match this viewer. JSON only.'
     }\nFor this request, return exactly ${count} film${count === 1 ? '' : 's'}.`,
     maxTokens: count === 1 ? 500 : 900,
+    reasoningEffort: 'low',
     messages: [
       {
         role: 'user',

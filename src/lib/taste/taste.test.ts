@@ -213,6 +213,32 @@ describe('applyTasteEvent', () => {
     expect(next.generated.lastPicks[0].title).toBe('Sicario');
   });
 
+  it('keeps a calendar like on the preference list', () => {
+    const seeded = applyTasteEvent(
+      emptySnapshot(),
+      {
+        type: 'onboarding',
+        favoriteFilms: [{ title: 'Heat' }],
+        dislikedFilms: [],
+        axis: 'mood',
+      },
+      'e0',
+    );
+    const next = applyTasteEvent(
+      seeded,
+      {
+        type: 'calendar_log',
+        movieId: 1538,
+        title: 'Collateral',
+        date: '2026-11-23T12:00:00.000Z',
+        verdict: 'liked',
+      },
+      'e1',
+    );
+    expect(next.context.preferences).toContain('Collateral');
+    expect(next.context.history[0]).toMatchObject({ item: 'Collateral', rating: 5 });
+  });
+
   it('busts last picks on a rec verdict so the rated film cannot reuse the 6h cache', () => {
     const seeded = applyTasteEvent(
       emptySnapshot(),

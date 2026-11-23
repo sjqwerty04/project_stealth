@@ -81,7 +81,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function ProfileScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useUserProfile();
+  const { profile, updateProfile } = useUserProfile();
   const insights = useUserInsights();
   const { snapshot, loading: tasteLoading } = useTaste();
   const profileFilms = useProfileFilms();
@@ -102,6 +102,26 @@ export default function ProfileScreen() {
   const displayName =
     profile?.displayName ?? user?.displayName ?? user?.email?.split('@')[0] ?? 'You';
   const handle = profile?.handle ?? null;
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const shownName = nameDraft ?? displayName;
+
+  useEffect(() => {
+    setNameDraft((draft) => (draft != null && draft.trim() === displayName ? null : draft));
+  }, [displayName]);
+
+  const commitName = async () => {
+    const next = shownName.trim();
+    if (!next || next === displayName) {
+      setNameDraft(null);
+      return;
+    }
+    try {
+      await updateProfile({ displayName: next });
+      setNameDraft(null);
+    } catch (err) {
+      console.error('Failed to save display name:', err);
+    }
+  };
 
   const handleLetterboxdImport = async () => {
     const trimmed = lbUsername.trim();
@@ -139,7 +159,6 @@ export default function ProfileScreen() {
   const loggedCount = stats?.watchedCount ?? 0;
   const hour = typeof profileDoc?.lightsDownHour === 'number' ? profileDoc.lightsDownHour : null;
   const hourLabel = hour == null ? '—' : `${((hour + 11) % 12) + 1} ${hour >= 12 ? 'PM' : 'AM'}`;
-  const initial = (displayName.trim()[0] || 'Y').toUpperCase();
   const archWord = selectsProfile?.archetype || (voice.axis === 'mood' ? 'Mood first' : voice.axis === 'visual' ? 'The room' : voice.axis === 'story' ? 'The writing' : 'Your read');
   const readLine = selectsProfile?.read || voice.lead;
   const exposed = Math.min(100, keptCount * 12 + struckCount * 8 + loggedCount * 20 + (hour == null ? 0 : 10));
@@ -148,9 +167,21 @@ export default function ProfileScreen() {
     <div className="you-page relative min-h-screen max-w-md mx-auto overflow-x-hidden bg-base text-fg" data-testid="you-screen" style={{ ['--you' as string]: colour }}>
       <header className="relative px-5 pb-2 pt-6">
         <div className="flex items-center gap-3.5">
-          <span className="grid h-[52px] w-[52px] place-items-center text-[22px] font-extrabold text-base" style={{ background: colour }} data-testid="you-swatch">{initial}</span>
-          <div className="min-w-0">
-            <h1 className="break-words font-display text-[22px] font-semibold leading-none tracking-tight text-fg">{displayName}</h1>
+          <span className="grid h-[52px] w-[52px] place-items-center text-[22px] font-extrabold text-base" style={{ background: colour }} data-testid="you-swatch">{(shownName.trim()[0] || 'Y').toUpperCase()}</span>
+          <div className="min-w-0 flex-1">
+            <input
+              aria-label="Display name"
+              data-testid="display-name"
+              value={shownName}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={() => {
+                void commitName();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              className="w-full break-words border-0 bg-transparent font-display text-[22px] font-semibold leading-none tracking-tight text-fg outline-none"
+            />
             {handle ? <p className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">@{handle}</p> : <p className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">Set a handle</p>}
           </div>
         </div>

@@ -70,6 +70,35 @@ describe('selectHistory', () => {
 describe('libraryStats and libraryLine', () => {
   const stats = libraryStats(bigLibrary())!;
 
+  it('keeps a plain like in canon and in the keeping list', () => {
+    const liked = mergeFilm(emptyFilm(335984, 'Blade Runner 2049'), {
+      watched: true,
+      verdict: 'liked',
+      stars: null,
+      hearted: false,
+      watchCount: 1,
+    });
+    const plain = libraryStats([liked]);
+    expect(plain?.canon).toEqual(['Blade Runner 2049']);
+    const context = buildRecommendContext({
+      identity: { personaLine: null, axis: 'mood' },
+      favorites: [{ title: 'Heat' }],
+      disliked: [],
+      rated: ratedFromLibrary([liked]),
+      watchlist: [{ title: 'Heat' }],
+      skipped: [],
+      searches: [],
+      patterns: [],
+      library: plain,
+    });
+    expect(context.preferences).toEqual([
+      'mood-first viewing',
+      'Heat',
+      'Blade Runner 2049',
+      'something like Heat',
+    ]);
+  });
+
   it('summarises the ledger', () => {
     expect(stats.watched).toBe(900);
     expect(stats.rated).toBe(900);

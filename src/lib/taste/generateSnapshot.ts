@@ -60,7 +60,7 @@ export function libraryStats(films: LibraryFilm[]): LibraryStats | null {
   const avgStars = starred.length ? starred.reduce((sum, f) => sum + (f.stars ?? 0), 0) / starred.length : null;
   const byLast = [...watched].sort((a, b) => (b.lastWatchedAt ?? '').localeCompare(a.lastWatchedAt ?? ''));
   const canon = byLast
-    .filter((f) => f.verdict !== 'nope' && (f.hearted || (f.stars ?? 0) >= 4.5 || f.watchCount >= 2))
+    .filter((f) => f.verdict === 'liked' || (f.verdict !== 'nope' && (f.hearted || (f.stars ?? 0) >= 4.5 || f.watchCount >= 2)))
     .sort((a, b) => (b.stars ?? 0) + b.watchCount - ((a.stars ?? 0) + a.watchCount))
     .slice(0, 8)
     .map((f) => f.title);
@@ -196,11 +196,17 @@ export async function generateSnapshot(uid: string, fromEventId?: string | null)
   const currentSnap = await getDoc(tasteDoc(uid));
   const current = currentSnap.exists() ? parseSnapshot(currentSnap.data()) : emptySnapshot();
   const { evidence, pointers } = await loadDiary(uid, current);
-  const context = buildRecommendContext(evidence);
+  const freshSnap = await getDoc(tasteDoc(uid));
+  const fresh = freshSnap.exists() ? parseSnapshot(freshSnap.data()) : current;
+  const identity = {
+    personaLine: fresh.identity.personaLine || evidence.identity.personaLine,
+    axis: fresh.identity.axis || evidence.identity.axis,
+  };
+  const context = buildRecommendContext({ ...evidence, identity });
   const next = withCompact(
     {
       ...current,
-      identity: evidence.identity,
+      identity,
       pointers: { ...pointers, lastEventId: fromEventId ?? pointers.lastEventId },
       context,
       generated: {

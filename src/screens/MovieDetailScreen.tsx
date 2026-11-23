@@ -243,24 +243,39 @@ export default function MovieDetailScreen() {
 
     setIsMarkingSeen(true);
     try {
-      await setLedgerVerdict(
-        user.uid,
-        {
-          movieId: details.id,
-          title: details.title,
-          year: details.year,
-          poster: buildImageUrl(details.posterPath) || '',
-          backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
-          mediaType: details.mediaType,
-        },
-        verdict,
-        'discovery',
-      );
-      await recordTasteEvent(
-        user.uid,
-        { type: 'verdict', movieId: details.id, title: details.title, year: details.year, verdict, source: 'detail' },
-        { email: user.email },
-      );
+      const film = {
+        movieId: details.id,
+        title: details.title,
+        year: details.year,
+        poster: buildImageUrl(details.posterPath) || '',
+        backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
+        mediaType: details.mediaType,
+      };
+      if (!libraryFilm?.watched) {
+        const day = localDayKey(new Date());
+        const noon = new Date(`${day}T12:00:00`);
+        await addEvent({
+          movieId: film.movieId,
+          title: film.title,
+          poster: film.poster,
+          date: noon.toISOString(),
+          inviteFriend: false,
+          verdict,
+          status: 'watched',
+          backdrop: film.backdrop,
+          mediaType: film.mediaType,
+          year: film.year,
+          runtimeLabel: details.runtime || 'Feature',
+          rewatch: false,
+        });
+      } else {
+        await setLedgerVerdict(user.uid, film, verdict, 'discovery');
+        await recordTasteEvent(
+          user.uid,
+          { type: 'verdict', movieId: details.id, title: details.title, year: details.year, verdict, source: 'detail' },
+          { email: user.email },
+        );
+      }
 
       const watchlistItem = getWatchlistItem(details.id);
       if (watchlistItem) {
@@ -271,7 +286,7 @@ export default function MovieDetailScreen() {
     } finally {
       setIsMarkingSeen(false);
     }
-  }, [details, user, getWatchlistItem, removeFromWatchlist]);
+  }, [details, user, getWatchlistItem, removeFromWatchlist, libraryFilm?.watched, addEvent]);
 
   const handleSimilarMovieClick = (movieId: number) => {
     navigate(`/movie/${movieId}?type=movie`);
