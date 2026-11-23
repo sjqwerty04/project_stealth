@@ -36,31 +36,23 @@ async function logFutureNight(page: Page, movieId: number, day: string) {
 
 async function whyClearOfDock(page: Page) {
   return page.evaluate(() => {
-    const dock = document.querySelector('[data-testid="strip-dock"]');
+    const tab = document.querySelector('[data-testid="tab-bar"]');
     const scroll = document.querySelector('[data-testid="selects-scroll"]');
-    if (!dock) return { ok: false, detail: 'no dock' };
+    const dock = document.querySelector('[data-testid="strip-dock"]');
+    if (!tab) return { ok: false, detail: 'no tab' };
     if (!scroll) return { ok: false, detail: 'no scroll' };
-    const dr = dock.getBoundingClientRect();
-    const sr = scroll.getBoundingClientRect();
-    if (sr.bottom > dr.top + 1) {
-      return { ok: false, detail: `scrollport overlaps dock ${sr.bottom - dr.top}` };
-    }
+    if (!dock || !scroll.contains(dock)) return { ok: false, detail: 'day reel is not in the scroll' };
+    const tr = tab.getBoundingClientRect();
     const whys = Array.from(document.querySelectorAll('[data-testid="why-match-line"]'));
     const visible = whys.filter((node) => {
       const r = node.getBoundingClientRect();
-      const top = Math.max(r.top, sr.top);
-      const bottom = Math.min(r.bottom, sr.bottom);
-      return r.width > 0 && bottom - top > 1 && r.right > 0 && r.left < window.innerWidth;
+      return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight && r.bottom - r.top > 8;
     });
     if (!visible.length) return { ok: false, detail: 'no visible why' };
     for (const node of visible) {
       const r = node.getBoundingClientRect();
-      const top = Math.max(r.top, sr.top);
-      const bottom = Math.min(r.bottom, sr.bottom);
-      const overlap = Math.min(bottom, dr.bottom) - Math.max(top, dr.top);
-      if (overlap > 1) {
-        return { ok: false, detail: `overlap ${overlap}` };
-      }
+      const overlap = Math.min(r.bottom, tr.bottom) - Math.max(r.top, tr.top);
+      if (overlap > 1) return { ok: false, detail: `why under tab ${overlap}` };
     }
     return { ok: true, detail: '' };
   });
@@ -94,9 +86,7 @@ test.describe('home strip why vs trailer', () => {
     const firstKey = await page.getByTestId('day-stage').getAttribute('data-stage-key');
     expect(firstKey).toContain(dayA);
     await waitForSelects(page);
-    await page.getByTestId('selects-scroll').evaluate((node) => {
-      node.scrollTop = node.scrollHeight;
-    });
+    await page.getByTestId('why-match-line').first().scrollIntoViewIfNeeded();
 
     const whyClear = await whyClearOfDock(page);
     expect(whyClear.ok, whyClear.detail).toBe(true);

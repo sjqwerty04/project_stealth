@@ -16,6 +16,7 @@ import {
 type Props = {
   imports: OnboardingState['imports'];
   dispatch: (action: OnboardingAction) => void;
+  letterboxdUsername?: string;
 };
 
 const TILE_COPY: Record<ImportSourceId, { title: string; sub: string }> = {
@@ -56,10 +57,11 @@ function TileStatus({ state }: { state: ImportSourceState }) {
   }
 }
 
-function LetterboxdUsername({ dispatch }: { dispatch: Props['dispatch'] }) {
-  const [username, setUsername] = useState('');
+function LetterboxdUsername({ dispatch, initialUsername = '' }: { dispatch: Props['dispatch']; initialUsername?: string }) {
+  const [username, setUsername] = useState(initialUsername);
   const [attempt, setAttempt] = useState(0);
   const failedRef = useRef(false);
+  const autoRef = useRef(false);
   const { importFromLetterboxd, isImporting, error } = useLetterboxdImport();
 
   // The hook sets its error right before returning 0, so the message is only current after a re-render.
@@ -69,18 +71,27 @@ function LetterboxdUsername({ dispatch }: { dispatch: Props['dispatch'] }) {
     dispatch({ type: 'importFailed', source: 'letterboxd', message: error ?? 'Could not read that Letterboxd.' });
   }, [attempt, error, dispatch]);
 
-  const run = async () => {
-    const clean = username.replace(/^.*letterboxd\.com\//i, '').replace(/\/.*$/, '').trim();
-    if (!clean || isImporting) return;
-    dispatch({ type: 'importStarted', source: 'letterboxd' });
-    const summary = await importFromLetterboxd(clean);
-    if (summary.films > 0) {
-      dispatch({ type: 'importDone', source: 'letterboxd', films: summary.films, nights: summary.nights });
-    } else {
-      failedRef.current = true;
-      setAttempt((n) => n + 1);
-    }
-  };
+  const run = useCallback(
+    async (raw: string) => {
+      const clean = raw.replace(/^.*letterboxd\.com\//i, '').replace(/\/.*$/, '').trim();
+      if (!clean || isImporting) return;
+      dispatch({ type: 'importStarted', source: 'letterboxd' });
+      const summary = await importFromLetterboxd(clean);
+      if (summary.films > 0) {
+        dispatch({ type: 'importDone', source: 'letterboxd', films: summary.films, nights: summary.nights });
+      } else {
+        failedRef.current = true;
+        setAttempt((n) => n + 1);
+      }
+    },
+    [dispatch, importFromLetterboxd, isImporting],
+  );
+
+  useEffect(() => {
+    if (!initialUsername || autoRef.current) return;
+    autoRef.current = true;
+    void run(initialUsername);
+  }, [initialUsername, run]);
 
   return (
     <div className="space-y-2">
@@ -98,7 +109,7 @@ function LetterboxdUsername({ dispatch }: { dispatch: Props['dispatch'] }) {
           autoCorrect="off"
           spellCheck={false}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') void run();
+            if (e.key === 'Enter') void run(username);
           }}
           className="flex-1 font-spec text-xs"
         />
@@ -106,7 +117,7 @@ function LetterboxdUsername({ dispatch }: { dispatch: Props['dispatch'] }) {
       <Button
         type="button"
         data-testid="import-letterboxd-read"
-        onClick={() => void run()}
+        onClick={() => void run(username)}
         disabled={!username.trim()}
         loading={isImporting}
         className="w-full"
@@ -118,8 +129,8 @@ function LetterboxdUsername({ dispatch }: { dispatch: Props['dispatch'] }) {
   );
 }
 
-export default function ImportHub({ imports, dispatch }: Props) {
-  const [open, setOpen] = useState<ImportSourceId | null>(null);
+export default function ImportHub({ imports, dispatch, letterboxdUsername = '' }: Props) {
+  const [open, setOpen] = useState<ImportSourceId | null>(letterboxdUsername ? 'letterboxd' : null);
 
   const toggle = (id: ImportSourceId) => setOpen((cur) => (cur === id ? null : id));
 
@@ -138,7 +149,7 @@ export default function ImportHub({ imports, dispatch }: Props) {
       case 'letterboxd':
         return (
           <div className="space-y-4">
-            <LetterboxdUsername dispatch={dispatch} />
+            <LetterboxdUsername dispatch={dispatch} initialUsername={letterboxdUsername} />
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-line" />
               <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">or the export</span>

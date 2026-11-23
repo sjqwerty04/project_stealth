@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, LayoutGroup } from 'framer-motion';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useHandle, normalizeHandle, isValidHandle } from '../hooks/useHandle';
@@ -17,6 +17,15 @@ import {
   onboardingReducer,
   STEP_ORDER,
 } from '../lib/onboarding/state';
+import {
+  axesFromSeed,
+  forgetSeed,
+  profileAlreadyFinished,
+  readRememberedSeed,
+  seedFilmDoc,
+  stateFromSeed,
+  type MarketingSeed,
+} from '../lib/onboarding/seed';
 import { buildTasteGraph } from '../lib/onboarding/graph';
 import Armature from '../components/Armature';
 import PickWall from '../components/PickWall';
@@ -36,18 +45,76 @@ export default function OnboardingScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get('next') || '/app';
+  const retake = searchParams.get('retake') === 'true';
   const { user } = useAuth();
   const { claimHandle, isAvailable } = useHandle();
+  const seed = useRef<MarketingSeed | null>(retake ? null : readRememberedSeed()).current;
 
-  const [state, dispatch] = useReducer(onboardingReducer, initialOnboardingState);
+  const [state, dispatch] = useReducer(onboardingReducer, seed, (incoming) =>
+    incoming ? stateFromSeed(incoming) : initialOnboardingState,
+  );
   const [saving, setSaving] = useState(false);
   const reading = useReading(state, dispatch, user?.uid ?? null);
+  const wroteSeed = useRef(false);
 
   const finish = useCallback(() => {
     sessionStorage.removeItem('isNewUser');
     sessionStorage.removeItem('pendingInviteCode');
+    forgetSeed();
     navigate(nextPath, { replace: true });
   }, [navigate, nextPath]);
+
+  useEffect(() => {
+    if (retake) forgetSeed();
+  }, [retake]);
+
+  useEffect(() => {
+    if (!user || !seed || retake || wroteSeed.current) return;
+    wroteSeed.current = true;
+    const axes = axesFromSeed(seed.axes);
+    void (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid, 'profile_data', 'taste_profile'));
+        if (profileAlreadyFinished(snap.data())) {
+          forgetSeed();
+          navigate(nextPath, { replace: true });
+          return;
+        }
+        try {
+          await updateDoc(doc(db, 'users', user.uid), { 'profile.displayName': seed.name });
+        } catch (err) {
+          console.error('Failed to save display name:', err);
+        }
+        await setDoc(
+          doc(db, 'users', user.uid, 'profile_data', 'taste_profile'),
+          {
+            onboardingCompleted: true,
+            favoriteFilms: seed.positive.map(seedFilmDoc),
+            dislikedFilms: seed.negative.map(seedFilmDoc),
+            filmPreference: axes[0] ?? null,
+            axes,
+            lightsDownHour: seed.hour,
+            completedAt: serverTimestamp(),
+            version: 2,
+          },
+          { merge: true },
+        );
+        await recordTasteEvent(
+          user.uid,
+          {
+            type: 'onboarding',
+            favoriteFilms: seed.positive.map((film) => ({ movieId: film.id, title: film.title, year: film.year })),
+            dislikedFilms: seed.negative.map((film) => ({ movieId: film.id, title: film.title, year: film.year })),
+            axis: axes[0] ?? null,
+          },
+          { email: user.email },
+        );
+      } catch (err) {
+        wroteSeed.current = false;
+        console.error('Failed to save seeded taste profile:', err);
+      }
+    })();
+  }, [user, seed, retake, navigate, nextPath]);
 
   const tryClaimHandleSilently = useCallback(async () => {
     if (!user) return;
@@ -212,7 +279,19 @@ export default function OnboardingScreen() {
           {state.step === 'import' && (
             <StepBody key="import" testId="onboarding-5">
               <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
-                <ImportHub imports={state.imports} dispatch={dispatch} />
+                {seed && seed.positive.length > 0 && (
+                  <div data-testid="seed-picks" className="px-7 pt-2 pb-4">
+                    <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">You kept</p>
+                    <ul className="mt-2 space-y-1">
+                      {seed.positive.map((film) => (
+                        <li key={film.id} className="text-sm text-fg">
+                          {film.title} <span className="font-spec text-[10px] text-fg-3">{film.year}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <ImportHub imports={state.imports} dispatch={dispatch} letterboxdUsername={seed?.letterboxd ?? ''} />
               </div>
               <Cta
                 label={anyImportDone(state) ? `Read my library · ${filmsRead(state)} films` : 'Read my library'}

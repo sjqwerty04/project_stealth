@@ -313,11 +313,17 @@ export default function MovieDetailScreen() {
 
   const backdropUrl = buildImageUrl(details.backdropPath, 'original');
 
+  const metaBits = [
+    details.year,
+    details.runtime,
+    details.techSpecs?.certification,
+    details.genres.slice(0, 2).join(' / '),
+  ].filter(Boolean);
+
   return (
     <div className="min-h-screen bg-base text-fg">
 
-      {/* ── HERO ── full-bleed video/backdrop, ~60vh with centered logo */}
-      <div className="relative h-[60vh] min-h-[340px] overflow-hidden">
+      <div className="relative flex h-[48vh] min-h-[340px] items-end overflow-hidden">
         {details.heroVideo ? (
           <div className="hero-video-wrap absolute inset-0" style={{ background: '#000' }}>
             <YouTubeCover
@@ -351,23 +357,23 @@ export default function MovieDetailScreen() {
         )}
 
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/20 to-transparent pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-base via-base/40 to-black/20" />
 
-        {/* Back */}
         <button
           onClick={handleBack}
-          className="fixed top-4 left-4 z-[70] p-2.5 min-h-11 min-w-11 bg-black/50 text-fg flex items-center gap-1.5"
+          className="absolute left-4 top-[max(12px,env(safe-area-inset-top))] z-20 flex min-h-11 items-center gap-2 font-spec text-[10px] uppercase tracking-widest text-fg"
           aria-label="Go back"
         >
-          <ArrowLeft size={20} />
-          {fromOrbit && <span className="text-sm font-medium pr-1">Orbit</span>}
+          <ArrowLeft size={16} />
+          Back
+          {fromOrbit && <span>Orbit</span>}
         </button>
 
         {/* DNA */}
         {mediaType === 'movie' && (
           <button
             onClick={() => navigate(`/dna/${details.id}`)}
-            className="fixed top-4 right-4 z-[70] px-3.5 py-2 min-h-11 bg-black/50 text-fg"
+            className="absolute right-4 top-[max(12px,env(safe-area-inset-top))] z-20 min-h-11 font-spec text-[10px] uppercase tracking-widest text-fg"
             aria-label="Explore DNA"
           >
             <span className="text-base font-extrabold tracking-[-0.12em]">DNA</span>
@@ -378,31 +384,25 @@ export default function MovieDetailScreen() {
         {details.heroVideo && (
           <button
             onClick={toggleMute}
-            className="absolute bottom-4 right-4 z-20 p-2.5 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+            className="absolute bottom-4 right-4 z-20 min-h-11 min-w-11 bg-base/50 p-2.5 text-fg"
           >
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
         )}
 
-        <div className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-none">
+        <div className="pointer-events-none relative z-10 w-full px-5 pb-2">
+          <p className="font-spec text-[10px] uppercase tracking-[0.14em] text-fg-2">{metaBits.join(' · ')}</p>
           <FilmLogo
             src={details.logoPath ? `https://image.tmdb.org/t/p/original${details.logoPath}` : null}
-            className="w-[36%] max-h-16 object-contain drop-shadow-2xl"
+            className="mt-3 max-h-[92px] w-[88%] object-contain object-left drop-shadow-2xl"
           />
+          {!details.logoPath && <h1 className="mt-3 font-display text-[40px] font-extrabold leading-none text-fg">{details.title}</h1>}
           <h1 className="sr-only">{details.title}</h1>
+          {details.tagline && <p className="mt-3 text-[18px] leading-snug text-fg">{details.tagline}</p>}
         </div>
       </div>
 
-      {/* ── TITLE META (below hero) ── */}
-      <div className="px-4 pt-4 pb-2">
-        <p className="text-gray-400 text-sm text-center">
-          {details.year}
-          {details.runtime && <> &bull; {details.runtime}</>}
-          {details.director && <> &bull; {details.director}</>}
-          {details.techSpecs?.certification && (
-            <> &bull; <span className="text-white/70">{details.techSpecs.certification}</span></>
-          )}
-        </p>
+      <div className="px-5 pb-2 pt-1">
         {mediaType === 'movie' && (
           <SelectScore
             movieId={details.id}
@@ -419,7 +419,7 @@ export default function MovieDetailScreen() {
             snapshot.generated.lastPicks.find((p) => p.movieId === details.id)?.whyMatch || stateWhy;
           if (!whyMatch) return null;
           return (
-            <div className="mt-4 text-center" data-testid="why-you-would-like-this">
+            <div className="mt-4 text-left" data-testid="why-you-would-like-this">
               <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-2">
                 Why you would like this
               </p>
@@ -430,27 +430,9 @@ export default function MovieDetailScreen() {
       </div>
 
       {/* ── CONTENT ── */}
-      <div className="px-4 space-y-4 pb-8">
+      <div className="space-y-4 px-5 pb-44">
 
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
-
-        {/* Action Buttons */}
-        <MovieActions
-          movie={{
-            movieId: details.id,
-            title: details.title,
-            year: details.year,
-            poster: buildImageUrl(details.posterPath) || '',
-            backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
-            runtime: details.runtime,
-          }}
-          onAddToCalendar={handleAddToCalendar}
-          onVerdict={handleVerdict}
-          isInWatchlist={isInWatchlist(details.id) || libraryFilm?.onWatchlist === true}
-          film={libraryFilm}
-          isAddingToCalendar={isAddingToCalendar}
-          isSavingVerdict={isMarkingSeen}
-        />
 
         {/* Orbit + Ask — side by side */}
         {mediaType === 'movie' && (
@@ -477,34 +459,36 @@ export default function MovieDetailScreen() {
         {mediaType !== 'movie' && (
           <button
             onClick={() => setChatOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#18181b] hover:bg-[#27272a] border border-white/10 text-gray-100 font-semibold text-sm transition-colors"
+            className="flex w-full min-h-11 items-center justify-center gap-2 border border-line bg-base-3 py-3.5 text-sm font-semibold text-fg"
           >
             <Sparkles className="w-4 h-4 text-purple-400" />
             <span>Ask AI about {details.title}</span>
           </button>
         )}
 
+        <div className="h-72" aria-hidden />
+
         <WhereToWatch providers={details.watchProviders} />
 
         {/* Known-for hook — below action buttons, above synopsis */}
         {knownFor && (
-          <div className="bg-[#18181b] border border-white/5 rounded-2xl px-4 py-3 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <p className="text-gray-200 text-sm italic leading-relaxed">{knownFor}</p>
+          <div className="flex items-center gap-2 border border-line bg-base-2 px-4 py-3">
+            <Sparkles className="w-3.5 h-3.5 shrink-0 text-select-ink" />
+            <p className="text-sm leading-relaxed text-fg">{knownFor}</p>
           </div>
         )}
 
         {/* Synopsis */}
         {details.overview && (
-          <div className="bg-[#18181b] rounded-2xl p-4 border border-white/5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Synopsis</h3>
-            <p className={`text-gray-200 text-sm leading-relaxed ${!showFullSynopsis ? 'line-clamp-4' : ''}`}>
+          <div className="border border-line bg-base-2 p-4">
+            <h3 className="mb-2.5 font-spec text-[10px] uppercase tracking-widest text-fg-3">Synopsis</h3>
+            <p className={`text-sm leading-relaxed text-fg-2 ${!showFullSynopsis ? 'line-clamp-4' : ''}`}>
               {details.overview}
             </p>
             {details.overview.length > 220 && (
               <button
                 onClick={() => setShowFullSynopsis(!showFullSynopsis)}
-                className="flex items-center gap-1 text-purple-400 text-xs mt-2.5 font-medium"
+                className="mt-2.5 flex min-h-11 items-center gap-1 text-xs font-medium text-select-ink"
               >
                 {showFullSynopsis ? <>Less <ChevronUp size={14} /></> : <>More <ChevronDown size={14} /></>}
               </button>
@@ -513,32 +497,34 @@ export default function MovieDetailScreen() {
         )}
 
         {/* Cast — horizontal scroll with profile photos */}
-        {details.cast.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Cast</h3>
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
-              {details.cast.map((c) => (
-                <div key={c.id} className="flex-shrink-0 w-16 text-center">
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-[#27272a] border border-white/10 mb-1.5">
-                    {c.profilePath ? (
-                      <img
-                        src={`https://image.tmdb.org/t/p/w185${c.profilePath}`}
-                        alt={c.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-600 text-xl font-bold">
-                        {c.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-300 leading-tight line-clamp-2">{c.name}</p>
-                  {c.character && (
-                    <p className="text-[10px] text-gray-600 mt-0.5 line-clamp-1">{c.character}</p>
-                  )}
-                </div>
-              ))}
-            </div>
+        {(details.director || details.cast.length > 0) && (
+          <div className="border-t border-line">
+            {details.director && (
+              <div className="grid grid-cols-1 gap-1 border-b border-line py-3">
+                <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Directed</span>
+                <span className="text-sm text-fg">{details.director}</span>
+              </div>
+            )}
+            {details.cast.length > 0 && (
+              <div className="grid grid-cols-1 gap-1 border-b border-line py-3">
+                <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Cast</span>
+                <ul className="space-y-2">
+                  {details.cast.slice(0, 8).map((c) => (
+                    <li key={c.id} className="flex items-center gap-3">
+                      <span className="h-8 w-8 shrink-0 overflow-hidden bg-base-3">
+                        {c.profilePath ? (
+                          <img src={`https://image.tmdb.org/t/p/w185${c.profilePath}`} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 text-sm text-fg">
+                        {c.name}
+                        {c.character ? <em className="ml-2 text-fg-3 not-italic">{c.character}</em> : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -699,8 +685,31 @@ export default function MovieDetailScreen() {
         </div>
       )}
 
-      {/* Floating starter-question chips */}
-      <StarterPrompts questions={insights.suggestedQuestions} onAsk={handleAsk} visible={showChips} />
+      <div
+        className="film-dock fixed inset-x-0 z-40 mx-auto w-full max-w-[480px] border-t border-line bg-base"
+        style={{ bottom: 'calc(68px + env(safe-area-inset-bottom))' }}
+        data-testid="film-dock"
+      >
+        <StarterPrompts questions={insights.suggestedQuestions} onAsk={handleAsk} visible={showChips} embedded />
+        <div className="px-3 pb-2">
+          <MovieActions
+            movie={{
+              movieId: details.id,
+              title: details.title,
+              year: details.year,
+              poster: buildImageUrl(details.posterPath) || '',
+              backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
+              runtime: details.runtime,
+            }}
+            onAddToCalendar={handleAddToCalendar}
+            onVerdict={handleVerdict}
+            isInWatchlist={isInWatchlist(details.id) || libraryFilm?.onWatchlist === true}
+            film={libraryFilm}
+            isAddingToCalendar={isAddingToCalendar}
+            isSavingVerdict={isMarkingSeen}
+          />
+        </div>
+      </div>
 
       {/* Movie-scoped chat sheet */}
       <MovieChatSheet

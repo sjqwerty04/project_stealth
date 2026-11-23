@@ -23,7 +23,8 @@ function SelectBars({ score, open, reduce }: { score: number; open: boolean; red
   const width = open ? 8 : 9;
   const gap = open ? 3 : 4;
   return (
-    <span className="inline-flex items-center" style={{ height, gap }} aria-hidden>
+    <span className="relative inline-flex items-center" style={{ height, gap }} aria-hidden>
+      <span className="select-scan" />
       {Array.from({ length: 5 }, (_, index) => {
         const fill = Math.min(1, Math.max(0, (score - index * 20) / 20));
         return (
@@ -67,7 +68,7 @@ export function SelectScoreLockup({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">Select</span>
+        <span className="font-spec text-[10px] uppercase tracking-widest text-select">Select</span>
         <span className={`mt-1.5 flex items-center ${orbit ? 'justify-center' : 'gap-3.5'}`}>
           <motion.span
             className="inline-flex items-center gap-2.5"

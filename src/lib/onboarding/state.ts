@@ -61,7 +61,8 @@ export type OnboardingAction =
   | { type: 'importFailed'; source: ImportSourceId; message: string }
   | { type: 'importReset'; source: ImportSourceId }
   | { type: 'statsReady'; stats: TasteStats }
-  | { type: 'profileReady'; profile: SelectsProfile | null };
+  | { type: 'profileReady'; profile: SelectsProfile | null }
+  | { type: 'applySeed'; positive: FilmPick[]; negative: FilmPick[]; axes: Axis[]; step: Step };
 
 export const initialOnboardingState: OnboardingState = {
   step: 'splash',
@@ -140,5 +141,13 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
       return { ...state, stats: action.stats };
     case 'profileReady':
       return { ...state, profile: action.profile };
+    case 'applySeed':
+      return {
+        ...state,
+        positive: action.positive,
+        negative: action.negative,
+        axes: action.axes,
+        step: action.step,
+      };
   }
 }

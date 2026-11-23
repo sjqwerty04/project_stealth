@@ -153,7 +153,21 @@ export default function DiscoverScreen() {
         </button>
       )}
 
-      {/* Header */}
+      <header className="px-5 pb-2 pt-5">
+        <h1 className="font-display text-[40px] font-extrabold leading-[0.92] tracking-tight text-fg">Hunt by feel.</h1>
+        <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar">
+          {['neo noir', 'two-hander', 'slow cinema', 'Heat'].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => setQuery(chip)}
+              className="min-h-11 shrink-0 border border-line px-3 font-spec text-[10px] uppercase tracking-widest text-fg-2"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      </header>
       <div className="sticky top-0 z-20 bg-base border-b border-line">
         {/* Search Bar */}
         <div className="flex items-center gap-3 p-4">
@@ -171,7 +185,7 @@ export default function DiscoverScreen() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Hunt a film"
+              placeholder="A title, a person, a year"
               aria-label="Search movies and shows"
               autoFocus
               data-testid="orbit-search"

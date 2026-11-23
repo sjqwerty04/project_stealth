@@ -7,13 +7,17 @@ import YouTubeCover, { COVER_FADE_MS } from './YouTubeCover';
 import FilmLogo from './FilmLogo';
 import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, localDayKey, stripFill } from '../lib/stripDays';
-import SelectsCarousel, { type FilmArt, type SelectFilm } from './SelectsCarousel';
+import HomeTickets from './HomeTickets';
+import type { FilmArt, SelectFilm } from './SelectsCarousel';
 import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
 import { dayBillStep, dayStageKey, isSelectsDismissTarget, nightOrder, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
 import { Mark } from './ui';
 import Skeleton from './ui/Skeleton';
 import DiaryDaySheet from './DiaryDaySheet';
 import { useLibrary } from '../lib/library';
+import { useAuth } from '../hooks/useAuth';
+import { useUserProfile } from '../hooks/useUserProfile';
+import { useUserInsights } from '../hooks/useUserInsights';
 import { useProfileFilms } from '../hooks/useProfileFilms';
 import FeedbackFAB from './FeedbackFAB';
 import { VerdictBadge } from './VerdictPicker';
@@ -439,7 +443,7 @@ export default function HomeStrip({
 }) {
   const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
-  const [stageOpen, setStageOpen] = useState(true);
+  const [stageOpen, setStageOpen] = useState(false);
   const [daySheet, setDaySheet] = useState<Date | null>(null);
   const {
     picks,
@@ -450,6 +454,9 @@ export default function HomeStrip({
     dismissSelect,
     retrySelectReplacement,
   } = useRecommendation({ events });
+  const { user } = useAuth();
+  const { profile } = useUserProfile();
+  const insights = useUserInsights();
   const { byId: library, films: libraryFilms } = useLibrary();
   const profilePicks = useProfileFilms();
   const stripTrackRef = useRef<HTMLDivElement | null>(null);
@@ -516,6 +523,17 @@ export default function HomeStrip({
   }, [picks, posterPool]);
 
   const art = useCarouselArt(slides);
+  const lightsDown = typeof insights.tasteProfile?.lightsDownHour === 'number' ? insights.tasteProfile.lightsDownHour : null;
+  const now = new Date();
+  const hourNow = now.getHours() + now.getMinutes() / 60;
+  const until = lightsDown == null ? null : (lightsDown - hourNow + 24) % 24;
+  const untilLabel = until == null ? null : until < 1 ? 'under an hour' : `${Math.floor(until)}h ${String(Math.round((until % 1) * 60)).padStart(2, '0')}m`;
+  const greet = hourNow < 12 ? 'Morning' : hourNow < 18 ? 'Afternoon' : 'Evening';
+  const rawFirst = (profile?.displayName ?? user?.displayName ?? '').split(' ')[0] ?? '';
+  const firstName = rawFirst && !rawFirst.includes('.') && rawFirst.length <= 16 ? rawFirst : '';
+  const ticketTime = lightsDown == null
+    ? '9:40 PM'
+    : `${((lightsDown + 11) % 12) + 1}:40 ${lightsDown >= 12 ? 'PM' : 'AM'}`;
   const dateParam = searchParams.get('date');
 
   useEffect(() => {
@@ -583,7 +601,12 @@ export default function HomeStrip({
           setStageOpen(false);
         }}
       >
-        <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
+        <p className="font-spec text-[10px] uppercase tracking-[0.14em] text-fg-3">
+          {format(selected, 'EEEE d MMM').toUpperCase()}
+          {untilLabel ? ` · lights down in ${untilLabel}` : ''}
+        </p>
+        <h2 className="mt-3 mb-2 font-display text-[44px] font-extrabold leading-[0.9] tracking-tight text-fg" data-testid="home-ticket-title">{format(selected, 'EEEE')}’s ticket.</h2>
+        <p className="mb-5 text-[15px] text-fg-2">{greet}{firstName ? `, ${firstName}` : ''}. Three on the bill tonight.</p>
         {showSelectsSkeleton(status, slides.length) && (
           <div data-testid="selects-skeleton">
             <Skeleton className="w-full h-[220px]" />
@@ -600,11 +623,12 @@ export default function HomeStrip({
           </p>
         )}
         {slides.length > 0 && (
-          <SelectsCarousel
+          <HomeTickets
             slides={slides}
             art={art}
-            onOpenMovie={onOpenMovie}
+            time={ticketTime}
             replacements={replacements}
+            onOpenMovie={onOpenMovie}
             onVerdict={(slotId, verdict) => {
               void replaceSelect(slotId, verdict);
             }}
@@ -635,6 +659,14 @@ export default function HomeStrip({
             }}
           />
         )}
+        <button
+          type="button"
+          data-testid="open-day-reel"
+          onClick={() => setStageOpen(true)}
+          className="mb-3 min-h-11 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3"
+        >
+          The day reel
+        </button>
         {stageOpen && dayFilm ? (
           <div
             className="relative mt-4 overflow-hidden"
@@ -649,16 +681,13 @@ export default function HomeStrip({
             />
           </div>
         ) : null}
-        <div className="min-h-11" data-testid="selects-dismiss" />
-      </div>
-
-      <div className="shrink-0 bg-base pt-3" data-testid="strip-dock">
+        <div className="bg-base pt-6" data-testid="strip-dock">
         {dayFilm ? (
           <button
             type="button"
             data-testid="day-caption"
             onClick={() => setDaySheet(selected)}
-            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
+            className="mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
           >
             {format(selected, 'EEEE d')}
             {'  ·  '}
@@ -669,7 +698,7 @@ export default function HomeStrip({
             type="button"
             data-testid="ticket-slot-empty"
             onClick={() => onAddMovie(selected)}
-            className="px-7 mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
+            className="mb-2 text-left font-spec text-[10px] uppercase tracking-widest text-fg-3 min-h-11"
           >
             {format(selected, 'EEEE d')}
             {'  ·  '}
@@ -679,7 +708,7 @@ export default function HomeStrip({
 
         <div
           ref={stripTrackRef}
-          className="relative z-10 px-7 overflow-x-auto overflow-y-hidden no-scrollbar pb-3"
+          className="relative z-10 overflow-x-auto overflow-y-hidden no-scrollbar pb-3"
           data-testid="strip-track"
         >
           <div className="flex w-max gap-1 pb-2">
@@ -727,6 +756,8 @@ export default function HomeStrip({
             })}
           </div>
         </div>
+        </div>
+        <div className="min-h-11" data-testid="selects-dismiss" />
       </div>
       <DiaryDaySheet
         date={daySheet}

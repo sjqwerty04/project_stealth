@@ -11,7 +11,7 @@ export function Label({ children, accent = false, className = '' }: { children: 
 }
 
 export function Question({ children }: { children: ReactNode }) {
-  return <h2 className="font-display text-[22px] leading-[1.15] text-fg mt-2">{children}</h2>;
+  return <h2 className="mt-2 font-display text-[28px] font-bold leading-[1.02] tracking-tight text-fg">{children}</h2>;
 }
 
 /** One screen body. Enters from below, leaves upward, so consecutive steps read as one sheet sliding. */

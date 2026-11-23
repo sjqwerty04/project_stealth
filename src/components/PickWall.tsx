@@ -357,7 +357,9 @@ export default function PickWall({ wall, selected, onToggle, searchPlaceholder }
                       aria-pressed={isSelected}
                       onClick={() => handleTileTap(film)}
                       whileTap={{ scale: 0.97 }}
-                      className="relative aspect-[2/3] min-h-11 overflow-hidden bg-base-3 text-left"
+                      className={`relative aspect-[2/3] min-h-11 overflow-hidden bg-base-3 text-left ${
+                        isSelected ? 'shadow-[inset_0_0_0_2px_var(--select)]' : ''
+                      }`}
                       style={{ borderRadius: 2 }}
                     >
                       {film.posterPath ? (
@@ -365,10 +367,18 @@ export default function PickWall({ wall, selected, onToggle, searchPlaceholder }
                           src={imageSrc(film.posterPath)}
                           alt=""
                           loading="lazy"
-                          className="absolute inset-0 w-full h-full object-cover"
+                          className={`absolute inset-0 h-full w-full object-cover ${
+                            isSelected && wall === 'negative' ? 'brightness-50 grayscale' : ''
+                          }`}
                         />
                       ) : (
                         <div className="absolute inset-0 bg-base-3" />
+                      )}
+                      {isSelected && wall === 'positive' && (
+                        <span className="absolute left-1.5 top-1.5 bg-select px-1 font-spec text-[9px] uppercase tracking-widest text-base">Kept</span>
+                      )}
+                      {isSelected && wall === 'negative' && (
+                        <span className="pointer-events-none absolute left-[-20%] right-[-20%] top-1/2 h-2 -translate-y-1/2 -rotate-12 bg-select" />
                       )}
                       <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-base/95 to-transparent" />
                       <span className="absolute left-2 right-2 bottom-2 font-spec text-[10px] leading-[1.2] uppercase tracking-[0.04em] text-fg line-clamp-2">
