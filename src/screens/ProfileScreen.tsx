@@ -12,6 +12,15 @@ import ImportDropZone from '../components/ImportDropZone';
 import { useTaste } from '../lib/taste';
 import { tasteVoice } from '../lib/taste/voice';
 
+function Stat({ n, label }: { n: string; label: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-spec text-[32px] uppercase leading-none tracking-tight text-fg">{n}</span>
+      <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">{label}</span>
+    </div>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">
@@ -59,55 +68,51 @@ export default function ProfileScreen() {
     }
   };
 
-  const { stats, isLoading } = insights;
+  const { stats, isLoading, tasteProfile } = insights;
   const pageLoading = isLoading || tasteLoading;
   const hasData = !voice.empty || (stats?.watchedCount ?? 0) > 0;
+  const colour = '#3A6E85';
+  const profileDoc = tasteProfile as { favoriteFilms?: unknown[]; dislikedFilms?: unknown[]; lightsDownHour?: number } | null;
+  const keptCount = Array.isArray(profileDoc?.favoriteFilms) ? profileDoc.favoriteFilms.length : voice.keep.length;
+  const struckCount = Array.isArray(profileDoc?.dislikedFilms) ? profileDoc.dislikedFilms.length : voice.leave.length;
+  const loggedCount = stats?.watchedCount ?? 0;
+  const hour = typeof profileDoc?.lightsDownHour === 'number' ? profileDoc.lightsDownHour : null;
+  const hourLabel = hour == null ? '—' : `${((hour + 11) % 12) + 1} ${hour >= 12 ? 'PM' : 'AM'}`;
+  const initial = (displayName.trim()[0] || 'Y').toUpperCase();
+  const archWord = voice.axis === 'mood' ? 'Mood first' : voice.axis === 'visual' ? 'The room' : voice.axis === 'story' ? 'The writing' : 'Your read';
 
   return (
-    <div className="min-h-screen bg-base text-fg max-w-md mx-auto relative overflow-x-hidden" data-testid="you-screen">
-      <div className="flex items-start justify-between gap-4 px-5 pb-4 pt-6">
-        <div className="min-w-0">
-          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">You</p>
-          {handle ? (
-            <p className="mt-2 font-spec text-xs text-fg-2">@{handle}</p>
-          ) : (
-            <p className="mt-2 font-spec text-xs text-fg-3">Set a handle</p>
-          )}
-          <h1 className="mt-1 break-words font-display text-[34px] leading-none tracking-tight text-fg">{displayName}</h1>
-          {pageLoading ? (
-            <div className="mt-2 h-4 w-48 bg-base-3" data-testid="skeleton" />
-          ) : (
-            <p className="mt-2 text-sm text-fg-2" data-testid="insights-label">{voice.lead}</p>
-          )}
+    <div className="you-page relative min-h-screen max-w-md mx-auto overflow-x-hidden bg-base text-fg" data-testid="you-screen" style={{ ['--you' as string]: colour }}>
+      <header className="relative px-5 pb-2 pt-6">
+        <div className="flex items-center gap-3.5">
+          <span className="grid h-[52px] w-[52px] place-items-center text-[22px] font-extrabold text-base" style={{ background: colour }} data-testid="you-swatch">{initial}</span>
+          <div className="min-w-0">
+            <h1 className="break-words font-display text-[22px] font-semibold leading-none tracking-tight text-fg">{displayName}</h1>
+            {handle ? <p className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">@{handle}</p> : <p className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">Set a handle</p>}
+          </div>
         </div>
-        <span data-testid="you-swatch" className="mt-6 h-12 w-12 shrink-0" style={{ background: '#3A6E85' }} aria-hidden />
-      </div>
+        {pageLoading ? (
+          <div className="mt-6 h-16 w-full bg-base-3" data-testid="skeleton" />
+        ) : (
+          <>
+            <p className="mt-7 font-display text-[40px] font-extrabold leading-[0.9] tracking-tight" style={{ color: colour }}>{archWord}</p>
+            <p className="mt-3 max-w-[22ch] text-[20px] leading-snug text-fg" data-testid="insights-label">{voice.lead}</p>
+          </>
+        )}
+        <div className="mt-6 flex flex-wrap gap-x-7 gap-y-4 border-t border-line pt-4">
+          <Stat n={pageLoading ? '—' : String(keptCount)} label="kept" />
+          <Stat n={pageLoading ? '—' : String(struckCount)} label="struck" />
+          <Stat n={pageLoading ? '—' : String(loggedCount)} label="logged" />
+          <Stat n={hourLabel} label="lights down" />
+          <div className="flex items-center gap-2.5">
+            <span className="h-7 w-7" style={{ background: colour }} />
+            <span className="font-spec text-lg uppercase tracking-tight text-fg">{colour}</span>
+            <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">your colour</span>
+          </div>
+        </div>
+      </header>
 
       <div className="mt-2 space-y-6 px-5 pb-8">
-        <div className="flex items-stretch border border-line p-4">
-          {pageLoading ? (
-            <div className="flex-1 h-14 bg-base-3" data-testid="skeleton" />
-          ) : (
-            <>
-              <div className="flex-1 flex flex-col items-center">
-                <span className="text-fg text-2xl font-black">{stats?.watchedCount ?? 0}</span>
-                <span className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">watched</span>
-              </div>
-              <div className="w-px bg-line self-stretch" />
-              <div className="flex-1 flex flex-col items-center">
-                <span className="text-fg text-2xl font-black">{stats?.watchlistCount ?? 0}</span>
-                <span className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">watchlist</span>
-              </div>
-              <div className="w-px bg-line self-stretch" />
-              <div className="flex-1 flex flex-col items-center">
-                <span className="text-fg text-2xl font-black">
-                  {stats?.watchedCount ? `${stats.likedPercent}%` : '—'}
-                </span>
-                <span className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">loved</span>
-              </div>
-            </>
-          )}
-        </div>
 
         {!pageLoading && !hasData ? (
           <div className="border border-line p-8 flex flex-col items-center gap-3 text-center">
