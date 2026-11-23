@@ -87,6 +87,18 @@ describe('seed handoff', () => {
     expect(next.step).toBe('import');
   });
 
+  it('keeps posterPath on favorite and disliked films', () => {
+    const withPoster = { ...heat, posterPath: '/heat.jpg' };
+    const parsed = parseMarketingSeed(
+      encodeSeedParam(seed({ positive: [withPoster, mood, blade], negative: [withPoster] })),
+    );
+    expect(parsed?.positive[0].posterPath).toBe('/heat.jpg');
+    expect(seedFilmDoc(parsed!.positive[0])).toEqual({ id: 949, title: 'Heat', year: 1995, posterPath: '/heat.jpg' });
+    expect(seedFilmDoc(parsed!.negative[0]).posterPath).toBe('/heat.jpg');
+    expect(stateFromSeed(parsed!).positive[0].posterPath).toBe('/heat.jpg');
+    expect(stateFromSeed(parsed!).negative[0].posterPath).toBe('/heat.jpg');
+  });
+
   it('stops on the axis question when the seed left it blank', () => {
     expect(stateFromSeed(seed({ axes: [] })).step).toBe('neutral');
   });

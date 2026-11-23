@@ -9,7 +9,7 @@ import {
 
 export const MARKETING_SEED_KEY = 'selects.marketingSeed';
 
-export type SeedFilm = { id: number; title: string; year: number };
+export type SeedFilm = { id: number; title: string; year: number; posterPath?: string };
 
 export type MarketingAxis = 'writing' | 'room' | 'both';
 
@@ -77,8 +77,22 @@ function isSeedFilm(value: unknown): value is SeedFilm {
   );
 }
 
+function cleanPosterPath(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const path = value.trim();
+  if (!path || path.length > 300) return undefined;
+  if (path.startsWith('/') || path.startsWith('https://') || path.startsWith('http://')) return path;
+  return undefined;
+}
+
 function cleanFilm(film: SeedFilm): SeedFilm {
-  return { id: film.id, title: film.title.trim(), year: film.year };
+  const posterPath = cleanPosterPath(film.posterPath);
+  return {
+    id: film.id,
+    title: film.title.trim(),
+    year: film.year,
+    ...(posterPath ? { posterPath } : {}),
+  };
 }
 
 export function parseMarketingSeed(param: string | null | undefined): MarketingSeed | null {
@@ -153,12 +167,17 @@ export function filmsFromSeed(films: readonly SeedFilm[]): FilmPick[] {
     id: film.id,
     title: film.title,
     year: String(film.year),
-    posterPath: null,
+    posterPath: film.posterPath ?? null,
   }));
 }
 
-export function seedFilmDoc(film: SeedFilm): { id: number; title: string; year: number } {
-  return { id: film.id, title: film.title, year: film.year };
+export function seedFilmDoc(film: SeedFilm): { id: number; title: string; year: number; posterPath?: string } {
+  return {
+    id: film.id,
+    title: film.title,
+    year: film.year,
+    ...(film.posterPath ? { posterPath: film.posterPath } : {}),
+  };
 }
 
 export function stepForSeed(seed: MarketingSeed): Step {
