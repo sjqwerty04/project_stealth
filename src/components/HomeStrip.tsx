@@ -583,6 +583,8 @@ export default function HomeStrip({
           setStageOpen(false);
         }}
       >
+        <p className="font-spec text-[10px] uppercase tracking-[0.14em] text-fg-3">{format(selected, 'EEEE d MMM').toUpperCase()}</p>
+        <h2 className="mt-2 mb-4 font-display text-[40px] font-extrabold leading-[0.92] tracking-tight text-fg">{format(selected, 'EEEE')}’s reel.</h2>
         <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mb-3">your selects</p>
         {showSelectsSkeleton(status, slides.length) && (
           <div data-testid="selects-skeleton">
