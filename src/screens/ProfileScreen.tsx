@@ -65,42 +65,45 @@ export default function ProfileScreen() {
 
   return (
     <div className="min-h-screen bg-base text-fg max-w-md mx-auto relative overflow-x-hidden" data-testid="you-screen">
-      <div className="px-7 pt-8 pb-4">
-        <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">You</p>
-        {handle ? (
-          <p className="font-spec text-xs text-fg-2 mt-2">@{handle}</p>
-        ) : (
-          <p className="font-spec text-xs text-fg-3 mt-2">Set a handle</p>
-        )}
-        <h1 className="font-display text-2xl text-fg mt-1">{displayName}</h1>
-        {pageLoading ? (
-          <div className="h-4 w-48 bg-base-3 mt-2" data-testid="skeleton" />
-        ) : (
-          <p className="text-fg-2 text-sm mt-2" data-testid="insights-label">{voice.lead}</p>
-        )}
+      <div className="flex items-start justify-between gap-4 px-5 pb-4 pt-6">
+        <div className="min-w-0">
+          <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3">You</p>
+          {handle ? (
+            <p className="mt-2 font-spec text-xs text-fg-2">@{handle}</p>
+          ) : (
+            <p className="mt-2 font-spec text-xs text-fg-3">Set a handle</p>
+          )}
+          <h1 className="mt-1 font-display text-[34px] leading-none tracking-tight text-fg">{displayName}</h1>
+          {pageLoading ? (
+            <div className="mt-2 h-4 w-48 bg-base-3" data-testid="skeleton" />
+          ) : (
+            <p className="mt-2 text-sm text-fg-2" data-testid="insights-label">{voice.lead}</p>
+          )}
+        </div>
+        <span data-testid="you-swatch" className="mt-6 h-12 w-12 shrink-0" style={{ background: '#3A6E85' }} aria-hidden />
       </div>
 
-      <div className="px-7 mt-2 space-y-6 pb-8">
-        <div className="border border-line p-4 flex items-stretch">
+      <div className="mt-2 space-y-6 px-5 pb-8">
+        <div className="flex items-stretch border border-line p-4">
           {pageLoading ? (
             <div className="flex-1 h-14 bg-base-3" data-testid="skeleton" />
           ) : (
             <>
               <div className="flex-1 flex flex-col items-center">
                 <span className="text-fg text-2xl font-black">{stats?.watchedCount ?? 0}</span>
-                <span className="text-fg-3 text-xs mt-0.5">watched</span>
+                <span className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">watched</span>
               </div>
               <div className="w-px bg-line self-stretch" />
               <div className="flex-1 flex flex-col items-center">
                 <span className="text-fg text-2xl font-black">{stats?.watchlistCount ?? 0}</span>
-                <span className="text-fg-3 text-xs mt-0.5">watchlist</span>
+                <span className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">watchlist</span>
               </div>
               <div className="w-px bg-line self-stretch" />
               <div className="flex-1 flex flex-col items-center">
                 <span className="text-fg text-2xl font-black">
                   {stats?.watchedCount ? `${stats.likedPercent}%` : '—'}
                 </span>
-                <span className="text-fg-3 text-xs mt-0.5">loved</span>
+                <span className="mt-1 font-spec text-[10px] uppercase tracking-widest text-fg-3">loved</span>
               </div>
             </>
           )}
