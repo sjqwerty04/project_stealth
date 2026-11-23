@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import ClaimHandleBanner from './ClaimHandleBanner';
+import DesktopRail from './DesktopRail';
 import TabBar from './TabBar';
 
 const TAB_PREFIXES = [
@@ -25,7 +26,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const showTabs = TAB_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const locked = LOCKED_ROUTES.includes(pathname);
   return (
-    <div className={`app-shell flex flex-col${locked ? ' app-shell-locked' : ''}`}>
+    <div className={`app-shell mx-auto flex w-full max-w-[480px] flex-col${locked ? ' app-shell-locked' : ''}`}>
+      <DesktopRail />
       <ClaimHandleBanner />
       <main
         className={`${locked ? 'flex flex-1 min-h-0 flex-col ' : ''}${showTabs ? 'screen-pad' : ''}`.trim()}
