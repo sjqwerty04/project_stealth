@@ -49,14 +49,16 @@ export default function TasteMarks({
   if (!titles.length) return null;
   const rows = filmsForMarks(titles, films);
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2 overflow-x-auto">
       {rows.map((film) => {
         const body = (
           <>
             {film.poster ? (
-              <img src={film.poster} alt="" className="h-8 w-6 object-cover" />
-            ) : null}
-            <span className="font-spec text-[10px] uppercase tracking-widest">{film.title}</span>
+              <img src={film.poster} alt="" className="h-28 w-[72px] object-cover" />
+            ) : (
+              <span className="grid h-28 w-[72px] place-items-center bg-base-3 font-spec text-[10px] uppercase text-fg-3">Film</span>
+            )}
+            <span className="max-w-[72px] font-spec text-[10px] uppercase leading-tight tracking-widest">{film.title}</span>
           </>
         );
         if (film.movieId) {
@@ -65,14 +67,14 @@ export default function TasteMarks({
               key={film.title}
               type="button"
               onClick={() => onOpen(film.movieId as number, film.mediaType)}
-              className="inline-flex items-center gap-1.5 min-h-11 border border-line px-2 text-fg"
+              className="inline-flex min-h-11 shrink-0 flex-col items-start gap-1.5 text-left text-fg"
             >
               {body}
             </button>
           );
         }
         return (
-          <span key={film.title} className="inline-flex items-center gap-1.5 min-h-11 border border-line px-2 text-fg">
+          <span key={film.title} className="inline-flex min-h-11 shrink-0 flex-col items-start gap-1.5 text-fg">
             {body}
           </span>
         );
