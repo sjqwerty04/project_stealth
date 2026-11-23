@@ -50,7 +50,7 @@ function RailBody() {
       <NavLink to="/me" className="rail-you">
         <span className="rail-swatch" aria-hidden>{initial}</span>
         <span>
-          <b className="block text-sm font-semibold text-fg">{name}</b>
+          <b className="block max-w-[128px] truncate text-sm font-semibold text-fg">{name}</b>
           <span className="font-spec text-[10px] uppercase tracking-widest text-fg-3">You</span>
         </span>
       </NavLink>
