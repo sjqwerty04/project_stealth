@@ -308,7 +308,7 @@ export default function MovieDetailScreen() {
   return (
     <div className="min-h-screen bg-base text-fg">
 
-      <div className="relative flex h-[62vh] min-h-[420px] items-end overflow-hidden">
+      <div className="relative flex h-[48vh] min-h-[340px] items-end overflow-hidden">
         {details.heroVideo ? (
           <div className="hero-video-wrap absolute inset-0" style={{ background: '#000' }}>
             <YouTubeCover
@@ -415,27 +415,9 @@ export default function MovieDetailScreen() {
       </div>
 
       {/* ── CONTENT ── */}
-      <div className="space-y-4 px-5 pb-8">
+      <div className="space-y-4 px-5 pb-44">
 
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
-
-        {/* Action Buttons */}
-        <MovieActions
-          movie={{
-            movieId: details.id,
-            title: details.title,
-            year: details.year,
-            poster: buildImageUrl(details.posterPath) || '',
-            backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
-            runtime: details.runtime,
-          }}
-          onAddToCalendar={handleAddToCalendar}
-          onVerdict={handleVerdict}
-          isInWatchlist={isInWatchlist(details.id) || libraryFilm?.onWatchlist === true}
-          film={libraryFilm}
-          isAddingToCalendar={isAddingToCalendar}
-          isSavingVerdict={isMarkingSeen}
-        />
 
         {/* Orbit + Ask — side by side */}
         {mediaType === 'movie' && (
@@ -468,6 +450,8 @@ export default function MovieDetailScreen() {
             <span>Ask AI about {details.title}</span>
           </button>
         )}
+
+        <div className="h-72" aria-hidden />
 
         <WhereToWatch providers={details.watchProviders} />
 
@@ -686,8 +670,31 @@ export default function MovieDetailScreen() {
         </div>
       )}
 
-      {/* Floating starter-question chips */}
-      <StarterPrompts questions={insights.suggestedQuestions} onAsk={handleAsk} visible={showChips} />
+      <div
+        className="film-dock fixed inset-x-0 z-40 mx-auto w-full max-w-[480px] border-t border-line bg-base"
+        style={{ bottom: 'calc(68px + env(safe-area-inset-bottom))' }}
+        data-testid="film-dock"
+      >
+        <StarterPrompts questions={insights.suggestedQuestions} onAsk={handleAsk} visible={showChips} embedded />
+        <div className="px-3 pb-2">
+          <MovieActions
+            movie={{
+              movieId: details.id,
+              title: details.title,
+              year: details.year,
+              poster: buildImageUrl(details.posterPath) || '',
+              backdrop: buildImageUrl(details.backdropPath, 'w780') || undefined,
+              runtime: details.runtime,
+            }}
+            onAddToCalendar={handleAddToCalendar}
+            onVerdict={handleVerdict}
+            isInWatchlist={isInWatchlist(details.id) || libraryFilm?.onWatchlist === true}
+            film={libraryFilm}
+            isAddingToCalendar={isAddingToCalendar}
+            isSavingVerdict={isMarkingSeen}
+          />
+        </div>
+      </div>
 
       {/* Movie-scoped chat sheet */}
       <MovieChatSheet

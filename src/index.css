@@ -353,3 +353,10 @@ h1, h2, h3 {
 [data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(4) { animation-delay: 0.5s; }
 [data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(5) { animation-delay: 0.666667s; }
 
+.film-dock [data-testid="action-log"] span,
+.film-dock [data-testid="action-watchlist"] span,
+.film-dock [data-testid="action-like"] span {
+  white-space: nowrap;
+  font-size: 13px;
+}
+
