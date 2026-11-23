@@ -37,10 +37,9 @@ export default function TabBar() {
     <nav
       data-testid="tab-bar"
       aria-label="Primary"
-      className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[480px] border-t border-line bg-base/90 font-spec backdrop-blur-md"
-      style={{ height: 'calc(68px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="phone-tabbar"
     >
-      <div className="grid h-[68px] grid-cols-4">
+      <div className="phone-tabbar-row">
         {tabs.map((tab) => {
           const active = tabActive(tab.id, pathname);
           return (
@@ -50,15 +49,11 @@ export default function TabBar() {
               data-testid={`tab-${tab.id}`}
               aria-label={tab.label}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex items-center justify-center min-h-11 font-spec text-[10px] uppercase tracking-widest ${
-                active ? 'text-fg' : 'text-fg-3'
-              }`}
+              className={`phone-tab${active ? ' on' : ''}`}
             >
-              {active && <span className="tab-lamp" aria-hidden />}
-              <span className="flex flex-col items-center gap-1">
-                <TabIcon name={tab.id === 'orbit' ? 'hunt' : tab.id} on={active} size={22} />
-                {tab.label}
-              </span>
+              <TabIcon name={tab.id === 'orbit' ? 'hunt' : tab.id} on={active} size={24} />
+              <span>{tab.label}</span>
+              {active && <i className="phone-tab-lit" aria-hidden />}
             </NavLink>
           );
         })}

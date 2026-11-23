@@ -115,25 +115,90 @@ h1, h2, h3 {
   padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
 }
 
-.tab-lamp {
+.phone-tabbar {
+  position: fixed;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: min(100%, 480px);
+  margin-inline: auto;
+  box-sizing: border-box;
+  display: block;
+  height: calc(68px + env(safe-area-inset-bottom));
+  padding: 6px 8px env(safe-area-inset-bottom);
+  background: rgba(10, 10, 11, 0.86);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-top: 1px solid var(--line);
+}
+
+.phone-tabbar-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: 100%;
+}
+
+.phone-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 0 4px;
+  font-family: var(--font-spec);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  text-decoration: none;
+}
+
+.phone-tab.on {
+  color: var(--fg);
+}
+
+.phone-tab > svg,
+.phone-tab > span {
+  position: relative;
+  z-index: 1;
+}
+
+.phone-tab-lit {
   position: absolute;
-  top: 0;
-  left: 22%;
-  right: 22%;
+  z-index: 0;
+  top: -7px;
+  left: 30%;
+  right: 30%;
   height: 2px;
   background: var(--select);
-  box-shadow: 0 0 10px rgba(255, 59, 20, 0.45);
   pointer-events: none;
 }
 
-.tab-lamp::after {
+.phone-tab-lit::after {
   content: '';
   position: absolute;
-  left: -40%;
-  right: -40%;
+  left: -75%;
+  right: -75%;
   top: 2px;
-  height: 36px;
-  background: linear-gradient(180deg, rgba(255, 59, 20, 0.07), transparent);
+  height: 62px;
+  pointer-events: none;
+  clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+  background: linear-gradient(180deg, rgba(255, 59, 20, 0.16), rgba(255, 59, 20, 0.05) 45%, rgba(255, 59, 20, 0));
+  animation: phone-tab-lamp 3.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes phone-tab-lamp {
+  0%, 100% { filter: brightness(1); }
+  46% { filter: brightness(0.86); }
+  52% { filter: brightness(1.04); }
+  58% { filter: brightness(0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-tab-lit::after { animation: none; }
 }
 
 .desktop-rail {
