@@ -248,6 +248,11 @@ export default function WatchedScreen() {
             {counts.all} films · {watchedEvents.length} nights
           </p>
         }
+        strip={watchedFilms.map((film) => film.poster).filter(Boolean)}
+        wallet={watchedFilms
+          .filter((film) => film.verdict === 'liked' && film.poster)
+          .slice(0, 5)
+          .map((film) => ({ id: film.movieId, title: film.title, poster: film.poster }))}
       />
       <div id="timeline" className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-base px-4 py-2">
         <button onClick={() => navigate('/app')} className="min-h-11 min-w-11 p-2 text-fg-2" aria-label="Go back">
