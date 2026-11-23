@@ -27,7 +27,6 @@ export function CraftWheel({ graph, onOpen }: { graph: CraftGraph; onOpen: (id: 
         {sectors.map((sector, index) => {
           const start = -Math.PI / 2 + (index / sectors.length) * Math.PI * 2;
           const end = start + (Math.PI * 2) / sectors.length;
-          const ring = place((start + end) / 2, 86);
           const next = place(end - 0.08, 86);
           const from = place(start + 0.08, 86);
           return (
