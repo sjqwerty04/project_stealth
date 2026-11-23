@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { forgetSeed } from '../lib/onboarding/seed';
 import { Mark, Button, Input } from '../components/ui';
 
 type Step = 'email' | 'choose' | 'signin' | 'signup';
@@ -12,6 +13,7 @@ export default function LoginScreen() {
   const nextPath = searchParams.get('next');
   const isSafeNext = !!nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//');
   const goAfterAuth = (isNew = false) => {
+    if (!isNew) forgetSeed();
     if (isNew) {
       const dest = isSafeNext ? nextPath! : '/app';
       navigate(`/onboarding?next=${encodeURIComponent(dest)}`, { replace: true });

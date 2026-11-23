@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { rememberSeedParam } from '../lib/onboarding/seed';
 import { Skeleton } from '../components/ui';
 
 export default function JoinScreen() {
@@ -10,6 +11,7 @@ export default function JoinScreen() {
   useEffect(() => {
     if (loading) return;
     sessionStorage.setItem('appInvite', '1');
+    rememberSeedParam(new URLSearchParams(window.location.search).get('seed'));
     if (user) {
       navigate('/app', { replace: true });
     } else {
