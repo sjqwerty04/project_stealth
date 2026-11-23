@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { recordTasteEvent } from '../../lib/taste';
 import { oklabCentroid, samplePosterColours } from '../../lib/onboarding/colour';
 import { computeTasteStats, loadStatsInput, posterUrlsFor } from '../../lib/onboarding/stats';
 import { parseSelectsProfile, templateProfile, type SelectsProfile, type TasteStats } from '../../lib/onboarding/profile';
@@ -82,6 +83,7 @@ export function useReading(state: OnboardingState, dispatch: (a: OnboardingActio
           { stats: storable, profile, source, createdAt: serverTimestamp(), version: 1 },
           { merge: true },
         );
+        await recordTasteEvent(uid, { type: 'identity', personaLine: profile.read });
       } catch (e) {
         console.error('Failed to persist selects profile:', e);
       }

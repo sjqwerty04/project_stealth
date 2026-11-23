@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Film, Star } from 'lucide-react';
 import SelectsChaseLoader from '../components/ui/SelectsChaseLoader';
@@ -23,7 +23,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function ProfileScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useUserProfile();
+  const { profile, updateProfile } = useUserProfile();
   const insights = useUserInsights();
   const { snapshot, loading: tasteLoading } = useTaste();
   const profileFilms = useProfileFilms();
@@ -44,6 +44,26 @@ export default function ProfileScreen() {
   const displayName =
     profile?.displayName ?? user?.displayName ?? user?.email?.split('@')[0] ?? 'You';
   const handle = profile?.handle ?? null;
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const shownName = nameDraft ?? displayName;
+
+  useEffect(() => {
+    setNameDraft((draft) => (draft != null && draft.trim() === displayName ? null : draft));
+  }, [displayName]);
+
+  const commitName = async () => {
+    const next = shownName.trim();
+    if (!next || next === displayName) {
+      setNameDraft(null);
+      return;
+    }
+    try {
+      await updateProfile({ displayName: next });
+      setNameDraft(null);
+    } catch (err) {
+      console.error('Failed to save display name:', err);
+    }
+  };
 
   const handleLetterboxdImport = async () => {
     const trimmed = lbUsername.trim();
@@ -72,7 +92,19 @@ export default function ProfileScreen() {
         ) : (
           <p className="font-spec text-xs text-fg-3 mt-2">Set a handle</p>
         )}
-        <h1 className="font-display text-2xl text-fg mt-1">{displayName}</h1>
+        <input
+          aria-label="Display name"
+          data-testid="display-name"
+          value={shownName}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={() => {
+            void commitName();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          className="font-display text-2xl text-fg mt-1 w-full bg-transparent border-0 outline-none break-words"
+        />
         {pageLoading ? (
           <div className="h-4 w-48 bg-base-3 mt-2" data-testid="skeleton" />
         ) : (
