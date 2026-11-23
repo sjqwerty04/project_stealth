@@ -23,6 +23,8 @@ import { useAuth } from '../hooks/useAuth';
 import VerdictPicker, { VerdictBadge } from '../components/VerdictPicker';
 import { setVerdict as setLedgerVerdict, useLibraryFilm, type Verdict } from '../lib/library';
 import { localDayKey } from '../lib/stripDays';
+import { CraftGraphView } from '../components/CraftWheel';
+import { useProfileFilms } from '../hooks/useProfileFilms';
 
 const buildImageUrl = (path: string | null, size: 'w200' | 'w500' | 'w780' | 'original' = 'w500') => {
   if (!path) return null;
@@ -38,6 +40,7 @@ export default function MovieDetailScreen() {
   const fromOrbit = searchParams.get('from') === 'orbit';
   
   const { user } = useAuth();
+  const profileFilms = useProfileFilms();
   const { details, isLoading, error, fetchDetails } = useMovieDetails();
   const { isInWatchlist, removeFromWatchlist, getWatchlistItem } = useWatchlist();
   const { addEvent } = useCalendarLogs();
@@ -431,6 +434,19 @@ export default function MovieDetailScreen() {
 
       {/* ── CONTENT ── */}
       <div className="space-y-4 px-5 pb-44">
+
+        <CraftGraphView
+          heading="The DNA"
+          label={details.title}
+          colour="#FF3B14"
+          keptIds={profileFilms.filter((film) => film.kept && film.movieId).map((film) => film.movieId as number)}
+          seeds={[{
+            id: details.id,
+            title: details.title,
+            poster: buildImageUrl(details.posterPath, 'w200'),
+            mediaType,
+          }]}
+        />
 
         {details.techSpecs && <TechBadges techSpecs={details.techSpecs} />}
 

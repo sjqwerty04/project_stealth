@@ -8,6 +8,7 @@ import FilmLogo from './FilmLogo';
 import { eventsWithWatchDates } from '../lib/filmNights';
 import { eventDayKey, localDayKey, stripFill } from '../lib/stripDays';
 import HomeTickets from './HomeTickets';
+import { CraftGraphView } from './CraftWheel';
 import type { FilmArt, SelectFilm } from './SelectsCarousel';
 import { carouselArtIdsStillNeeded, relatedFromWhy, relatedPosterPool } from './selectsCarouselLogic';
 import { dayBillStep, dayStageKey, isSelectsDismissTarget, nightOrder, parseAppDateParam, showSelectsSkeleton } from './homeStripLogic';
@@ -659,6 +660,21 @@ export default function HomeStrip({
             }}
           />
         )}
+        <CraftGraphView
+          heading="The DNA"
+          label={format(selected, 'EEEE')}
+          colour="#FF3B14"
+          keptIds={profilePicks.filter((film) => film.kept && film.movieId).map((film) => film.movieId as number)}
+          seeds={[
+            ...slides.map((film) => ({ id: film.id, title: film.title, poster: film.poster, mediaType: film.mediaType })),
+            ...profilePicks.filter((film) => film.kept && film.movieId).map((film) => ({
+              id: film.movieId as number,
+              title: film.title,
+              poster: film.poster ?? null,
+              mediaType: film.mediaType,
+            })),
+          ]}
+        />
         <button
           type="button"
           data-testid="open-day-reel"

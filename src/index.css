@@ -380,6 +380,16 @@ h1, h2, h3 {
   text-shadow: 0 0 70px color-mix(in oklab, var(--you, #3a6e85) 45%, transparent);
   overflow-wrap: anywhere;
 }
+.craft-stage {
+  height: 340px;
+  margin-top: 12px;
+  overflow: hidden;
+  background:
+    radial-gradient(50% 55% at 50% 48%, color-mix(in oklab, var(--you, #3a6e85) 16%, transparent), transparent 72%),
+    #08080a;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
 .assembly-stage {
   height: 196px;
   box-shadow: inset 0 0 0 1px var(--line);
