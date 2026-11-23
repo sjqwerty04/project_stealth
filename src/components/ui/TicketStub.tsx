@@ -58,10 +58,10 @@ export default function TicketStub({
           </div>
         </>
       ) : (
-        <div className="px-3 py-3">
-          <p className="font-display text-fg text-base leading-tight">{title}</p>
+        <div className="flex min-h-11 items-baseline justify-between gap-3 border-b border-line px-1 py-3">
+          <p className="font-display text-base leading-tight text-fg">{title}</p>
           {meta && (
-            <p className="font-spec text-[10px] uppercase tracking-widest text-fg-3 mt-1">{meta}</p>
+            <p className="shrink-0 font-spec text-[10px] uppercase tracking-widest text-fg-3">{meta}</p>
           )}
         </div>
       )}
