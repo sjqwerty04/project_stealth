@@ -246,6 +246,39 @@ h1, h2, h3 {
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
+.phone-pin-left,
+.phone-pin-right {
+  top: calc(env(safe-area-inset-top) + 12px);
+}
+
+.phone-pin-left {
+  left: max(16px, calc(50vw - 240px + 16px));
+}
+
+.phone-pin-right {
+  right: max(16px, calc(50vw - 240px + 16px));
+}
+
+.select-scan {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -20%;
+  width: 18%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(239, 237, 233, 0.16), transparent);
+  animation: select-scan 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes select-scan {
+  from { left: -20%; }
+  to { left: 110%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-scan { animation: none; }
+}
+
 .rail-swatch {
   width: 34px;
   height: 34px;
@@ -319,4 +352,11 @@ h1, h2, h3 {
 [data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(3) { animation-delay: 0.333333s; }
 [data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(4) { animation-delay: 0.5s; }
 [data-testid="mark-lockup"]:is(:hover, :focus-visible) [data-testid="mark"] rect:nth-child(5) { animation-delay: 0.666667s; }
+
+.film-dock [data-testid="action-log"] span,
+.film-dock [data-testid="action-watchlist"] span,
+.film-dock [data-testid="action-like"] span {
+  white-space: nowrap;
+  font-size: 13px;
+}
 
