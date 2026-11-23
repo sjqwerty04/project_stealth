@@ -89,8 +89,8 @@ export function SelectCard({
     <div
       data-testid="ticket-slot"
       data-title={film.title}
-      className="relative w-full overflow-hidden bg-base text-left min-h-11"
-      style={{ borderRadius: 0, border: 'none' }}
+      className="relative min-h-11 w-full overflow-hidden border border-line bg-base-2 text-left"
+      style={{ borderRadius: 0 }}
     >
       <div className="relative h-[220px]">
         <button
@@ -154,6 +154,11 @@ export function SelectCard({
             Not Interested
           </button>
         ) : null}
+      </div>
+      <div className="flex gap-[5px] overflow-hidden border-y border-dashed border-line px-2 py-1.5" aria-hidden>
+        {Array.from({ length: 28 }, (_, index) => (
+          <span key={index} className="h-1.5 w-2 shrink-0 bg-base" />
+        ))}
       </div>
       {logOpen ? (
         <div
@@ -239,15 +244,20 @@ export function SelectCard({
         </div>
       ) : null}
       {why ? (
-        <div className="block pt-3 pb-1">
+        <div className="block px-3 pb-3 pt-3">
           <span
             className="font-spec text-[10px] uppercase tracking-widest text-fg-3"
             data-testid="why-watch-label"
           >
             Why should I watch this?
           </span>
+          {film.year ? (
+            <span className="mt-1 block font-spec text-[10px] uppercase tracking-widest text-fg-4">
+              {film.title} · {film.year}
+            </span>
+          ) : null}
           <span
-            className="mt-2 block font-display text-sm text-fg-2 leading-relaxed break-words"
+            className="mt-2 block break-words font-display text-sm leading-relaxed text-fg-2"
             data-testid="why-match-line"
           >
             {why}

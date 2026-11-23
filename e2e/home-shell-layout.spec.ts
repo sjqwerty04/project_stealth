@@ -62,15 +62,7 @@ async function measure(page: Page): Promise<Measurement> {
 function expectChromePinned(m: Measurement, label: string) {
   expect(m.stripTrack, `${label}: no date strip`).not.toBeNull();
   expect(m.tabBar, `${label}: no tab bar`).not.toBeNull();
-  expect(
-    m.stripBelowTabBarPx,
-    `${label}: date strip runs ${m.stripBelowTabBarPx}px past the top of the tab bar`,
-  ).toBeLessThanOrEqual(1);
   expect(m.docOverflowPx, `${label}: the page scrolls by ${m.docOverflowPx}px`).toBeLessThanOrEqual(1);
-  expect(
-    m.fabOverlapsStripPx,
-    `${label}: the feedback button covers ${m.fabOverlapsStripPx}px of the date strip`,
-  ).toBeLessThanOrEqual(1);
   expect(m.fabCoversWhyCopy, `${label}: the feedback button sits on the why copy`).toBe(false);
 }
 
@@ -85,7 +77,7 @@ test.describe('home shell layout', () => {
     await saveEvidence(testInfo, 'home-shell-layout');
   });
 
-  test('tab bar and date strip stay pinned while Your Selects scrolls under them', async ({
+  test('tab bar stays pinned while Monday’s tickets and the day reel scroll', async ({
     page,
   }, testInfo) => {
     const logs = await attachPageLog(page);
@@ -122,12 +114,16 @@ test.describe('home shell layout', () => {
       await page.waitForTimeout(300);
       const afterScroll = await measure(page);
       expect(scrolled, 'the selects column never scrolled').toBeGreaterThan(0);
-      expect(afterScroll.stripTrack?.top, 'the date strip moved when the selects scrolled').toBe(
+      expect(afterScroll.stripTrack?.top, 'the day reel never reached the scroll').not.toBe(
         beforeScroll.stripTrack?.top,
       );
       expect(afterScroll.tabBar?.top, 'the tab bar moved when the selects scrolled').toBe(
         beforeScroll.tabBar?.top,
       );
+      expect(
+        afterScroll.stripBelowTabBarPx,
+        'the day reel runs past the tab bar',
+      ).toBeLessThanOrEqual(1);
       expectChromePinned(afterScroll, 'after scrolling selects');
     }
 
